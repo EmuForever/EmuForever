@@ -1,0 +1,12 @@
+= CypherCore -- Thanks/credits file =
+
+Special Thanks To:
+
+- Arctium (https://arctium.org/)
+For the base code, and tons of help and ideas.
+
+- TrinityCore (http://www.trinitycore.org)
+For code and DB and updates.
+
+- Wow-Tools (https://github.com/WoW-Tools)
+For CASC Ideas and ClientDB loading code.

@@ -1,0 +1,423 @@
+﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
+
+using Framework.Constants;
+using Game.Achievements;
+using Game.DataStorage;
+using Game.Entities;
+using Game.Maps;
+using Game.Networking;
+using Game.Networking.Packets;
+using System;
+using System.Collections.Generic;
+
+namespace Game.Scenarios
+{
+    public class Scenario : CriteriaHandler
+    {
+        public Scenario(Map map, ScenarioData scenarioData)
+        {
+            _map = map;
+            _data = scenarioData;
+            _guid = ObjectGuid.Create(HighGuid.Scenario, map.GetId(), scenarioData.Entry.Id, 
+                map.GenerateLowGuid(HighGuid.Scenario));
+
+            _currentstep = null;
+
+            //ASSERT(_data);
+
+            foreach (var scenarioStep in _data.Steps.Values)
+                SetStepState(scenarioStep, ScenarioStepState.NotStarted);
+
+            ScenarioStepRecord firstStep = GetFirstStep();
+            if (firstStep != null)
+                SetStep(firstStep);
+            else
+            {
+                Log.outError(LogFilter.Scenario,
+                    $"Scenario.Scenario: " +
+                    $"Could not launch Scenario (id: {_data.Entry.Id}), " +
+                    $"found no valid scenario step");
+            }
+        }
+
+        ~Scenario()
+        {
+            foreach (ObjectGuid guid in _players)
+            {
+                Player player = Global.ObjAccessor.GetPlayer(_map, guid);
+                if (player != null)
+                    SendBootPlayer(player);
+            }
+
+            _players.Clear();
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            SetStep(GetFirstStep());
+        }
+
+        public virtual void CompleteStep(ScenarioStepRecord step)
+        {
+            Quest quest = Global.ObjectMgr.GetQuestTemplate(step.RewardQuestID);
+            if (quest != null)
+            {
+                foreach (ObjectGuid guid in _players)
+                {
+                    Player player = Global.ObjAccessor.GetPlayer(_map, guid);
+                    if (player != null)
+                        player.RewardQuest(quest, LootItemType.Item, 0, null, false);
+                }
+            }
+
+            if (step.IsBonusObjective)
+                return;
+
+            ScenarioStepRecord newStep = null;
+            foreach (var scenarioStep in _data.Steps.Values)
+            {
+                if (scenarioStep.IsBonusObjective)
+                    continue;
+
+                if (GetStepState(scenarioStep) == ScenarioStepState.Done)
+                    continue;
+
+                if (newStep == null || scenarioStep.OrderIndex < newStep.OrderIndex)
+                    newStep = scenarioStep;
+            }
+
+            SetStep(newStep);
+            if (IsComplete())
+                CompleteScenario();
+            else
+            {
+                Log.outError(LogFilter.Scenario,
+                    $"Scenario.CompleteStep: " +
+                    $"Scenario (id: {step.ScenarioID}, step: {step.Id}) was completed, " +
+                    $"but could not determine new step, or validate scenario completion.");
+            }
+        }
+
+        public virtual void CompleteScenario()
+        {
+            SendPacket(new ScenarioCompleted(_data.Entry.Id));
+        }
+
+        void SetStep(ScenarioStepRecord step)
+        {
+            _currentstep = step;
+            if (step != null)
+            {
+                SetStepState(step, ScenarioStepState.InProgress);
+                foreach (ObjectGuid guid in _players)
+                {
+                    Player player = Global.ObjAccessor.GetPlayer(_map, guid);
+                    if (player != null)
+                        player.StartCriteria(CriteriaStartEvent.BeginScenarioStep, step.Id);
+                }
+            }
+
+            DoForAllPlayers(receiver =>
+            {
+                ScenarioState scenarioState = new();
+                BuildScenarioStateFor(receiver, scenarioState);
+                receiver.SendPacket(scenarioState);
+            });
+        }
+
+        public virtual void OnPlayerEnter(Player player)
+        {
+            _players.Add(player.GetGUID());
+            SendScenarioState(player);
+        }
+
+        public virtual void OnPlayerExit(Player player)
+        {
+            _players.Remove(player.GetGUID());
+            SendBootPlayer(player);
+        }
+
+        bool IsComplete()
+        {
+            foreach (var scenarioStep in _data.Steps.Values)
+            {
+                if (scenarioStep.IsBonusObjective)
+                    continue;
+
+                if (GetStepState(scenarioStep) != ScenarioStepState.Done)
+                    return false;
+            }
+
+            return true;
+        }
+
+        public ScenarioRecord GetEntry()
+        {
+            return _data.Entry;
+        }
+
+        ScenarioStepState GetStepState(ScenarioStepRecord step)
+        {
+            if (!_stepStates.ContainsKey(step))
+                return ScenarioStepState.Invalid;
+
+            return _stepStates[step];
+        }
+
+        public override void SendCriteriaUpdate(Criteria criteria, CriteriaProgress progress, TimeSpan timeElapsed, bool timedCompleted)
+        {
+            DoForAllPlayers(receiver =>
+            {
+                ScenarioProgressUpdate progressUpdate = new();
+                progressUpdate.CriteriaProgress.Id = criteria.Id;
+                progressUpdate.CriteriaProgress.Quantity = progress.Counter;
+                progressUpdate.CriteriaProgress.Player = progress.PlayerGUID;
+                progressUpdate.CriteriaProgress.Date = (RealmTime)progress.Date;
+                //progressUpdate.CriteriaProgress.Date += receiver.GetSession().GetTimezoneOffset();
+                if (criteria.Entry.StartTimer != TimeSpan.Zero)
+                    progressUpdate.CriteriaProgress.Flags = timedCompleted ? 1u : 0u;
+
+                progressUpdate.CriteriaProgress.TimeFromStart = (uint)timeElapsed.TotalSeconds;
+                progressUpdate.CriteriaProgress.TimeFromCreate = 0;
+
+                receiver.SendPacket(progressUpdate);
+            });
+        }
+
+        public override bool CanUpdateCriteriaTree(Criteria criteria, CriteriaTree tree, Player referencePlayer)
+        {
+            ScenarioStepRecord step = tree.ScenarioStep;
+            if (step == null)
+                return false;
+
+            if (step.ScenarioID != _data.Entry.Id)
+                return false;
+
+            ScenarioStepRecord currentStep = GetStep();
+            if (currentStep == null)
+                return false;
+
+            if (step.IsBonusObjective)
+                return true;
+
+            return currentStep == step;
+        }
+
+        public override bool CanCompleteCriteriaTree(CriteriaTree tree)
+        {
+            ScenarioStepRecord step = tree.ScenarioStep;
+            if (step == null)
+                return false;
+
+            ScenarioStepState state = GetStepState(step);
+            if (state == ScenarioStepState.Done)
+                return false;
+
+            ScenarioStepRecord currentStep = GetStep();
+            if (currentStep == null)
+                return false;
+
+            if (step.IsBonusObjective)
+            {
+                if (step != currentStep)
+                    return false;
+            }
+
+            return base.CanCompleteCriteriaTree(tree);
+        }
+
+        public override void CompletedCriteriaTree(CriteriaTree tree, Player referencePlayer)
+        {
+            ScenarioStepRecord step = tree.ScenarioStep;
+            if (!IsCompletedStep(step))
+                return;
+
+            SetStepState(step, ScenarioStepState.Done);
+            CompleteStep(step);
+        }
+
+        bool IsCompletedStep(ScenarioStepRecord step)
+        {
+            CriteriaTree tree = Global.CriteriaMgr.GetCriteriaTree(step.CriteriaTreeId);
+            if (tree == null)
+                return false;
+
+            return IsCompletedCriteriaTree(tree);
+        }
+
+        public void DoForAllPlayers(Action<Player> worker)
+        {
+            foreach (ObjectGuid guid in _players)
+            {
+                Player player = Global.ObjAccessor.GetPlayer(_map, guid);
+                if (player != null)
+                    worker(player);
+            }
+        }
+
+        public override void SendPacket(ServerPacket data)
+        {
+            DoForAllPlayers(player => player.SendPacket(data));
+        }
+
+        void BuildScenarioStateFor(Player player, ScenarioState scenarioState)
+        {
+            scenarioState.ScenarioGUID = _guid;
+            scenarioState.ScenarioID = _data.Entry.Id;
+            ScenarioStepRecord step = GetStep();
+            if (step != null)
+                scenarioState.CurrentStep = step.Id;
+            scenarioState.CriteriaProgress = GetCriteriasProgressFor(player);
+            scenarioState.BonusObjectives = GetBonusObjectivesData();
+            // Don't know exactly what this is for, but seems to contain list
+            // of scenario steps that we're either on or that are completed
+            foreach (var state in _stepStates)
+            {
+                if (state.Key.IsBonusObjective)
+                    continue;
+
+                switch (state.Value)
+                {
+                    case ScenarioStepState.InProgress:
+                    case ScenarioStepState.Done:
+                        break;
+                    case ScenarioStepState.NotStarted:
+                    default:
+                        continue;
+                }
+
+                scenarioState.PickedSteps.Add(state.Key.Id);
+            }
+            scenarioState.ScenarioComplete = IsComplete();
+        }
+
+        ScenarioStepRecord GetFirstStep()
+        {
+            // Do it like this because we don't know what order they're in inside the container.
+            ScenarioStepRecord firstStep = null;
+            foreach (var scenarioStep in _data.Steps.Values)
+            {
+                if (scenarioStep.IsBonusObjective)
+                    continue;
+
+                if (firstStep == null || scenarioStep.OrderIndex < firstStep.OrderIndex)
+                    firstStep = scenarioStep;
+            }
+
+            return firstStep;
+        }
+
+        public ScenarioStepRecord GetLastStep()
+        {
+            // Do it like this because we don't know what order they're in inside the container.
+            ScenarioStepRecord lastStep = null;
+            foreach (var scenarioStep in _data.Steps.Values)
+            {
+                if (scenarioStep.IsBonusObjective)
+                    continue;
+
+                if (lastStep == null || scenarioStep.OrderIndex > lastStep.OrderIndex)
+                    lastStep = scenarioStep;
+            }
+
+            return lastStep;
+        }
+
+        public void SendScenarioState(Player player)
+        {
+            ScenarioState scenarioState = new();
+            BuildScenarioStateFor(player, scenarioState);
+            player.SendPacket(scenarioState);
+        }
+
+        List<BonusObjectiveData> GetBonusObjectivesData()
+        {
+            List<BonusObjectiveData> bonusObjectivesData = new();
+            foreach (var scenarioStep in _data.Steps.Values)
+            {
+                if (!scenarioStep.IsBonusObjective)
+                    continue;
+
+                if (Global.CriteriaMgr.GetCriteriaTree(scenarioStep.CriteriaTreeId) != null)
+                {
+                    BonusObjectiveData bonusObjectiveData;
+                    bonusObjectiveData.BonusObjectiveID = scenarioStep.Id;
+                    bonusObjectiveData.ObjectiveComplete = GetStepState(scenarioStep) == ScenarioStepState.Done;
+                    bonusObjectivesData.Add(bonusObjectiveData);
+                }
+            }
+
+            return bonusObjectivesData;
+        }
+
+        List<CriteriaProgressPkt> GetCriteriasProgressFor(Player player)
+        {
+            List<CriteriaProgressPkt> criteriasProgress = new();
+
+            foreach (var (criteriaId, progress) in _criteriaProgress)
+            {
+                CriteriaProgressPkt criteriaProgress = new();
+                criteriaProgress.Id = criteriaId;
+                criteriaProgress.Quantity = progress.Counter;
+                criteriaProgress.Date = (RealmTime)progress.Date;
+                //criteriaProgress.Date += player.GetSession().GetTimezoneOffset();
+                criteriaProgress.Player = progress.PlayerGUID;
+                criteriasProgress.Add(criteriaProgress);
+            }
+
+            return criteriasProgress;
+        }
+
+        public override IReadOnlyList<Criteria> GetCriteriaByType(CriteriaType type, int asset)
+        {
+            return Global.CriteriaMgr.GetScenarioCriteriaByTypeAndScenario(type, _data.Entry.Id);
+        }
+
+        void SendBootPlayer(Player player)
+        {
+            ScenarioVacate scenarioBoot = new();
+            scenarioBoot.ScenarioGUID = _guid;
+            scenarioBoot.ScenarioID = _data.Entry.Id;
+            player.SendPacket(scenarioBoot);
+        }
+
+        public virtual void Update(TimeSpan diff) { }
+
+        public void SetStepState(ScenarioStepRecord step, ScenarioStepState state) { _stepStates[step] = state; }
+        
+        public ScenarioStepRecord GetStep()
+        {
+            return _currentstep;
+        }
+
+        public override void SendCriteriaProgressRemoved(int criteriaId) { }
+        public override void AfterCriteriaTreeUpdate(CriteriaTree tree, Player referencePlayer) { }
+        public override void SendAllData(Player receiver) { }
+
+        protected Map _map;
+        List<ObjectGuid> _players = new();
+        protected ScenarioData _data;
+        ObjectGuid _guid;
+        ScenarioStepRecord _currentstep;
+        Dictionary<ScenarioStepRecord, ScenarioStepState> _stepStates = new();
+    }
+
+    public enum ScenarioStepState
+    {
+        Invalid = 0,
+        NotStarted = 1,
+        InProgress = 2,
+        Done = 3
+    }
+
+    enum ScenarioType
+    {
+        Scenario = 0,
+        ChallengeMode = 1,
+        Solo = 2,
+        Dungeon = 10,
+    }
+
+}

@@ -1,0 +1,709 @@
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
+
+using Framework.Constants;
+using Game.DataStorage;
+using Game.Entities;
+using Game.Maps;
+using Game.Scripting;
+using System;
+using System.Collections.Generic;
+
+namespace Scripts.EasternKingdoms.BlackrockMountain.BlackrockSpire
+{
+    struct DataTypes
+    {
+        public const int HighlordOmokk = 0;
+        public const int ShadowHunterVoshgajin = 1;
+        public const int WarmasterVoone = 2;
+        public const int MotherSmolderweb = 3;
+        public const int UrokDoomhowl = 4;
+        public const int QuartermasterZigris = 5;
+        public const int GizrulTheSlavener = 6;
+        public const int Halycon = 7;
+        public const int OverlordWyrmthalak = 8;
+        public const int PyrogaurdEmberseer = 9;
+        public const int WarchiefRendBlackhand = 10;
+        public const int Gyth = 11;
+        public const int TheBeast = 12;
+        public const int GeneralDrakkisath = 13;
+        public const int LordValthalak = 14;
+        // Extra
+        public const int DragonspireRoom = 15;
+        public const int HallRune1 = 16;
+        public const int HallRune2 = 17;
+        public const int HallRune3 = 18;
+        public const int HallRune4 = 19;
+        public const int HallRune5 = 20;
+        public const int HallRune6 = 21;
+        public const int HallRune7 = 22;
+        public const int ScarshieldInfiltrator = 23;
+        public const int BlackhandIncarcerator = 24;
+    }
+
+    struct CreaturesIds
+    {
+        public const int HighlordOmokk = 9196;
+        public const int ShadowHunterVoshgajin = 9236;
+        public const int WarmasterVoone = 9237;
+        public const int MotherSmolderweb = 10596;
+        public const int UrokDoomhowl = 10584;
+        public const int QuartermasterZigris = 9736;
+        public const int GizrulTheSlavener = 10268;
+        public const int Halycon = 10220;
+        public const int OverlordWyrmthalak = 9568;
+        public const int PyrogaurdEmberseer = 9816;
+        public const int WarchiefRendBlackhand = 10429;
+        public const int Gyth = 10339;
+        public const int TheBeast = 10430;
+        public const int GeneralDrakkisath = 10363;
+        public const int BlackhandDreadweaver = 9817;
+        public const int BlackhandSummoner = 9818;
+        public const int BlackhandVeteran = 9819;
+        public const int BlackhandIncarcerator = 10316;
+        public const int LordVictorNefarius = 10162;
+        public const int ScarshieldInfiltrator = 10299;
+    }
+
+    struct GameObjectsIds
+    {
+        public const int WhelpSpawner = 175622; // trap spawned by public const int  id 175124
+                                                 // Doors
+        public const int EmberseerIn = 175244; // First door to Pyroguard Emberseer
+        public const int Doors = 175705; // Second door to Pyroguard Emberseer
+        public const int EmberseerOut = 175153; // Door after Pyroguard Emberseer event
+        public const int GythEntryDoor = 164726;
+        public const int GythCombatDoor = 175185;
+        public const int GythExitDoor = 175186;
+        public const int DrakkisathDoor1 = 175946;
+        public const int DrakkisathDoor2 = 175947;
+        // Runes in drapublic const int nspire hall
+        public const int HallRune1 = 175197;
+        public const int HallRune2 = 175199;
+        public const int HallRune3 = 175195;
+        public const int HallRune4 = 175200;
+        public const int HallRune5 = 175198;
+        public const int HallRune6 = 175196;
+        public const int HallRune7 = 175194;
+        // Runes in emberseers room
+        public const int EmberseerRune1 = 175266;
+        public const int EmberseerRune2 = 175267;
+        public const int EmberseerRune3 = 175268;
+        public const int EmberseerRune4 = 175269;
+        public const int EmberseerRune5 = 175270;
+        public const int EmberseerRune6 = 175271;
+        public const int EmberseerRune7 = 175272;
+        // For Gyth event
+        public const int DrPortcullis = 175185;
+        public const int PortcullisActive = 164726;
+        public const int PortcullisTobossrooms = 175186;
+    }
+
+    struct BRSMiscConst
+    {
+        public const int SpellSummonRookeryWhelp = 15745;
+        public const int EventUrokDoomhowl = 4845;
+        public const int EventPyroguardEmberseer = 4884;
+        public const int Areatrigger = 1;
+        public const int AreatriggerDragonspireHall = 2046;
+        public const int AreatriggerBlackrockStadium = 2026;
+
+        public const int EncounterCount = 23;
+
+        //uint const DragonspireRunes[7] = { GoHallRune1, GoHallRune2, GoHallRune3, GoHallRune4, GoHallRune5, GoHallRune6, GoHallRune7 }
+
+        public static int[] DragonspireMobs = [CreaturesIds.BlackhandDreadweaver, CreaturesIds.BlackhandSummoner, CreaturesIds.BlackhandVeteran];
+
+        public static DoorData[] doorData =
+        [
+            new DoorData(GameObjectsIds.Doors, DataTypes.PyrogaurdEmberseer, EncounterDoorBehavior.OpenWhenNotInProgress),
+            new DoorData(GameObjectsIds.EmberseerOut, DataTypes.PyrogaurdEmberseer, EncounterDoorBehavior.OpenWhenDone),
+            new DoorData(GameObjectsIds.DrakkisathDoor1, DataTypes.GeneralDrakkisath, EncounterDoorBehavior.OpenWhenDone),
+            new DoorData(GameObjectsIds.DrakkisathDoor2, DataTypes.GeneralDrakkisath, EncounterDoorBehavior.OpenWhenDone),
+            new DoorData(GameObjectsIds.PortcullisActive, DataTypes.WarchiefRendBlackhand, EncounterDoorBehavior.OpenWhenDone),
+            new DoorData(GameObjectsIds.PortcullisTobossrooms, DataTypes.WarchiefRendBlackhand, EncounterDoorBehavior.OpenWhenDone),
+        ];
+    }
+
+    struct EventIds
+    {
+        public const int DargonspireRoomStore = 1;
+        public const int DargonspireRoomCheck = 2;
+        public const int UrokDoomhowlSpawns1 = 3;
+        public const int UrokDoomhowlSpawns2 = 4;
+        public const int UrokDoomhowlSpawns3 = 5;
+        public const int UrokDoomhowlSpawns4 = 6;
+        public const int UrokDoomhowlSpawns5 = 7;
+        public const int UrokDoomhowlSpawnIn = 8;
+    }
+
+    [Script]
+    class instance_blackrock_spire : InstanceMapScript
+    {
+        public instance_blackrock_spire() : base(nameof(instance_blackrock_spire), 229) { }
+
+        class instance_blackrock_spireMapScript : InstanceScript
+        {
+            public instance_blackrock_spireMapScript(InstanceMap map) : base(map)
+            {
+                SetHeaders("BRSv1");
+                SetBossNumber(BRSMiscConst.EncounterCount);
+                LoadDoorData(BRSMiscConst.doorData);
+
+                for (byte i = 0; i < 7; ++i)
+                    runecreaturelist[i] = new();
+            }
+
+            public override void OnCreatureCreate(Creature creature)
+            {
+                switch (creature.GetEntry())
+                {
+                    case CreaturesIds.HighlordOmokk:
+                        HighlordOmokk = creature.GetGUID();
+                        break;
+                    case CreaturesIds.ShadowHunterVoshgajin:
+                        ShadowHunterVoshgajin = creature.GetGUID();
+                        break;
+                    case CreaturesIds.WarmasterVoone:
+                        WarMasterVoone = creature.GetGUID();
+                        break;
+                    case CreaturesIds.MotherSmolderweb:
+                        MotherSmolderweb = creature.GetGUID();
+                        break;
+                    case CreaturesIds.UrokDoomhowl:
+                        UrokDoomhowl = creature.GetGUID();
+                        break;
+                    case CreaturesIds.QuartermasterZigris:
+                        QuartermasterZigris = creature.GetGUID();
+                        break;
+                    case CreaturesIds.GizrulTheSlavener:
+                        GizrultheSlavener = creature.GetGUID();
+                        break;
+                    case CreaturesIds.Halycon:
+                        Halycon = creature.GetGUID();
+                        break;
+                    case CreaturesIds.OverlordWyrmthalak:
+                        OverlordWyrmthalak = creature.GetGUID();
+                        break;
+                    case CreaturesIds.PyrogaurdEmberseer:
+                        PyroguardEmberseer = creature.GetGUID();
+                        if (GetBossState(DataTypes.PyrogaurdEmberseer) == EncounterState.Done)
+                            creature.DespawnOrUnsummon((Seconds)0, (Weeks)1);
+                        break;
+                    case CreaturesIds.WarchiefRendBlackhand:
+                        WarchiefRendBlackhand = creature.GetGUID();
+                        if (GetBossState(DataTypes.Gyth) == EncounterState.Done)
+                            creature.DespawnOrUnsummon((Seconds)0, (Weeks)1);
+                        break;
+                    case CreaturesIds.Gyth:
+                        Gyth = creature.GetGUID();
+                        break;
+                    case CreaturesIds.TheBeast:
+                        TheBeast = creature.GetGUID();
+                        break;
+                    case CreaturesIds.GeneralDrakkisath:
+                        GeneralDrakkisath = creature.GetGUID();
+                        break;
+                    case CreaturesIds.LordVictorNefarius:
+                        LordVictorNefarius = creature.GetGUID();
+                        if (GetBossState(DataTypes.Gyth) == EncounterState.Done)
+                            creature.DespawnOrUnsummon((Seconds)0, (Weeks)1);
+                        break;
+                    case CreaturesIds.ScarshieldInfiltrator:
+                        ScarshieldInfiltrator = creature.GetGUID();
+                        break;
+                    case CreaturesIds.BlackhandIncarcerator:
+                        _incarceratorList.Add(creature.GetGUID());
+                        break;
+                }
+            }
+
+            public override void OnGameObjectCreate(GameObject go)
+            {
+                base.OnGameObjectCreate(go);
+
+                switch (go.GetEntry())
+                {
+                    case GameObjectsIds.WhelpSpawner:
+                        go.CastSpell(null, BRSMiscConst.SpellSummonRookeryWhelp);
+                        break;
+                    case GameObjectsIds.EmberseerIn:
+                        go_emberseerin = go.GetGUID();
+                        if (GetBossState(DataTypes.DragonspireRoom) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, true, go);
+                        break;
+                    case GameObjectsIds.Doors:
+                        go_doors = go.GetGUID();
+                        if (GetBossState(DataTypes.DragonspireRoom) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, true, go);
+                        break;
+                    case GameObjectsIds.EmberseerOut:
+                        go_emberseerout = go.GetGUID();
+                        if (GetBossState(DataTypes.PyrogaurdEmberseer) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, true, go);
+                        break;
+                    case GameObjectsIds.HallRune1:
+                        go_roomrunes[0] = go.GetGUID();
+                        if (GetBossState(DataTypes.HallRune1) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, false, go);
+                        break;
+                    case GameObjectsIds.HallRune2:
+                        go_roomrunes[1] = go.GetGUID();
+                        if (GetBossState(DataTypes.HallRune2) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, false, go);
+                        break;
+                    case GameObjectsIds.HallRune3:
+                        go_roomrunes[2] = go.GetGUID();
+                        if (GetBossState(DataTypes.HallRune3) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, false, go);
+                        break;
+                    case GameObjectsIds.HallRune4:
+                        go_roomrunes[3] = go.GetGUID();
+                        if (GetBossState(DataTypes.HallRune4) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, false, go);
+                        break;
+                    case GameObjectsIds.HallRune5:
+                        go_roomrunes[4] = go.GetGUID();
+                        if (GetBossState(DataTypes.HallRune5) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, false, go);
+                        break;
+                    case GameObjectsIds.HallRune6:
+                        go_roomrunes[5] = go.GetGUID();
+                        if (GetBossState(DataTypes.HallRune6) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, false, go);
+                        break;
+                    case GameObjectsIds.HallRune7:
+                        go_roomrunes[6] = go.GetGUID();
+                        if (GetBossState(DataTypes.HallRune7) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, false, go);
+                        break;
+                    case GameObjectsIds.EmberseerRune1:
+                        go_emberseerrunes[0] = go.GetGUID();
+                        if (GetBossState(DataTypes.PyrogaurdEmberseer) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, false, go);
+                        break;
+                    case GameObjectsIds.EmberseerRune2:
+                        go_emberseerrunes[1] = go.GetGUID();
+                        if (GetBossState(DataTypes.PyrogaurdEmberseer) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, false, go);
+                        break;
+                    case GameObjectsIds.EmberseerRune3:
+                        go_emberseerrunes[2] = go.GetGUID();
+                        if (GetBossState(DataTypes.PyrogaurdEmberseer) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, false, go);
+                        break;
+                    case GameObjectsIds.EmberseerRune4:
+                        go_emberseerrunes[3] = go.GetGUID();
+                        if (GetBossState(DataTypes.PyrogaurdEmberseer) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, false, go);
+                        break;
+                    case GameObjectsIds.EmberseerRune5:
+                        go_emberseerrunes[4] = go.GetGUID();
+                        if (GetBossState(DataTypes.PyrogaurdEmberseer) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, false, go);
+                        break;
+                    case GameObjectsIds.EmberseerRune6:
+                        go_emberseerrunes[5] = go.GetGUID();
+                        if (GetBossState(DataTypes.PyrogaurdEmberseer) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, false, go);
+                        break;
+                    case GameObjectsIds.EmberseerRune7:
+                        go_emberseerrunes[6] = go.GetGUID();
+                        if (GetBossState(DataTypes.PyrogaurdEmberseer) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, false, go);
+                        break;
+                    case GameObjectsIds.PortcullisActive:
+                        go_portcullis_active = go.GetGUID();
+                        if (GetBossState(DataTypes.Gyth) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, true, go);
+                        break;
+                    case GameObjectsIds.PortcullisTobossrooms:
+                        go_portcullis_tobossrooms = go.GetGUID();
+                        if (GetBossState(DataTypes.Gyth) == EncounterState.Done)
+                            HandleGameObject(ObjectGuid.Empty, true, go);
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            public override bool SetBossState(int type, EncounterState state)
+            {
+                if (!base.SetBossState(type, state))
+                    return false;
+
+                switch (type)
+                {
+                    case DataTypes.HighlordOmokk:
+                    case DataTypes.ShadowHunterVoshgajin:
+                    case DataTypes.WarmasterVoone:
+                    case DataTypes.MotherSmolderweb:
+                    case DataTypes.UrokDoomhowl:
+                    case DataTypes.QuartermasterZigris:
+                    case DataTypes.GizrulTheSlavener:
+                    case DataTypes.Halycon:
+                    case DataTypes.OverlordWyrmthalak:
+                    case DataTypes.PyrogaurdEmberseer:
+                    case DataTypes.WarchiefRendBlackhand:
+                    case DataTypes.Gyth:
+                    case DataTypes.TheBeast:
+                    case DataTypes.GeneralDrakkisath:
+                    case DataTypes.DragonspireRoom:
+                        break;
+                    default:
+                        break;
+                }
+
+                return true;
+            }
+
+            public override void ProcessEvent(WorldObject obj, int eventId, WorldObject invoker)
+            {
+                switch (eventId)
+                {
+                    case BRSMiscConst.EventPyroguardEmberseer:
+                        if (GetBossState(DataTypes.PyrogaurdEmberseer) == EncounterState.NotStarted)
+                        {
+                            Creature Emberseer = instance.GetCreature(PyroguardEmberseer);
+                            if (Emberseer != null)
+                                Emberseer.GetAI().SetData(1, 1);
+                        }
+                        break;
+                    case BRSMiscConst.EventUrokDoomhowl:
+                        if (GetBossState(CreaturesIds.UrokDoomhowl) == EncounterState.NotStarted)
+                        {
+
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            public override void SetData(int type, int data)
+            {
+                switch (type)
+                {
+                    case BRSMiscConst.Areatrigger:
+                        if (data == BRSMiscConst.AreatriggerDragonspireHall)
+                        {
+                            if (GetBossState(DataTypes.DragonspireRoom) != EncounterState.Done)
+                                _events.ScheduleEvent(EventIds.DargonspireRoomStore, (Seconds)1);
+                        }
+                        break;
+                    case DataTypes.BlackhandIncarcerator:
+                        foreach (var itr in _incarceratorList)
+                        {
+                            Creature creature = instance.GetCreature(itr);
+                            if (creature != null)
+                                creature.Respawn();
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            public override ObjectGuid GetGuidData(int type)
+            {
+                switch (type)
+                {
+                    case DataTypes.HighlordOmokk:
+                        return HighlordOmokk;
+                    case DataTypes.ShadowHunterVoshgajin:
+                        return ShadowHunterVoshgajin;
+                    case DataTypes.WarmasterVoone:
+                        return WarMasterVoone;
+                    case DataTypes.MotherSmolderweb:
+                        return MotherSmolderweb;
+                    case DataTypes.UrokDoomhowl:
+                        return UrokDoomhowl;
+                    case DataTypes.QuartermasterZigris:
+                        return QuartermasterZigris;
+                    case DataTypes.GizrulTheSlavener:
+                        return GizrultheSlavener;
+                    case DataTypes.Halycon:
+                        return Halycon;
+                    case DataTypes.OverlordWyrmthalak:
+                        return OverlordWyrmthalak;
+                    case DataTypes.PyrogaurdEmberseer:
+                        return PyroguardEmberseer;
+                    case DataTypes.WarchiefRendBlackhand:
+                        return WarchiefRendBlackhand;
+                    case DataTypes.Gyth:
+                        return Gyth;
+                    case DataTypes.TheBeast:
+                        return TheBeast;
+                    case DataTypes.GeneralDrakkisath:
+                        return GeneralDrakkisath;
+                    case DataTypes.ScarshieldInfiltrator:
+                        return ScarshieldInfiltrator;
+                    case GameObjectsIds.EmberseerIn:
+                        return go_emberseerin;
+                    case GameObjectsIds.Doors:
+                        return go_doors;
+                    case GameObjectsIds.EmberseerOut:
+                        return go_emberseerout;
+                    case GameObjectsIds.HallRune1:
+                        return go_roomrunes[0];
+                    case GameObjectsIds.HallRune2:
+                        return go_roomrunes[1];
+                    case GameObjectsIds.HallRune3:
+                        return go_roomrunes[2];
+                    case GameObjectsIds.HallRune4:
+                        return go_roomrunes[3];
+                    case GameObjectsIds.HallRune5:
+                        return go_roomrunes[4];
+                    case GameObjectsIds.HallRune6:
+                        return go_roomrunes[5];
+                    case GameObjectsIds.HallRune7:
+                        return go_roomrunes[6];
+                    case GameObjectsIds.EmberseerRune1:
+                        return go_emberseerrunes[0];
+                    case GameObjectsIds.EmberseerRune2:
+                        return go_emberseerrunes[1];
+                    case GameObjectsIds.EmberseerRune3:
+                        return go_emberseerrunes[2];
+                    case GameObjectsIds.EmberseerRune4:
+                        return go_emberseerrunes[3];
+                    case GameObjectsIds.EmberseerRune5:
+                        return go_emberseerrunes[4];
+                    case GameObjectsIds.EmberseerRune6:
+                        return go_emberseerrunes[5];
+                    case GameObjectsIds.EmberseerRune7:
+                        return go_emberseerrunes[6];
+                    case GameObjectsIds.PortcullisActive:
+                        return go_portcullis_active;
+                    case GameObjectsIds.PortcullisTobossrooms:
+                        return go_portcullis_tobossrooms;
+                    default:
+                        break;
+                }
+                return ObjectGuid.Empty;
+            }
+
+            public override void Update(TimeSpan diff)
+            {
+                _events.Update(diff);
+
+                _events.ExecuteEvents(eventId =>
+                {
+                    switch (eventId)
+                    {
+                        case EventIds.DargonspireRoomStore:
+                            Dragonspireroomstore();
+                            _events.ScheduleEvent(EventIds.DargonspireRoomCheck, (Seconds)3);
+                            break;
+                        case EventIds.DargonspireRoomCheck:
+                            Dragonspireroomcheck();
+                            if (GetBossState(DataTypes.DragonspireRoom) != EncounterState.Done)
+                                _events.ScheduleEvent(EventIds.DargonspireRoomCheck, (Seconds)3);
+                            break;
+                        default:
+                            break;
+                    }
+                });
+            }
+
+            void Dragonspireroomstore()
+            {
+                for (byte i = 0; i < 7; ++i)
+                {
+                    // Refresh the creature list
+                    runecreaturelist[i].Clear();
+
+                    GameObject rune = instance.GetGameObject(go_roomrunes[i]);
+                    if (rune != null)
+                    {
+                        for (byte j = 0; j < 3; ++j)
+                        {
+                            List<Creature> creatureList = rune.GetCreatureListWithEntryInGrid(BRSMiscConst.DragonspireMobs[j], 15.0f);
+                            foreach (var creature in creatureList)
+                            {
+                                if (creature != null)
+                                    runecreaturelist[i].Add(creature.GetGUID());
+                            }
+                        }
+                    }
+                }
+            }
+
+            void Dragonspireroomcheck()
+            {
+                Creature mob = null;
+                GameObject rune = null;
+
+                for (byte i = 0; i < 7; ++i)
+                {
+                    bool _mobAlive = false;
+                    rune = instance.GetGameObject(go_roomrunes[i]);
+                    if (rune == null)
+                        continue;
+
+                    if (rune.GetGoState() == GameObjectState.Active)
+                    {
+                        foreach (ObjectGuid guid in runecreaturelist[i])
+                        {
+                            mob = instance.GetCreature(guid);
+                            if (mob != null && mob.IsAlive())
+                                _mobAlive = true;
+                        }
+                    }
+
+                    if (!_mobAlive && rune.GetGoState() == GameObjectState.Active)
+                    {
+                        HandleGameObject(ObjectGuid.Empty, false, rune);
+
+                        switch (rune.GetEntry())
+                        {
+                            case GameObjectsIds.HallRune1:
+                                SetBossState(DataTypes.HallRune1, EncounterState.Done);
+                                break;
+                            case GameObjectsIds.HallRune2:
+                                SetBossState(DataTypes.HallRune2, EncounterState.Done);
+                                break;
+                            case GameObjectsIds.HallRune3:
+                                SetBossState(DataTypes.HallRune3, EncounterState.Done);
+                                break;
+                            case GameObjectsIds.HallRune4:
+                                SetBossState(DataTypes.HallRune4, EncounterState.Done);
+                                break;
+                            case GameObjectsIds.HallRune5:
+                                SetBossState(DataTypes.HallRune5, EncounterState.Done);
+                                break;
+                            case GameObjectsIds.HallRune6:
+                                SetBossState(DataTypes.HallRune6, EncounterState.Done);
+                                break;
+                            case GameObjectsIds.HallRune7:
+                                SetBossState(DataTypes.HallRune7, EncounterState.Done);
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                }
+
+                if (GetBossState(DataTypes.HallRune1) == EncounterState.Done && GetBossState(DataTypes.HallRune2) == EncounterState.Done && GetBossState(DataTypes.HallRune3) == EncounterState.Done &&
+                    GetBossState(DataTypes.HallRune4) == EncounterState.Done && GetBossState(DataTypes.HallRune5) == EncounterState.Done && GetBossState(DataTypes.HallRune6) == EncounterState.Done &&
+                    GetBossState(DataTypes.HallRune7) == EncounterState.Done)
+                {
+                    SetBossState(DataTypes.DragonspireRoom, EncounterState.Done);
+                    GameObject door1 = instance.GetGameObject(go_emberseerin);
+                    if (door1 != null)
+                        HandleGameObject(ObjectGuid.Empty, true, door1);
+                    GameObject door2 = instance.GetGameObject(go_doors);
+                    if (door2 != null)
+                        HandleGameObject(ObjectGuid.Empty, true, door2);
+                }
+            }
+
+            ObjectGuid HighlordOmokk;
+            ObjectGuid ShadowHunterVoshgajin;
+            ObjectGuid WarMasterVoone;
+            ObjectGuid MotherSmolderweb;
+            ObjectGuid UrokDoomhowl;
+            ObjectGuid QuartermasterZigris;
+            ObjectGuid GizrultheSlavener;
+            ObjectGuid Halycon;
+            ObjectGuid OverlordWyrmthalak;
+            ObjectGuid PyroguardEmberseer;
+            ObjectGuid WarchiefRendBlackhand;
+            ObjectGuid Gyth;
+            ObjectGuid LordVictorNefarius;
+            ObjectGuid TheBeast;
+            ObjectGuid GeneralDrakkisath;
+            ObjectGuid ScarshieldInfiltrator;
+            ObjectGuid go_emberseerin;
+            ObjectGuid go_doors;
+            ObjectGuid go_emberseerout;
+            ObjectGuid go_blackrockaltar;
+            ObjectGuid[] go_roomrunes = new ObjectGuid[7];
+            ObjectGuid[] go_emberseerrunes = new ObjectGuid[7];
+            List<ObjectGuid>[] runecreaturelist = new List<ObjectGuid>[7];
+            ObjectGuid go_portcullis_active;
+            ObjectGuid go_portcullis_tobossrooms;
+            List<ObjectGuid> _incarceratorList = new();
+        }
+
+        public override InstanceScript GetInstanceScript(InstanceMap map)
+        {
+            return new instance_blackrock_spireMapScript(map);
+        }
+    }
+
+    [Script]
+    class at_dragonspire_hall : AreaTriggerScript
+    {
+        public at_dragonspire_hall() : base("at_dragonspire_hall") { }
+
+        public override bool OnTrigger(Player player, AreaTriggerRecord areaTrigger)
+        {
+            if (player != null && player.IsAlive())
+            {
+                InstanceScript instance = player.GetInstanceScript();
+                if (instance != null)
+                {
+                    instance.SetData(BRSMiscConst.Areatrigger, BRSMiscConst.AreatriggerDragonspireHall);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    [Script]
+    class at_blackrock_stadium : AreaTriggerScript
+    {
+        public at_blackrock_stadium() : base("at_blackrock_stadium") { }
+
+        public override bool OnTrigger(Player player, AreaTriggerRecord areaTrigger)
+        {
+            if (player != null && player.IsAlive())
+            {
+                InstanceScript instance = player.GetInstanceScript();
+                if (instance == null)
+                    return false;
+
+                Creature rend = player.FindNearestCreature(CreaturesIds.WarchiefRendBlackhand, 50.0f);
+                if (rend != null)
+                {
+                    rend.GetAI().SetData(BRSMiscConst.Areatrigger, BRSMiscConst.AreatriggerBlackrockStadium);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    [Script]
+    class at_nearby_scarshield_infiltrator : AreaTriggerScript
+    {
+        public at_nearby_scarshield_infiltrator() : base("at_nearby_scarshield_infiltrator") { }
+
+        public override bool OnTrigger(Player player, AreaTriggerRecord at)
+        {
+            if (player.IsAlive())
+            {
+                InstanceScript instance = player.GetInstanceScript();
+                if (instance != null)
+                {
+                    Creature infiltrator = ObjectAccessor.GetCreature(player, instance.GetGuidData(DataTypes.ScarshieldInfiltrator));
+                    if (infiltrator != null)
+                    {
+                        if (player.GetLevel() >= 57)
+                            infiltrator.GetAI().SetData(1, 1);
+                        else if (infiltrator.GetEntry() == CreaturesIds.ScarshieldInfiltrator)
+                            infiltrator.GetAI().Talk(0, player);
+
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+    }
+}
+

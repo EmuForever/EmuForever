@@ -1,0 +1,18 @@
+﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
+
+using System;
+using System.Reflection;
+
+public class Singleton<T> where T : class
+{
+    private static readonly T _object;
+
+    static Singleton()
+    {
+        ConstructorInfo constructorInfo = typeof(T).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
+        _object = (T)constructorInfo.Invoke([]);
+    }
+
+    public static T Instance => _object;
+}
