@@ -37,6 +37,9 @@ namespace Game
             logoutResponse.Instant = instantLogout;
             SendPacket(logoutResponse);
 
+            Log.outInfo(LogFilter.Network,
+                $"Logout request from {GetPlayerInfo()}: idle {logoutRequest.IdleLogout}, result {reason}, instant {instantLogout}");
+
             if (reason != 0)
             {
                 SetLogoutStartTime(ServerTime.Zero);
@@ -57,6 +60,7 @@ namespace Game
                     pl.SetStandState(UnitStandStateType.Sit);
                 pl.SetRooted(true);
                 pl.SetUnitFlag(UnitFlags.Stunned);
+                _logoutRooted = true;
             }
 
             SetLogoutStartTime(LoopTime.ServerTime);
@@ -73,9 +77,15 @@ namespace Game
 
             SendPacket(new LogoutCancelAck());
 
+            Log.outInfo(LogFilter.Network, $"Logout cancelled by {GetPlayerInfo()}");
+
             // not remove flags if can't free move - its not set in Logout request code.
-            if (GetPlayer().CanFreeMove())
+            // The logout request rooted and stunned the player itself, so always undo that here; otherwise a
+            // cancelled idle logout could leave the character stuck in place.
+            if (_logoutRooted || GetPlayer().CanFreeMove())
             {
+                _logoutRooted = false;
+
                 //!we can move again
                 GetPlayer().SetRooted(false);
 

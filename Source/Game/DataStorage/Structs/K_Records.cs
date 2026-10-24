@@ -5,10 +5,11 @@ namespace Game.DataStorage
 {
     public sealed class KeyChainRecord
     {
+        public int Id;
+        public byte[] Key = new byte[32];
+
         public static int KEYCHAIN_SIZE = 32;
 
-        public int Id;
-        public byte[] Key = new byte[KEYCHAIN_SIZE];
     }
 
     public sealed class KeystoneAffixRecord

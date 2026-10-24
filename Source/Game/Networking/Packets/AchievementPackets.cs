@@ -57,8 +57,8 @@ namespace Game.Networking.Packets
             _worldPacket.WriteInt32(CriteriaID);
             _worldPacket.WriteInt64(Quantity);
             _worldPacket.WritePackedGuid(PlayerGUID);
-            _worldPacket.WriteUInt32(Unused_10_1_5);
-            _worldPacket.WriteUInt32(Flags);
+            _worldPacket.WriteUInt32(Flags);          // Forever/TC order: Flags, then StateFlags
+            _worldPacket.WriteUInt32(Unused_10_1_5);  // StateFlags
             _worldPacket.WriteInt32((WowTime)CurrentTime);
             _worldPacket.WriteInt64(ElapsedTime);
             _worldPacket.WriteInt64(CreationTime);
@@ -166,6 +166,7 @@ namespace Game.Networking.Packets
     {
         public GuildCriteriaUpdate() : base(ServerOpcodes.GuildCriteriaUpdate) { }
 
+        // Forever layout: TC GuildCriteriaUpdate::Write (int32 packed time + uint32 0 == int64 packed time)
         public override void Write()
         {
             _worldPacket.WriteInt32(Progress.Count);
@@ -179,8 +180,8 @@ namespace Game.Networking.Packets
                 _worldPacket.WriteUInt32(0); // this is a hack. this is a packed time written as int64 (progress.DateUpdated)
                 _worldPacket.WriteInt64(progress.Quantity);
                 _worldPacket.WritePackedGuid(progress.PlayerGUID);
-                _worldPacket.WriteInt32(progress.Unused_10_1_5);
                 _worldPacket.WriteInt32(progress.Flags);
+                _worldPacket.WriteInt32(progress.Unused_10_1_5); // StateFlags
             }
         }
 
@@ -320,8 +321,8 @@ namespace Game.Networking.Packets
             data.WriteInt32(Id);
             data.WriteInt64(Quantity);
             data.WritePackedGuid(Player);
-            data.WriteUInt32(Unused_10_1_5);
-            data.WriteUInt32(Flags);
+            data.WriteUInt32(Flags);          // Forever/TC order: Flags, then StateFlags
+            data.WriteUInt32(Unused_10_1_5);  // StateFlags
             data.WriteInt32((WowTime)Date);
             data.WriteInt64(TimeFromStart);
             data.WriteInt64(TimeFromCreate);

@@ -1,10 +1,12 @@
 ﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
+using Framework.Constants;
 using Framework.IO;
 using Game.Networking;
 using Game.Networking.Packets;
 using System.Collections.Generic;
+using System;
 
 namespace Game.Entities
 {
@@ -12,8 +14,8 @@ namespace Game.Entities
     {
         int MapId;
         uint BlockCount;
-        List<ObjectGuid> destroyGUIDs = new();
-        List<ObjectGuid> outOfRangeGUIDs = new();
+        HashSet<ObjectGuid> destroyGUIDs = new();
+        HashSet<ObjectGuid> outOfRangeGUIDs = new();
         ByteBuffer data = new();
 
         public UpdateData(int mapId)
@@ -23,22 +25,41 @@ namespace Game.Entities
 
         public void AddDestroyObject(ObjectGuid guid)
         {
+            outOfRangeGUIDs.Remove(guid);
+            CheckRemovalCapacity(guid);
             destroyGUIDs.Add(guid);
         }
 
         public void AddOutOfRangeGUID(List<ObjectGuid> guids)
         {
-            outOfRangeGUIDs.AddRange(guids);
+            foreach (var guid in guids) AddOutOfRangeGUID(guid);
         }
 
         public void AddOutOfRangeGUID(ObjectGuid guid)
         {
+            // Destroy wins if both notifications arrive in a batch. Each GUID is
+            // serialized once, and the 16-bit protocol count cannot wrap.
+            if (destroyGUIDs.Contains(guid)) return;
+            CheckRemovalCapacity(guid);
             outOfRangeGUIDs.Add(guid);
+        }
+
+        void CheckRemovalCapacity(ObjectGuid guid)
+        {
+            if (destroyGUIDs.Count + outOfRangeGUIDs.Count >= ushort.MaxValue &&
+                !destroyGUIDs.Contains(guid) && !outOfRangeGUIDs.Contains(guid))
+                throw new InvalidOperationException("Object removal batch exceeds protocol capacity");
         }
 
         public void AddUpdateBlock(ByteBuffer block)
         {
             data.WriteBytes(block.GetData());
+            ++BlockCount;
+        }
+
+        public void AddUpdateBlock(ByteBuffer block, UpdateFieldFlag fieldFlags)
+        {
+            data.WriteBytes(EntityFragmentSerializer.WrapValuesUpdate(block.GetData(), fieldFlags));
             ++BlockCount;
         }
 
@@ -50,6 +71,7 @@ namespace Game.Entities
             packet.MapID = (ushort)MapId;
 
             WorldPacket buffer = new();
+            buffer.WriteBit(true); // 1.60.1 SMSG_UPDATE_OBJECT header bit
             if (buffer.WriteBit(!outOfRangeGUIDs.Empty() || !destroyGUIDs.Empty()))
             {
                 buffer.WriteUInt16((ushort)destroyGUIDs.Count);
@@ -81,7 +103,8 @@ namespace Game.Entities
 
         public bool HasData() { return BlockCount > 0 || !outOfRangeGUIDs.Empty() || !destroyGUIDs.Empty(); }
 
-        public List<ObjectGuid> GetOutOfRangeGUIDs() { return outOfRangeGUIDs; }
+        // Compatibility snapshot: callers cannot append around the deduplication policy.
+        public List<ObjectGuid> GetOutOfRangeGUIDs() { return new(outOfRangeGUIDs); }
 
         public void SetMapId(ushort mapId) { MapId = mapId; }
     }

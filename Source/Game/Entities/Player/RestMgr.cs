@@ -47,6 +47,8 @@ namespace Game.Entities
             }
 
             float rest_bonus_max = GetRestBonusMax(next_level_xp);
+            if (restType == RestTypes.XP)
+                MathFunctions.AddPct(ref rest_bonus_max, _player.GetTotalAuraModifier((AuraType)656));
 
             if (restBonus < 0)
                 restBonus = 0;
@@ -181,7 +183,9 @@ namespace Game.Entities
                 case RestTypes.Honor:
                     return _player.m_activePlayerData.HonorNextLevel / 72000.0f * bubble;
                 case RestTypes.XP:
-                    return _player.m_activePlayerData.NextLevelXP / 72000.0f * bubble;
+                    float extra = _player.m_activePlayerData.NextLevelXP / 72000.0f * bubble;
+                    MathFunctions.AddPct(ref extra, _player.GetTotalAuraModifier((AuraType)386));
+                    return extra;
                 default:
                     return 0.0f;
             }

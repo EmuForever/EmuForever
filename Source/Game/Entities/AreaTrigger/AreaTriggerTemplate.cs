@@ -265,6 +265,12 @@ namespace Game.Entities
         public Milliseconds TimeToTarget;
         public Milliseconds TimeToTargetScale;
 
+        // 1.60.1 world schema (areatrigger_create_properties)
+        public int? SpellForVisuals;
+        public int PositionalSoundKitId;
+        public float Speed = 1.0f;
+        public bool SpeedIsTime;
+
         public AreaTriggerScaleCurveTemplate OverrideScale;
         public AreaTriggerScaleCurveTemplate ExtraScale;
 

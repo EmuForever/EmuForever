@@ -26,6 +26,8 @@ namespace Game.DataStorage
         public int QuestLineID;
         public int QuestID;
         public int OrderIndex;
+        public int Flags;
+        public int Unknown1110;
     }
 
     public sealed class QuestMoneyRewardRecord
@@ -52,12 +54,14 @@ namespace Game.DataStorage
         public int Id;
         public LocalizedString SortName;
         public sbyte UiOrderIndex;
+        public int Flags;
     }
 
     public sealed class QuestV2Record
     {
         public int Id;
-        public ushort UniqueBitFlag;
+        public int UniqueBitFlag;
+        public int UiQuestDetailsTheme;
     }
 
     public sealed class QuestXPRecord

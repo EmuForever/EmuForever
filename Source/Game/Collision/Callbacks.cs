@@ -152,15 +152,16 @@ namespace Game.Collision
 
     public class MapRayCallback : WorkerCallback
     {
-        public MapRayCallback(ModelInstance[] val, ModelIgnoreFlags ignoreFlags)
+        public MapRayCallback(ModelInstance[] val, ModelIgnoreFlags ignoreFlags, IReadOnlySet<uint> ignored = null)
         {
             prims = val;
             hit = false;
-            flags = ignoreFlags;
+            flags = ignoreFlags; _ignored = ignored;
         }
+        readonly IReadOnlySet<uint> _ignored;
         public override bool Invoke(Ray ray, uint entry, ref float distance, bool pStopAtFirstHit = true)
         {
-            if (prims[entry] == null)
+            if (prims[entry] == null || _ignored?.Contains(prims[entry].Id) == true)
                 return false;
             bool result = prims[entry].IntersectRay(ray, ref distance, pStopAtFirstHit, flags);
             if (result)
@@ -172,6 +173,37 @@ namespace Game.Collision
         ModelInstance[] prims;
         bool hit;
         ModelIgnoreFlags flags;
+    }
+
+    public class FirstHitCallback : WorkerCallback
+    {
+        readonly ModelInstance[] _instances;
+        readonly IReadOnlySet<uint> _ignored;
+        public ModelInstance Hit;
+        public FirstHitCallback(ModelInstance[] instances, IReadOnlySet<uint> ignored) { _instances = instances; _ignored = ignored; }
+        public override bool Invoke(Ray ray, uint entry, ref float distance, bool pStopAtFirstHit = true)
+        {
+            var instance = _instances[entry];
+            if (instance == null || _ignored?.Contains(instance.Id) == true)
+                return false;
+            // The tree shortens distance on every hit, so the last recorded model is the nearest.
+            if (!instance.IntersectRay(ray, ref distance, false, ModelIgnoreFlags.Nothing))
+                return false;
+            Hit = instance;
+            return true;
+        }
+    }
+
+    public class EmbeddedSolidCallback : WorkerCallback
+    {
+        readonly ModelInstance[] _instances;
+        public readonly List<ModelInstance> Models = new();
+        public EmbeddedSolidCallback(ModelInstance[] instances) => _instances = instances;
+        public override void Invoke(Vector3 point, uint entry)
+        {
+            var instance = _instances[entry];
+            if (instance != null && !Models.Contains(instance) && instance.ContainsSmallSolid(point)) Models.Add(instance);
+        }
     }
 
     public class LocationInfoCallback : WorkerCallback

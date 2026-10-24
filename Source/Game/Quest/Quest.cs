@@ -119,6 +119,24 @@ namespace Game
             PortraitTurnInText = fields.Read<string>(116);
             PortraitTurnInName = fields.Read<string>(117);
             QuestCompletionLog = fields.Read<string>(118);
+
+            // 1.60.1 schema additions
+            ContentTuningID = fields.Read<int>(119);
+            FlagsEx3 = fields.Read<uint>(120);
+            ResetByScheduler = fields.Read<bool>(121);
+            RewardFavor = fields.Read<int>(122);
+            if (!fields.IsNull(123))
+                ClassicLevelType = fields.Read<int>(123);
+            if (!fields.IsNull(124))
+                ClassicMaxLevel = fields.Read<int>(124);
+
+            // Classic 1.60: no quest_classic_level row -> fall back to ContentTuning levels
+            if (MinLevel == 0 && ContentTuningID != 0)
+            {
+                var levels = Global.DB2Mgr.GetContentTuningData(ContentTuningID, 0);
+                if (levels.HasValue)
+                    MinLevel = levels.Value.MinLevel;
+            }
         }
 
         public void LoadRewardDisplaySpell(SQLFields fields)
@@ -631,10 +649,25 @@ namespace Game
                 && (!IsRepeatable() || IsWeekly() || IsMonthly() || IsSeasonal()));
         }
 
+        // Responses are built per locale on first request instead of for all twelve locales up front:
+        // a server usually sees one or two client locales, and the prebuilt packets (each with its own
+        // unwritten buffer) were hundreds of megabytes of heap the GC had to scan on every full collection.
         public void InitializeQueryData()
         {
-            for (var loc = Locale.enUS; loc < Locale.Total; ++loc)
-                response[(int)loc] = BuildQueryData(loc, null);
+            Array.Clear(response);
+        }
+
+        public QueryQuestInfoResponse GetQueryData(Locale loc)
+        {
+            QueryQuestInfoResponse cached = System.Threading.Volatile.Read(ref response[(int)loc]);
+            if (cached != null)
+                return cached;
+
+            // Shared by sessions on several network threads: serialize once before publishing it.
+            cached = BuildQueryData(loc, null);
+            cached.WritePacketData();
+            System.Threading.Volatile.Write(ref response[(int)loc], cached);
+            return cached;
         }
 
         public QueryQuestInfoResponse BuildQueryData(Locale loc, Player player)
@@ -899,6 +932,12 @@ namespace Game
         public TimeSpan LimitTime;
         public RaceMask AllowableRaces { get; set; }
         public int TreasurePickerID;
+        public int ContentTuningID;
+        public uint FlagsEx3;
+        public bool ResetByScheduler;
+        public int RewardFavor;
+        public int ClassicLevelType = 2;   // quest_template_classic_level.LevelType
+        public int ClassicMaxLevel;        // quest_classic_level.MaxLevel, 0 = none
         public int Expansion;
         public int ManagedWorldStateID;
         public int QuestSessionBonus;

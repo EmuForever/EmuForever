@@ -36,12 +36,6 @@ namespace Game.Chat
             else
                 dbPortOutput = $"Realm Id: {Global.WorldMgr.GetRealmId().Index} not found in `realmlist` table. Please check your setup";
 
-            DatabaseTypeFlags updateFlags = ConfigMgr.GetDefaultEnumValue("Updates.EnableDatabases", DatabaseTypeFlags.None);
-            if (updateFlags == 0)
-                handler.SendSysMessage("Automatic database updates are disabled for all databases!");
-            else
-                handler.SendSysMessage($"Automatic database updates are enabled for the following databases: {updateFlags}");
-
             handler.SendSysMessage($"Worldserver listening connections on port {WorldConfig.Values[WorldCfg.PortWorld].Int32}");
             handler.SendSysMessage(dbPortOutput);
 

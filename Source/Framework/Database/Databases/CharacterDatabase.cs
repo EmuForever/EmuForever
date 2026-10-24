@@ -7,6 +7,10 @@ namespace Framework.Database
     {
         public override void PreparedStatements()
         {
+            PrepareStatement(CharStatements.SEL_LEGACY_ACHIEVEMENT_HISTORY, "SELECT a.achievement, MIN(a.date), MIN(a.guid) FROM character_achievement a INNER JOIN characters c ON c.guid = a.guid WHERE c.account = ? GROUP BY a.achievement");
+            PrepareStatement(CharStatements.SEL_LEGACY_CHARACTER_STATE, "SELECT ruleset, revision FROM character_legacy_state WHERE guid = ?");
+            PrepareStatement(CharStatements.DEL_LEGACY_CHARACTER_STATE, "DELETE FROM character_legacy_state WHERE guid = ?");
+            PrepareStatement(CharStatements.UPSERT_LEGACY_CHARACTER_STATE, "INSERT INTO character_legacy_state (guid, ruleset, revision) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE ruleset = VALUES(ruleset), revision = revision + 1");
             const string SelectItemInstanceContent = "ii.guid, ii.itemEntry, ii.creatorGuid, ii.giftCreatorGuid, ii.count, ii.duration, ii.charges, ii.flags, ii.enchantments, " +
         "ii.durability, ii.playedTime, ii.text, ii.battlePetSpeciesId, ii.battlePetBreedData, ii.battlePetLevel, ii.battlePetDisplayId, ii.randomPropertiesId, ii.randomPropertiesSeed, ii.context, " +
         "iit.itemModifiedAppearanceAllSpecs, iit.itemModifiedAppearanceSpec1, iit.itemModifiedAppearanceSpec2, iit.itemModifiedAppearanceSpec3, iit.itemModifiedAppearanceSpec4, iit.itemModifiedAppearanceSpec5, " +
@@ -24,6 +28,7 @@ namespace Framework.Database
             PrepareStatement(CharStatements.SEL_CHAR_CREATE_INFO, "SELECT level, race, class FROM characters WHERE account = ? LIMIT 0, ?");
             PrepareStatement(CharStatements.INS_CHARACTER_BAN, "INSERT INTO character_banned (guid, bandate, unbandate, bannedby, banreason, active) VALUES (?, UNIX_TIMESTAMP(), UNIX_TIMESTAMP()+?, ?, ?, 1)");
             PrepareStatement(CharStatements.UPD_CHARACTER_BAN, "UPDATE character_banned SET active = 0 WHERE guid = ? AND active != 0");
+            PrepareStatement(CharStatements.UPD_CHARACTER_SURNAME, "UPDATE characters SET surname = ? WHERE guid = ?");
             PrepareStatement(CharStatements.DEL_CHARACTER_BAN, "DELETE cb FROM character_banned cb INNER JOIN characters c ON c.guid = cb.guid WHERE c.account = ?");
             PrepareStatement(CharStatements.SEL_BANINFO, "SELECT bandate, unbandate-bandate, active, unbandate, banreason, bannedby FROM character_banned WHERE guid = ? ORDER BY bandate ASC");
             PrepareStatement(CharStatements.SEL_GUID_BY_NAME_FILTER, "SELECT guid, name FROM characters WHERE name LIKE CONCAT('%%', ?, '%%')");
@@ -49,6 +54,9 @@ namespace Framework.Database
                              "WHERE c.account = ? AND c.deleteInfos_Name IS NULL");
             PrepareStatement(CharStatements.SEL_ENUM_CUSTOMIZATIONS, "SELECT cc.guid, cc.chrCustomizationOptionID, cc.chrCustomizationChoiceID FROM character_customizations cc " +       
                              "LEFT JOIN characters c ON cc.guid = c.guid WHERE c.account = ? AND c.deleteInfos_Name IS NULL ORDER BY cc.guid, cc.chrCustomizationOptionID");
+            PrepareStatement(CharStatements.SEL_ENUM_EQUIPMENT, "SELECT ci.guid, ci.slot, ii.itemEntry FROM character_inventory ci " +
+                             "JOIN item_instance ii ON ci.item = ii.guid JOIN characters c ON c.guid = ci.guid " +
+                             "WHERE c.account = ? AND ci.bag = 0 AND ci.slot < 19 ORDER BY ci.guid, ci.slot");
             PrepareStatement(CharStatements.SEL_UNDELETE_ENUM, "SELECT c.guid, c.deleteInfos_Name, c.race, c.class, c.gender, c.level, c.zone, c.map, c.position_x, c.position_y, c.position_z, " +       
                              "gm.guildid, c.playerFlags, c.at_login, cp.entry, cp.modelid, cp.level, c.equipmentCache, cb.guid, c.slot, c.logout_time, c.activeTalentGroup, c.lastLoginBuild, " +       
                              "c.personalTabardEmblemStyle, c.personalTabardEmblemColor, c.personalTabardBorderStyle, c.personalTabardBorderColor, c.personalTabardBackgroundColor " +       
@@ -660,7 +668,7 @@ namespace Framework.Database
             PrepareStatement(CharStatements.DEL_PET_SPELL_CHARGES, "DELETE FROM pet_spell_charges WHERE guid = ?");
             PrepareStatement(CharStatements.INS_PET_SPELL_CHARGES, "INSERT INTO pet_spell_charges (guid, categoryId, rechargeStart, rechargeEnd) VALUES (?, ?, ?, ?)");
             PrepareStatement(CharStatements.DEL_PET_SPELL_BY_SPELL, "DELETE FROM pet_spell WHERE guid = ? and spell = ?");
-            PrepareStatement(CharStatements.INS_PET_SPELL, "INSERT INTO pet_spell (guid, spell, active) VALUES (?, ?, ?)");
+            PrepareStatement(CharStatements.INS_PET_SPELL, "INSERT INTO pet_spell (guid, spell, active) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE active = VALUES(active)");
             PrepareStatement(CharStatements.INS_PET_AURA, "INSERT INTO pet_aura (guid, casterGuid, spell, effectMask, recalculateMask, difficulty, stackCount, maxDuration, remainTime, remainCharges) " +       
                              "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             PrepareStatement(CharStatements.INS_PET_AURA_EFFECT, "INSERT INTO pet_aura_effect (guid, casterGuid, spell, effectMask, effectIndex, amount, baseAmount) " +       
@@ -738,6 +746,7 @@ namespace Framework.Database
         SEL_ENUM,
         SEL_ENUM_DECLINED_NAME,
         SEL_ENUM_CUSTOMIZATIONS,
+        SEL_ENUM_EQUIPMENT,
         SEL_UNDELETE_ENUM,
         SEL_UNDELETE_ENUM_DECLINED_NAME,
         SEL_UNDELETE_ENUM_CUSTOMIZATIONS,
@@ -1052,6 +1061,7 @@ namespace Framework.Database
         DEL_INVALID_PET_SPELL,
         UPD_CHAR_ONLINE,
         UPD_CHAR_NAME_AT_LOGIN,
+        UPD_CHARACTER_SURNAME,
         REP_WORLD_STATE,
         REP_WORLD_VARIABLE,
         DEL_CHARACTER_SKILL,
@@ -1286,6 +1296,10 @@ namespace Framework.Database
         DEL_INSTANCE,
         INS_INSTANCE,
 
+        SEL_LEGACY_ACHIEVEMENT_HISTORY,
+        SEL_LEGACY_CHARACTER_STATE,
+        DEL_LEGACY_CHARACTER_STATE,
+        UPSERT_LEGACY_CHARACTER_STATE,
         MAX_CHARACTERDATABASE_STATEMENTS
     }
 }

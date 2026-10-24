@@ -11,6 +11,7 @@ namespace Game.DataStorage
         public string Name;
         private byte _raceID;
         private byte _sex;
+        public byte NameType;
 
         #region Properties
         public Race RaceID => (Race)_raceID;
@@ -52,5 +53,6 @@ namespace Game.DataStorage
         public int NumTalents;
         public int NumTalentsDeathKnight;
         public int NumTalentsDemonHunter;
+        public float Unknown1115;
     }
 }

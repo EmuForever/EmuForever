@@ -6,7 +6,13 @@ namespace Game.DataStorage
     public sealed class RandPropPointsRecord
     {
         public int Id;
+        public float DamageReplaceStatF;
+        public float DamageSecondaryF;
         public int DamageReplaceStat;
+        public int DamageSecondary;
+        public float[] EpicF = new float[5];
+        public float[] SuperiorF = new float[5];
+        public float[] GoodF = new float[5];
         public int[] Epic = new int[5];
         public int[] Superior = new int[5];
         public int[] Good = new int[5];

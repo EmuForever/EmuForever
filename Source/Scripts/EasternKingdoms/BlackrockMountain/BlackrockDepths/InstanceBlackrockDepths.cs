@@ -93,6 +93,7 @@ namespace Scripts.EasternKingdoms.BlackrockMountain.BlackrockDepths
         public const int TombOfSevenBossNum = 7;
     }
 
+    [Script]
     class instance_blackrock_depths : InstanceMapScript
     {
         public instance_blackrock_depths() : base(nameof(instance_blackrock_depths), 230) { }

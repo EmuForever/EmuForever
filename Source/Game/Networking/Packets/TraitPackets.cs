@@ -132,6 +132,7 @@ namespace Game.Networking.Packets
             TraitNodeEntryID = data.ReadInt32();
             Rank = data.ReadInt32();
             GrantedRanks = data.ReadInt32();
+            BonusRanks = data.ReadInt32();
         }
 
         public void Write(WorldPacket data)
@@ -140,12 +141,35 @@ namespace Game.Networking.Packets
             data.WriteInt32(TraitNodeEntryID);
             data.WriteInt32(Rank);
             data.WriteInt32(GrantedRanks);
+            data.WriteInt32(BonusRanks);
         }
         
         public int TraitNodeID;
         public int TraitNodeEntryID;
         public int Rank;
         public int GrantedRanks;
+        public int BonusRanks;
+    }
+
+    public class TraitSubTreeCachePacket
+    {
+        public int TraitSubTreeID;
+        public Array<TraitEntryPacket> Entries = new(100);
+        public bool Active;
+        public void Read(WorldPacket data)
+        {
+            TraitSubTreeID = data.ReadInt32();
+            int count = data.ReadInt32();
+            if (count < 0 || count > 100) throw new System.IO.InvalidDataException("Invalid subtree entry count.");
+            for (int i = 0; i < count; ++i) { TraitEntryPacket entry = new(); entry.Read(data); Entries.Add(entry); }
+            Active = data.HasBit();
+        }
+        public void Write(WorldPacket data)
+        {
+            data.WriteInt32(TraitSubTreeID); data.WriteInt32(Entries.Count);
+            foreach (TraitEntryPacket entry in Entries) entry.Write(data);
+            data.WriteBit(Active); data.FlushBits();
+        }
     }
 
     public class TraitConfigPacket
@@ -169,7 +193,12 @@ namespace Game.Networking.Packets
         {
             ID = data.ReadInt32();
             Type = (TraitConfigType)data.ReadInt32();
+            if ((int)Type == 4) Type = TraitConfigType.Combat; // Forever CamelotCombat
             var entriesCount = data.ReadInt32();
+            if (entriesCount < 0 || entriesCount > 100)
+                throw new System.IO.InvalidDataException("Invalid trait entry count.");
+            int subtreesCount = data.ReadInt32();
+            if (subtreesCount < 0 || subtreesCount > 10) throw new System.IO.InvalidDataException("Invalid trait subtree count.");
             switch (Type)
             {
                 case TraitConfigType.Combat:
@@ -182,6 +211,7 @@ namespace Game.Networking.Packets
                     break;
                 case TraitConfigType.Generic:
                     TraitSystemID = data.ReadInt32();
+                    VariationID = data.ReadInt32();
                     break;
                 default:
                     break;
@@ -194,6 +224,12 @@ namespace Game.Networking.Packets
                 Entries.Add(traitEntry);
             }
 
+            for (int i = 0; i < subtreesCount; ++i)
+            {
+                TraitSubTreeCachePacket subtree = new(); subtree.Read(data); SubTrees.Add(subtree);
+            }
+            data.ResetBitPos();
+
             int nameLength = data.ReadBits<int>(9);
             Name = data.ReadString(nameLength);
         }
@@ -201,8 +237,9 @@ namespace Game.Networking.Packets
         public void Write(WorldPacket data)
         {
             data.WriteInt32(ID);
-            data.WriteInt32((int)Type);
+            data.WriteInt32(Type == TraitConfigType.Combat ? 4 : (int)Type);
             data.WriteInt32(Entries.Count);
+            data.WriteInt32(SubTrees.Count);
             switch (Type)
             {
                 case TraitConfigType.Combat:
@@ -215,6 +252,7 @@ namespace Game.Networking.Packets
                     break;
                 case TraitConfigType.Generic:
                     data.WriteInt32(TraitSystemID);
+                    data.WriteInt32(VariationID);
                     break;
                 default:
                     break;
@@ -222,6 +260,7 @@ namespace Game.Networking.Packets
 
             foreach (TraitEntryPacket traitEntry in Entries)
                 traitEntry.Write(data);
+            foreach (TraitSubTreeCachePacket subtree in SubTrees) subtree.Write(data);
 
             data.WriteBits(Name.GetByteCount(), 9);
             data.FlushBits();
@@ -236,7 +275,9 @@ namespace Game.Networking.Packets
         public int LocalIdentifier;  // Local to specialization
         public SkillType SkillLineID;
         public int TraitSystemID;
+        public int VariationID;
         public Array<TraitEntryPacket> Entries = new(100);
+        public Array<TraitSubTreeCachePacket> SubTrees = new(10);
         public string Name = string.Empty;
     }
 }

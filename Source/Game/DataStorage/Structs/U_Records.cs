@@ -17,12 +17,13 @@ namespace Game.DataStorage
         private byte _type;
         public int BountySetID;
         public int BountyDisplayLocation;
-        public int VisibilityPlayerConditionID2; // if not met then map is skipped when evaluating UiMapAssignment
         public int VisibilityPlayerConditionID;  // if not met then client checks other maps with the same AlternateUiMapGroup, not re-evaluating UiMapAssignment for them
         public sbyte HelpTextPosition;
         public int BkgAtlasID;
         public int AlternateUiMapGroup;
         public int ContentTuningID;
+        public int AdventureMapTextureKitID;
+        public sbyte MapArtZoneTextPosition;
 
         #region Properties
         public UiMapFlag Flags => (UiMapFlag)_flags;
@@ -56,6 +57,7 @@ namespace Game.DataStorage
         public int AreaID;
         public int WmoDoodadPlacementID;
         public int WmoGroupID;
+        public int Unknown1125;
     }
 
     public sealed class UiMapLinkRecord
@@ -82,13 +84,14 @@ namespace Game.DataStorage
 
     public sealed class UnitConditionRecord
     {
+        public int Id;
+        private int _flags;
+        public byte[] Variable = new byte[8];
+        public sbyte[] Op = new sbyte[8];
+        public int[] Value = new int[8];
+
         public const int MAX_UNIT_CONDITION_VALUES = 8;
 
-        public int Id;
-        private byte _flags;
-        public byte[] Variable = new byte[MAX_UNIT_CONDITION_VALUES];
-        public sbyte[] Op = new sbyte[MAX_UNIT_CONDITION_VALUES];
-        public int[] Value = new int[MAX_UNIT_CONDITION_VALUES];
 
         #region Properties
         public UnitConditionFlags Flags => (UnitConditionFlags)_flags;
@@ -116,12 +119,12 @@ namespace Game.DataStorage
         public LocalizedString ToolTip;
         public uint MinPower;
         public uint MaxPower;
-        public ushort StartPower;
+        public int StartPower;
         public byte CenterPower;
         public float RegenerationPeace;
         public float RegenerationCombat;
         public byte BarType;
-        public ushort Flags;
+        public int Flags;
         public float StartInset;
         public float EndInset;
         public int[] FileDataID = new int[6];

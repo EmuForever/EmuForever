@@ -70,9 +70,10 @@ namespace Game
                 return;
             }
 
-            ObjectGuid receiverGuid = ObjectGuid.Empty;
-            if (ObjectManager.NormalizePlayerName(ref sendMail.Info.Target))
-                receiverGuid = Global.CharacterCacheStorage.GetCharacterGuidByName(sendMail.Info.Target);
+            // Classic clients can send "Firstname Surname" (or a first name
+            // with a trailing space). Preserve and validate the supplied surname;
+            // first-name normalization cannot resolve the full display name.
+            ObjectGuid receiverGuid = Global.CharacterCacheStorage.GetMailRecipientGuidByName(sendMail.Info.Target);
 
             if (receiverGuid.IsEmpty())
             {

@@ -67,6 +67,8 @@ namespace Game.Spells
                 amount = (int)(caster.ToPlayer().m_activePlayerData.Mastery * GetSpellEffectInfo().BonusCoefficient);
 
             // custom amount calculations go here
+            if (m_spellInfo.Id == 1225477 && GetBase().GetUnitOwner().GetMap()?.IsBattlegroundOrArena() == true)
+                amount = 0;
             switch (GetAuraType())
             {
                 // crowd control auras
@@ -4122,6 +4124,7 @@ namespace Game.Spells
         [AuraEffectHandler(AuraType.ArenaPreparation)]
         void HandleArenaPreparation(AuraApplication aurApp, AuraEffectHandleModes mode, bool apply)
         {
+            if (GetId() == 1225503) return; // Forever Reagent Economy reuses 215; it is not arena preparation.
             if (!mode.HasAnyFlag(AuraEffectHandleModes.Real))
                 return;
 
@@ -4132,7 +4135,7 @@ namespace Game.Spells
             else
             {
                 // do not remove unit flag if there are more than this auraEffect of that kind on unit on unit
-                if (target.HasAuraType(GetAuraType()))
+                if (target.GetAuraEffectsByType(GetAuraType()).Any(effect => effect.GetId() != 1225503))
                     return;
                 target.RemoveUnitFlag(UnitFlags.Preparation);
             }
@@ -4914,7 +4917,20 @@ namespace Game.Spells
                 Unit triggerCaster = triggeredSpellInfo.NeedsToBeTriggeredByCaster(m_spellInfo) ? caster : target;
                 if (triggerCaster != null)
                 {
-                    triggerCaster.CastSpell(target, triggerSpellId, new CastSpellExtraArgs(this));
+                    // Classic 1.60: the aura of a channel sits on the caster while the triggered spell needs an enemy target (Arcane
+                    // Missiles 5143 -> 7268 with TARGET_UNIT_TARGET_ENEMY): aim it at the channel's target, otherwise every missile
+                    // is cast at the caster, fails and ends the channel after the first tick (TC-forever)
+                    Unit triggerTarget = target;
+                    if (target == caster && m_spellInfo.IsChanneled() && triggeredSpellInfo.NeedsExplicitUnitTarget())
+                    {
+                        Spell channel = caster.GetCurrentSpell(CurrentSpellTypes.Channeled);
+                        if (channel != null && channel.GetSpellInfo().Id == m_spellInfo.Id && channel.m_targets.GetUnitTarget() != null)
+                            triggerTarget = channel.m_targets.GetUnitTarget();
+                    }
+
+                    CastSpellExtraArgs args = new(this);
+                    args.TriggerFlags = TriggerCastFlags.FullMask & ~TriggerCastFlags.IgnorePowerAndReagentCost;
+                    triggerCaster.CastSpell(triggerTarget, triggerSpellId, args);
                     Log.outDebug(LogFilter.Spells,
                         $"AuraEffect.HandlePeriodicTriggerSpellAuraTick: " +
                         $"Spell {GetId()} Trigger {triggeredSpellInfo.Id}");

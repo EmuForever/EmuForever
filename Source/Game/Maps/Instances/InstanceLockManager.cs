@@ -293,13 +293,13 @@ namespace Game.Maps
             PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(CharStatements.DEL_CHARACTER_INSTANCE_LOCK);
             stmt.SetInt64(0, playerGuid.GetCounter());
             stmt.SetInt32(1, entries.MapDifficulty.MapID);
-            stmt.SetUInt8(2, entries.MapDifficulty.LockID);
+            stmt.SetUInt8(2, (byte)entries.MapDifficulty.LockID);
             trans.Append(stmt);
 
             stmt = CharacterDatabase.GetPreparedStatement(CharStatements.INS_CHARACTER_INSTANCE_LOCK);
             stmt.SetInt64(0, playerGuid.GetCounter());
             stmt.SetInt32(1, entries.MapDifficulty.MapID);
-            stmt.SetUInt8(2, entries.MapDifficulty.LockID);
+            stmt.SetUInt8(2, (byte)entries.MapDifficulty.LockID);
             stmt.SetInt32(3, instanceLock.GetInstanceId());
             stmt.SetUInt8(4, (byte)entries.MapDifficulty.DifficultyID);
             stmt.SetString(5, instanceLock.GetData().Data);
@@ -370,7 +370,7 @@ namespace Game.Maps
                 stmt.SetInt32(0, extended ? 1 : 0);
                 stmt.SetInt64(1, playerGuid.GetCounter());
                 stmt.SetInt32(2, entries.MapDifficulty.MapID);
-                stmt.SetUInt8(3, entries.MapDifficulty.LockID);
+                stmt.SetUInt8(3, (byte)entries.MapDifficulty.LockID);
                 DB.Characters.Execute(stmt);
 
                 Log.outDebug(LogFilter.Instance, 
@@ -433,7 +433,7 @@ namespace Game.Maps
                     stmt.SetInt64(0, (UnixTime64)newExpiryTime);
                     stmt.SetInt64(1, playerGuid.GetCounter());
                     stmt.SetInt32(2, entries.MapDifficulty.MapID);
-                    stmt.SetUInt8(3, entries.MapDifficulty.LockID);
+                    stmt.SetUInt8(3, (byte)entries.MapDifficulty.LockID);
                     trans.Append(stmt);
                 }
                 DB.Characters.CommitTransaction(trans);
@@ -614,7 +614,7 @@ namespace Game.Maps
 
         public InstanceLockKey GetKey()
         {
-            return (MapDifficulty.MapID, MapDifficulty.LockID);
+            return (MapDifficulty.MapID, (byte)MapDifficulty.LockID);
         }
 
         public bool IsInstanceIdBound()

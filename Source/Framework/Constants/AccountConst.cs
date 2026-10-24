@@ -20,15 +20,20 @@ namespace Framework.Constants
         PerCharacterClickBindingsCache = 12,
         GlobalEditModeCache = 13,
         PerCharacterEditModeCache = 14,
+        GlobalFrontendChatSettings = 15,
+        GlobalCharacterListOrder = 16,
+        GlobalCooldownManager = 17,
+        PerCharacterCooldownManager2 = 18,
+        GlobalShop2PendingOrders = 19,
 
-        Max = 15,
+        Max = 20,
     }
 
     public enum AccountDataTypeMask
     {
-        AllAccountDataCacheMask = 0x7FFF,
-        GlobalCacheMask = 0x2515,
-        PerCharacterCacheMask = 0x5AEA
+        AllAccountDataCacheMask = 0x000FFFFF,
+        GlobalCacheMask = 0x000BA515,
+        PerCharacterCacheMask = 0x00045AEA
     }
 
     public enum TutorialAction : byte

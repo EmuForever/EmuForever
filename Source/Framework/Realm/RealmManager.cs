@@ -36,8 +36,8 @@ public class RealmManager : Singleton<RealmManager>
 
     void LoadBuildInfo()
     {
-        //                                         0             1             2              3              4      5              6
-        SQLResult result = DB.Login.Query("SELECT majorVersion, minorVersion, bugfixVersion, hotfixVersion, build, win64AuthSeed, mac64AuthSeed FROM build_info ORDER BY build ASC");
+        //                                         0             1             2              3              4
+        SQLResult result = DB.Login.Query("SELECT majorVersion, minorVersion, bugfixVersion, hotfixVersion, build FROM build_info ORDER BY build ASC");
         if (!result.IsEmpty())
         {
             do
@@ -51,13 +51,6 @@ public class RealmManager : Singleton<RealmManager>
                     build.HotfixVersion = hotfixVersion.ToCharArray();
 
                 build.Build = result.Read<uint>(4);
-                string win64AuthSeedHexStr = result.Read<string>(5);
-                if (!win64AuthSeedHexStr.IsEmpty() && win64AuthSeedHexStr.Length == build.Win64AuthSeed.Length * 2)
-                    build.Win64AuthSeed = win64AuthSeedHexStr.ToByteArray();
-
-                string mac64AuthSeedHexStr = result.Read<string>(6);
-                if (!mac64AuthSeedHexStr.IsEmpty() && mac64AuthSeedHexStr.Length == build.Mac64AuthSeed.Length * 2)
-                    build.Mac64AuthSeed = mac64AuthSeedHexStr.ToByteArray();
 
                 _builds.Add(build);
 
@@ -359,6 +352,4 @@ public class RealmBuildInfo
     public uint MinorVersion;
     public uint BugfixVersion;
     public char[] HotfixVersion = new char[4];
-    public byte[] Win64AuthSeed = new byte[16];
-    public byte[] Mac64AuthSeed = new byte[16];
 }

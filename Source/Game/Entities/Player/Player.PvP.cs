@@ -151,6 +151,7 @@ namespace Game.Entities
             }
 
             honor_f *= WorldConfig.Values[WorldCfg.RateHonor].Float;
+            MathFunctions.AddPct(ref honor_f, GetTotalAuraModifierByMiscValue(AuraType.ModCurrencyGain, 1792));
             // Back to int now
             honor = (int)honor_f;
             // honor - for show honor points in log

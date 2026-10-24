@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -1563,7 +1563,7 @@ namespace Game.Spells
                     Creature creatureTarget = unitTarget.ToCreature();
                     if (creatureTarget != null)
                     {
-                        if (creatureTarget.GetCreatureDifficulty().TypeFlags.HasFlag(CreatureTypeFlags.CollideWithMissiles))
+                        if (creatureTarget.GetCreatureTemplateStats().TypeFlags.HasFlag(CreatureTypeFlags.CollideWithMissiles))
                             continue;
                     }
                 }
@@ -4279,6 +4279,7 @@ namespace Game.Spells
                     && !m_spellInfo.HasAttribute(SpellAttr3.CompletelyBlocked))) // Add only hits and partial blocked
                 {
                     data.HitTargets.Add(targetInfo.TargetGUID);
+                    data.HitStatus.Add(SpellMissInfo.None);
                     m_channelTargetEffectMask |= targetInfo.EffectMask;
                 }
                 else // misses
@@ -4289,10 +4290,16 @@ namespace Game.Spells
             }
 
             foreach (GOTargetInfo targetInfo in m_UniqueGOTargetInfo)
+            {
                 data.HitTargets.Add(targetInfo.TargetGUID); // Always hits
+                data.HitStatus.Add(SpellMissInfo.None);
+            }
 
             foreach (CorpseTargetInfo targetInfo in m_UniqueCorpseTargetInfo)
+            {
                 data.HitTargets.Add(targetInfo.TargetGUID); // Always hits
+                data.HitStatus.Add(SpellMissInfo.None);
+            }
 
             // Reset m_needAliveTargetMask for non channeled spell
             if (!m_spellInfo.IsChanneled())
@@ -4946,6 +4953,7 @@ namespace Game.Spells
                     continue;
 
                 int itemid = m_spellInfo.Reagent[x];
+                if (p_caster.IsLegacyReagentExempt(m_spellInfo, itemid)) continue;
                 int itemcount = m_spellInfo.ReagentCount[x];
 
                 // if CastItem is also spell reagent
@@ -5842,7 +5850,7 @@ namespace Game.Spells
                                 if (info.Item1.Type == PetType.Hunter)
                                 {
                                     CreatureTemplate creatureInfo = Global.ObjectMgr.GetCreatureTemplate(info.Item1.CreatureId);
-                                    CreatureDifficulty creatureDifficulty = creatureInfo.GetDifficulty(Difficulty.None);
+                                    CreatureTemplateStats creatureDifficulty = creatureInfo.Stats;
 
                                     if (creatureInfo == null || 
                                         !creatureInfo.IsTameable(playerCaster.CanTameExoticPets(), creatureDifficulty))
@@ -6360,7 +6368,11 @@ namespace Game.Spells
                 return SpellCastResult.SpellCastOk;
             }
 
-            if (unitflag.HasAnyFlag(UnitFlags.Stunned))
+            // Movement generators can be cleared/replaced independently of
+            // their control aura. The aura remains authoritative for casts,
+            // including server-controlled players with no client-side gate.
+            if (unitflag.HasAnyFlag(UnitFlags.Stunned) || unitCaster.HasAuraType(AuraType.ModStun)
+                || unitCaster.HasAuraType(AuraType.ModStunDisableGravity))
             {
                 if (usableWhileStunned)
                 {
@@ -6378,19 +6390,21 @@ namespace Game.Spells
                     result = SpellCastResult.Stunned;
                 }
             }
-            else if (unitCaster.HasUnitFlag(UnitFlags.Silenced)
+            else if ((unitCaster.HasUnitFlag(UnitFlags.Silenced) || unitCaster.HasAuraType(AuraType.ModSilence)
+                || unitCaster.HasAuraType(AuraType.ModPacifySilence))
                 && (m_spellInfo.PreventionType & SpellPreventionType.Silence) != 0
                 && !CheckSpellCancelsSilence(ref param1))
             {
                 result = SpellCastResult.Silenced;
             }
-            else if (unitflag.HasAnyFlag(UnitFlags.Pacified)
+            else if ((unitflag.HasAnyFlag(UnitFlags.Pacified) || unitCaster.HasAuraType(AuraType.ModPacify)
+                || unitCaster.HasAuraType(AuraType.ModPacifySilence))
                 && m_spellInfo.PreventionType.HasAnyFlag(SpellPreventionType.Pacify)
                 && !CheckSpellCancelsPacify(ref param1))
             {
                 result = SpellCastResult.Pacified;
             }
-            else if (unitflag.HasAnyFlag(UnitFlags.Fleeing))
+            else if (unitflag.HasAnyFlag(UnitFlags.Fleeing) || unitCaster.HasAuraType(AuraType.ModFear))
             {
                 if (usableWhileFeared)
                 {
@@ -6407,7 +6421,7 @@ namespace Game.Spells
                 else if (!CheckSpellCancelsFear(ref param1))
                     result = SpellCastResult.Fleeing;
             }
-            else if (unitflag.HasAnyFlag(UnitFlags.Confused))
+            else if (unitflag.HasAnyFlag(UnitFlags.Confused) || unitCaster.HasAuraType(AuraType.ModConfuse))
             {
                 if (usableWhileConfused)
                 {
@@ -6418,7 +6432,7 @@ namespace Game.Spells
                 else if (!CheckSpellCancelsConfuse(ref param1))
                     result = SpellCastResult.Confused;
             }
-            else if (unitCaster.HasUnitFlag2(UnitFlags2.NoActions)
+            else if ((unitCaster.HasUnitFlag2(UnitFlags2.NoActions) || unitCaster.HasAuraType(AuraType.ModNoActions))
                 && m_spellInfo.PreventionType.HasAnyFlag(SpellPreventionType.NoActions)
                 && !CheckSpellCancelsNoActions(ref param1))
             {
@@ -6456,8 +6470,8 @@ namespace Game.Spells
 
         bool CheckSpellCancelsCharm(ref int param1)
         {
-            return CheckSpellCancelsAuraEffect(AuraType.ModCharm, ref param1) ||
-                CheckSpellCancelsAuraEffect(AuraType.AoeCharm, ref param1) ||
+            return CheckSpellCancelsAuraEffect(AuraType.ModCharm, ref param1) &&
+                CheckSpellCancelsAuraEffect(AuraType.AoeCharm, ref param1) &&
                 CheckSpellCancelsAuraEffect(AuraType.ModPossess, ref param1);
         }
 
@@ -6469,13 +6483,15 @@ namespace Game.Spells
 
         bool CheckSpellCancelsSilence(ref int param1)
         {
-            return CheckSpellCancelsAuraEffect(AuraType.ModSilence, ref param1) ||
+            // An empty aura subtype passes. OR would let that empty list
+            // bypass a real silence in the other subtype.
+            return CheckSpellCancelsAuraEffect(AuraType.ModSilence, ref param1) &&
                 CheckSpellCancelsAuraEffect(AuraType.ModPacifySilence, ref param1);
         }
 
         bool CheckSpellCancelsPacify(ref int param1)
         {
-            return CheckSpellCancelsAuraEffect(AuraType.ModPacify, ref param1) ||
+            return CheckSpellCancelsAuraEffect(AuraType.ModPacify, ref param1) &&
                 CheckSpellCancelsAuraEffect(AuraType.ModPacifySilence, ref param1);
         }
 
@@ -6581,13 +6597,21 @@ namespace Game.Spells
             return false;
         }
 
-        SpellCastResult CheckRange(bool strict)
+        // AI must check range before stopping to cast. Queued melee attacks still
+        // use their actual range here, rather than the client queue's 100-yard allowance.
+        public SpellCastResult CheckUnitTargetRange(Unit target)
+        {
+            m_targets.SetUnitTarget(target);
+            return CheckRange(true, false);
+        }
+
+        SpellCastResult CheckRange(bool strict, bool allowQueuedMelee = true)
         {
             // Don't check for instant cast spells
             if (!strict && m_casttime == 0)
                 return SpellCastResult.SpellCastOk;
 
-            (float minRange, float maxRange) = GetMinMaxRange(strict);
+            (float minRange, float maxRange) = GetMinMaxRange(strict && allowQueuedMelee);
 
             // dont check max_range to strictly after cast
             if (m_spellInfo.RangeEntry != null && !m_spellInfo.RangeEntry.HasFlag(SpellRangeFlag.Melee) && !strict)
@@ -6861,6 +6885,7 @@ namespace Game.Spells
                             continue;
 
                         int itemid = m_spellInfo.Reagent[i];
+                        if (player.IsLegacyReagentExempt(m_spellInfo, itemid)) continue;
                         int itemcount = m_spellInfo.ReagentCount[i];
 
                         // if CastItem is also spell reagent

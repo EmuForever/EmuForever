@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -170,6 +170,12 @@ namespace Game.Spells
         {
             if (effectHandleMode != SpellEffectHandleMode.HitTarget)
                 return;
+
+            if (m_spellInfo.Id == 1225469 && m_caster.ToPlayer() is Player legacyStudent)
+            {
+                legacyStudent.UseLegacyDedicatedStudy(damage);
+                return;
+            }
 
             if (unitTarget == null && gameObjTarget == null && itemTarget == null && corpseTarget == null)
                 return;
@@ -1028,6 +1034,9 @@ namespace Game.Spells
             }
 
             // really will be created more items
+            if (Global.SpellMgr.IsPartOfSkillLine(SkillType.Cooking, m_spellInfo.Id) &&
+                RandomHelper.randChance(player.GetClassicLegacyPerkAmount(1225457)))
+                num_to_add = Math.Min(num_to_add * 2, pProto.GetMaxStackSize());
             num_to_add *= items_count;
 
             // can the player store the new item?
@@ -1931,7 +1940,7 @@ namespace Game.Spells
                 creature.StartPickPocketRefillTimer();
 
                 creature._loot = new Loot(creature.GetMap(), creature.GetGUID(), LootType.Pickpocketing, null);
-                int lootid = creature.GetCreatureDifficulty().PickPocketLootID;
+                int lootid = creature.GetCreatureTemplateStats().PickPocketLootID;
                 if (lootid != 0)
                     creature._loot.FillLoot(lootid, LootStorage.Pickpocketing, player, true);
 
@@ -2203,6 +2212,7 @@ namespace Game.Spells
         }
 
         [SpellEffectHandler(SpellEffectName.EnchantItemTemporary)]
+        [SpellEffectHandler(SpellEffectName.EnchantItemTemporary2)] // 1.60.1 poisons / shaman imbues
         void EffectEnchantItemTmp()
         {
             if (effectHandleMode != SpellEffectHandleMode.HitTarget)
@@ -3235,14 +3245,7 @@ namespace Game.Spells
 
             if (CliDB.GlyphPropertiesStorage.TryGetValue(glyph, out GlyphPropertiesRecord gp))
             {
-                if (CliDB.GlyphSlotStorage.TryGetValue(player.GetGlyphSlot((byte)m_misc.GlyphSlot), out GlyphSlotRecord gs))
-                {
-                    if (gp.GlyphSlotFlags != gs.Type)
-                    {
-                        SendCastResult(SpellCastResult.InvalidGlyph);
-                        return;                                 // glyph slot mismatch
-                    }
-                }
+                // 1.60.1 has no GlyphSlot.db2 / GlyphSlotFlags: no glyph slot type check
 
                 // remove old glyph
                 if (player.GetGlyph(m_misc.GlyphSlot) is int oldglyph && oldglyph != 0)
@@ -3692,13 +3695,13 @@ namespace Game.Spells
             Creature creature = unitTarget.ToCreature();
             int targetLevel = creature.GetLevelForTarget(m_caster);
 
-            SkillType skill = creature.GetCreatureDifficulty().GetRequiredLootSkill();
+            SkillType skill = creature.GetCreatureTemplateStats().GetRequiredLootSkill();
 
             creature.SetUnitFlag3(UnitFlags3.AlreadySkinned);
             creature.SetDynamicFlag(UnitDynFlags.Lootable);
             Loot loot = new(creature.GetMap(), creature.GetGUID(), LootType.Skinning, null);
             creature.m_personalLoot[player.GetGUID()] = loot;
-            loot.FillLoot(creature.GetCreatureDifficulty().SkinLootID, LootStorage.Skinning, player, true);
+            loot.FillLoot(creature.GetCreatureTemplateStats().SkinLootID, LootStorage.Skinning, player, true);
             player.SendLoot(loot);
 
             if (!Global.SpellMgr.IsPartOfSkillLine(skill, m_spellInfo.Id))

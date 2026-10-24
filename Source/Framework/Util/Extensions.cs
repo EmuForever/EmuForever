@@ -33,6 +33,18 @@ namespace System
             return lValue.HasAnyFlag(lFlag);
         }
 
+        // Keep the numeric IBinaryInteger overload while giving enums an exact-type,
+        // allocation-free overload. The optional marker distinguishes the signatures.
+        // Combat/visibility test flags millions of times; boxing both operands drove GC.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool HasAnyFlag<TEnum>(this TEnum value, TEnum flag, byte enumFastPath = 0) where TEnum : struct, Enum
+        {
+            if (Unsafe.SizeOf<TEnum>() == 1) return (Unsafe.As<TEnum, byte>(ref value) & Unsafe.As<TEnum, byte>(ref flag)) != 0;
+            if (Unsafe.SizeOf<TEnum>() == 2) return (Unsafe.As<TEnum, ushort>(ref value) & Unsafe.As<TEnum, ushort>(ref flag)) != 0;
+            if (Unsafe.SizeOf<TEnum>() == 4) return (Unsafe.As<TEnum, uint>(ref value) & Unsafe.As<TEnum, uint>(ref flag)) != 0;
+            return (Unsafe.As<TEnum, ulong>(ref value) & Unsafe.As<TEnum, ulong>(ref flag)) != 0;
+        }
+
         public static bool HasFlag(this Enum value, Enum flag)
         {
             long lValue = Convert.ToInt64(value);
@@ -133,6 +145,10 @@ namespace System
                     return mask.HasFlag(RaceMask.DracthyrHorde);
                 case Race.DracthyrAlliance:
                     return mask.HasFlag(RaceMask.DracthyrAlliance);
+                case Race.SkyborneAlliance:
+                    return mask.HasFlag(RaceMask.SkyborneAlliance);
+                case Race.SkyborneHorde:
+                    return mask.HasFlag(RaceMask.SkyborneHorde);
 
                 default: return false;
             }

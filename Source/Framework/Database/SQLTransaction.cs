@@ -124,9 +124,16 @@ namespace Framework.Database
 
         public bool InvokeIfReady()
         {
-            if (m_future != null && m_future.Wait(0))
+            if (m_future == null)
+                return true;
+            if (m_future.IsCompleted)
             {
-                m_callback(m_future.Result);
+                Task<bool> future = m_future;
+                Action<bool> callback = m_callback;
+                // Consume before calling user code, so a throwing completion cannot run twice.
+                m_future = null;
+                m_callback = null;
+                callback(future.Status == TaskStatus.RanToCompletion && future.Result);
                 return true;
             }
 

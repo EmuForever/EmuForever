@@ -36,15 +36,13 @@ namespace Game.Spells
     {
         None = 0x00,
         NoCaster = 0x01,
-        Cancelable = 0x02,
+        Positive = 0x02,
         Duration = 0x04,
         Scalable = 0x08,
         Negative = 0x10,
         Unk20 = 0x20,
         Unk40 = 0x40,
         Unk80 = 0x80,
-        Positive = 0x100,
-        Passive = 0x200,
     }
 
     public class AuraApplication
@@ -153,17 +151,6 @@ namespace Game.Spells
             if (GetBase().GetSpellInfo().HasAttribute(SpellAttr8.AuraPointsOnClient) || GetBase().GetAuraEffects().Any(effectNeedsAmount))
                 _flags |= AuraFlags.Scalable;
 
-            if (_flags.HasFlag(AuraFlags.Positive))
-            {
-                if (!GetBase().GetSpellInfo().IsPassive() && !GetBase().GetSpellInfo().HasAttribute(SpellAttr1.NoAuraIcon) 
-                    && GetBase().GetOwner().GetGUID() == GetTarget().GetGUID())
-                {
-                    _flags |= AuraFlags.Cancelable;
-                }
-            }
-
-            if (GetBase().GetSpellInfo().IsPassive())
-                _flags |= AuraFlags.Passive;
         }
 
         public void _HandleEffect(int effIndex, bool apply)
@@ -276,6 +263,9 @@ namespace Game.Spells
             else if (!auraData.Flags.HasFlag(AuraFlags.NoCaster))
                 auraData.CastUnit = aura.GetCasterGUID();
 
+            if (!aura.GetCastItemGUID().IsEmpty())
+                auraData.CastItem = aura.GetCastItemGUID();
+
             if (auraData.Flags.HasFlag(AuraFlags.Duration))
             {
                 auraData.Duration = aura.GetMaxDuration();
@@ -289,7 +279,9 @@ namespace Game.Spells
                 {
                     if (effect != null && HasEffect(effect.GetEffIndex()))       // Not all of aura's effects have to be applied on every target
                     {
-                        auraData.Points.Add(effect.GetAmount());
+                        while (auraData.Points.Count <= effect.GetEffIndex())
+                            auraData.Points.Add(0);
+                        auraData.Points[effect.GetEffIndex()] = effect.GetAmount();
                         if (effect.GetEstimatedAmount().HasValue)
                             hasEstimatedAmounts = true;
                     }
@@ -298,9 +290,11 @@ namespace Game.Spells
                 if (hasEstimatedAmounts)
                 {
                     // When sending EstimatedPoints all effects (at least up to the last one that uses GetEstimatedAmount) must have proper value in packet
+                    for (int i = 0; i < auraData.Points.Count; ++i)
+                        auraData.EstimatedPoints.Add(0);
                     foreach (AuraEffect effect in GetBase().GetAuraEffects())
                         if (effect != null && HasEffect(effect.GetEffIndex()))       // Not all of aura's effects have to be applied on every target
-                            auraData.EstimatedPoints.Add(effect.GetEstimatedAmount().GetValueOrDefault(effect.GetAmount()));
+                            auraData.EstimatedPoints[effect.GetEffIndex()] = effect.GetEstimatedAmount().GetValueOrDefault(effect.GetAmount());
                 }
             }
         }

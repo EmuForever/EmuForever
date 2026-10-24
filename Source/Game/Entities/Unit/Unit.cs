@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -1542,22 +1542,13 @@ namespace Game.Entities
 
             int modelid = 0;
             SpellShapeshiftFormRecord formEntry = CliDB.SpellShapeshiftFormStorage.LookupByKey((int)form);
-            if (formEntry != null && formEntry.CreatureDisplayID[0] != 0)
+            // 1.60.1: SpellShapeshiftForm has a single CreatureDisplayID (no per-faction model)
+            if (formEntry != null && formEntry.CreatureDisplayID != 0)
             {
-                // Take the alliance modelid as default
                 if (GetTypeId() != TypeId.Player)
-                    return formEntry.CreatureDisplayID[0];
-                else
-                {
-                    if (Player.TeamForRace(GetRace()) == Team.Alliance)
-                        modelid = formEntry.CreatureDisplayID[0];
-                    else
-                        modelid = formEntry.CreatureDisplayID[1];
+                    return formEntry.CreatureDisplayID;
 
-                    // If the player is horde but there are no values for the horde modelid - take the alliance modelid
-                    if (modelid == 0 && Player.TeamForRace(GetRace()) == Team.Horde)
-                        modelid = formEntry.CreatureDisplayID[0];
-                }
+                modelid = formEntry.CreatureDisplayID;
             }
 
             return 0;
@@ -2610,7 +2601,7 @@ namespace Game.Entities
             m_unitData.AppendAllowedFieldsMaskForFlag(mask, flags);
             m_unitData.WriteUpdate(buffer, mask, true, this, target);
 
-            data.WriteUInt32(buffer.GetSize());
+            data.WriteUInt32(buffer.GetSize() + sizeof(uint));
             data.WriteUInt32(valuesMask.GetBlock(0));
             data.WriteBytes(buffer);
         }
@@ -2641,7 +2632,7 @@ namespace Game.Entities
             buffer1.WriteUInt32(buffer.GetSize());
             buffer1.WriteBytes(buffer.GetData());
 
-            data.AddUpdateBlock(buffer1);
+            data.AddUpdateBlock(buffer1, GetUpdateFieldFlagsFor(target));
         }
 
         public override void ClearUpdateMask(bool remove)

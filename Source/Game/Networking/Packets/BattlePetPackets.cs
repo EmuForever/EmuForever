@@ -17,14 +17,16 @@ namespace Game.Networking.Packets
             _worldPacket.WriteUInt16(Trap);
             _worldPacket.WriteInt32(Slots.Count);
             _worldPacket.WriteInt32(Pets.Count);
-            _worldPacket.WriteBit(HasJournalLock);
-            _worldPacket.FlushBits();
 
             foreach (var slot in Slots)
                 slot.Write(_worldPacket);
 
             foreach (var pet in Pets)
                 pet.Write(_worldPacket);
+
+            // Forever layout: TC BattlePetJournal::Write
+            _worldPacket.WriteBit(HasJournalLock);
+            _worldPacket.FlushBits();
         }
 
         public ushort Trap;
@@ -68,11 +70,13 @@ namespace Game.Networking.Packets
         public override void Write()
         {
             _worldPacket.WriteInt32(Pets.Count);
-            _worldPacket.WriteBit(PetAdded);
-            _worldPacket.FlushBits();
 
             foreach (var pet in Pets)
                 pet.Write(_worldPacket);
+
+            // Forever layout: TC BattlePetUpdates::Write
+            _worldPacket.WriteBit(PetAdded);
+            _worldPacket.FlushBits();
         }
 
         public List<BattlePetStruct> Pets = new();
@@ -86,12 +90,14 @@ namespace Game.Networking.Packets
         public override void Write()
         {
             _worldPacket.WriteInt32(Slots.Count);
-            _worldPacket.WriteBit(NewSlot);
-            _worldPacket.WriteBit(AutoSlotted);
-            _worldPacket.FlushBits();
 
             foreach (var slot in Slots)
                 slot.Write(_worldPacket);
+
+            // Forever layout: TC PetBattleSlotUpdates::Write
+            _worldPacket.WriteBit(NewSlot);
+            _worldPacket.WriteBit(AutoSlotted);
+            _worldPacket.FlushBits();
         }
 
         public List<BattlePetSlot> Slots = new();
@@ -119,10 +125,14 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
+            // Forever layout: TC BattlePetModifyName::Read
             PetGuid = _worldPacket.ReadPackedGuid();
             int nameLength = _worldPacket.ReadBits<int>(7);
+            bool hasDeclinedNames = _worldPacket.HasBit();
 
-            if (_worldPacket.HasBit())
+            Name = _worldPacket.ReadString(nameLength);
+
+            if (hasDeclinedNames)
             {
                 DeclinedNames = new();
 
@@ -134,8 +144,6 @@ namespace Game.Networking.Packets
                 for (byte i = 0; i < SharedConst.MaxDeclinedNameCases; ++i)
                     DeclinedNames.Name[i] = _worldPacket.ReadString(declinedNameLengths[i]);
             }
-
-            Name = _worldPacket.ReadString(nameLength);
         }
 
         public ObjectGuid PetGuid;
@@ -176,14 +184,16 @@ namespace Game.Networking.Packets
 
                 for (byte i = 0; i < SharedConst.MaxDeclinedNameCases; ++i)
                     _worldPacket.WriteBits(DeclinedNames.Name[i].GetByteCount(), 7);
+                _worldPacket.FlushBits();
 
                 for (byte i = 0; i < SharedConst.MaxDeclinedNameCases; ++i)
                     _worldPacket.WriteString(DeclinedNames.Name[i]);
 
                 _worldPacket.WriteString(Name);
             }
-
-            _worldPacket.FlushBits();
+            else
+                _worldPacket.FlushBits();
+            // Forever layout: TC QueryBattlePetNameResponse::Write
         }
 
         public ObjectGuid BattlePetID;
@@ -316,9 +326,10 @@ namespace Game.Networking.Packets
             data.WriteInt32(MaxHealth);
             data.WriteInt32(Speed);
             data.WriteUInt8(Quality);
+            data.WriteInt64(ClassicUnknown); // Forever layout: TC BattlePet operator<< (Classic 1.60 int64 after Quality)
             data.WriteBits(Name.GetByteCount(), 7);
             data.WriteBit(OwnerInfo.HasValue); // HasOwnerInfo
-            data.WriteBit(false); // NoRename
+            data.WriteBit(NoRename);
             data.FlushBits();
 
             data.WriteString(Name);
@@ -351,6 +362,8 @@ namespace Game.Networking.Packets
         public int MaxHealth;
         public int Speed;
         public byte Quality;
+        public long ClassicUnknown;
+        public bool NoRename;
         public BattlePetOwnerInfo? OwnerInfo;
         public string Name;
     }

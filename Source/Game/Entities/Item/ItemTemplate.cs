@@ -163,11 +163,9 @@ namespace Game.Entities
             if (ExtendedData.ItemDelay == 0)
                 return 0.0f;
 
-            float temp = 0.0f;
-            for (byte i = 0; i < ItemConst.MaxDamages; ++i)
-                temp += ExtendedData.MinDamage[i] + ExtendedData.MaxDamage[i];
-
-            return temp * 500.0f / ExtendedData.ItemDelay;
+            // 1.60.1: no fixed damage columns, use the ItemDamage-table based range
+            GetDamage(out float minDamage, out float maxDamage);
+            return (minDamage + maxDamage) * 500.0f / ExtendedData.ItemDelay;
         }
 
         public float GetDPS()
@@ -266,8 +264,9 @@ namespace Game.Entities
             return ((int)spec.ClassID - 1) * PlayerConst.MaxSpecializations + spec.OrderIndex;
         }
 
-        public int GetRandomSuffixGroupID() { return BasicData.ItemRandomSuffixGroupID; }
-        public int GetRandomSelect()  { return BasicData.RandomSelect; }
+        // 1.60.1 has no ItemRandomProperties/ItemRandomSuffix
+        public int GetRandomSuffixGroupID() { return 0; }
+        public int GetRandomSelect()  { return 0; }
 
         public int GetId() { return BasicData.Id; }
         public ItemClass GetClass() { return BasicData.ClassID; }
@@ -289,16 +288,23 @@ namespace Game.Entities
         public int GetRequiredSpell() { return ExtendedData.RequiredAbility; }
         public int GetRequiredReputationFaction() { return ExtendedData.MinFactionID; }
         public ReputationRank GetRequiredReputationRank() { return ExtendedData.MinReputation; }
-        public int GetResistance(SpellSchools school) { return ExtendedData.Resistances[(int)school]; }
+        public int GetResistance(SpellSchools school) { return 0; } // no Resistances column in 1.60.1 ItemSparse
         public int GetMaxCount() { return ExtendedData.MaxCount; }
         public byte GetContainerSlots() { return ExtendedData.ContainerSlots; }
         public ItemModType GetStatModifierBonusStat(int index) { Cypher.Assert(index < ItemConst.MaxStats); return ExtendedData.StatModifierBonusStat(index); }
-        public short GetStatModifierBonusAmount(int index) { Cypher.Assert(index < ItemConst.MaxStats); return ExtendedData.StatModifierBonusAmount[index]; }
+        /// <summary> 1.60.1 (retail-style): stat amount = RandPropPoints(itemLevel) * StatPercentEditor / 10000 </summary>
+        public short GetStatModifierBonusAmount(int index)
+        {
+            Cypher.Assert(index < ItemConst.MaxStats);
+            int randomPropPoints = ItemEnchantmentManager.GetRandomPropertyPoints(GetItemLevel(), GetQuality(), GetInventoryType());
+            return (short)Math.Round(ExtendedData.StatPercentEditor[index] * randomPropPoints * 0.0001f);
+        }
         public int GetStatPercentEditor(int index) { Cypher.Assert(index < ItemConst.MaxStats); return ExtendedData.StatPercentEditor[index]; }
         public float GetStatPercentageOfSocket(int index) { Cypher.Assert(index < ItemConst.MaxStats); return ExtendedData.StatPercentageOfSocket[index]; }
         public int GetScalingStatContentTuning() { return ExtendedData.ContentTuningID; }
-        public ushort GetScalingStatDistributionID() { return ExtendedData.ScalingStatDistributionID; }
-        public int GetScalingStatValueID() { return BasicData.ScalingStatValue; }
+        // 1.60.1 has no ScalingStatDistribution/ScalingStatValues
+        public ushort GetScalingStatDistributionID() { return 0; }
+        public int GetScalingStatValueID() { return 0; }
 
         public int GetDisplayInfoID()
         {
@@ -319,8 +325,21 @@ namespace Game.Entities
             return null;
         }
 
-        public ushort GetMinDamage(int index) { return BasicData.MinDamage[index]; }
-        public ushort GetMaxDamage(int index) { return BasicData.MaxDamage[index]; }
+        public ushort GetMinDamage(int index)
+        {
+            if (index != 0)
+                return 0;
+            GetDamage(out float minDamage, out _);
+            return (ushort)minDamage;
+        }
+
+        public ushort GetMaxDamage(int index)
+        {
+            if (index != 0)
+                return 0;
+            GetDamage(out _, out float maxDamage);
+            return (ushort)maxDamage;
+        }
         public int GetPlayerLevelToItemLevelCurveId() { return ExtendedData.PlayerLevelToItemLevelCurveID; }
         public SpellSchools GetDamageType() { return ExtendedData.DamageType; }
         public Milliseconds GetDelay() { return ExtendedData.ItemDelay; }
@@ -387,6 +406,7 @@ namespace Game.Entities
         public BitSet[] Specializations = new BitSet[3];  // one set for 1-40 level range and another for 41-109 and one for 110
         public ClassMask ItemSpecClassMask;
         public int QuestLogItemId;
+        public int RandomBonusListTemplateId;
 
         protected ItemRecord BasicData;
         protected ItemSparseRecord ExtendedData;

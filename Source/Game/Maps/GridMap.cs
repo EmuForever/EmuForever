@@ -231,7 +231,7 @@ namespace Game.Maps
 
         float GetHeightFromFloat(float x, float y)
         {
-            if (m_uint16_V8 == null || m_uint16_V9 == null)
+            if (m_V8 == null || m_V9 == null)
                 return _gridHeight;
 
             x = MapConst.MapResolution * (32 - x / MapConst.SizeofGrids);

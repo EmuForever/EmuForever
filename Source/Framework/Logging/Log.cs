@@ -46,16 +46,15 @@ public class Log
             loggers[LogFilter.Server] = serverLogger;
         }
 
-        outInfo(LogFilter.Server, @" ____                    __                      ");
-        outInfo(LogFilter.Server, @"/\  _`\                 /\ \                     ");
-        outInfo(LogFilter.Server, @"\ \ \/\_\  __  __  _____\ \ \___      __   _ __  ");
-        outInfo(LogFilter.Server, @" \ \ \/_/_/\ \/\ \/\ '__`\ \  _ `\  /'__`\/\`'__\");
-        outInfo(LogFilter.Server, @"  \ \ \L\ \ \ \_\ \ \ \L\ \ \ \ \ \/\  __/\ \ \/ ");
-        outInfo(LogFilter.Server, @"   \ \____/\/`____ \ \ ,__/\ \_\ \_\ \____\\ \_\ ");
-        outInfo(LogFilter.Server, @"    \/___/  `/___/> \ \ \/  \/_/\/_/\/____/ \/_/ ");
-        outInfo(LogFilter.Server, @"               /\___/\ \_\                       ");
-        outInfo(LogFilter.Server, @"               \/__/  \/_/                   Core");
-        outInfo(LogFilter.Server, "https://github.com/CypherCore/CypherCore \r\n");
+        outHeader(LogFilter.Server, " ");
+        outHeader(LogFilter.Server, @"███████╗███╗   ███╗██╗   ██╗███████╗ ██████╗ ██████╗ ███████╗██╗   ██╗███████╗██████╗ ");
+        outHeader(LogFilter.Server, @"██╔════╝████╗ ████║██║   ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝██║   ██║██╔════╝██╔══██╗");
+        outHeader(LogFilter.Server, @"█████╗  ██╔████╔██║██║   ██║█████╗  ██║   ██║██████╔╝█████╗  ██║   ██║█████╗  ██████╔╝");
+        outHeader(LogFilter.Server, @"██╔══╝  ██║╚██╔╝██║██║   ██║██╔══╝  ██║   ██║██╔══██╗██╔══╝  ╚██╗ ██╔╝██╔══╝  ██╔══██╗");
+        outHeader(LogFilter.Server, @"███████╗██║ ╚═╝ ██║╚██████╔╝██║     ╚██████╔╝██║  ██║███████╗ ╚████╔╝ ███████╗██║  ██║");
+        outHeader(LogFilter.Server, @"╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚══════╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝");
+        outHeader(LogFilter.Server, "                                       World Of Warcraft Forever 1.60.1.xxxxx Emulator.");
+        outHeader(LogFilter.Server, " ");
     }
 
     static bool ShouldLog(LogFilter type, LogLevel level)
@@ -88,12 +87,22 @@ public class Log
         outMessage(type, LogLevel.Info, text, args);
     }
 
+    // Waits briefly for queued console output, e.g. before a crash terminates the process.
+    public static void FlushConsole() => ConsoleAppender.Flush();
+
     public static void outWarn(LogFilter type, string text, params string[] args)
     {
         if (!ShouldLog(type, LogLevel.Warn))
             return;
 
         outMessage(type, LogLevel.Warn, text, args);
+    }
+    public static void outHeader(LogFilter type, string text, params string[] args)
+    {
+        if (!ShouldLog(type, LogLevel.Header))
+            return;
+
+        outMessage(type, LogLevel.Header, text, args);
     }
 
     [Conditional("DEBUG")]
@@ -119,7 +128,7 @@ public class Log
             return;
 
         outMessage(LogFilter.Server, LogLevel.Fatal,
-            $"CallingMember: {memberName} ExceptionMessage: {ex.Message}");
+            $"CallingMember: {memberName} ExceptionMessage: {ex.Message}{Environment.NewLine}{ex}");
     }
 
     public static void outFatal(LogFilter type, string text, params string[] args)
@@ -155,7 +164,7 @@ public class Log
     static void outMessage(LogFilter type, LogLevel level, string text, params string[] args)
     {
         Logger logger = GetLoggerByType(type);
-        logger.write(new LogMessage(level, type, string.Format(text, args)));
+        logger.write(new LogMessage(level, type, args.Length > 0 ? string.Format(text, args) : text));
     }
 
     static void outMessage(LogFilter type, LogLevel level, string text, params object[] args)
@@ -403,7 +412,8 @@ public enum LogLevel
     Warn = 4,
     Error = 5,
     Fatal = 6,
-    Max = 6
+    Header = 7,
+    Max = 7
 }
 
 public enum LogFilter
@@ -429,6 +439,7 @@ public enum LogFilter
     Garrison,
     Gameevent,
     Guild,
+    Header,
     Http,
     Instance,
     Lfg,

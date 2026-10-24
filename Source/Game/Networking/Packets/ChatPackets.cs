@@ -42,22 +42,49 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
+            // Forever layout: TC ChatMessageWhisper::Read
             Language = (Language)_worldPacket.ReadInt32();
-            int targetLen = _worldPacket.ReadBits<int>(9);
-            int textLen = _worldPacket.ReadBits<int>(11);
-            Target = _worldPacket.ReadString(targetLen);
-            Text = _worldPacket.ReadString(textLen);
+            TargetGUID = _worldPacket.ReadPackedGuid();
+            TargetVirtualRealmAddress = _worldPacket.ReadUInt32();
+
+            // Classic 1.60: a second 9 bit sized string sits between Target and Text. Captures from build 70450
+            // (CMSG_MESSAGE_WHISPER "locky" / "shards" / text) show it is the target's surname.
+            uint targetLen = _worldPacket.ReadBits<uint>(9);
+            uint surnameLen = _worldPacket.ReadBits<uint>(9);
+            uint textLen = _worldPacket.ReadBits<uint>(11);
+
+            Target = SizedCString.Read(_worldPacket, targetLen);
+            TargetSurname = SizedCString.Read(_worldPacket, surnameLen);
+            Text = SizedCString.Read(_worldPacket, textLen);
         }
 
         public Language Language = Language.Universal;
+        public ObjectGuid TargetGUID;
+        public uint TargetVirtualRealmAddress;
         public string Text;
         public string Target;
+        public string TargetSurname = string.Empty;
+    }
+
+    static class SizedCString
+    {
+        // TC SizedCString: bit size includes the null terminator, data is only present when size > 1
+        public static string Read(WorldPacket data, uint bytesIncludingNullTerminator)
+        {
+            if (bytesIncludingNullTerminator <= 1)
+                return string.Empty;
+
+            string value = data.ReadString((int)(bytesIncludingNullTerminator - 1));
+            data.ReadUInt8(); // null terminator
+            return value;
+        }
     }
 
     public class ChatMessageChannel : ClientPacket
     {
         public ChatMessageChannel(WorldPacket packet) : base(packet) { }
 
+        // Forever layout: TC ChatMessageChannel::Read
         public override void Read()
         {
             Language = (Language)_worldPacket.ReadInt32();
@@ -96,15 +123,23 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
-            int targetLen = _worldPacket.ReadBits<int>(9);
-            _worldPacket.ResetBitPos();
-
+            // Forever layout: TC ChatAddonMessageTargeted::Read
             Params.Read(_worldPacket);
             ChannelGUID = _worldPacket.ReadPackedGuid();
-            Target = _worldPacket.ReadString(targetLen);
+            PlayerGUID = _worldPacket.ReadPackedGuid();
+            PlayerVirtualRealmAddress = _worldPacket.ReadUInt32();
+
+            uint playerNameLen = _worldPacket.ReadBits<uint>(9);
+            uint channelNameLen = _worldPacket.ReadBits<uint>(8);
+
+            Target = SizedCString.Read(_worldPacket, playerNameLen);
+            ChannelName = SizedCString.Read(_worldPacket, channelNameLen);
         }
 
-        public string Target;
+        public string Target; // TC PlayerName
+        public ObjectGuid PlayerGUID;
+        public uint PlayerVirtualRealmAddress;
+        public string ChannelName;
         public ChatAddonMessageParams Params = new();
         public ObjectGuid? ChannelGUID; // not optional in the packet. Optional for api reasons
     }
@@ -206,6 +241,7 @@ namespace Game.Networking.Packets
                 TargetName = creatureReceiver.GetName(locale);
         }
 
+        // Forever layout: TC Chat::Write
         public override void Write()
         {
             _worldPacket.WriteUInt8((byte)SlashCmd);
@@ -217,6 +253,7 @@ namespace Game.Networking.Packets
             _worldPacket.WriteUInt32(TargetVirtualAddress);
             _worldPacket.WriteUInt32(SenderVirtualAddress);
             _worldPacket.WriteInt32(AchievementID);
+            _worldPacket.WriteUInt32((uint)_ChatFlags);
             _worldPacket.WriteFloat(DisplayTime);
             _worldPacket.WriteInt32(SpellID);
             _worldPacket.WriteBits(SenderName.GetByteCount(), 11);
@@ -224,11 +261,11 @@ namespace Game.Networking.Packets
             _worldPacket.WriteBits(Prefix.GetByteCount(), 5);
             _worldPacket.WriteBits(Channel.GetByteCount(), 7);
             _worldPacket.WriteBits(ChatText.GetByteCount(), 12);
-            _worldPacket.WriteBits((ushort)_ChatFlags, 15);
             _worldPacket.WriteBit(HideChatLog);
             _worldPacket.WriteBit(FakeSenderName);
             _worldPacket.WriteBit(Unused_801.HasValue);
             _worldPacket.WriteBit(ChannelGUID.HasValue);
+            _worldPacket.WriteBit(EncounterEventID.HasValue);
             _worldPacket.FlushBits();
 
             _worldPacket.WriteString(SenderName);
@@ -242,6 +279,9 @@ namespace Game.Networking.Packets
 
             if (ChannelGUID.HasValue)
                 _worldPacket.WritePackedGuid(ChannelGUID.Value);
+
+            if (EncounterEventID.HasValue)
+                _worldPacket.WriteUInt32(EncounterEventID.Value);
         }
 
         public ChatMsg SlashCmd;
@@ -261,7 +301,8 @@ namespace Game.Networking.Packets
         public ChatFlags _ChatFlags;
         public float DisplayTime;
         public int SpellID;
-        public uint? Unused_801;
+        public uint? Unused_801; // TC BroadcastTextID
+        public uint? EncounterEventID;
         public bool HideChatLog;
         public bool FakeSenderName;
         public ObjectGuid? ChannelGUID;
@@ -403,10 +444,14 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
+            // Forever layout: TC ChatRegisterAddonPrefixes::Read
             int count = _worldPacket.ReadInt32();
 
             for (int i = 0; i < count; ++i)
-                Prefixes[i] = _worldPacket.ReadString(_worldPacket.ReadBits<int>(5));
+            {
+                _worldPacket.ResetBitPos();
+                Prefixes.Add(_worldPacket.ReadString(_worldPacket.ReadBits<int>(5)));
+            }
         }
 
         public Array<string> Prefixes = new(MAX_PREFIXES);
@@ -474,7 +519,8 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteUInt8((byte)Reason);
+            // Forever layout: TC ChatRestricted::Write
+            _worldPacket.WriteInt32((int)Reason);
         }
 
         ChatRestrictionType Reason;

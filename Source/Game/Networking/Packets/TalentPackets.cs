@@ -11,23 +11,65 @@ namespace Game.Networking.Packets
     {
         public UpdateTalentData() : base(ServerOpcodes.UpdateTalentData, ConnectionType.Instance) { }
 
+        // Forever layout: TC UpdateTalentData::Write
         public override void Write()
         {
-            _worldPacket.WriteInt32(UnspentTalentPoints);
+            // Legacy callers fill TalentGroupInfos (classic layout); convert when TalentGroups was not filled.
+            if (TalentGroups.Count == 0)
+            {
+                foreach (var legacy in TalentGroupInfos)
+                {
+                    ForeverTalentGroupInfo group = new();
+                    group.SpecID = legacy.SpecID;
+                    if (legacy.Talents != null)
+                        foreach (var talent in legacy.Talents)
+                            group.TalentIDs.Add((ushort)talent.TalentID);
+                    if (legacy.GlyphIDs != null)
+                        foreach (var glyph in legacy.GlyphIDs)
+                            group.GlyphIDs.Add((uint)glyph);
+                    TalentGroups.Add(group);
+                }
+            }
+
             _worldPacket.WriteUInt8(ActiveGroup);
-            _worldPacket.WriteInt32(TalentGroupInfos.Count);
+            _worldPacket.WriteUInt32(PrimarySpecialization);
+            _worldPacket.WriteInt32(TalentGroups.Count);
 
-            foreach (var talentGroupInfo in TalentGroupInfos)
-                talentGroupInfo.Write(_worldPacket);
+            foreach (var group in TalentGroups)
+            {
+                _worldPacket.WriteUInt32(group.SpecID);
+                _worldPacket.WriteInt32(group.TalentIDs.Count);
+                _worldPacket.WriteInt32(group.PvPTalents.Count);
+                _worldPacket.WriteInt32(group.GlyphIDs.Count);
 
-            _worldPacket.WriteBit(IsPetTalents);
+                foreach (var talent in group.TalentIDs)
+                    _worldPacket.WriteUInt16(talent);
+
+                foreach (var pvpTalent in group.PvPTalents)
+                    pvpTalent.Write(_worldPacket);
+
+                foreach (var glyph in group.GlyphIDs)
+                    _worldPacket.WriteUInt32(glyph);
+            }
         }
 
-        public int UnspentTalentPoints;
         public byte ActiveGroup;
+        public uint PrimarySpecialization;
+        public List<ForeverTalentGroupInfo> TalentGroups = new();
+
+        // Legacy (not serialized directly, see Write)
+        public int UnspentTalentPoints;
         public bool IsPetTalents;
-        public List<TalentGroupInfo> TalentGroupInfos = new();        
-    }   
+        public List<TalentGroupInfo> TalentGroupInfos = new();
+    }
+
+    public class ForeverTalentGroupInfo
+    {
+        public uint SpecID;
+        public List<ushort> TalentIDs = new();
+        public List<PvPTalent> PvPTalents = new();
+        public List<uint> GlyphIDs = new();
+    }
 
     class RespecWipeConfirm : ServerPacket
     {
@@ -38,6 +80,7 @@ namespace Game.Networking.Packets
             _worldPacket.WriteInt8((sbyte)RespecType);
             _worldPacket.WriteUInt32(Cost);
             _worldPacket.WritePackedGuid(RespecMaster);
+            _worldPacket.WriteInt32(0); // Forever layout: TC RespecWipeConfirm::Write (Classic 1.60.1 extra int32)
         }
 
         public ObjectGuid RespecMaster;

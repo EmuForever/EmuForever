@@ -4,6 +4,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 
 namespace Framework.Networking
 {
@@ -19,6 +20,7 @@ namespace Framework.Networking
     {
         Socket _socket;
         IPEndPoint _remoteIPEndPoint;
+        int _closed;
 
         SocketAsyncEventArgs receiveSocketAsyncEventArgsWithCallback;
         SocketAsyncEventArgs receiveSocketAsyncEventArgs;
@@ -100,17 +102,28 @@ namespace Framework.Networking
             if (!IsOpen())
                 return;
 
-            _socket.Send(data);
+            // Connected is only the last known state: the client can drop between the check and the send.
+            try
+            {
+                _socket.Send(data);
+            }
+            catch (Exception ex) when (ex is SocketException or ObjectDisposedException)
+            {
+                Log.outDebug(LogFilter.Network, $"SocketBase.AsyncWrite: {GetRemoteIpAddress()} disconnected while sending: {ex.Message}");
+                CloseSocket();
+            }
         }
 
         public void CloseSocket()
         {
-            if (_socket == null || !_socket.Connected)
+            // Close once, even when the peer already reset the connection (Connected is false by then).
+            if (_socket == null || Interlocked.Exchange(ref _closed, 1) != 0)
                 return;
 
             try
             {
-                _socket.Shutdown(SocketShutdown.Both);
+                if (_socket.Connected)
+                    _socket.Shutdown(SocketShutdown.Both);
                 _socket.Close();
             }
             catch (Exception ex)
@@ -123,7 +136,7 @@ namespace Framework.Networking
 
         public virtual void OnClose() { Dispose(); }
 
-        public bool IsOpen() { return _socket.Connected; }
+        public bool IsOpen() { return _closed == 0 && _socket.Connected; }
 
         public void SetNoDelay(bool enable)
         {

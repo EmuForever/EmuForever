@@ -294,14 +294,14 @@ namespace Game.Networking.Packets
             data.WriteInt32(AllowedMinLevel);
             data.WriteInt32(AllowedMaxLevel);
             data.WriteInt32(NumChoices);
-            data.WriteInt32(StaticType);
+            data.WriteInt8((sbyte)StaticType); // Forever layout: TC operator<<(PetitionInfo)
             data.WriteUInt32(Muid);
 
-            data.WriteBits(Title.GetByteCount(), 7);
+            data.WriteBits(Title.GetByteCount(), 8);
             data.WriteBits(BodyText.GetByteCount(), 12);
 
             for (byte i = 0; i < Choicetext.Length; i++)
-                data.WriteBits(Choicetext[i].GetByteCount(), 6);
+                data.WriteBits(Choicetext[i].GetByteCount(), 7);
 
             data.FlushBits();
 

@@ -763,7 +763,14 @@ namespace Game.Loots
 
             _itemContext = context;
 
-            tab.Process(this, store.IsRatesAllowed(), lootMode, 0);          // Processing is done there, callback via Loot.AddItem()
+            int oldGatheringBonus = Game.Systems.Legacy.LegacyEffectEngine.GatheringBonus;
+            try
+            {
+                Game.Systems.Legacy.LegacyEffectEngine.GatheringBonus =
+                    store == LootStorage.Gameobject || store == LootStorage.Skinning ? lootOwner.GetClassicLegacyPerkAmount(1225435) : 0;
+                tab.Process(this, store.IsRatesAllowed(), lootMode, 0);
+            }
+            finally { Game.Systems.Legacy.LegacyEffectEngine.GatheringBonus = oldGatheringBonus; }
 
             // Setting access rights for group loot case
             Group group = lootOwner.GetGroup();

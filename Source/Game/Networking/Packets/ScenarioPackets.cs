@@ -17,7 +17,7 @@ namespace Game.Networking.Packets
             _worldPacket.WritePackedGuid(ScenarioGUID);
             _worldPacket.WriteInt32(ScenarioID);
             _worldPacket.WriteInt32(CurrentStep);
-            _worldPacket.WriteInt32(DifficultyID);
+            _worldPacket.WriteInt16((short)DifficultyID); // Forever layout: TC ScenarioState::Write
             _worldPacket.WriteUInt32(WaveCurrent);
             _worldPacket.WriteUInt32(WaveMax);
             _worldPacket.WriteUInt32(TimerDuration);
@@ -27,20 +27,20 @@ namespace Game.Networking.Packets
             _worldPacket.WriteInt32(Spells.Count);
             _worldPacket.WritePackedGuid(PlayerGUID);
 
-            for (int i = 0; i < PickedSteps.Count; ++i)
-                _worldPacket.WriteInt32(PickedSteps[i]);
-
-            _worldPacket.WriteBit(ScenarioComplete);
-            _worldPacket.FlushBits();
-
             foreach (CriteriaProgressPkt progress in CriteriaProgress)
                 progress.Write(_worldPacket);
 
             foreach (BonusObjectiveData bonusObjective in BonusObjectives)
                 bonusObjective.Write(_worldPacket);
 
+            for (int i = 0; i < PickedSteps.Count; ++i)
+                _worldPacket.WriteInt32(PickedSteps[i]);
+
             foreach (ScenarioSpellUpdate spell in Spells)
                 spell.Write(_worldPacket);
+
+            _worldPacket.WriteBit(ScenarioComplete);
+            _worldPacket.FlushBits();
         }
 
         public ObjectGuid ScenarioGUID;

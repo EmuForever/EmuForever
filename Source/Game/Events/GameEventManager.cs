@@ -1348,7 +1348,7 @@ namespace Game
                     Global.MapMgr.DoForAllMapsWithMapId(data.MapId, map =>
                     {
                         map.RemoveRespawnTime(SpawnObjectType.Creature, guid);
-                        var creatureBounds = map.GetCreatureBySpawnIdStore()[guid];
+                        var creatureBounds = map.GetCreatureBySpawnIdStore()[guid].ToArray();
                         foreach (var creature in creatureBounds)
                             creature.AddObjectToRemoveList();
                     });
@@ -1378,7 +1378,7 @@ namespace Game
                     Global.MapMgr.DoForAllMapsWithMapId(data.MapId, map =>
                     {
                         map.RemoveRespawnTime(SpawnObjectType.GameObject, guid);
-                        var gameobjectBounds = map.GetGameObjectBySpawnIdStore()[guid];
+                        var gameobjectBounds = map.GetGameObjectBySpawnIdStore()[guid].ToArray();
                         foreach (var go in gameobjectBounds)
                             go.AddObjectToRemoveList();
 

@@ -941,5 +941,7 @@ namespace Game.Maps
         public int GetId() { return _mapId; }
 
         static int GetBitsetIndex(int gx, int gy) { return gx * MapConst.MaxGrids + gy; }
+
+        public bool IsGridLoaded(int gx, int gy) { return gx >= 0 && gy >= 0 && gx < MapConst.MaxGrids && gy < MapConst.MaxGrids && _loadedGrids[GetBitsetIndex(gx, gy)]; }
     }
 }

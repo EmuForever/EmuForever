@@ -781,7 +781,10 @@ namespace Framework.Constants
         CantFlyHere = 318,
         DragonridingRidingRequirement = 319,
         ItemModAppearanceGroupAlreadyKnown = 320,
-        Unknown = 321,
+        ItemCreationDisabledForEvent = 321,
+        WarbandSceneAlreadyKnown = 322,
+        TransmogOutfitAlreadyKnown = 323,
+        Unknown = 324,
 
         // Ok Cast Value - Here In Case A Future Version Removes Success And We Need To Use A Custom Value (Not Sent To Client Either Way)
         SpellCastOk = Success
@@ -2500,6 +2503,51 @@ namespace Framework.Constants
         AddSocketBonus = 314, // MiscValue[0] = required ItemBonusTreeID
         LearnTransmogAppearanceFromItemModAppearanceGroup = 315, // MiscValue[0] = ItemModAppearanceGroupID (not in db2)
 
+        KillCreditLabel1 = 316,
+        KillCreditLabel2 = 317,
+        Unk318 = 318,
+        Unk319 = 319,
+        Unk320 = 320,
+        Unk321 = 321,
+        Unk322 = 322,
+        Unk323 = 323,
+        Unk324 = 324,
+        Unk325 = 325,
+        Unk326 = 326,
+        Unk327 = 327,
+        Unk328 = 328,
+        Unk329 = 329,
+        Unk330 = 330,
+        Unk331 = 331,
+        Unk332 = 332,
+        Unk333 = 333,
+        Unk334 = 334,
+        SetPlayerDataElementAccount = 335, // MiscValue[0] = PlayerDataElementAccount
+        SetPlayerDataElementCharacter = 336, // MiscValue[0] = PlayerDataElementCharacter
+        SetPlayerDataFlagAccount = 337, // MiscValue[0] = PlayerDataFlagAccount
+        SetPlayerDataFlagCharacter = 338, // MiscValue[0] = PlayerDataFlagCharacter
+        UiAction = 339,
+        Unk340 = 340,
+        LearnWarbandScene = 341,
+        Unk342 = 342,
+        Unk343 = 343,
+        Unk344 = 344, // some kind of teleport
+        AssistAction = 345, // MiscValue[0] = AssistActionType, MiscValue[1] = ID, depends on type
+        Unk346 = 346,
+        EquipTransmogOutfit = 347, // MiscValue[0] = TransmogOutfitEntry
+        GiveHouseLevel = 348,
+        LearnHouseRoom = 349, // MiscValue[0] = HouseRoom
+        LearnHouseExteriorComponent = 350, // MiscValue[0] = ExteriorComponent
+        LearnHouseTheme = 351, // MiscValue[0] = HouseTheme
+        LearnHouseRoomComponentTexture = 352, // MiscValue[0] = RoomComponentTexture
+        CreateAreatrigger2 = 353,
+        SetNeighborhoodInitiative = 354, // MiscValue[0] = NeighborhoodInitiative
+        LearnHouseType = 355, // MiscValue[0] = HouseExteriorWmoData
+        Unk356 = 356,
+        Unk357 = 357, // MiscValue[0] = ItemBonusList
+        Unk358 = 358, // MiscValue[0] = ItemBonusList
+        Unk359 = 359,
+        EnchantItemTemporary2 = 360, // Classic 1.60: temporary weapon enchant of poisons and shaman imbues, MiscValue[0] = SpellItemEnchantment; without an item target the main hand weapon
         TotalSpellEffects
     }
 

@@ -33,6 +33,7 @@ namespace Game.Entities
 
         public List<int> GetRewardedQuests() { return m_RewardedQuests; }
         Dictionary<int, QuestStatusData> GetQuestStatusMap() { return m_QuestStatus; }
+        public long GetQuestAcceptTime(int id)=>m_QuestStatus.TryGetValue(id,out var data)?(UnixTime64)data.AcceptTime:0;
 
         public int GetQuestLevel(Quest quest)
         {
@@ -410,10 +411,19 @@ namespace Game.Entities
         }
 
         public bool CanTakeQuest(Quest quest, bool msg)
+            => CanTakeQuestChecks(quest,msg,false);
+
+        // Planning probe only. Actual acceptance always calls CanTakeQuest and
+        // enforces level. This distinguishes a level gap from missing prerequisites.
+        public bool CanTakeQuestAfterLeveling(Quest quest)
+            => CanTakeQuestChecks(quest,false,true);
+
+        bool CanTakeQuestChecks(Quest quest,bool msg,bool ignoreLevel)
         {
+            if (!Game.Systems.Legacy.LegacyRewardManager.CanClaim(this, quest.Id)) return false;
             return !Global.DisableMgr.IsDisabledFor(DisableType.Quest, quest.Id, this)
                 && SatisfyQuestStatus(quest, msg) && SatisfyQuestExclusiveGroup(quest, msg)
-                && SatisfyQuestClass(quest, msg) && SatisfyQuestRace(quest, msg) && SatisfyQuestLevel(quest, msg)
+                && SatisfyQuestClass(quest, msg) && SatisfyQuestRace(quest, msg) && (ignoreLevel ? SatisfyQuestMaxLevel(quest,msg) : SatisfyQuestLevel(quest, msg))
                 && SatisfyQuestSkill(quest, msg) && SatisfyQuestReputation(quest, msg)
                 && SatisfyQuestDependentQuests(quest, msg) && SatisfyQuestTimed(quest, msg)
                 && SatisfyQuestDay(quest, msg)
@@ -510,6 +520,7 @@ namespace Game.Entities
 
         public bool CanRewardQuest(Quest quest, bool msg)
         {
+            if (!Game.Systems.Legacy.LegacyRewardManager.CanClaim(this, quest.Id)) return false;
             // quest is disabled
             if (Global.DisableMgr.IsDisabledFor(DisableType.Quest, quest.Id, this))
                 return false;
@@ -1122,6 +1133,7 @@ namespace Game.Entities
             else if (quest.IsSeasonal())
                 SetSeasonalQuestStatus(questId);
 
+            if(this is siPlayer rewardedSI)rewardedSI.RecordQuestReward();
             RemoveActiveQuest(questId, false);
             if (quest.CanIncreaseRewardedQuestCounters())
                 SetRewardedQuest(questId);
@@ -1239,6 +1251,7 @@ namespace Game.Entities
                         return;
                 }
 
+                if(this is siPlayer failedSI)failedSI.RecordQuestFailure();
                 SetQuestStatus(questId, QuestStatus.Failed);
 
                 ushort log_slot = FindQuestSlot(questId);
@@ -1558,7 +1571,7 @@ namespace Game.Entities
             if (reqClass == 0)
                 return true;
 
-            if (reqClass.HasClass(GetClass()))
+            if (!reqClass.HasClass(GetClass()))
             {
                 if (msg)
                 {
@@ -1930,6 +1943,8 @@ namespace Game.Entities
             var questStatus = m_QuestStatus.LookupByKey(questId);
             if (questStatus != null)
             {
+                // RewardQuest uses update=false; only removal without a reward is abandonment.
+                if(update&&this is siPlayer abandonedSI)abandonedSI.RecordQuestAbandonment();
                 foreach (var objective in m_questObjectiveStatus.ToList())
                 {
                     if (objective.Value.QuestStatusPair.Status == questStatus)
@@ -2094,6 +2109,8 @@ namespace Game.Entities
                             result |= quest.HasAnyFlag(QuestFlags.HideRewardPoi) ? QuestGiverStatus.CovenantCallingRewardCompleteNoPOI : QuestGiverStatus.CovenantCallingRewardCompletePOI;
                         else if (quest.HasAnyFlag(QuestFlagsEx.Legendary))
                             result |= quest.HasAnyFlag(QuestFlags.HideRewardPoi) ? QuestGiverStatus.LegendaryRewardCompleteNoPOI : QuestGiverStatus.LegendaryRewardCompletePOI;
+                        else if (quest.IsDailyOrWeekly())
+                            result |= quest.HasAnyFlag(QuestFlags.HideRewardPoi) ? QuestGiverStatus.RepeatableRewardCompleteNoPOI : QuestGiverStatus.RepeatableRewardCompletePOI;
                         else
                             result |= quest.HasAnyFlag(QuestFlags.HideRewardPoi) ? QuestGiverStatus.RewardCompleteNoPOI : QuestGiverStatus.RewardCompletePOI;
                         break;
@@ -2104,6 +2121,8 @@ namespace Game.Entities
                             result |= QuestGiverStatus.CovenantCallingReward;
                         else if (quest.HasAnyFlag(QuestFlagsEx.Legendary))
                             result |= QuestGiverStatus.LegendaryReward;
+                        else if (quest.IsDailyOrWeekly())
+                            result |= QuestGiverStatus.RepeatableReward;
                         else
                             result |= QuestGiverStatus.Reward;
                         break;
@@ -2111,12 +2130,13 @@ namespace Game.Entities
                         break;
                 }
 
-                if (quest.IsTurnIn() && CanTakeQuest(quest, false) && quest.IsRepeatable() && !quest.IsDailyOrWeekly() && !quest.IsMonthly())
+                if (quest.IsTurnIn() && CanTakeQuest(quest, false))
                 {
-                    if (GetLevel() > (GetQuestLevel(quest) + WorldConfig.Values[WorldCfg.QuestLowLevelHideDiff].Int32))
-                        result |= QuestGiverStatus.RepeatableTurnin;
+                    bool isTrivial = GetLevel() > (GetQuestLevel(quest) + WorldConfig.Values[WorldCfg.QuestLowLevelHideDiff].Int32);
+                    if (quest.IsRepeatable())
+                        result |= isTrivial ? QuestGiverStatus.TrivialRepeatableTurnin : QuestGiverStatus.RepeatableTurnin;
                     else
-                        result |= QuestGiverStatus.TrivialRepeatableTurnin;
+                        result |= isTrivial ? QuestGiverStatus.Trivial : QuestGiverStatus.Quest;
                 }
             }
 
@@ -2142,8 +2162,8 @@ namespace Game.Entities
                                 result |= QuestGiverStatus.CovenantCallingQuest;
                             else if (quest.HasAnyFlag(QuestFlagsEx.Legendary))
                                 result |= isTrivial ? QuestGiverStatus.TrivialLegendaryQuest : QuestGiverStatus.LegendaryQuest;
-                            else if (quest.IsDaily())
-                                result |= isTrivial ? QuestGiverStatus.TrivialDailyQuest : QuestGiverStatus.DailyQuest;
+                            else if (quest.IsDailyOrWeekly())
+                                result |= isTrivial ? QuestGiverStatus.TrivialRepeatableQuest : QuestGiverStatus.RepeatableQuest;
                             else
                                 result |= isTrivial ? QuestGiverStatus.Trivial : QuestGiverStatus.Quest;
                         }
@@ -3256,7 +3276,9 @@ namespace Game.Entities
             SendQuestGiverStatusMultiple(m_clientGUIDs);
         }
 
-        public void SendQuestGiverStatusMultiple(List<ObjectGuid> guids)
+        public void SendQuestGiverStatusMultiple(List<ObjectGuid> guids) => SendQuestGiverStatusMultiple((IEnumerable<ObjectGuid>)guids);
+
+        public void SendQuestGiverStatusMultiple(IEnumerable<ObjectGuid> guids)
         {
             QuestGiverStatusMultiple response = new();
 

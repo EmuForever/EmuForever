@@ -52,25 +52,28 @@ namespace Game.Networking.Packets
         public override void Write()
         {
             _worldPacket.WritePackedGuid(GossipGUID);
+            // Forever layout: TC GossipMessage::Write
             _worldPacket.WriteInt32(GossipID);
+            _worldPacket.WriteInt32(LfgDungeonsID);
             _worldPacket.WriteInt32(FriendshipFactionID);
             _worldPacket.WriteInt32(GossipOptions.Count);
             _worldPacket.WriteInt32(GossipText.Count);
-            _worldPacket.WriteBit(TextID.HasValue);
-            _worldPacket.WriteBit(BroadcastTextID.HasValue);
-            _worldPacket.FlushBits();
 
             foreach (ClientGossipOptions options in GossipOptions)
                 options.Write(_worldPacket);
+
+            foreach (ClientGossipText text in GossipText)
+                text.Write(_worldPacket);
+
+            _worldPacket.WriteBit(TextID.HasValue);
+            _worldPacket.WriteBit(BroadcastTextID.HasValue);
+            _worldPacket.FlushBits();
 
             if (TextID.HasValue)
                 _worldPacket.WriteInt32(TextID.Value);
 
             if (BroadcastTextID.HasValue)
                 _worldPacket.WriteInt32(BroadcastTextID.Value);
-
-            foreach (ClientGossipText text in GossipText)
-                text.Write(_worldPacket);
         }
 
         public List<ClientGossipOptions> GossipOptions = new();
@@ -80,6 +83,7 @@ namespace Game.Networking.Packets
         public int? TextID; // in classic variants this still holds npc_text id
         public int? BroadcastTextID;
         public int GossipID;
+        public int LfgDungeonsID;
     }
 
     public class GossipSelectOption : ClientPacket
@@ -137,12 +141,13 @@ namespace Game.Networking.Packets
 
     public class VendorInventory : ServerPacket
     {
-        public VendorInventory() : base(ServerOpcodes.VendorInventory, ConnectionType.Instance) { }
+        public VendorInventory() : base(ServerOpcodes.VendorInventory) { }
 
         public override void Write()
         {
             _worldPacket.WritePackedGuid(Vendor);
-            _worldPacket.WriteUInt8(Reason);
+            // Forever layout: TC VendorInventory::Write
+            _worldPacket.WriteInt32(Reason);
             _worldPacket.WriteInt32(Items.Count);
 
             foreach (VendorItemPkt item in Items)
@@ -156,27 +161,28 @@ namespace Game.Networking.Packets
 
     public class TrainerList : ServerPacket
     {
-        public TrainerList() : base(ServerOpcodes.TrainerList, ConnectionType.Instance) { }
+        public TrainerList() : base(ServerOpcodes.TrainerList) { }
 
         public override void Write()
         {
             _worldPacket.WritePackedGuid(TrainerGUID);
-            _worldPacket.WriteInt32(TrainerType);
-            _worldPacket.WriteInt32(TrainerID);
+            // Forever layout: TC TrainerList::Write
+            _worldPacket.WriteInt8((sbyte)TrainerType);
+            _worldPacket.WriteUInt32((uint)TrainerID);
 
             _worldPacket.WriteInt32(Spells.Count);
             foreach (TrainerListSpell spell in Spells)
             {
+                // Classic 1.60.1: 33 bytes per spell; int32 at +4 stays 0 (client derives usable state itself)
                 _worldPacket.WriteInt32(spell.SpellID);
+                _worldPacket.WriteInt32(0);
                 _worldPacket.WriteUInt32(spell.MoneyCost);
-                _worldPacket.WriteInt32((int)spell.ReqSkillLine);
-                _worldPacket.WriteInt32(spell.ReqSkillRank);
-
-                for (uint i = 0; i < SharedConst.MaxTrainerspellAbilityReqs; ++i)
-                    _worldPacket.WriteInt32(spell.ReqAbility[i]);
-
-                _worldPacket.WriteUInt8((byte)spell.Usable);
                 _worldPacket.WriteUInt8(spell.ReqLevel);
+                _worldPacket.WriteUInt32((uint)spell.ReqSkillLine);
+                _worldPacket.WriteUInt32((uint)spell.ReqSkillRank);
+
+                for (int i = 0; i < 3; ++i)
+                    _worldPacket.WriteInt32(i < spell.ReqAbility.Length ? spell.ReqAbility[i] : 0);
             }
 
             _worldPacket.WriteBits(Greeting.GetByteCount(), 11);
@@ -309,12 +315,15 @@ namespace Game.Networking.Packets
         public GossipOptionRewardType Type;
         public int ID;
         public int Quantity;
+        public sbyte ItemContext;
 
+        // Forever layout: TC operator<<(TreasureItem)
         public void Write(WorldPacket data)
         {
             data.WriteBits((byte)Type, 1);
             data.WriteInt32(ID);
             data.WriteInt32(Quantity);
+            data.WriteInt8(ItemContext);
         }
     }
 
@@ -345,14 +354,17 @@ namespace Game.Networking.Packets
         public TreasureLootList Treasure = new();
         public int? SpellID;
         public int? OverrideIconID;
+        public string FailureDescription = "";
 
+        // Forever layout: TC operator<<(ClientGossipOptions)
         public void Write(WorldPacket data)
         {
             data.WriteInt32(GossipOptionID);
-            data.WriteUInt8((byte)OptionNPC);
+            data.WriteUInt32((uint)OptionNPC);
             data.WriteInt8((sbyte)OptionFlags);
-            data.WriteInt32(OptionCost);
-            data.WriteInt32(OptionLanguage);
+            data.WriteUInt64((ulong)OptionCost);
+            data.WriteUInt32((uint)OptionLanguage);
+            Treasure.Write(data);
             data.WriteInt32((int)Flags);
             data.WriteInt32(OrderIndex);
             data.WriteBits(Text.GetByteCount(), 12);
@@ -360,9 +372,8 @@ namespace Game.Networking.Packets
             data.WriteBits((byte)Status, 2);
             data.WriteBit(SpellID.HasValue);
             data.WriteBit(OverrideIconID.HasValue);
+            data.WriteBits((FailureDescription ?? "").GetByteCount() + 1, 8); // SizedCString: length incl. terminator
             data.FlushBits();
-
-            Treasure.Write(data);
 
             data.WriteString(Text);
             data.WriteString(Confirm);
@@ -372,23 +383,32 @@ namespace Game.Networking.Packets
 
             if (OverrideIconID.HasValue)
                 data.WriteInt32(OverrideIconID.Value);
+
+            // TC SizedCString::Data writes nothing for an empty string (its size is still 1); a stray terminator here
+            // shifted every following option, so later gossip options lost their text.
+            if (!string.IsNullOrEmpty(FailureDescription))
+                data.WriteCString(FailureDescription);
         }
     }
 
     public class ClientGossipText
     {
+        // Forever layout: TC operator<<(ClientGossipText)
         public void Write(WorldPacket data)
         {
             data.WriteInt32(QuestID);
             data.WriteInt32(ContentTuningID);
             data.WriteInt32(QuestType);
-            data.WriteInt32(QuestLevel);
-            data.WriteInt32(QuestMaxScalingLevel);
+            data.WriteInt32(QuestInfoID);
             data.WriteUInt32((uint)QuestFlags);
             data.WriteUInt32((uint)QuestFlagsEx);
+            data.WriteInt32(QuestFlags2);
+            data.WriteInt32(QuestFlags3);
 
             data.WriteBit(Repeatable);
+            data.WriteBit(ResetByScheduler);
             data.WriteBit(Important);
+            data.WriteBit(Meta);
             data.WriteBits(QuestTitle.GetByteCount(), 9);
             data.FlushBits();
 
@@ -399,7 +419,12 @@ namespace Game.Networking.Packets
         public int ContentTuningID;
         public int QuestType;
         public int QuestLevel;
-        public int QuestMaxScalingLevel;
+        public int QuestMaxScalingLevel; // not sent in Forever layout
+        public int QuestInfoID;
+        public int QuestFlags2;
+        public int QuestFlags3;
+        public bool ResetByScheduler;
+        public bool Meta;
         public bool Repeatable;
         public bool Important;
         public string QuestTitle;
@@ -412,19 +437,18 @@ namespace Game.Networking.Packets
         public void Write(WorldPacket data)
         {
             data.WriteUInt64(Price);
-            data.WriteInt32(MuID);
+            // Forever layout: TC operator<<(VendorItem)
+            data.WriteUInt32((uint)MuID);
             data.WriteInt32(Type);
-            data.WriteInt32(Durability);
             data.WriteInt32(StackCount);
             data.WriteInt32(Quantity);
             data.WriteInt32(ExtendedCostID);
             data.WriteInt32(PlayerConditionFailed);
+            Item.Write(data);
             data.WriteBit(Locked);
             data.WriteBit(DoNotFilterOnVendor);
             data.WriteBit(Refundable);
             data.FlushBits();
-            
-            Item.Write(data);
         }
 
         public int MuID;

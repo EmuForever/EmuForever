@@ -9,10 +9,11 @@ namespace Game.DataStorage
 {
     public sealed class TactKeyRecord
     {
+        public int Id;
+        public byte[] Key = new byte[16];
+
         public const int TACTKEY_SIZE = 16;
 
-        public int Id;
-        public byte[] Key = new byte[TACTKEY_SIZE];
     }
 
     public sealed class TalentRecord
@@ -20,7 +21,7 @@ namespace Game.DataStorage
         public int Id;
         public LocalizedString Description;
         public byte TierID;
-        public byte Flags;
+        public int Flags;
         public byte ColumnIndex;
         public ushort TabID;
         private byte _classID;
@@ -29,9 +30,9 @@ namespace Game.DataStorage
         public int OverridesSpellID;
         public int RequiredSpellID;
         public int[] CategoryMask = new int[2];
-        public int[] SpellRank = new int[PlayerConst.MaxDB2TalentRank];
+        public int[] SpellRank = new int[9];
         public int[] PrereqTalent = new int[3];
-        public int[] PrereqRank = new int[3];
+        public sbyte[] PrereqRank = new sbyte[3];
 
         #region Properties
         public Class ClassID => (Class)_classID;
@@ -62,11 +63,12 @@ namespace Game.DataStorage
         public Vector2 MapOffset;
         public Vector2 FlightMapOffset;
         public int Id;
-        public int ContinentID;
+        public short ContinentID;
         public int ConditionID;
         public ushort CharacterBitNumber;
         private int _flags;
         public int UiTextureKitID;
+        public int MinimapAtlasMemberID;
         public float Facing;
         public int SpecialIconConditionID;
         public int VisibilityConditionID;
@@ -132,7 +134,7 @@ namespace Game.DataStorage
     {
         public Vector3 Loc;
         public int Id;
-        public ushort PathID;
+        public int PathID;
         public int NodeIndex;
         public ushort ContinentID;
         private int _flags;
@@ -171,7 +173,7 @@ namespace Game.DataStorage
         public LocalizedString SourceText;
         public int Id;
         public int ItemID;
-        public byte Flags;
+        public int Flags;
         public sbyte SourceTypeEnum;
 
         #region Properties
@@ -196,12 +198,14 @@ namespace Game.DataStorage
         public int SpecSetID;
         public int TraitNodeGroupID;
         public int TraitNodeID;
+        public int TraitNodeEntryID;
         public int TraitCurrencyID;
         public int SpentAmountRequired;
         public uint Flags;
         public int RequiredLevel;
         public int FreeSharedStringID;
         public int SpendMoreSharedStringID;
+        public int TraitCondAccountElementID;
 
         #region Properties
         public TraitConditionType CondType => (TraitConditionType)_condType;
@@ -214,6 +218,7 @@ namespace Game.DataStorage
         public int Id;
         public int Amount;
         public int TraitCurrencyID;
+        public int CurveID;
     }
 
     public sealed class TraitCurrencyRecord
@@ -223,6 +228,9 @@ namespace Game.DataStorage
         public int CurrencyTypesID;
         public int Flags;
         public int Icon;
+        public int PlayerDataElementAccountID;
+        public int PlayerDataElementCharacterID;
+        public int SourcedMax;
 
         #region Properties
         public TraitCurrencyType CurrencyType => (TraitCurrencyType)_type;
@@ -239,6 +247,7 @@ namespace Game.DataStorage
         public int AchievementID;
         public int PlayerLevel;
         public int TraitNodeEntryID;
+        public int SuperDistrictSetID;
         public int OrderIndex;
     }
 
@@ -273,7 +282,7 @@ namespace Game.DataStorage
         public int VisualStyle;
         public int LeftTraitNodeID;
         public int RightTraitNodeID;
-        public int Type;
+        public sbyte Type;
     }
 
     public sealed class TraitNodeRecord
@@ -284,6 +293,7 @@ namespace Game.DataStorage
         public int PosY;
         private byte _type;
         public uint Flags;
+        public int TraitSubTreeID;
 
         #region Properties
         public TraitNodeType NodeType => (TraitNodeType)_type;
@@ -296,6 +306,7 @@ namespace Game.DataStorage
         public int TraitDefinitionID;
         public int MaxRanks;
         private byte _nodeEntryType;
+        public int TraitSubTreeID;
 
         #region Properties
         public TraitNodeEntryType NodeEntryType => (TraitNodeEntryType)_nodeEntryType;
@@ -369,14 +380,16 @@ namespace Game.DataStorage
 
     public sealed class TraitTreeRecord
     {
+        public LocalizedString TitleText;
         public int Id;
         public int TraitSystemID;
-        public int Unused1000_1;
+        public int BaseNodeGroup;
         public int FirstTraitNodeID;
         public int PlayerConditionID;
         private int _flags;
-        public float Unused1000_2;
-        public float Unused1000_3;
+        public float MinZoom;
+        public float MaxZoom;
+        public int UiTextureKitID;
 
         #region Properties
         public TraitTreeFlag Flags => (TraitTreeFlag)_flags;
@@ -436,9 +449,12 @@ namespace Game.DataStorage
         public int Flags;
         public int TransmogSetGroupID;
         public int ItemNameDescriptionID;
-        public ushort ParentTransmogSetID;
-        public byte ExpansionID;
-        public short UiOrder;
+        public int ParentTransmogSetID;
+        public int Unknown810;
+        public int ExpansionID;
+        public int PatchID;
+        public int UiOrder;
+        public int PlayerConditionID;
     }
 
     public sealed class TransmogSetGroupRecord

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Collections;
@@ -17,6 +17,7 @@ using Game.Spells;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace Game
 {
@@ -24,6 +25,11 @@ namespace Game
     {
         [WorldPacketHandler(ClientOpcodes.EnumCharacters, Status = SessionStatus.Authed)]
         void HandleCharEnum(EnumCharacters charEnum)
+        {
+            RequestCharacterList();
+        }
+
+        void RequestCharacterList()
         {
             // remove expired bans
             PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(CharStatements.DEL_EXPIRED_BANS);
@@ -63,6 +69,33 @@ namespace Game
 
                 } while (customizationsResult.NextRow());
             }
+                        
+            Dictionary<long, Dictionary<byte, EnumCharactersResult.CharacterInfo.VisualItemInfo>> equipment = new();
+            SQLResult equipmentResult = holder.GetResult(EnumCharacterQueryLoad.Equipment);
+            if (!equipmentResult.IsEmpty())
+            {
+                do
+                {
+                    long guid = equipmentResult.Read<long>(0);
+                    byte slot = equipmentResult.Read<byte>(1);
+                    int itemId = equipmentResult.Read<int>(2);
+                    ItemTemplate itemTemplate = Global.ObjectMgr.GetItemTemplate(itemId);
+                    if (itemTemplate == null)
+                        continue;
+
+                    if (!equipment.TryGetValue(guid, out var characterEquipment))
+                        equipment.Add(guid, characterEquipment = new());
+
+                    characterEquipment[slot] = new EnumCharactersResult.CharacterInfo.VisualItemInfo
+                    {
+                        ItemId = (uint)itemId,
+                        DisplayId = (uint)itemTemplate.GetDisplayInfoID(),
+                        Subclass = (byte)itemTemplate.GetSubClass(),
+                        InvType = (byte)itemTemplate.GetInventoryType()
+                    };
+                }
+                while (equipmentResult.NextRow());
+            }
 
             SQLResult result = holder.GetResult(EnumCharacterQueryLoad.Characters);
             if (!result.IsEmpty())
@@ -74,6 +107,16 @@ namespace Game
                     var customizationsForChar = customizations[charInfo.Guid.GetCounter()];
                     if (!customizationsForChar.Empty())
                         charInfo.Customizations = new Array<ChrCustomizationChoice>(customizationsForChar.ToArray());
+
+                    if (equipment.TryGetValue(charInfo.Guid.GetCounter(), out var characterEquipment))
+                    {
+                        foreach (var (slot, visualItem) in characterEquipment)
+                        {
+                            while (charInfo.VisualItems.Count <= slot)
+                                charInfo.VisualItems.Add(default);
+                            charInfo.VisualItems[slot] = visualItem;
+                        }
+                    }
 
                     Log.outInfo(LogFilter.Network, 
                         $"Loading Character {charInfo.Guid} from account {GetAccountId()}.");
@@ -122,10 +165,35 @@ namespace Game
                     requirement.Value.AchievementId != 0 
                     && (WorldConfig.Values[WorldCfg.CharacterCreatingDisableAlliedRaceAchievementRequirement].Bool
                     /* || HasAccountAchievement(requirement.second.AchievementId)*/);
+                raceUnlock.ClassUnlocks = new();
+                RaceClassAvailability raceClasses = Global.ObjectMgr.GetClassExpansionRequirements()
+                    .Find(availability => availability.RaceID == requirement.Key);
+                if (raceClasses != null)
+                {
+                    foreach (ClassAvailability classRequirement in raceClasses.Classes)
+                    {
+                        bool hasExpansion = GetAccountExpansion() >= classRequirement.AccountExpansionLevel
+                            && GetExpansion() >= classRequirement.ActiveExpansionLevel;
+                        raceUnlock.ClassUnlocks.Add(new EnumCharactersResult.ClassUnlock
+                        {
+                            ClassID = classRequirement.ClassID,
+                            HasExpansion = hasExpansion,
+                            HasUnlockedAchievement = true,
+                            HasEntitlement = true
+                        });
+                    }
+                }
+                raceUnlock.DoesNotHaveAvailableClasses = !raceUnlock.ClassUnlocks.Exists(classUnlock =>
+                    classUnlock.HasExpansion && classUnlock.HasUnlockedAchievement && classUnlock.HasEntitlement);
                 charResult.RaceUnlockData.Add(raceUnlock);
             }
 
             SendPacket(charResult);
+
+            SendPacket(new RecentAllyDataResponse());
+
+            if (!charResult.IsDeletedCharacters)
+                SendPacket(new AccountItemCollectionData());
         }
 
         [WorldPacketHandler(ClientOpcodes.EnumCharactersDeletedByClient, Status = SessionStatus.Authed)]
@@ -273,6 +341,7 @@ namespace Game
         [WorldPacketHandler(ClientOpcodes.CreateCharacter, Status = SessionStatus.Authed)]
         void HandleCharCreate(CreateCharacter charCreate)
         {
+            Log.outInfo(LogFilter.Player, $"Character creation received: account {GetAccountId()}, name {charCreate.CreateInfo.Name}, race/class {charCreate.CreateInfo.RaceId}/{charCreate.CreateInfo.ClassId}");
             if (!HasPermission(RBACPermissions.SkipCheckCharacterCreationTeammask))
             {
                 int mask = WorldConfig.Values[WorldCfg.CharacterCreatingDisabled].Int32;
@@ -386,10 +455,9 @@ namespace Game
                     Log.outError(LogFilter.Cheat,
                         $"Expansion {GetAccountExpansion()} account:[{GetAccountId()}] tried to Create character for race/class combination " +
                         $"that is missing requirements in db ({charCreate.CreateInfo.RaceId}/{charCreate.CreateInfo.ClassId})");
+                    SendCharCreate(ResponseCodes.CharCreateExpansionClass);
+                    return;
                 }
-
-                SendCharCreate(ResponseCodes.CharCreateExpansionClass);
-                return;
             }
 
             if (!HasPermission(RBACPermissions.SkipCheckCharacterCreationRacemask))
@@ -458,7 +526,7 @@ namespace Game
                 }
 
                 stmt = LoginDatabase.GetPreparedStatement(LoginStatements.SEL_SUM_REALM_CHARACTERS);
-                stmt.SetInt32(0, GetAccountId());
+                stmt.SetUInt32(0, unchecked((uint)GetAccountId()));
                 queryCallback.SetNextQuery(DB.Login.AsyncQuery(stmt));
 
             }).WithChainingCallback((queryCallback, result) =>
@@ -474,7 +542,7 @@ namespace Game
                 }
 
                 stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_SUM_CHARS);
-                stmt.SetInt32(0, GetAccountId());
+                stmt.SetUInt32(0, unchecked((uint)GetAccountId()));
                 queryCallback.SetNextQuery(DB.Characters.AsyncQuery(stmt));
 
             }).WithChainingCallback((queryCallback, result) =>
@@ -593,14 +661,14 @@ namespace Game
 
                     if (createInfo.ClassId == Class.Evoker && hasEvokerLimit && evokerLimit < 1)
                     {
-                        SendCharCreate(ResponseCodes.CharCreateNewPlayer);
+                        SendCharCreate(ResponseCodes.CharCreateDracthyrDuplicate);
                         return;
                     }
 
                     // Check name uniqueness in the same step as saving to database
                     if (Global.CharacterCacheStorage.GetCharacterCacheByName(createInfo.Name) != null)
                     {
-                        SendCharCreate(ResponseCodes.CharCreateDracthyrDuplicate);
+                        SendCharCreate(ResponseCodes.CharCreateNameInUse);
                         return;
                     }
 
@@ -625,45 +693,54 @@ namespace Game
 
                     // Player created, save it now
                     newChar.SaveToDB(loginTransaction, characterTransaction, true);
+                    string surname = NormalizeCreationSurname(createInfo.Surname);
+                    if (!string.IsNullOrEmpty(surname))
+                    {
+                        PreparedStatement surnameStatement = CharacterDatabase.GetPreparedStatement(CharStatements.UPD_CHARACTER_SURNAME);
+                        surnameStatement.SetString(0, surname);
+                        surnameStatement.SetInt64(1, newChar.GetGUID().GetCounter());
+                        characterTransaction.Append(surnameStatement);
+                    }
                     createInfo.CharCount += 1;
 
                     stmt = LoginDatabase.GetPreparedStatement(LoginStatements.REP_REALM_CHARACTERS);
-                    stmt.SetUInt8(0, createInfo.CharCount);
-                    stmt.SetInt32(1, GetAccountId());
+                    stmt.SetUInt32(0, createInfo.CharCount);
+                    stmt.SetUInt32(1, unchecked((uint)GetAccountId()));
                     stmt.SetInt32(2, Global.WorldMgr.GetRealm().Id.Index);
                     loginTransaction.Append(stmt);
 
-                    DB.Login.CommitTransaction(loginTransaction);
-
                     AddTransactionCallback(DB.Characters.AsyncCommitTransaction(characterTransaction)).AfterComplete(success =>
                     {
-                        if (success)
+                        Log.outInfo(LogFilter.Player, $"Character creation commit completed: account {GetAccountId()}, name {newChar.GetName()}, success {success}");
+                        try
                         {
-                            Log.outInfo(LogFilter.Player, 
-                                $"Account: {GetAccountId()} (IP: {GetRemoteAddress()}) " +
-                                $"Create Character: {createInfo.Name} {newChar.GetGUID()}");
-
-                            Global.ScriptMgr.OnPlayerCreate(newChar);
-                            Global.CharacterCacheStorage.AddCharacterCacheEntry(newChar.GetGUID(), GetAccountId(), newChar.GetName(), (byte)newChar.GetNativeGender(), (byte)newChar.GetRace(), (byte)newChar.GetClass(), (byte)newChar.GetLevel(), false);
-
-                            SendCharCreate(ResponseCodes.CharCreateSuccess, newChar.GetGUID());
+                            if (success)
+                            {
+                                // Match Trinity's completion order: the character and surname
+                                // must commit before publishing account/realm state or success.
+                                CompleteCommittedCharacterCreation(newChar, surname, loginTransaction);
+                            }
+                            else
+                                SendCharCreate(ResponseCodes.CharCreateError);
                         }
-                        else
-                            SendCharCreate(ResponseCodes.CharCreateError);
-
-                        newChar.CleanupsBeforeDelete();
-                        newChar.Dispose();
+                        finally
+                        {
+                            // Trinity retains a shared_ptr through the asynchronous save.
+                            // Keep the temporary player alive until completion and always release it.
+                            try { newChar.CleanupsBeforeDelete(); }
+                            finally { newChar.Dispose(); }
+                        }
                     });
                 }
 
-                if (!allowTwoSideAccounts || skipCinematics == 1 || createInfo.ClassId == Class.DemonHunter)
+                if (allowTwoSideAccounts && skipCinematics == 0 && createInfo.ClassId != Class.DemonHunter)
                 {
                     finalizeCharacterCreation(new SQLResult());
                     return;
                 }
 
                 stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_CHAR_CREATE_INFO);
-                stmt.SetInt32(0, GetAccountId());
+                stmt.SetUInt32(0, unchecked((uint)GetAccountId()));
                 stmt.SetInt32(1, (skipCinematics == 1 || createInfo.ClassId == Class.DemonHunter || createInfo.ClassId == Class.Evoker) ? 1200 : 1); // 200 (max chars per realm) + 1000 (max deleted chars per realm)
                 queryCallback.WithCallback(finalizeCharacterCreation).SetNextQuery(DB.Characters.AsyncQuery(stmt));
             }));
@@ -750,6 +827,9 @@ namespace Game
             GenerateRandomCharacterNameResult result = new();
             result.Success = true;
             result.Name = Global.DB2Mgr.GetNameGenEntry(packet.Race, packet.Sex);
+            result.Surname = Global.DB2Mgr.GetNameGenEntry(packet.Race, packet.Sex, 1);
+            if (string.IsNullOrEmpty(result.Surname))
+                Log.outError(LogFilter.Network, $"No NameGen surname (NameType 1) for race {packet.Race}, sex {packet.Sex}");
 
             SendPacket(result);
         }
@@ -764,7 +844,7 @@ namespace Game
                 PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(CharStatements.UPD_CHAR_LIST_SLOT);
                 stmt.SetUInt8(0, reorderInfo.NewPosition);
                 stmt.SetInt64(1, reorderInfo.PlayerGUID.GetCounter());
-                stmt.SetInt32(2, GetAccountId());
+                stmt.SetUInt32(2, unchecked((uint)GetAccountId()));
                 trans.Append(stmt);
             }
 
@@ -817,9 +897,11 @@ namespace Game
 
         public void HandlePlayerLogin(LoginQueryHolder holder)
         {
+            if (IsServerControlled && forceExit)
+                return;
             ObjectGuid playerGuid = holder.GetGuid();
 
-            Player pCurrChar = new(this);
+            Player pCurrChar = IsServerControlled ? new siPlayer(this) : new Player(this);
             if (!pCurrChar.LoadFromDB(playerGuid, holder))
             {
                 SetPlayer(null);
@@ -880,6 +962,8 @@ namespace Game
                 pCurrChar.SetGuildRank(0);
                 pCurrChar.SetGuildLevel(0);
             }
+
+            SendAuctionFavoriteList();
 
             pCurrChar.GetSession().GetBattlePetMgr().SendJournalLockStatus();
 
@@ -943,12 +1027,15 @@ namespace Game
 
             pCurrChar.SendInitialPacketsAfterAddToMap();
 
+            // Classic 1.60: characters that were already level 25+ get the Legacy unlock on login
+            pCurrChar.UpdateClassicLegacyUnlock();
+
             PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(CharStatements.UPD_CHAR_ONLINE);
             stmt.SetInt64(0, pCurrChar.GetGUID().GetCounter());
             DB.Characters.Execute(stmt);
 
             stmt = LoginDatabase.GetPreparedStatement(LoginStatements.UPD_ACCOUNT_ONLINE);
-            stmt.SetInt32(0, GetAccountId());
+            stmt.SetUInt32(0, unchecked((uint)GetAccountId()));
             DB.Login.Execute(stmt);
 
             pCurrChar.SetInGameTime(LoopTime.RelativeTime);
@@ -1143,6 +1230,10 @@ namespace Game
             }
 
             Global.ScriptMgr.OnPlayerLogin(pCurrChar, firstLogin);
+            if (pCurrChar is siPlayer autonomousPlayer)
+            {
+                autonomousPlayer.InitializeController();
+            }
         }
 
         public void AbortLogin(LoginFailureReason reason)
@@ -1163,42 +1254,136 @@ namespace Game
             // TODO: Do something with this packet
         }
 
+        // Port of the reference SendFeatureSystemStatus (E:\trinitycore_new, Classic 1.60.1). Field names follow the retail order,
+        // which is not the Classic meaning of every bit: e.g. Classic LfdEnabled / LfrEnabled sit where retail has
+        // PlayerIdentityOptionsEnabled / IsPlayerContentTrackingEnabled (C_LFGInfo.CanPlayerUseGroupFinder), and the client starts
+        // its clubs from the bit retail calls RedeemForBalanceAvailable.
         public void SendFeatureSystemStatus()
         {
             FeatureSystemStatus features = new();
 
-            // START OF DUMMY VALUES
             features.ComplaintStatus = (byte)ComplaintStatus.EnabledWithAutoIgnore;
             features.CfgRealmID = 2;
-            features.CfgRealmRecID = 0;
-            features.TokenPollTimeSeconds = 300;
+            features.CfgRealmRecID = (int)Global.WorldMgr.GetRealm().Id.Index;
+            features.CommercePricePollTimeSeconds = 300;
             features.VoiceEnabled = false;
-            features.BrowserEnabled = false; // Has to be false, otherwise client will crash if "Customer Support" is opened
+            features.BpayStoreAvailable = WorldConfig.Values[WorldCfg.FeatureSystemBpayStoreEnabled].Bool;
+            features.CommerceServerEnabled = true;
+            features.ContentSetID = Framework.Configuration.ConfigMgr.GetDefaultValue("Realm.CfgContentSetID", 137);
+
+            features.CommunitiesEnabled = true;
+            features.BnetGroupsEnabled = false;
+            features.CharacterCommunitiesEnabled = false;
+            features.ClubPresenceAllowSubscribeAll = true;
+            features.ClubPresenceUnsubscribeDelay = 60000;
+            features.ClubFinderEnabled = Framework.Configuration.ConfigMgr.GetDefaultValue("Classic.GuildFinder", false);
+            features.RedeemForBalanceAvailable = true;
+            features.QuestSessionEnabled = features.ClubFinderEnabled;
+            features.PlayerIdentityOptionsEnabled = true;
+            features.IsPlayerContentTrackingEnabled = true;
 
             EuropaTicketConfig europaTicketSystemStatus = new();
             europaTicketSystemStatus.ThrottleState.MaxTries = 10;
             europaTicketSystemStatus.ThrottleState.PerMilliseconds = 60000;
             europaTicketSystemStatus.ThrottleState.TryCount = 1;
             europaTicketSystemStatus.ThrottleState.LastResetTimeBeforeNow = 111111;
-            features.TutorialsEnabled = true;
-            features.NPETutorialsEnabled = true;
-            // END OF DUMMY VALUES
-
             europaTicketSystemStatus.TicketsEnabled = WorldConfig.Values[WorldCfg.SupportTicketsEnabled].Bool;
             europaTicketSystemStatus.BugsEnabled = WorldConfig.Values[WorldCfg.SupportBugsEnabled].Bool;
             europaTicketSystemStatus.ComplaintsEnabled = WorldConfig.Values[WorldCfg.SupportComplaintsEnabled].Bool;
             europaTicketSystemStatus.SuggestionsEnabled = WorldConfig.Values[WorldCfg.SupportSuggestionsEnabled].Bool;
-
-            features.EuropaTicketSystemStatus = europaTicketSystemStatus;
+            features.TutorialEnabled = true;
 
             features.CharUndeleteEnabled = WorldConfig.Values[WorldCfg.FeatureSystemCharacterUndeleteEnabled].Bool;
-            features.BpayStoreEnabled = WorldConfig.Values[WorldCfg.FeatureSystemBpayStoreEnabled].Bool;
-            features.WarModeFeatureEnabled = WorldConfig.Values[WorldCfg.FeatureSystemWarModeEnabled].Bool;
-            features.IsMuted = !CanSpeak();
+            features.IsChatMuted = !CanSpeak();
+            features.SpeakForMeAllowed = false;
+            features.GameRuleValues.AddRange(Global.WorldMgr.GetGameRules());
 
+            features.AddonChatThrottle.MaxTries = 10;
+            features.AddonChatThrottle.TriesRestoredPerSecond = 1;
+            features.AddonChatThrottle.UsedTriesPerMessage = 1;
+            features.GuildChatThrottle.UsedTriesPerMessage = 1;
+            features.GuildChatThrottle.TriesRestoredPerSecond = 20;
+            features.GroupChatThrottle.UsedTriesPerMessage = 1;
+            features.GroupChatThrottle.TriesRestoredPerSecond = 20;
 
-            features.TextToSpeechFeatureEnabled = false;
+            // Every flag as the official server sends it (sniffs 70205 and 70235 are identical).
+            if (Framework.Configuration.ConfigMgr.GetDefaultValue("Classic.OfficialFeatureFlags", true))
+            {
+                features.VoiceEnabled = true;
+                features.BpayStoreAvailable = true;
+                features.ItemRestorationButtonEnabled = false;
+                features.SessionAlert = null;
+                features.RAFSystem.Enabled = false;
+                features.RAFSystem.RecruitingEnabled = false;
+                features.CharUndeleteEnabled = true;
+                features.RestrictedAccount = false;
+                features.CommerceServerEnabled = false;
+                features.TutorialEnabled = true;
+                features.VeteranTokenRedeemWillKick = true;
+                features.WorldTokenRedeemWillKick = false;
+                features.KioskModeEnabled = false;
+                features.CompetitiveModeEnabled = true;
+                features.RedeemForBalanceAvailable = true;
+                features.WarModeEnabled = true;
+                features.CommunitiesEnabled = true;
+                features.BnetGroupsEnabled = true;
+                features.CharacterCommunitiesEnabled = false;
+                features.ClubPresenceAllowSubscribeAll = false;
+                features.VoiceChatParentalDisabled = true;
+                features.VoiceChatParentalMuted = false;
+                features.QuestSessionEnabled = false;
+                features.ClubFinderEnabled = true;
+                features.CommunityFinderEnabled = true;
+                features.BrowserCrashReporterEnabled = false;
+                features.SpeakForMeAllowed = false;
+                // official sends this bit on: in Classic it is the group finder "attach an Authenticator and SMS Protect" requirement
+                features.DoesAccountNeedAADCPrompt = false;
+                features.IsAccountOptedInToAADC = false;
+                features.LfgRequireAuthenticatorEnabled = false;
+                features.ScriptsDisallowedForBeta = false;
+                features.TimerunningEnabled = true;
+                features.PlayerIdentityOptionsEnabled = false;
+                features.IsPlayerContentTrackingEnabled = false;
+                features.LfdEnabled = true;
+                features.LfrEnabled = false;
+                features.PetHappinessEnabled = false;
+                features.GuildEventsEditsEnabled = false;
+                features.GuildTradeSkillsEnabled = false;
+                features.ClassicFlagBits10 = 2;
+                features.IsAccountCurrencyTransferEnabled = false;
+                features.NetEaseChatTelemetryEnabled = false;
+                features.LobbyMatchmakerQueueFromMainlineEnabled = true;
+                features.CanSendLobbyMatchmakerPartyCustomizations = false;
+                features.AddonProfilingEnabled = false;
+                features.GlobalUserGeneratedContentMuteEnabled = false;
+                features.AccountUserGeneratedContentIsRisky = false;
+                features.FriendsDisabled = false;
 
+                europaTicketSystemStatus.TicketsEnabled = false;
+                europaTicketSystemStatus.BugsEnabled = true;
+                europaTicketSystemStatus.ComplaintsEnabled = true;
+                europaTicketSystemStatus.SuggestionsEnabled = true;
+                europaTicketSystemStatus.ThrottleState = new() { MaxTries = 10, PerMilliseconds = 60000, TryCount = 0, LastResetTimeBeforeNow = 130929 };
+                europaTicketSystemStatus.ExpensiveThrottleState = new() { MaxTries = 1, PerMilliseconds = 60000, TryCount = 0, LastResetTimeBeforeNow = 130929 };
+
+                features.QuickJoinConfig = new()
+                {
+                    ToastsDisabled = false, ToastDuration = 7.0f, DelayDuration = 10.0f, QueueMultiplier = 1.0f, PlayerMultiplier = 1.0f,
+                    PlayerFriendValue = 5.0f, PlayerGuildValue = 1.0f, ThrottleInitialThreshold = 0.0f, ThrottleDecayTime = 60.0f,
+                    ThrottlePrioritySpike = 20.0f, ThrottleMinThreshold = 0.0f, ThrottlePvPPriorityNormal = 50.0f, ThrottlePvPPriorityLow = 1.0f,
+                    ThrottlePvPHonorThreshold = 10.0f, ThrottleLfgListPriorityDefault = 50.0f, ThrottleLfgListPriorityAbove = 100.0f,
+                    ThrottleLfgListPriorityBelow = 50.0f, ThrottleLfgListIlvlScalingAbove = 1.0f, ThrottleLfgListIlvlScalingBelow = 1.0f,
+                    ThrottleRfPriorityAbove = 100.0f, ThrottleRfIlvlScalingAbove = 1.0f, ThrottleDfMaxItemLevel = 850.0f, ThrottleDfBestPriority = 80.0f
+                };
+                features.RemainingTimerunningSeasonSeconds = 32767;
+                features.MaxPlayerGuidLookupsPerRequest = 32;
+                features.NameLookupTelemetryInterval = 32;
+                features.DisabledGameModes.Clear();
+                features.DisabledGameModes.Add(new() { GameMode = 3, ContentSetID = 13, GameModeRecordID = 0 });
+                features.DisabledGameModes.Add(new() { GameMode = 2, ContentSetID = 5, GameModeRecordID = 0 });
+            }
+
+            features.EuropaTicketSystemStatus = europaTicketSystemStatus;
             SendPacket(features);
         }
 
@@ -1260,7 +1445,7 @@ namespace Game
             GetPlayer().GetReputationMgr().SetInactive(packet.Index, packet.State);
         }
 
-        [WorldPacketHandler(ClientOpcodes.CheckCharacterNameAvailability)]
+        [WorldPacketHandler(ClientOpcodes.CheckCharacterNameAvailability, Status = SessionStatus.Authed)]
         void HandleCheckCharacterNameAvailability(CheckCharacterNameAvailability checkCharacterNameAvailability)
         {
             // prevent character rename to invalid name
@@ -2426,7 +2611,7 @@ namespace Game
                 // * team violation
 
                 stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_SUM_CHARS);
-                stmt.SetInt32(0, GetAccountId());
+                stmt.SetUInt32(0, unchecked((uint)GetAccountId()));
                 queryCallback.SetNextQuery(DB.Characters.AsyncQuery(stmt));
             }).WithCallback(result =>
             {
@@ -2441,7 +2626,7 @@ namespace Game
 
                 stmt = CharacterDatabase.GetPreparedStatement(CharStatements.UPD_RESTORE_DELETE_INFO);
                 stmt.SetString(0, undeleteInfo.Name);
-                stmt.SetInt32(1, GetAccountId());
+                stmt.SetUInt32(1, unchecked((uint)GetAccountId()));
                 stmt.SetInt64(2, undeleteInfo.CharacterGuid.GetCounter());
                 DB.Characters.Execute(stmt);
 
@@ -2457,6 +2642,11 @@ namespace Game
 
         [WorldPacketHandler(ClientOpcodes.RepopRequest)]
         void HandleRepopRequest(RepopRequest packet)
+        {
+            ReleaseSpirit();
+        }
+
+        internal void ReleaseSpirit()
         {
             if (GetPlayer().IsAlive() || GetPlayer().HasPlayerFlag(PlayerFlags.Ghost))
                 return;
@@ -2532,6 +2722,11 @@ namespace Game
 
         [WorldPacketHandler(ClientOpcodes.ReclaimCorpse)]
         void HandleReclaimCorpse(ReclaimCorpse packet)
+        {
+            ReclaimPlayerCorpse();
+        }
+
+        internal void ReclaimPlayerCorpse()
         {
             if (GetPlayer().IsAlive())
                 return;
@@ -2632,8 +2827,47 @@ namespace Game
             SendPacket(new PlayerSavePersonalEmblem(GuildEmblemError.Success));
         }
 
+        static string NormalizeCreationSurname(string surname) =>
+            surname == null || surname.EnumerateRunes().Count() > 48 ? string.Empty : surname;
+
+        void CompleteCommittedCharacterCreation(Player character, string surname, SQLTransaction loginTransaction)
+        {
+            // The row already exists. Optional hooks must never strand the client at
+            // "Creating character" or turn a committed creation into a failure.
+            CompleteCommittedCharacterCreation(
+                () =>
+                {
+                    try
+                    {
+                        Global.CharacterCacheStorage.AddCharacterCacheEntry(character.GetGUID(), GetAccountId(), character.GetName(),
+                            (byte)character.GetNativeGender(), (byte)character.GetRace(), (byte)character.GetClass(), (byte)character.GetLevel(), false);
+                        Global.CharacterCacheStorage.UpdateCharacterSurname(character.GetGUID(), surname);
+                    }
+                    finally { DB.Login.CommitTransaction(loginTransaction); }
+                },
+                () =>
+                {
+                    Log.outInfo(LogFilter.Player, $"Account: {GetAccountId()} (IP: {GetRemoteAddress()}) Create Character: {character.GetName()} {character.GetGUID()}");
+                    Global.ScriptMgr.OnPlayerCreate(character);
+                },
+                () => SendCharCreate(ResponseCodes.CharCreateSuccess, character.GetGUID()));
+        }
+
+        internal static void CompleteCommittedCharacterCreation(Action publish, Action hooks, Action respond)
+        {
+            try { publish(); }
+            catch (Exception error) { Log.outError(LogFilter.Player, $"Committed character cache update failed: {error}"); }
+            // Respond before invoking user scripts, which can throw or perform slow work.
+            respond();
+            try { hooks(); }
+            catch (Exception error) { Log.outError(LogFilter.Player, $"Committed character creation hook failed: {error}"); }
+        }
+
         void SendCharCreate(ResponseCodes result, ObjectGuid guid = default)
         {
+            Log.outInfo(LogFilter.Player, $"Character creation response: account {GetAccountId()}, result {result}, GUID {guid}");
+            if (IsServerControlled)
+                CompleteSICreation(result, guid);
             CreateChar response = new();
             response.Code = result;
             response.Guid = guid;
@@ -2903,7 +3137,7 @@ namespace Game
             SetQuery(PlayerLoginQueryLoad.QuestStatusRew, stmt);
 
             stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_ACCOUNT_INSTANCELOCKTIMES);
-            stmt.SetInt32(0, m_accountId);
+            stmt.SetUInt32(0, unchecked((uint)m_accountId));
             SetQuery(PlayerLoginQueryLoad.InstanceLockTimes, stmt);
 
             stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_PLAYER_CURRENCY);
@@ -2949,12 +3183,16 @@ namespace Game
 
             bool result = true;
             PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(statements[isDeletedCharacters ? 1 : 0][withDeclinedNames ? 1 : 0]);
-            stmt.SetInt32(0, accountId);
+            stmt.SetUInt32(0, unchecked((uint)accountId));
             SetQuery(EnumCharacterQueryLoad.Characters, stmt);
 
             stmt = CharacterDatabase.GetPreparedStatement(statements[isDeletedCharacters ? 1 : 0][2]);
-            stmt.SetInt32(0, accountId);
+            stmt.SetUInt32(0, unchecked((uint)accountId));
             SetQuery(EnumCharacterQueryLoad.Customizations, stmt);
+
+            stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_ENUM_EQUIPMENT);
+            stmt.SetUInt32(0, unchecked((uint)accountId));
+            SetQuery(EnumCharacterQueryLoad.Equipment, stmt);
 
             return result;
         }
@@ -3020,6 +3258,7 @@ namespace Game
     enum EnumCharacterQueryLoad
     {
         Characters,
-        Customizations
+        Customizations,
+        Equipment
     }
 }

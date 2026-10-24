@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -138,7 +138,7 @@ namespace Game.Entities
                     if (locale == Locale.enUS)
                         lineField.StartTime = (uint)_lastLineEndTimes[(int)locale].TotalMilliseconds;
 
-                    _lastLineEndTimes[(int)locale] += convoLine.AdditionalDuration;
+                    _lastLineEndTimes[(int)locale] += TimeSpan.FromMilliseconds(convoLine.AdditionalDuration);
                 }
 
                 lines.Add(lineField);
@@ -331,7 +331,7 @@ namespace Game.Entities
             buffer1.WriteUInt32(buffer.GetSize());
             buffer1.WriteBytes(buffer.GetData());
 
-            data.AddUpdateBlock(buffer1);
+            data.AddUpdateBlock(buffer1, GetUpdateFieldFlagsFor(target));
         }
 
         public override void ClearUpdateMask(bool remove)

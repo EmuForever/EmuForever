@@ -17,7 +17,7 @@ namespace Game.DataStorage
         public int Id;
         public string Name;
         public string Version;
-        public byte Flags;
+        public int Flags;
     }
 
     public sealed class BarberShopStyleRecord
@@ -53,6 +53,7 @@ namespace Game.DataStorage
     public sealed class BattlePetBreedQualityRecord
     {
         public int Id;
+        public int MaxQualityRoll;
         public float StateMultiplier;
         public byte QualityEnum;
     }
@@ -60,7 +61,7 @@ namespace Game.DataStorage
     public sealed class BattlePetBreedStateRecord
     {
         public int Id;
-        public byte BattlePetStateID;
+        public int BattlePetStateID;
         public ushort Value;
         public int BattlePetBreedID;
     }
@@ -78,6 +79,7 @@ namespace Game.DataStorage
         public sbyte SourceTypeEnum;
         public int CardUIModelSceneID;
         public int LoadoutUIModelSceneID;
+        public int CovenantID;
 
         #region Properties
         public BattlePetSpeciesFlags Flags => (BattlePetSpeciesFlags)_flags;
@@ -99,7 +101,7 @@ namespace Game.DataStorage
     public sealed class BattlePetSpeciesStateRecord
     {
         public int Id;
-        public byte BattlePetStateID;
+        public ushort BattlePetStateID;
         public int Value;
         public int BattlePetSpeciesID;
     }
@@ -112,6 +114,7 @@ namespace Game.DataStorage
         public LocalizedString ShortDescription;
         public LocalizedString LongDescription;
         public sbyte InstanceType;
+        public int PvpType;
         public byte MinLevel;
         public byte MaxLevel;
         public sbyte RatedPlayers;
@@ -120,12 +123,13 @@ namespace Game.DataStorage
         public sbyte GroupsAllowed;
         public sbyte MaxGroupSize;
         public short HolidayWorldState;
-        private sbyte _flags;
+        private int _flags;
         public int IconFileDataID;
         public int RequiredPlayerConditionID;
-        public short[] MapId = new short[16];
 
         #region Properties
+        /// <summary> 1.60.1 moved the map list to BattlemasterListXMap.db2; padded with -1 like the old MapId[16] </summary>
+        public short[] MapId => CliDB.GetBattlemasterListMaps(Id);
         public BattlemasterListFlags Flags => (BattlemasterListFlags)_flags;
         public byte MinPlayers { get => _minPlayers; internal set => _minPlayers = value; }
         public byte MaxPlayers { get => (byte)_maxPlayers; internal set => _maxPlayers = value; }
@@ -144,21 +148,29 @@ namespace Game.DataStorage
         #endregion
     }
 
+    public sealed class BattlemasterListXMapRecord
+    {
+        public int Id;
+        public int MapID;
+        public int BattlemasterListID;
+    }
+
     public sealed class BroadcastTextRecord
     {
-        static int MAX_BROADCAST_TEXT_EMOTES = 3;
-
         public LocalizedString Text;
         public LocalizedString Text1;
         public int Id;
         public int LanguageID;
         public int ConditionID;
         public ushort EmotesID;
-        public byte Flags;
+        public int Flags;
         public uint ChatBubbleDurationMs;
         public int VoiceOverPriorityID;
         public int[] SoundKitID = new int[2];
-        public ushort[] EmoteID = new ushort[MAX_BROADCAST_TEXT_EMOTES];
-        public ushort[] EmoteDelay = new ushort[MAX_BROADCAST_TEXT_EMOTES];
+        public ushort[] EmoteID = new ushort[3];
+        public ushort[] EmoteDelay = new ushort[3];
+
+        static int MAX_BROADCAST_TEXT_EMOTES = 3;
+
     }
 }

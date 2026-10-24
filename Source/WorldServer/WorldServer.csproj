@@ -6,6 +6,10 @@
 	  <OutputType>Exe</OutputType>
     <ApplicationIcon>Blue.ico</ApplicationIcon>
     <StartupObject>WorldServer.Server</StartupObject>            
+    <!-- A busy realm allocates on map, network and navigation workers. Background
+         server GC prevents workstation collection from serializing that workload. -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,9 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="WorldServer.conf.dist">
+    <None Update="Configs/WorldServer.conf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
   
 </Project>
+

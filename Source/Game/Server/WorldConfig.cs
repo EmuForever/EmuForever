@@ -19,7 +19,7 @@ namespace Game
         public static void Load(bool reload = false)
         {
             if (reload)
-                Load("WorldServer.conf");
+                Load("Configs/WorldServer.conf");
 
             // We cleanse all data to catch access errors on data that is not yet initialized.
             //Values._values.Clear(); // TODO: WorldCfg.ClientCacheVersion Already Pre-Loaded in WorldServer.Server.StartDB();

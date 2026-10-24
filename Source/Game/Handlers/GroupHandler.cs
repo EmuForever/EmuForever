@@ -28,7 +28,17 @@ namespace Game
         void HandlePartyInvite(PartyInviteClient packet)
         {
             Player invitingPlayer = GetPlayer();
-            Player invitedPlayer = Global.ObjAccessor.FindPlayerByName(packet.TargetName);
+            // The unit menu / portrait Invite can send the target by guid (empty name) or as "Name-Realm"; typed /invite sends the plain name.
+            Player invitedPlayer = null;
+            if (!packet.TargetGUID.IsEmpty() && packet.TargetGUID.IsPlayer())
+                invitedPlayer = Global.ObjAccessor.FindPlayer(packet.TargetGUID);
+            if (invitedPlayer == null && !string.IsNullOrEmpty(packet.TargetName))
+            {
+                invitedPlayer = Global.ObjAccessor.FindPlayerByName(packet.TargetName);
+                int dash = packet.TargetName.IndexOf('-');
+                if (invitedPlayer == null && dash > 0)
+                    invitedPlayer = Global.ObjAccessor.FindPlayerByName(packet.TargetName[..dash]);
+            }
 
             // no player
             if (invitedPlayer == null)

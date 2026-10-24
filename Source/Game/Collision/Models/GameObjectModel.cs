@@ -61,7 +61,7 @@ namespace Game.Collision
 
             iBound = rotated_bounds + iPos;
             owner = modelOwner;
-            isWmo = modelData.isWmo;
+            isWmo = (iModel.Flags & (uint)ModelFlags.M2) == 0;
             return true;
         }
 
@@ -182,7 +182,7 @@ namespace Game.Collision
         public override AxisAlignedBox GetBounds() { return iBound; }
 
         public void EnableCollision(bool enable) { _collisionEnabled = enable; }
-        bool IsCollisionEnabled() { return _collisionEnabled; }
+        public bool IsCollisionEnabled() { return _collisionEnabled; }
         public bool IsMapObject() { return isWmo; }
         public byte GetNameSetId() { return owner.GetNameSetId(); }
         
@@ -213,13 +213,12 @@ namespace Game.Collision
                         break;
 
                     uint displayId = reader.ReadUInt32();
-                    bool isWmo = reader.ReadBoolean();
                     int name_length = reader.ReadInt32();
                     string name = reader.ReadString(name_length);
                     Vector3 v1 = reader.Read<Vector3>();
                     Vector3 v2 = reader.Read<Vector3>();
 
-                    StaticModelList.models.Add(displayId, new GameobjectModelData(name, v1, v2, isWmo));
+                    StaticModelList.models.Add(displayId, new GameobjectModelData(name, v1, v2));
                 }
             }
             catch (EndOfStreamException ex)
@@ -244,16 +243,14 @@ namespace Game.Collision
     }
     public class GameobjectModelData
     {
-        public GameobjectModelData(string name_, Vector3 lowBound, Vector3 highBound, bool isWmo_)
+        public GameobjectModelData(string name_, Vector3 lowBound, Vector3 highBound)
         {
             bound = new AxisAlignedBox(lowBound, highBound);
             name = name_;
-            isWmo = isWmo_;
         }
 
         public AxisAlignedBox bound;
         public string name;
-        public bool isWmo;
     }
 }
     

@@ -7,11 +7,12 @@ namespace Game.DataStorage
 {
     public sealed class JournalEncounterRecord
     {
-        public int Id;
         public LocalizedString Name;
         public LocalizedString Description;
         public Vector2 Map;
+        public int Id;
         public ushort JournalInstanceID;
+        public ushort DungeonEncounterID;
         public uint OrderIndex;
         public ushort FirstSectionID;
         public ushort UiMapID;
@@ -42,9 +43,9 @@ namespace Game.DataStorage
 
     public sealed class JournalInstanceRecord
     {        
+        public int Id;
         public LocalizedString Name;
         public LocalizedString Description;
-        public int Id;
         public ushort MapID;
         public int BackgroundFileDataID;
         public int ButtonFileDataID;
@@ -52,11 +53,14 @@ namespace Game.DataStorage
         public int LoreFileDataID;
         public int Flags;
         public ushort AreaID;
+        public ushort CovenantID;
     }
 
     public sealed class JournalTierRecord
     {
         public int Id;
         public LocalizedString Name;
+        public int Expansion;
+        public int PlayerConditionID;
     }
 }

@@ -20,7 +20,7 @@ namespace Game.DataStorage
             Dictionary<int, List<ConversationActorTemplate>> actorsByConversation = new();
 
             {
-                SQLResult lineTemplates = DB.World.Query("SELECT Id, UiCameraID, ActorIdx, Flags FROM conversation_line_template");
+                SQLResult lineTemplates = DB.World.Query("SELECT Id, UiCameraID, ActorIdx, Flags, ChatType FROM conversation_line_template");
                 if (!lineTemplates.IsEmpty())
                 {
                     RelativeTime oldMSTime = Time.NowRelative;
@@ -71,7 +71,8 @@ namespace Game.DataStorage
                         ConversationActorTemplate actor = new();
 
                         data.ConversationId = actorResult.Read<int>(0);
-                        data.ConversationId = actorResult.Read<int>(1);
+                        // Column 1 is ConversationActorId, not the owning conversation.
+                        // Overwriting the owner groups actors under the wrong template.
                         data.SpawnId = actorResult.Read<long>(2);
                         data.ActorIndex = actor.Index = actorResult.Read<ushort>(3);
                         data.CreatureId = actorResult.Read<int>(4);

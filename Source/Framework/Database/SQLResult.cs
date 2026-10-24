@@ -1,145 +1,63 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using MySqlConnector;
 using System;
-using System.Runtime.CompilerServices;
+using System.Collections.Generic;
+using System.Globalization;
 
 namespace Framework.Database
 {
-    public class SQLResult
+    // Results own their rows, never a database reader/connection. Callers may read
+    // just one row, retain a result in a callback, or stop an iteration early.
+    public sealed class SQLResult : IDisposable
     {
-        MySqlDataReader _reader;
+        readonly List<object[]> _rows = new();
+        int _row;
+        int _fieldCount;
 
         public SQLResult() { }
 
         public SQLResult(MySqlDataReader reader)
         {
-            _reader = reader;
-            NextRow();
-        }
-
-        public T Read<T>(int column)
-        {
-            if (_reader.IsDBNull(column))
-                return default;
-
-            var columnType = _reader.GetFieldType(column);
-            if (columnType == typeof(T))
-                return _reader.GetFieldValue<T>(column);
-
-            switch (Type.GetTypeCode(columnType))
+            using (reader)
             {
-                case TypeCode.SByte:
+                _fieldCount = reader.FieldCount;
+                while (reader.Read())
                 {
-                    var value = _reader.GetSByte(column);
-                    return Unsafe.As<sbyte, T>(ref value);
-                }
-                case TypeCode.Byte:
-                {
-                    var value = _reader.GetByte(column);
-                    return Unsafe.As<byte, T>(ref value);
-                }
-                case TypeCode.Int16:
-                {
-                    var value = _reader.GetInt16(column);
-                    return Unsafe.As<short, T>(ref value);
-                }
-                case TypeCode.UInt16:
-                {
-                    var value = _reader.GetUInt16(column);
-                    return Unsafe.As<ushort, T>(ref value);
-                }
-                case TypeCode.Int32:
-                {
-                    var value = _reader.GetInt32(column);
-                    return Unsafe.As<int, T>(ref value);
-                }
-                case TypeCode.UInt32:
-                {
-                    var value = _reader.GetUInt32(column);
-                    return Unsafe.As<uint, T>(ref value);
-                }
-                case TypeCode.Int64:
-                {
-                    var value = _reader.GetInt64(column);
-                    return Unsafe.As<long, T>(ref value);
-                }
-                case TypeCode.UInt64:
-                {
-                    var value = _reader.GetUInt64(column);
-                    return Unsafe.As<ulong, T>(ref value);
-                }
-                case TypeCode.Single:
-                {
-                    var value = _reader.GetFloat(column);
-                    return Unsafe.As<float, T>(ref value);
-                }
-                case TypeCode.Double:
-                {
-                    var value = _reader.GetDouble(column);
-                    return Unsafe.As<double, T>(ref value);
+                    var values = new object[_fieldCount];
+                    reader.GetValues(values);
+                    _rows.Add(values);
                 }
             }
-
-            return default;
         }
+
+        public T Read<T>(int column) => SQLFields.ConvertValue<T>(_rows[_row][column]);
 
         public T[] ReadValues<T>(int startIndex, int numColumns)
         {
             T[] values = new T[numColumns];
-            for (var c = 0; c < numColumns; ++c)
-                values[c] = Read<T>(startIndex + c);
-
+            for (int column = 0; column < numColumns; ++column)
+                values[column] = Read<T>(startIndex + column);
             return values;
         }
 
-        public bool IsNull(int column)
-        {
-            return _reader.IsDBNull(column);
-        }
-
-        public int GetFieldCount() { return _reader.FieldCount; }
-
-        public bool IsEmpty()
-        {
-            if (_reader == null)
-                return true;
-
-            return _reader.IsClosed || !_reader.HasRows;
-        }
-
-        public SQLFields GetFields()
-        {
-            object[] values = new object[_reader.FieldCount];
-            _reader.GetValues(values);
-            return new SQLFields(values);
-        }
+        public bool IsNull(int column) => _rows[_row][column] is null or DBNull;
+        public int GetFieldCount() => _fieldCount;
+        public bool IsEmpty() => _row >= _rows.Count;
+        public SQLFields GetFields() => new(_rows[_row]);
 
         public bool NextRow()
         {
-            if (_reader == null)
-                return false;
-
-            if (_reader.Read())
-                return true;
-
-            _reader.Close();
-            _reader = null;
-
+            if (IsEmpty()) return false;
+            if (++_row < _rows.Count) return true;
+            Close();
             return false;
         }
 
-        public void Close()
-        {
-            if (_reader != null)
-            {
-                _reader.Close();
-                _reader = null;
-            }
-        }
+        public void Close() { _rows.Clear(); _row = 0; }
+        public void Dispose() => Close();
     }
-
     public class SQLFields
     {
         object[] _currentRow;
@@ -148,15 +66,33 @@ namespace Framework.Database
 
         public T Read<T>(int column)
         {
-            var value = _currentRow[column];
+            return ConvertValue<T>(_currentRow[column]);
+        }
 
-            if (value == DBNull.Value)
-                return default;
-
-            if (value.GetType() != typeof(T))
-                return (T)Convert.ChangeType(value, typeof(T));//todo remove me when all fields are the right type  this is super slow
-
-            return (T)value;
+        internal static T ConvertValue<T>(object value)
+        {
+            if (value is null or DBNull) return default;
+            if (value is T typed) return typed;
+            Type target = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
+            Type numericTarget = target.IsEnum ? Enum.GetUnderlyingType(target) : target;
+            // SQL/hotfix schemas sometimes store a signed field in an unsigned column.
+            // Preserve its bits with numeric casts, without reinterpreting boxed memory.
+            if (value is sbyte or byte or short or ushort or int or uint or long or ulong)
+            {
+                ulong bits = value is ulong unsigned ? unsigned : unchecked((ulong)Convert.ToInt64(value, CultureInfo.InvariantCulture));
+                object converted = Type.GetTypeCode(numericTarget) switch
+                {
+                    TypeCode.SByte => unchecked((sbyte)bits), TypeCode.Byte => unchecked((byte)bits),
+                    TypeCode.Int16 => unchecked((short)bits), TypeCode.UInt16 => unchecked((ushort)bits),
+                    TypeCode.Int32 => unchecked((int)bits), TypeCode.UInt32 => unchecked((uint)bits),
+                    TypeCode.Int64 => unchecked((long)bits), TypeCode.UInt64 => bits,
+                    _ => null
+                };
+                if (converted != null) return target.IsEnum ? (T)Enum.ToObject(target, converted) : (T)converted;
+            }
+            if (target.IsEnum)
+                return (T)Enum.ToObject(target, Convert.ChangeType(value, numericTarget, CultureInfo.InvariantCulture));
+            return (T)Convert.ChangeType(value, target, CultureInfo.InvariantCulture);
         }
 
         public T[] ReadValues<T>(int startIndex, int numColumns)

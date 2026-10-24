@@ -5,6 +5,7 @@ using Framework.Constants;
 using Framework.Database;
 using Game.Entities;
 using Game.Maps;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 
@@ -149,10 +150,14 @@ namespace Game.DataStorage
             {
                 //                                                             0   1         2              3                    4
                 SQLResult areatriggerCreateProperties = DB.World.Query("SELECT Id, IsCustom, AreaTriggerId, IsAreatriggerCustom, Flags, " +
-                    //5            6             7             8              9       10         11                 12            13 +
-                    "MoveCurveId, ScaleCurveId, MorphCurveId, FacingCurveId, AnimId, AnimKitId, DecalPropertiesId, TimeToTarget, TimeToTargetScale, " +
-                    //14     15          16          17          18          19          20          21          22          23
-                    "Shape, ShapeData0, ShapeData1, ShapeData2, ShapeData3, ShapeData4, ShapeData5, ShapeData6, ShapeData7, ScriptName FROM `areatrigger_create_properties`");
+                    //5            6             7             8              9       10         11                 12
+                    "MoveCurveId, ScaleCurveId, MorphCurveId, FacingCurveId, AnimId, AnimKitId, DecalPropertiesId, SpellForVisuals, " +
+                    //13                  14                 15     16
+                    "PositionalSoundKitId, TimeToTargetScale, Speed, SpeedIsTime, " +
+                    //17     18          19          20          21          22          23          24          25
+                    "Shape, ShapeData0, ShapeData1, ShapeData2, ShapeData3, ShapeData4, ShapeData5, ShapeData6, ShapeData7, " +
+                    //26    27     28   29          30           31         32
+                    "Roll, Pitch, Yaw, TargetRoll, TargetPitch, TargetYaw, ScriptName FROM `areatrigger_create_properties`");
                 if (!areatriggerCreateProperties.IsEmpty())
                 {
                     do
@@ -166,7 +171,7 @@ namespace Game.DataStorage
 
                         createProperties.Flags = (AreaTriggerCreatePropertiesFlag)areatriggerCreateProperties.Read<uint>(4);
 
-                        AreaTriggerShapeType shape = (AreaTriggerShapeType)areatriggerCreateProperties.Read<byte>(14);
+                        AreaTriggerShapeType shape = (AreaTriggerShapeType)areatriggerCreateProperties.Read<byte>(17);
 
                         if (areaTriggerId.Id != 0 && createProperties.Template == null)
                         {
@@ -206,19 +211,54 @@ namespace Game.DataStorage
 
                         createProperties.AnimId = areatriggerCreateProperties.Read<int>(9);
                         createProperties.AnimKitId = areatriggerCreateProperties.Read<int>(10);
-                        createProperties.DecalPropertiesId = areatriggerCreateProperties.Read<int>(11);
+                        createProperties.DecalPropertiesId = (int)areatriggerCreateProperties.Read<uint>(11);
 
-                        createProperties.TimeToTarget = (Milliseconds)areatriggerCreateProperties.Read<int>(12);
-                        createProperties.TimeToTargetScale = (Milliseconds)areatriggerCreateProperties.Read<int>(13);
+                        if (!areatriggerCreateProperties.IsNull(12))
+                        {
+                            createProperties.SpellForVisuals = areatriggerCreateProperties.Read<int>(12);
+                            if (!Global.SpellMgr.HasSpellInfo(createProperties.SpellForVisuals.Value, Difficulty.None))
+                            {
+                                Log.outError(LogFilter.Sql,
+                                    $"Table `areatrigger_create_properties` has AreaTriggerCreatePropertiesId (Id: {createPropertiesId.Id}, " +
+                                    $"IsCustom: {createPropertiesId.IsCustom}) with invalid SpellForVisual {createProperties.SpellForVisuals}, set to none.");
+                                createProperties.SpellForVisuals = null;
+                            }
+                        }
+
+                        createProperties.PositionalSoundKitId = areatriggerCreateProperties.Read<int>(13);
+                        if (createProperties.PositionalSoundKitId != 0)
+                        {
+                            if (!CliDB.SoundKitStorage.ContainsKey(createProperties.PositionalSoundKitId))
+                            {
+                                Log.outError(LogFilter.Sql,
+                                    $"Table `areatrigger_create_properties` has AreaTriggerCreatePropertiesId (Id: {createPropertiesId.Id}, " +
+                                    $"IsCustom: {createPropertiesId.IsCustom}) with invalid PositionalSoundKitId {createProperties.PositionalSoundKitId}, set to 0.");
+                                createProperties.PositionalSoundKitId = 0;
+                            }
+                            else if (shape != AreaTriggerShapeType.Sphere && shape != AreaTriggerShapeType.Cylinder)
+                            {
+                                Log.outError(LogFilter.Sql,
+                                    $"Table `areatrigger_create_properties` has AreaTriggerCreatePropertiesId (Id: {createPropertiesId.Id}, " +
+                                    $"IsCustom: {createPropertiesId.IsCustom}) with PositionalSoundKitId {createProperties.PositionalSoundKitId} on unsupported shape {shape}, set to 0.");
+                                createProperties.PositionalSoundKitId = 0;
+                            }
+                        }
+
+                        createProperties.TimeToTargetScale = (Milliseconds)(int)areatriggerCreateProperties.Read<uint>(14);
+                        createProperties.Speed = areatriggerCreateProperties.Read<float>(15);
+                        createProperties.SpeedIsTime = areatriggerCreateProperties.Read<bool>(16);
+                        // 1.60.1 schema has no TimeToTarget column: the reference derives it from Speed at spline/orbit init.
+                        // When Speed is a time (seconds) it is distance-independent, so it can be resolved here.
+                        createProperties.TimeToTarget = createProperties.SpeedIsTime ? (Milliseconds)(int)(createProperties.Speed * 1000.0f) : (Milliseconds)0;
 
                         createProperties.Shape.TriggerType = shape;
                         unsafe
                         {
                             for (byte i = 0; i < SharedConst.MaxAreatriggerEntityData; ++i)
-                                createProperties.Shape.DefaultDatas.Data[i] = areatriggerCreateProperties.Read<float>(15 + i);
+                                createProperties.Shape.DefaultDatas.Data[i] = areatriggerCreateProperties.Read<float>(18 + i);
                         }
 
-                        createProperties.ScriptId = Global.ObjectMgr.GetScriptId(areatriggerCreateProperties.Read<string>(23));
+                        createProperties.ScriptId = Global.ObjectMgr.GetScriptId(areatriggerCreateProperties.Read<string>(32));
 
                         if (shape == AreaTriggerShapeType.Polygon)
                         {
@@ -259,7 +299,7 @@ namespace Game.DataStorage
             {
 
                 //                                                           0                               1         2           3             4                5             6        7                 8
-                SQLResult circularMovementInfos = DB.World.Query("SELECT AreaTriggerCreatePropertiesId, IsCustom, StartDelay, CircleRadius, BlendFromRadius, InitialAngle, ZOffset, CounterClockwise, CanLoop FROM `areatrigger_create_properties_orbit`");
+                SQLResult circularMovementInfos = DB.World.Query("SELECT AreaTriggerCreatePropertiesId, IsCustom, ExtraTimeForBlending, CircleRadius, BlendFromRadius, InitialAngle, ZOffset, CounterClockwise, CanLoop FROM `areatrigger_create_properties_orbit`");
                 if (!circularMovementInfos.IsEmpty())
                 {
                     do
@@ -278,7 +318,8 @@ namespace Game.DataStorage
 
                         AreaTriggerOrbitInfo orbitInfo = new();
 
-                        orbitInfo.StartDelay = (RelativeTime)circularMovementInfos.Read<uint>(2);
+                        // 1.60.1: StartDelay column renamed ExtraTimeForBlending (int); same packet slot
+                        orbitInfo.StartDelay = (RelativeTime)(uint)Math.Max(0, circularMovementInfos.Read<int>(2));
 
                         float ValidateAndSetFloat(float value)
                         {
@@ -330,7 +371,7 @@ namespace Game.DataStorage
             RelativeTime oldMSTime = Time.NowRelative;
             // Load area trigger positions (to put them on the server)
             //                                          0        1                              2         3      4                  5     6     7     8            9              10       11          12               13
-            SQLResult result = DB.World.Query("SELECT SpawnId, AreaTriggerCreatePropertiesId, IsCustom, MapId, SpawnDifficulties, PosX, PosY, PosZ, Orientation, PhaseUseFlags, PhaseId, PhaseGroup, SpellForVisuals, ScriptName FROM `areatrigger`");
+            SQLResult result = DB.World.Query("SELECT SpawnId, AreaTriggerCreatePropertiesId, IsCustom, MapId, SpawnDifficulties, PosX, PosY, PosZ, Orientation, PhaseUseFlags, PhaseId, PhaseGroup, ScriptName FROM `areatrigger`");
             if (!result.IsEmpty())
             {
                 do
@@ -415,19 +456,10 @@ namespace Game.DataStorage
                     spawn.PhaseId = result.Read<int>(10);
                     spawn.PhaseGroup = result.Read<int>(11);
 
-                    if (!result.IsNull(12))
-                    {
-                        spawn.SpellForVisuals = result.Read<int>(12);
-                        if (!Global.SpellMgr.HasSpellInfo(spawn.SpellForVisuals.Value, Difficulty.None))
-                        {
-                            Log.outError(LogFilter.Sql, 
-                                $"Table `areatrigger` has areatrigger (GUID: {spawnId}) " +
-                                $"with invalid SpellForVisual {spawn.SpellForVisuals}, set to none.");
-                            spawn.SpellForVisuals = null;
-                        }
-                    }
+                    // 1.60.1: SpellForVisuals moved to areatrigger_create_properties
+                    spawn.SpellForVisuals = createProperties.SpellForVisuals;
 
-                    spawn.ScriptId = Global.ObjectMgr.GetScriptId(result.Read<string>(13));
+                    spawn.ScriptId = Global.ObjectMgr.GetScriptId(result.Read<string>(12));
                     spawn.spawnGroupData = Global.ObjectMgr.GetLegacySpawnGroup();
 
                     // Add the trigger to a map::cell map, which is later used by GridLoader to query

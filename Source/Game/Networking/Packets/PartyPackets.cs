@@ -16,18 +16,23 @@ namespace Game.Networking.Packets
     {
         public PartyCommandResult() : base(ServerOpcodes.PartyCommandResult) { }
 
+        // Forever layout: TC PartyCommandResult::Write
         public override void Write()
         {
-            _worldPacket.WriteBits(Name.GetByteCount(), 9);
+            // Classic 1.60: 6 bit name and 9 bit surname length
+            _worldPacket.WriteBits(Name.GetByteCount(), 6);
+            _worldPacket.WriteBits(Surname.GetByteCount(), 9);
             _worldPacket.WriteBits(Command, 4);
             _worldPacket.WriteBits(Result, 6);
 
             _worldPacket.WriteUInt32(ResultData);
             _worldPacket.WritePackedGuid(ResultGUID);
             _worldPacket.WriteString(Name);
+            _worldPacket.WriteString(Surname);
         }
 
         public string Name;
+        public string Surname = string.Empty;   // Classic 1.60
         public byte Command;
         public byte Result;
         public uint ResultData;
@@ -38,25 +43,32 @@ namespace Game.Networking.Packets
     {
         public PartyInviteClient(WorldPacket packet) : base(packet) { }
 
+        // Client 70425 serializer (rva 0x69FAD0, target block 0x69F8F0): PartyIndex bit, flush; then the target block with a
+        // 6 bit name length (helper 0x5E3760 masks 0x3F; TC reads 9) and a 9 bit realm length, flush, uint32 realm address,
+        // guid, name, realm; then one more byte (+0x170) before the optional PartyIndex.
         public override void Read()
         {
             bool hasPartyIndex = _worldPacket.HasBit();
 
             _worldPacket.ResetBitPos();
-            int targetNameLen = _worldPacket.ReadBits<int>(9);
+            int targetNameLen = _worldPacket.ReadBits<int>(6);
             int targetRealmLen = _worldPacket.ReadBits<int>(9);
 
-            ProposedRoles = _worldPacket.ReadUInt32();
+            // Classic 1.60: a realm address, not the proposed roles
+            TargetRealmAddress = _worldPacket.ReadUInt32();
             TargetGUID = _worldPacket.ReadPackedGuid();
 
             TargetName = _worldPacket.ReadString(targetNameLen);
             TargetRealm = _worldPacket.ReadString(targetRealmLen);
+            Unknown70425 = _worldPacket.ReadUInt8();
             if (hasPartyIndex)
                 PartyIndex = _worldPacket.ReadUInt8();
         }
 
         public byte? PartyIndex;
-        public uint ProposedRoles;
+        public uint ProposedRoles;              // not sent by the Classic 1.60 client
+        public byte Unknown70425;               // the byte after the target block (+0x170); meaning unknown, so not used as roles
+        public uint TargetRealmAddress;         // Classic 1.60
         public string TargetName;
         public string TargetRealm;
         public ObjectGuid TargetGUID;
@@ -71,6 +83,7 @@ namespace Game.Networking.Packets
             CanAccept = canAccept;
 
             InviterName = inviter.GetName();
+            InviterSurname = Global.CharacterCacheStorage.GetCharacterSurnameByGuid(inviter.GetGUID()) ?? string.Empty;
             InviterGUID = inviter.GetGUID();
             InviterBNetAccountId = inviter.GetSession().GetAccountGUID();
 
@@ -83,33 +96,35 @@ namespace Game.Networking.Packets
         public override void Write()
         {
             _worldPacket.WriteBit(CanAccept);
-            _worldPacket.WriteBit(MightCRZYou);
             _worldPacket.WriteBit(IsXRealm);
-            _worldPacket.WriteBit(MustBeBNetFriend);
+            _worldPacket.WriteBit(IsXNativeRealm);
+            _worldPacket.WriteBit(ShouldSquelch);
             _worldPacket.WriteBit(AllowMultipleRoles);
             _worldPacket.WriteBit(QuestSessionActive);
             _worldPacket.WriteBits(InviterName.GetByteCount(), 6);
-
-            InviterRealm.Write(_worldPacket);
+            _worldPacket.WriteBits(InviterSurname.GetByteCount(), 9);
+            _worldPacket.WriteBit(IsCrossFaction);
 
             _worldPacket.WritePackedGuid(InviterGUID);
             _worldPacket.WritePackedGuid(InviterBNetAccountId);
-            _worldPacket.WriteUInt16(Unk1);
+            _worldPacket.WriteUInt16(InviterCfgRealmID);
+            InviterRealm.Write(_worldPacket);
             _worldPacket.WriteUInt8(ProposedRoles);
             _worldPacket.WriteInt32(LfgSlots.Count);
             _worldPacket.WriteInt32(LfgCompletedMask);
 
             _worldPacket.WriteString(InviterName);
+            _worldPacket.WriteString(InviterSurname);
 
             foreach (int LfgSlot in LfgSlots)
                 _worldPacket.WriteInt32(LfgSlot);
         }
 
-        public bool MightCRZYou;
-        public bool MustBeBNetFriend;
+        public bool ShouldSquelch;
         public bool AllowMultipleRoles;
         public bool QuestSessionActive;
-        public ushort Unk1;
+        public bool IsCrossFaction;
+        public ushort InviterCfgRealmID;
 
         public bool CanAccept;
 
@@ -118,9 +133,11 @@ namespace Game.Networking.Packets
         public ObjectGuid InviterGUID;
         public ObjectGuid InviterBNetAccountId;
         public string InviterName;
+        public string InviterSurname = string.Empty;    // Classic 1.60
 
         // Realm
         public bool IsXRealm;
+        public bool IsXNativeRealm;
 
         // Lfg
         public byte ProposedRoles;
@@ -158,7 +175,8 @@ namespace Game.Networking.Packets
         public override void Read()
         {
             bool hasPartyIndex = _worldPacket.HasBit();
-            byte reasonLen = _worldPacket.ReadBits<byte>(8);
+            // Forever layout: TC PartyUninvite::Read
+            int reasonLen = _worldPacket.ReadBits<int>(9);
 
             TargetGUID = _worldPacket.ReadPackedGuid();
 
@@ -194,7 +212,13 @@ namespace Game.Networking.Packets
     {
         public GroupUninvite() : base(ServerOpcodes.GroupUninvite) { }
 
-        public override void Write() { }
+        // Forever layout: TC GroupUninvite::Write
+        public override void Write()
+        {
+            _worldPacket.WriteUInt8(Reason);
+        }
+
+        public byte Reason;
     }
 
     class RequestPartyMemberStats : ClientPacket
@@ -203,14 +227,21 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
+            // Forever layout: TC RequestPartyMemberStats::Read
             bool hasPartyIndex = _worldPacket.HasBit();
-            TargetGUID = _worldPacket.ReadPackedGuid();
+            uint count = _worldPacket.ReadUInt32();
             if (hasPartyIndex)
                 PartyIndex = _worldPacket.ReadUInt8();
+
+            for (uint i = 0; i < count; ++i)
+                Targets.Add(_worldPacket.ReadPackedGuid());
+
+            TargetGUID = Targets.Count > 0 ? Targets[0] : ObjectGuid.Empty;
         }
 
         public byte? PartyIndex;
-        public ObjectGuid TargetGUID;
+        public Array<ObjectGuid> Targets = new(40);
+        public ObjectGuid TargetGUID; // first entry of Targets (handler compatibility)
     }
 
     class PartyMemberFullState : ServerPacket
@@ -219,11 +250,11 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
+            // Forever layout: TC PartyMemberFullState::Write
             _worldPacket.WriteBit(ForEnemy);
-            _worldPacket.FlushBits();
 
-            MemberStats.Write(_worldPacket);
             _worldPacket.WritePackedGuid(MemberGuid);
+            MemberStats.Write(_worldPacket);
         }
 
         public void Initialize(Player player)
@@ -592,14 +623,15 @@ namespace Game.Networking.Packets
         public override void Read()
         {
             bool hasPartyIndex = _worldPacket.HasBit();
+            // Forever layout: TC SetPartyAssignment::Read
             Set = _worldPacket.HasBit();
-            Assignment = _worldPacket.ReadUInt8();
+            Assignment = _worldPacket.ReadInt32();
             Target = _worldPacket.ReadPackedGuid();
             if (hasPartyIndex)
                 PartyIndex = _worldPacket.ReadUInt8();
         }
 
-        public byte Assignment;
+        public int Assignment;
         public byte? PartyIndex;
         public ObjectGuid Target;
         public bool Set;
@@ -642,8 +674,10 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
+            // Forever layout: TC ReadyCheckResponseClient::Read
+            bool hasPartyIndex = _worldPacket.HasBit();
             IsReady = _worldPacket.HasBit();
-            if (_worldPacket.HasBit())
+            if (hasPartyIndex)
                 PartyIndex = _worldPacket.ReadUInt8();
         }
 
@@ -750,31 +784,40 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
+            // Forever layout: TC PartyUpdate::Write
             _worldPacket.WriteUInt16((ushort)PartyFlags);
             _worldPacket.WriteUInt8(PartyIndex);
             _worldPacket.WriteUInt8((byte)PartyType);
             _worldPacket.WriteInt32(MyIndex);
             _worldPacket.WritePackedGuid(PartyGUID);
             _worldPacket.WriteInt32(SequenceNum);
+            _worldPacket.WriteInt8(0);  // client 70291+: int8 before LeaderGUID (TC Classic70291_BeforeLeader)
             _worldPacket.WritePackedGuid(LeaderGUID);
             _worldPacket.WriteUInt8(LeaderFactionGroup);
+            _worldPacket.WriteInt32(PingRestriction);
+            _worldPacket.WriteUInt64(0); // client 70291+: uint64 before the member count (TC Classic70291_BeforeMemberCount)
             _worldPacket.WriteInt32(PlayerList.Count);
+
+            foreach (var playerInfo in PlayerList)
+                playerInfo.Write(_worldPacket);
+
+            _worldPacket.WriteBit(ChallengeMode.HasValue);
             _worldPacket.WriteBit(LfgInfos.HasValue);
             _worldPacket.WriteBit(LootSettings.HasValue);
             _worldPacket.WriteBit(DifficultySettings.HasValue);
             _worldPacket.FlushBits();
 
-            foreach (var playerInfo in PlayerList)
-                playerInfo.Write(_worldPacket);
+            if (ChallengeMode.HasValue)
+                ChallengeMode.Value.Write(_worldPacket);
+
+            if (LfgInfos.HasValue)
+                LfgInfos.Value.Write(_worldPacket);
 
             if (LootSettings.HasValue)
                 LootSettings.Value.Write(_worldPacket);
 
             if (DifficultySettings.HasValue)
                 DifficultySettings.Value.Write(_worldPacket);
-
-            if (LfgInfos.HasValue)
-                LfgInfos.Value.Write(_worldPacket);
         }
 
         public GroupFlags PartyFlags;
@@ -788,8 +831,11 @@ namespace Game.Networking.Packets
         public int MyIndex;
         public int SequenceNum;
 
+        public int PingRestriction; // TC RestrictPingsTo
+
         public List<PartyPlayerInfo> PlayerList = new();
 
+        public ChallengeModeData? ChallengeMode;
         public PartyLFGInfo? LfgInfos;
         public PartyLootSettings? LootSettings;
         public PartyDifficultySettings? DifficultySettings;
@@ -913,7 +959,7 @@ namespace Game.Networking.Packets
         {
             _worldPacket.WritePackedGuid(Target);
         }
-        
+
         public ObjectGuid Target;
     }
 
@@ -927,7 +973,7 @@ namespace Game.Networking.Packets
             _worldPacket.WriteBit(Accepted);
             _worldPacket.FlushBits();
         }
-        
+
         public ObjectGuid Target;
         public bool Accepted;
     }
@@ -938,13 +984,16 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
+            // Forever layout: TC SetRestrictPingsToAssistants::Read
             bool hasPartyIndex = _worldPacket.HasBit();
-            RestrictPingsToAssistants = _worldPacket.HasBit();
+            RestrictTo = _worldPacket.ReadInt32();
+            RestrictPingsToAssistants = RestrictTo != 0;
             if (hasPartyIndex)
                 PartyIndex = _worldPacket.ReadUInt8();
         }
-        
+
         public byte? PartyIndex;
+        public int RestrictTo; // TC RestrictPingsTo
         public bool RestrictPingsToAssistants;
     }
 
@@ -952,36 +1001,72 @@ namespace Game.Networking.Packets
     {
         public SendPingUnit(WorldPacket packet) : base(packet) { }
 
+        // Forever layout: TC SendPingUnit::Read
         public override void Read()
         {
             SenderGUID = _worldPacket.ReadPackedGuid();
             TargetGUID = _worldPacket.ReadPackedGuid();
             Type = (PingSubjectType)_worldPacket.ReadUInt8();
             PinFrameID = _worldPacket.ReadUInt32();
+            PingDuration = _worldPacket.ReadInt32();
+            Health = _worldPacket.ReadFloat();
+            Mana = _worldPacket.ReadFloat();
+            IsUnitFrameStatusTextPing = _worldPacket.HasBit();
+            bool hasCreatureID = _worldPacket.HasBit();
+            bool hasSpellOverrideNameID = _worldPacket.HasBit();
+            if (hasCreatureID)
+                CreatureID = _worldPacket.ReadUInt32();
+            if (hasSpellOverrideNameID)
+                SpellOverrideNameID = _worldPacket.ReadUInt32();
         }
-        
+
         public ObjectGuid SenderGUID;
         public ObjectGuid TargetGUID;
         public PingSubjectType Type = PingSubjectType.Max;
         public uint PinFrameID;
+        public int PingDuration; // milliseconds
+        public float Health = 1.0f;
+        public float Mana = 1.0f;
+        public bool IsUnitFrameStatusTextPing;
+        public uint? CreatureID;
+        public uint? SpellOverrideNameID;
     }
 
     class ReceivePingUnit : ServerPacket
     {
         public ReceivePingUnit() : base(ServerOpcodes.ReceivePingUnit) { }
 
+        // Forever layout: TC ReceivePingUnit::Write
         public override void Write()
         {
             _worldPacket.WritePackedGuid(SenderGUID);
             _worldPacket.WritePackedGuid(TargetGUID);
             _worldPacket.WriteUInt8((byte)Type);
             _worldPacket.WriteUInt32(PinFrameID);
+            _worldPacket.WriteInt32(PingDuration);
+            _worldPacket.WriteFloat(Health);
+            _worldPacket.WriteFloat(Mana);
+            _worldPacket.WriteBit(IsUnitFrameStatusTextPing);
+            _worldPacket.WriteBit(CreatureID.HasValue);
+            _worldPacket.WriteBit(SpellOverrideNameID.HasValue);
+            _worldPacket.FlushBits();
+
+            if (CreatureID.HasValue)
+                _worldPacket.WriteUInt32(CreatureID.Value);
+            if (SpellOverrideNameID.HasValue)
+                _worldPacket.WriteUInt32(SpellOverrideNameID.Value);
         }
-        
+
         public ObjectGuid SenderGUID;
         public ObjectGuid TargetGUID;
         public PingSubjectType Type = PingSubjectType.Max;
         public uint PinFrameID;
+        public int PingDuration; // milliseconds
+        public float Health = 1.0f;
+        public float Mana = 1.0f;
+        public bool IsUnitFrameStatusTextPing;
+        public uint? CreatureID;
+        public uint? SpellOverrideNameID;
     }
 
     class SendPingWorldPoint : ClientPacket
@@ -992,16 +1077,21 @@ namespace Game.Networking.Packets
         {
             SenderGUID = _worldPacket.ReadPackedGuid();
             MapID = _worldPacket.ReadUInt32();
+            // Forever layout: TC SendPingWorldPoint::Read
             Point = _worldPacket.ReadVector3();
             Type = (PingSubjectType)_worldPacket.ReadUInt8();
             PinFrameID = _worldPacket.ReadUInt32();
+            Transport = _worldPacket.ReadPackedGuid();
+            PingDuration = _worldPacket.ReadInt32();
         }
-        
+
         public ObjectGuid SenderGUID;
         public uint MapID;
         public Vector3 Point;
         public PingSubjectType Type = PingSubjectType.Max;
         public uint PinFrameID;
+        public ObjectGuid Transport;
+        public int PingDuration; // milliseconds
     }
 
     class ReceivePingWorldPoint : ServerPacket
@@ -1012,16 +1102,21 @@ namespace Game.Networking.Packets
         {
             _worldPacket.WritePackedGuid(SenderGUID);
             _worldPacket.WriteUInt32(MapID);
+            // Forever layout: TC ReceivePingWorldPoint::Write
             _worldPacket.WriteVector3(Point);
             _worldPacket.WriteUInt8((byte)Type);
             _worldPacket.WriteUInt32(PinFrameID);
+            _worldPacket.WritePackedGuid(Transport);
+            _worldPacket.WriteInt32(PingDuration);
         }
-        
+
         public ObjectGuid SenderGUID;
         public uint MapID = 0;
         public Vector3 Point;
         public PingSubjectType Type = PingSubjectType.Max;
         public uint PinFrameID;
+        public ObjectGuid Transport;
+        public int PingDuration; // milliseconds
     }
 
     class CancelPingPin : ServerPacket
@@ -1033,7 +1128,7 @@ namespace Game.Networking.Packets
             _worldPacket.WritePackedGuid(SenderGUID);
             _worldPacket.WriteUInt32(PinFrameID);
         }
-        
+
         public ObjectGuid SenderGUID;
         public uint PinFrameID;
     }
@@ -1049,7 +1144,8 @@ namespace Game.Networking.Packets
 
         public void Write(WorldPacket data)
         {
-            data.WriteUInt32((uint)Flags);
+            // Forever layout: TC operator<<(PartyMemberPhase) - Classic 1.60: 1 byte flags
+            data.WriteUInt8((byte)Flags);
             data.WriteUInt16((ushort)Id);
         }
 
@@ -1094,6 +1190,7 @@ namespace Game.Networking.Packets
 
     class PartyMemberPetStats
     {
+        // Forever layout: TC operator<<(PartyMemberPetStats)
         public void Write(WorldPacket data)
         {
             data.WritePackedGuid(GUID);
@@ -1120,17 +1217,21 @@ namespace Game.Networking.Packets
         public List<PartyMemberAuraStates> Auras = new();
     }
 
-    public struct CTROptions
+    public class CTROptions
     {
-        public uint ContentTuningConditionMask;
-        public int Unused901;
-        public uint ExpansionLevelMask;
+        public List<uint> ConditionalFlags = new();
+        public sbyte FactionGroup;
+        public uint ChromieTimeExpansionMask;
 
+        // Forever layout: TC operator<<(CTROptions)
         public void Write(WorldPacket data)
         {
-            data.WriteUInt32(ContentTuningConditionMask);
-            data.WriteInt32(Unused901);
-            data.WriteUInt32(ExpansionLevelMask);
+            data.WriteInt32(ConditionalFlags.Count);
+            data.WriteInt8(FactionGroup);
+            data.WriteUInt32(ChromieTimeExpansionMask);
+
+            foreach (uint flag in ConditionalFlags)
+                data.WriteUInt32(flag);
         }
     }
 
@@ -1138,12 +1239,13 @@ namespace Game.Networking.Packets
     {
         public void Write(WorldPacket data)
         {
+            // Forever layout: TC operator<<(PartyMemberStats)
             for (byte i = 0; i < 2; i++)
                 data.WriteUInt8(PartyType[i]);
 
-            data.WriteInt16((short)Status);
+            data.WriteUInt32((uint)Status);
             data.WriteUInt8((byte)PowerType);
-            data.WriteInt16((short)PowerDisplayID);
+            data.WriteUInt16(PowerDisplayID);
             data.WriteInt32(CurrentHealth);
             data.WriteInt32(MaxHealth);
             data.WriteUInt16(CurrentPower);
@@ -1161,14 +1263,13 @@ namespace Game.Networking.Packets
 
             Phases.Write(data);
             ChromieTime.Write(data);
+            DungeonScore.Write(data);
 
             foreach (PartyMemberAuraStates aura in Auras)
                 aura.Write(data);
 
             data.WriteBit(PetStats != null);
             data.FlushBits();
-
-            DungeonScore.Write(data);
 
             if (PetStats != null)
                 PetStats.Write(data);
@@ -1200,29 +1301,99 @@ namespace Game.Networking.Packets
         public ushort WmoGroupID;
         public uint WmoDoodadPlacementID;
         public byte[] PartyType = new byte[2];
-        public CTROptions ChromieTime;
+        public CTROptions ChromieTime = new();
         public DungeonScoreSummary DungeonScore = new();
+    }
+
+    public struct LeaverInfo
+    {
+        // Forever layout: TC operator<<(LeaverInfo)
+        public void Write(WorldPacket data)
+        {
+            data.WritePackedGuid(BnetAccountGUID);
+            data.WriteFloat(LeaveScore);
+            data.WriteUInt32(SeasonID);
+            data.WriteUInt32(TotalLeaves);
+            data.WriteUInt32(TotalSuccesses);
+            data.WriteInt32(ConsecutiveSuccesses);
+            data.WriteInt64(LastPenaltyTime);
+            data.WriteInt64(LeaverExpirationTime);
+            data.WriteInt32(Flags);
+            data.WriteBit(LeaverStatus);
+            data.FlushBits();
+        }
+
+        public ObjectGuid BnetAccountGUID;
+        public float LeaveScore;
+        public uint SeasonID;
+        public uint TotalLeaves;
+        public uint TotalSuccesses;
+        public int ConsecutiveSuccesses;
+        public long LastPenaltyTime;
+        public long LeaverExpirationTime;
+        public int Flags;
+        public bool LeaverStatus;
+    }
+
+    public struct ChallengeModeData
+    {
+        // Forever layout: TC operator<<(ChallengeModeData)
+        public void Write(WorldPacket data)
+        {
+            data.WriteInt32(MapID);
+            data.WriteInt32(InitialPlayerCount);
+            data.WriteUInt64(InstanceID);
+            data.WriteInt64(StartTime);
+            data.WritePackedGuid(KeystoneOwnerGUID);
+            data.WritePackedGuid(LeaverGUID);
+            data.WriteInt64(InstanceAbandonVoteCooldown);
+            data.WriteBit(IsActive);
+            data.WriteBit(HasRestrictions);
+            data.WriteBit(CanVoteAbandon);
+            data.FlushBits();
+        }
+
+        public int MapID;
+        public int InitialPlayerCount;
+        public ulong InstanceID;
+        public long StartTime;
+        public ObjectGuid KeystoneOwnerGUID;
+        public ObjectGuid LeaverGUID;
+        public long InstanceAbandonVoteCooldown; // milliseconds
+        public bool IsActive;
+        public bool HasRestrictions;
+        public bool CanVoteAbandon;
     }
 
     struct PartyPlayerInfo
     {
         public void Write(WorldPacket data)
         {
+            // Forever layout: TC operator<<(PartyPlayerInfo)
+            string voiceStateID = VoiceStateID ?? string.Empty;
             data.WriteBits(Name.GetByteCount(), 6);
-            data.WriteBits(VoiceStateID.GetByteCount() + 1, 6);
+            data.WriteBits(voiceStateID.GetByteCount() + 1, 9);   // SizedCString; client 70291+ reads 9 bits (6 before)
             data.WriteBit(Connected);
-            data.WriteBit(VoiceChatSilenced);
             data.WriteBit(FromSocialQueue);
+            data.WriteBit(VoiceChatSilenced);
             data.WritePackedGuid(GUID);
             data.WriteUInt8(Subgroup);
             data.WriteUInt8(Flags);
             data.WriteUInt8(RolesAssigned);
+            data.WriteUInt8(RolesUnk_1210);
             data.WriteUInt8(Class);
             data.WriteUInt8(FactionGroup);
+            Leaver.Write(data);
             data.WriteString(Name);
-            if (!VoiceStateID.IsEmpty())
-                data.WriteString(VoiceStateID);
+            if (!voiceStateID.IsEmpty())
+            {
+                data.WriteString(voiceStateID);
+                data.WriteUInt8(0); // null terminator
+            }
         }
+
+        public LeaverInfo Leaver;
+        public byte RolesUnk_1210;
 
         public ObjectGuid GUID;
         public string Name;
@@ -1241,8 +1412,9 @@ namespace Game.Networking.Packets
     {
         public void Write(WorldPacket data)
         {
-            data.WriteUInt8(MyFlags);
+            // Forever layout: TC operator<<(PartyLFGInfo)
             data.WriteInt32(Slot);
+            data.WriteUInt8(MyFlags);
             data.WriteInt32(MyRandomSlot);
             data.WriteUInt8(MyPartialClear);
             data.WriteFloat(MyGearDiff);
@@ -1284,9 +1456,10 @@ namespace Game.Networking.Packets
     {
         public void Write(WorldPacket data)
         {
-            data.WriteUInt32(DungeonDifficultyID);
-            data.WriteUInt32(RaidDifficultyID);
-            data.WriteUInt32(LegacyRaidDifficultyID);
+            // Forever layout: TC operator<<(PartyDifficultySettings)
+            data.WriteInt16((short)DungeonDifficultyID);
+            data.WriteInt16((short)RaidDifficultyID);
+            data.WriteInt16((short)LegacyRaidDifficultyID);
         }
 
         public uint DungeonDifficultyID;

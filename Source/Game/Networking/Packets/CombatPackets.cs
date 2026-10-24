@@ -169,8 +169,8 @@ namespace Game.Networking.Packets
             _worldPacket.WriteInt32(Powers.Count);
             foreach (var power in Powers)
             {
-                _worldPacket.WriteInt32(power.Power);
                 _worldPacket.WriteUInt8(power.PowerType);
+                _worldPacket.WriteInt32(power.Power);
             }
         }
 
@@ -187,7 +187,7 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteInt32((int)PowerType);
+            _worldPacket.WriteInt8((sbyte)PowerType); // Forever layout: TC InterruptPowerRegen::Write
         }
         
         public PowerType PowerType;
@@ -254,7 +254,7 @@ namespace Game.Networking.Packets
             _worldPacket.WriteInt32(OriginalHonor);
             _worldPacket.WriteInt32(Honor);
             _worldPacket.WritePackedGuid(Target);
-            _worldPacket.WriteInt32(Rank);
+            _worldPacket.WriteInt8((sbyte)Rank); // Forever layout: TC PvPCredit::Write
         }
 
         public int OriginalHonor;

@@ -58,6 +58,7 @@ namespace Game.Networking.Packets
             FriendResult = result;
         }
 
+        // Forever layout: TC FriendStatus::Write
         public override void Write()
         {
             _worldPacket.WriteUInt8((byte)FriendResult);
@@ -67,9 +68,8 @@ namespace Game.Networking.Packets
             _worldPacket.WriteUInt8((byte)Status);
             _worldPacket.WriteInt32(AreaID);
             _worldPacket.WriteInt32(Level);
-            _worldPacket.WriteUInt32((uint)ClassID);
+            _worldPacket.WriteInt8((sbyte)ClassID);
             _worldPacket.WriteBits(Notes.GetByteCount(), 10);
-            _worldPacket.WriteBit(Mobile);
             _worldPacket.FlushBits();
             _worldPacket.WriteString(Notes);
         }
@@ -83,7 +83,6 @@ namespace Game.Networking.Packets
         public int Level;
         public int AreaID;
         public FriendsResult FriendResult;
-        public bool Mobile;
     }
 
     public class AddFriend : ClientPacket
@@ -192,6 +191,7 @@ namespace Game.Networking.Packets
             ClassID = friendInfo.Class;
         }
 
+        // Forever layout: TC operator<<(ContactInfo)
         public void Write(WorldPacket data)
         {
             data.WritePackedGuid(Guid);
@@ -202,9 +202,8 @@ namespace Game.Networking.Packets
             data.WriteUInt8((byte)Status);
             data.WriteInt32(AreaID);
             data.WriteInt32(Level);
-            data.WriteUInt32((uint)ClassID);
+            data.WriteInt8((sbyte)ClassID);
             data.WriteBits(Notes.GetByteCount(), 10);
-            data.WriteBit(Mobile);
             data.FlushBits();
             data.WriteString(Notes);
         }
@@ -219,7 +218,6 @@ namespace Game.Networking.Packets
         int AreaID;
         int Level;
         Class ClassID;
-        bool Mobile;
     }
 
     public struct QualifiedGUID

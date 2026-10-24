@@ -33,6 +33,15 @@ namespace Game
                 return;
             }
 
+            // 1.60.1 world schema (reference core has no Warden): `warden_checks` may not exist - skip quietly.
+            SQLResult tableCheck = DB.World.Query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'warden_checks'");
+            if (tableCheck.IsEmpty())
+            {
+                Log.outInfo(LogFilter.ServerLoading,
+                    "Loaded 0 Warden checks. DB table `warden_checks` does not exist, skipped.");
+                return;
+            }
+
             //                                         0   1     2     3       4        5       6    7
             SQLResult result = DB.World.Query("SELECT id, Type, data, result, address, length, str, comment FROM warden_checks ORDER BY id ASC");
             if (result.IsEmpty())

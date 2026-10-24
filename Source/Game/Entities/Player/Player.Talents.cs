@@ -19,7 +19,7 @@ namespace Game.Entities
             var talentPoints = CalculateTalentsPoints();
             var spentTalentPoints = GetSpentTalentPointsCount();
 
-            if (spentTalentPoints > 0 && level < PlayerConst.MinSpecializationLevel)
+            if (spentTalentPoints > 0 && level < PlayerConst.MinSpecializationLevel && GetClassicLegacyPerkAmount(1225474) <= 0)
             {
                 // Remove all talent points                
                 ResetTalents(true);
@@ -662,7 +662,8 @@ namespace Game.Entities
 
         public int CalculateTalentsPoints()
         {
-            return GetNumTalentsAtLevel(GetLevel()) + m_questRewardedTalentPoints;
+            int cap = CliDB.TraitCurrencyStorage.LookupByKey(3820)?.SourcedMax ?? 51;
+            return Game.Systems.Legacy.LegacyEffectEngine.TalentPoints(GetLevel(), GetNumTalentsAtLevel(GetLevel()), GetClassicLegacyPerkAmount(1225474), cap) + m_questRewardedTalentPoints;
         }
 
         public int GetNumTalentsAtLevel(int level)
@@ -914,8 +915,10 @@ namespace Game.Entities
                     if (consumeCurrencies && newEntry.Rank > editedConfig.Entries[oldEntryIndex].Rank)
                     {
                         TraitEntryPacket costEntry = new();
-                        costEntry.Rank -= editedConfig.Entries[oldEntryIndex].Rank;
-                        costEntries.Add(newEntry);
+                        costEntry.TraitNodeID = newEntry.TraitNodeID;
+                        costEntry.TraitNodeEntryID = newEntry.TraitNodeEntryID;
+                        costEntry.Rank = newEntry.Rank - editedConfig.Entries[oldEntryIndex].Rank;
+                        costEntries.Add(costEntry);
                     }
 
                     TraitConfig traitConfig = m_values.ModifyValue(m_activePlayerData).ModifyValue(m_activePlayerData.TraitConfigs, editedIndex);
@@ -1015,9 +1018,15 @@ namespace Game.Entities
             if (traitDefinition.SpellID != 0)
             {
                 if (apply)
+                {
                     SpellBook.Learn(traitDefinition.SpellID, true, 0, false, traitNodeEntry.TraitDefinitionID);
+                    RefreshLegacyPassive(traitNodeEntry.TraitDefinitionID, traitDefinition.SpellID);
+                }
                 else
+                {
                     SpellBook.Remove(traitDefinition.SpellID);
+                    if (traitDefinition.SpellID == 1225474) InitTalentForLevel();
+                }
             }
         }
 

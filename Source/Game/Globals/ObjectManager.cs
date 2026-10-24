@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Collections;
@@ -767,8 +767,11 @@ namespace Game
                 GossipMenuAddon addon = new();
                 addon.FriendshipFactionID = result.Read<int>(1);
 
+                // Zero means no friendship UI. It is a valid optional default,
+                // not a missing Faction row requiring another database repair.
                 var faction = CliDB.FactionStorage.LookupByKey(addon.FriendshipFactionID);
-                if (faction != null)
+                if (addon.FriendshipFactionID == 0) { }
+                else if (faction != null)
                 {
                     if (!CliDB.FriendshipReputationStorage.ContainsKey(faction.FriendshipRepID))
                     {
@@ -869,7 +872,7 @@ namespace Game
             GraveyardStorage.Clear();                                  // need for reload case
 
             //                                         0       1         2
-            SQLResult result = DB.World.Query("SELECT ID, GhostZone, faction FROM graveyard_zone");
+            SQLResult result = DB.World.Query("SELECT ID, GhostZone, 0 FROM graveyard_zone"); // no faction column in the 1.60.1 world DB
 
             if (result.IsEmpty())
             {
@@ -1271,7 +1274,7 @@ namespace Game
 
             bool isSpellScriptTable = (type == ScriptsType.Spell);
             //                                          0    1       2         3         4          5    6  7  8  9
-            SQLResult result = DB.World.Query($"SELECT id, delay, command, datalong, datalong2, dataint, x, y, z, o{0} FROM {1}", isSpellScriptTable ? ", effIndex" : "", tableName);
+            SQLResult result = DB.World.Query("SELECT id, delay, command, datalong, datalong2, dataint, x, y, z, o{0} FROM {1}", isSpellScriptTable ? ", effIndex" : "", tableName);
             if (result.IsEmpty())
             {
                 Log.outInfo(LogFilter.ServerLoading, 
@@ -2016,8 +2019,7 @@ namespace Game
         {
             switch (type)
             {
-                case ScriptsType.Spell:
-                    return "spell_scripts";
+                // 1.60.1 world DB / reference core: only event_scripts exists (spell_scripts removed)
                 case ScriptsType.Event:
                     return "event_scripts";
                 default:
@@ -2100,51 +2102,38 @@ namespace Game
             creature.Family = (CreatureFamily)fields.Read<uint>(25);
             creature.TrainerClass = (Class)fields.Read<byte>(26);
             creature.CreatureType = (CreatureType)fields.Read<byte>(27);
-            creature.PetSpellDataId = fields.Read<int>(28);
-
             for (var i = (int)SpellSchools.Holy; i < (int)SpellSchools.Max; ++i)
                 creature.Resistance[i] = 0;
 
             for (var i = 0; i < SharedConst.MaxCreatureSpells; ++i)
                 creature.Spells[i] = 0;
 
-            creature.VehicleId = fields.Read<int>(29);
-            creature.AIName = fields.Read<string>(30);
-            creature.MovementType = (MovementGeneratorType)fields.Read<int>(31);
+            creature.VehicleId = fields.Read<int>(28);
+            creature.AIName = fields.Read<string>(29);
+            creature.MovementType = (MovementGeneratorType)fields.Read<int>(30);
+
+            if (!fields.IsNull(31))
+                creature.Movement.HoverInitiallyEnabled = fields.Read<bool>(31);
 
             if (!fields.IsNull(32))
-                creature.Movement.Ground = (CreatureGroundMovementType)fields.Read<byte>(32);
+                creature.Movement.Chase = (CreatureChaseMovementType)fields.Read<byte>(32);
 
             if (!fields.IsNull(33))
-                creature.Movement.Swim = fields.Read<bool>(33);
+                creature.Movement.Random = (CreatureRandomMovementType)fields.Read<byte>(33);
 
             if (!fields.IsNull(34))
-                creature.Movement.Flight = (CreatureFlightMovementType)fields.Read<byte>(34);
+                creature.Movement.InteractionPauseTimer = (Milliseconds)fields.Read<int>(34);
 
-            if (!fields.IsNull(35))
-                creature.Movement.Rooted = fields.Read<bool>(35);
-
-            if (!fields.IsNull(36))
-                creature.Movement.Chase = (CreatureChaseMovementType)fields.Read<byte>(36);
-
-            if (!fields.IsNull(37))
-                creature.Movement.Random = (CreatureRandomMovementType)fields.Read<byte>(37);
-
-            if (!fields.IsNull(38))
-                creature.Movement.InteractionPauseTimer = (Milliseconds)fields.Read<int>(38);
-
-            creature.ModExperience = fields.Read<float>(39);
-            creature.Civilian = fields.Read<bool>(40);
-            creature.RacialLeader = fields.Read<bool>(41);
-            creature.MovementId = fields.Read<int>(42);
-            creature.WidgetSetID = fields.Read<int>(43);
-            creature.WidgetSetUnitConditionID = fields.Read<int>(44);
-            creature.RegenHealth = fields.Read<bool>(45);
-            creature.MechanicImmuneMask = fields.Read<ulong>(46);
-            creature.SpellSchoolImmuneMask = (SpellSchoolMask)fields.Read<int>(47);
-            creature.FlagsExtra = (CreatureFlagsExtra)fields.Read<uint>(48);
-            creature.ScriptID = GetScriptId(fields.Read<string>(49));
-            creature.StringId = fields.Read<string>(50);
+            creature.ModExperience = fields.Read<float>(35);
+            creature.RacialLeader = fields.Read<bool>(36);
+            creature.MovementId = fields.Read<int>(37);
+            creature.WidgetSetID = fields.Read<int>(38);
+            creature.WidgetSetUnitConditionID = fields.Read<int>(39);
+            creature.RegenHealth = fields.Read<bool>(40);
+            creature.CreatureImmunitiesId = fields.Read<int>(41);
+            creature.FlagsExtra = (CreatureFlagsExtra)fields.Read<uint>(42);
+            creature.ScriptID = GetScriptId(fields.Read<string>(43));
+            creature.StringId = fields.Read<string>(44);
 
             creatureTemplateStorage[entry] = creature;
         }
@@ -2816,7 +2805,7 @@ namespace Game
                 int item = result.Read<int>(2);
                 int idx = result.Read<int>(3);
 
-                if (creatureTemplateStorage.ContainsKey(entry))
+                if (!creatureTemplateStorage.ContainsKey(entry))   // was inverted: skipped every existing creature
                 {
                     Log.outError(LogFilter.Sql,
                         $"Table `creature_questitem` has data for nonexistent creature " +
@@ -2945,10 +2934,7 @@ namespace Game
             // Load the data from creature_movement_override and if NULL fallback to creature_template_movement
             SQLResult result = DB.World.Query(
                 "SELECT cmo.SpawnId," +
-                "COALESCE(cmo.Ground, ctm.Ground)," +
-                "COALESCE(cmo.Swim, ctm.Swim)," +
-                "COALESCE(cmo.Flight, ctm.Flight)," +
-                "COALESCE(cmo.Rooted, ctm.Rooted)," +
+                "COALESCE(cmo.HoverInitiallyEnabled, ctm.HoverInitiallyEnabled)," +
                 "COALESCE(cmo.Chase, ctm.Chase)," +
                 "COALESCE(cmo.Random, ctm.Random)," +
                 "COALESCE(cmo.InteractionPauseTimer, ctm.InteractionPauseTimer) " +
@@ -2977,19 +2963,13 @@ namespace Game
 
                 CreatureMovementData movement = new();
                 if (!result.IsNull(1))
-                    movement.Ground = (CreatureGroundMovementType)result.Read<byte>(1);
+                    movement.HoverInitiallyEnabled = result.Read<byte>(1) != 0;
                 if (!result.IsNull(2))
-                    movement.Swim = result.Read<bool>(2);
+                    movement.Chase = (CreatureChaseMovementType)result.Read<byte>(2);
                 if (!result.IsNull(3))
-                    movement.Flight = (CreatureFlightMovementType)result.Read<byte>(3);
+                    movement.Random = (CreatureRandomMovementType)result.Read<byte>(3);
                 if (!result.IsNull(4))
-                    movement.Rooted = result.Read<bool>(4);
-                if (!result.IsNull(5))
-                    movement.Chase = (CreatureChaseMovementType)result.Read<byte>(5);
-                if (!result.IsNull(6))
-                    movement.Random = (CreatureRandomMovementType)result.Read<byte>(6);
-                if (!result.IsNull(7))
-                    movement.InteractionPauseTimer = (Milliseconds)result.Read<int>(7);
+                    movement.InteractionPauseTimer = (Milliseconds)(int)result.Read<uint>(4);
 
                 CheckCreatureMovement("creature_movement_override", spawnId, movement);
 
@@ -3007,8 +2987,9 @@ namespace Game
 
             creatureBaseStatsStorage.Clear();
 
-            //                                        0      1      2        3        4        5         6          7            8                  9            10           11
-            SQLResult result = DB.World.Query("SELECT level, class, basehp0, basehp1, basehp2, basemana, basearmor, attackpower, rangedattackpower, damage_base, damage_exp1, damage_exp2 FROM creature_classlevelstats");
+            // Fixed Classic base stats. Apply the companion world SQL update to
+            // restore columns removed during the retail-schema conversion.
+            SQLResult result = DB.World.Query("SELECT level, class, basemana, attackpower, rangedattackpower, basehp0, basehp1, basehp2, basearmor, damage_base, damage_exp1, damage_exp2 FROM creature_classlevelstats");
             if (result.IsEmpty())
             {
                 Log.outInfo(LogFilter.ServerLoading, 
@@ -3033,30 +3014,14 @@ namespace Game
 
                 for (byte i = 0; i <= (byte)Expansion.Current; ++i)
                 {
-                    stats.BaseHealth[i] = result.Read<ushort>(2 + i);
-
-                    if (stats.BaseHealth[i] == 0)
-                    {
-                        Log.outError(LogFilter.Sql, 
-                            $"Creature base stats for class {class_}, level {Level} " +
-                            $"has invalid zero base HP[{i}] - set to 1.");
-                        stats.BaseHealth[i] = 1;
-                    }
-
-                    stats.BaseDamage[i] = result.Read<float>(9 + i);
-                    if (stats.BaseDamage[i] < 0.0f)
-                    {
-                        Log.outError(LogFilter.Sql, 
-                            $"Creature base stats for class {class_}, level {Level} " +
-                            $"has invalid negative base damage[{i}] - set to 0.0.");
-                        stats.BaseDamage[i] = 0.0f;
-                    }
+                    stats.BaseHealth[i] = Math.Max(result.Read<ushort>(5 + Math.Min(i, (byte)2)), (ushort)1);
+                    stats.BaseDamage[i] = result.Read<float>(9 + Math.Min(i, (byte)2));
+                    stats.BaseArmor[i] = result.Read<ushort>(8);
                 }
 
-                stats.BaseMana = result.Read<ushort>(5);
-                stats.BaseArmor = result.Read<ushort>(6);
-                stats.AttackPower = result.Read<ushort>(7);
-                stats.RangedAttackPower = result.Read<ushort>(8);
+                stats.BaseMana = (int)result.Read<uint>(2);
+                stats.AttackPower = result.Read<ushort>(3);
+                stats.RangedAttackPower = result.Read<ushort>(4);
 
                 creatureBaseStatsStorage.Add((Level, class_), stats);
 
@@ -3069,7 +3034,7 @@ namespace Game
                 {
                     if (ClassMask.Creatures.HasClass(unitClass))
                     {
-                        if (creatureBaseStatsStorage.ContainsKey((unitLevel, unitClass)))
+                        if (!creatureBaseStatsStorage.ContainsKey((unitLevel, unitClass)))
                         {
                             Log.outError(LogFilter.Sql,
                                 $"Missing base stats for creature class {unitClass} level {unitLevel}.");
@@ -3201,127 +3166,41 @@ namespace Game
                 $"Loaded {count} creature template sparring rows in {Time.Diff(oldMSTime)} ms.");
         }
 
-        public void LoadCreatureTemplateDifficulty()
+        // Fixed levels, modifiers and loot belong to the template. Base health,
+        // mana, armor and weapon damage come from creature_classlevelstats.
+        public void LoadCreatureTemplateStats()
         {
-            RelativeTime oldMSTime = Time.NowRelative;
-
-            //                                         0      1             2        3          4
-            SQLResult result = DB.World.Query("SELECT Entry, DifficultyID, MinLevel, MaxLevel, HealthScalingExpansion, " +
-                    //   5               6             7              8               9                     10         11
-                    "HealthModifier, ManaModifier, ArmorModifier, DamageModifier, CreatureDifficultyID, TypeFlags, TypeFlags2, " +
-                    //   12      13                14          15       16
-                    "LootID, PickPocketLootID, SkinLootID, GoldMin, GoldMax," +
-                    //   17            18            19            20            21            22            23            24
-                    "StaticFlags1, StaticFlags2, StaticFlags3, StaticFlags4, StaticFlags5, StaticFlags6, StaticFlags7, StaticFlags8 " +
-                    "FROM creature_template_difficulty ORDER BY Entry");
-
-            if (result.IsEmpty())
-            {
-                Log.outInfo(LogFilter.ServerLoading, 
-                    "Loaded 0 creature template difficulty definitions. " +
-                    "DB table `creature_template_difficulty` is empty.");
-                return;
-            }
-
-            uint count = 0;
+            SQLResult result = DB.World.Query("SELECT entry, minlevel, maxlevel, HealthModifier, ManaModifier, ArmorModifier, DamageModifier, CreatureDifficultyID, type_flags, type_flags2, type_flags3, lootid, pickpocketloot, skinloot, mingold, maxgold, StaticFlags1, StaticFlags2, StaticFlags3, StaticFlags4, StaticFlags5, StaticFlags6, StaticFlags7, StaticFlags8 FROM creature_template");
+            if (result.IsEmpty()) return;
+            int count = 0;
             do
             {
-                int entry = result.Read<int>(0);
-                Difficulty difficulty = (Difficulty)result.Read<byte>(1);
-
-                var template = creatureTemplateStorage.LookupByKey(entry);
-                if (template == null)
-                {
-                    Log.outError(LogFilter.Sql, 
-                        $"Creature template (Entry: {entry}) does not exist " +
-                        $"but has a record in `creature_template_difficulty`.");
-                    continue;
-                }
-
-                CreatureDifficulty creatureDifficulty = new();
-                creatureDifficulty.MinLevel = result.Read<byte>(2);
-                creatureDifficulty.MaxLevel = result.Read<byte>(3);
-                creatureDifficulty.HealthScalingExpansion = (Expansion)result.Read<int>(4);
-                creatureDifficulty.HealthModifier = result.Read<float>(5);
-                creatureDifficulty.ManaModifier = result.Read<float>(6);
-                creatureDifficulty.ArmorModifier = result.Read<float>(7);
-                creatureDifficulty.DamageModifier = result.Read<float>(8);
-                creatureDifficulty.CreatureDifficultyID = result.Read<int>(9);
-                creatureDifficulty.TypeFlags = (CreatureTypeFlags)result.Read<uint>(10);
-                creatureDifficulty.TypeFlags2 = result.Read<uint>(11);
-                creatureDifficulty.LootID = result.Read<int>(12);
-                creatureDifficulty.PickPocketLootID = result.Read<int>(13);
-                creatureDifficulty.SkinLootID = result.Read<int>(14);
-                creatureDifficulty.GoldMin = result.Read<int>(15);
-                creatureDifficulty.GoldMax = result.Read<int>(16);
-                creatureDifficulty.StaticFlags = new(
-                    result.Read<uint>(17),
-                    result.Read<uint>(18),
-                    result.Read<uint>(19),
-                    result.Read<uint>(20),
-                    result.Read<uint>(21),
-                    result.Read<uint>(22),
-                    result.Read<uint>(23),
-                    result.Read<uint>(24)
-                );
-
-                // TODO: Check if this still applies
-                creatureDifficulty.DamageModifier *= Creature.GetDamageMod(template.Classification);
-
-                if (creatureDifficulty.MinLevel == 0 || creatureDifficulty.MaxLevel == 0)
-                {
-                    if (creatureDifficulty.MinLevel == 0)
-                    {
-                        Log.outError(LogFilter.Sql,
-                            $"Table `creature_template_difficulty` lists creature (ID: {entry}) " +
-                            $"has MinLevel set to 0 but the allowed minimum is 1. Ignored and set to 1.");
-                        creatureDifficulty.MinLevel = 1;
-                    }
-
-                    if (creatureDifficulty.MaxLevel == 0)
-                    {
-                        Log.outError(LogFilter.Sql,
-                            $"Table `creature_template_difficulty` lists creature (ID: {entry}) " +
-                            $"has MaxLevel set to 0 but the allowed minimum is 1. Ignored and set to 1.");
-                        creatureDifficulty.MaxLevel = 1;
-                    }
-                }
-
-                if (creatureDifficulty.MinLevel > creatureDifficulty.MaxLevel)
-                {
-                    Log.outError(LogFilter.Sql, 
-                        $"Table `creature_template_difficulty` lists creature(ID: {entry}) with a higher " +
-                        $"MinLevel({creatureDifficulty.MinLevel}) than MaxLevel({creatureDifficulty.MaxLevel}). " +
-                        $"MaxLevel will be set to MinLevel value.");
-                    creatureDifficulty.MinLevel = creatureDifficulty.MaxLevel;
-                }
-
-                if (creatureDifficulty.HealthScalingExpansion < Expansion.LevelCurrent 
-                    || creatureDifficulty.HealthScalingExpansion > Expansion.Current)
-                {
-                    Log.outError(LogFilter.Sql,
-                        $"Table `creature_template_difficulty` lists creature (ID: {entry}) " +
-                        $"with invalid `HealthScalingExpansion` " +
-                        $"{creatureDifficulty.HealthScalingExpansion}. Ignored and set to 0.");
-                    creatureDifficulty.HealthScalingExpansion = 0;
-                }
-
-                if (creatureDifficulty.GoldMin > creatureDifficulty.GoldMax)
-                {
-                    Log.outError(LogFilter.Sql, $"Table `creature_template_difficulty` lists creature (ID: {entry}) " +
-                        $"with `GoldMin` {creatureDifficulty.GoldMin} " +
-                        $"greater than `GoldMax` {creatureDifficulty.GoldMax}, " +
-                        $"setting `GoldMax` to {creatureDifficulty.GoldMin}.");
-                    creatureDifficulty.GoldMax = creatureDifficulty.GoldMin;
-                }
-
-                template.difficultyStorage[difficulty] = creatureDifficulty;
-
+                CreatureTemplate template = GetCreatureTemplate(result.Read<int>(0));
+                if (template == null) continue;
+                var stats = template.Stats;
+                stats.MinLevel = result.Read<byte>(1);
+                stats.MaxLevel = result.Read<byte>(2);
+                stats.HealthModifier = result.Read<float>(3);
+                stats.ManaModifier = result.Read<float>(4);
+                stats.ArmorModifier = result.Read<float>(5);
+                stats.DamageModifier = result.Read<float>(6);
+                stats.CreatureDifficultyID = result.Read<int>(7);
+                stats.TypeFlags = result.Read<CreatureTypeFlags>(8);
+                stats.TypeFlags2 = result.Read<uint>(9);
+                stats.TypeFlags3 = result.Read<uint>(10);
+                stats.LootID = result.Read<int>(11);
+                stats.PickPocketLootID = result.Read<int>(12);
+                stats.SkinLootID = result.Read<int>(13);
+                stats.GoldMin = result.Read<int>(14);
+                stats.GoldMax = result.Read<int>(15);
+                stats.MinLevel = Math.Max((byte)1, stats.MinLevel);
+                stats.MaxLevel = Math.Max(stats.MinLevel, stats.MaxLevel);
+                stats.DamageModifier *= Creature.GetDamageMod(template.Classification);
+                stats.GoldMax = Math.Max(stats.GoldMin, stats.GoldMax);
+                stats.StaticFlags = new(result.Read<uint>(16), result.Read<uint>(17), result.Read<uint>(18), result.Read<uint>(19), result.Read<uint>(20), result.Read<uint>(21), result.Read<uint>(22), result.Read<uint>(23));
                 ++count;
             } while (result.NextRow());
-
-            Log.outInfo(LogFilter.ServerLoading, 
-                $"Loaded {count} creature template difficulty data in {Time.Diff(oldMSTime)} ms.");
+            Log.outInfo(LogFilter.ServerLoading, $"Loaded {count} fixed creature template stats.");
         }
 
         public void CheckCreatureTemplate(CreatureTemplate cInfo)
@@ -3998,6 +3877,7 @@ namespace Game
             RelativeTime oldMSTime = Time.NowRelative;
 
             _creatureDefaultTrainers.Clear();
+            _creatureTrainerIds.Clear();
 
             SQLResult result = DB.World.Query("SELECT CreatureID, TrainerID, MenuID, OptionID FROM creature_trainer");
             if (!result.IsEmpty())
@@ -4044,7 +3924,7 @@ namespace Game
                         }
                     }
 
-                    _creatureDefaultTrainers[(creatureId, gossipMenuId, gossipOptionIndex)] = trainerId;
+                    RegisterCreatureTrainer(creatureId, trainerId, gossipMenuId, gossipOptionIndex);
                 } while (result.NextRow());
             }
 
@@ -4057,6 +3937,7 @@ namespace Game
             RelativeTime oldMSTime = Time.NowRelative;
             // For reload case
             cacheVendorItemStorage.Clear();
+            _legacyVendorReagents.Clear();
 
             List<int> skipvendors = new();
             //                                          0      1    2           3           4          5        6           7                   8   
@@ -4173,9 +4054,9 @@ namespace Game
 
             //                                         0              1   2    3           4           5           6            7        8             9              10
             SQLResult result = DB.World.Query("SELECT creature.guid, id, map, position_x, position_y, position_z, orientation, modelid, equipment_id, spawntimesecs, wander_distance, " +
-                //11               12         13       14            15                 16          17           18                19                   20                    21
-                "currentwaypoint, curhealth, curmana, MovementType, spawnDifficulties, eventEntry, poolSpawnId, creature.npcflag, creature.unit_flags, creature.unit_flags2, creature.unit_flags3, " +
-                //22                      23                24                   25                       26                   27
+                //11               12            13            14                 15          16           17                18                   19                    20
+                "currentwaypoint, curHealthPct, MovementType, spawnDifficulties, eventEntry, poolSpawnId, creature.npcflag, creature.unit_flags, creature.unit_flags2, creature.unit_flags3, " +
+                //21                      22                23                   24                       25                   26
                 "creature.phaseUseFlags, creature.phaseid, creature.phasegroup, creature.terrainSwapMap, creature.ScriptName, creature.StringId " +
                 "FROM creature LEFT OUTER JOIN game_event_creature ON creature.guid = game_event_creature.guid LEFT OUTER JOIN pool_members ON pool_members.type = 0 AND creature.guid = pool_members.spawnId");
 
@@ -4228,34 +4109,34 @@ namespace Game
                 data.spawntimesecs = (Seconds)result.Read<int>(9);
                 data.WanderDistance = result.Read<float>(10);
                 data.currentwaypoint = result.Read<uint>(11);
-                data.curhealth = result.Read<int>(12);
-                data.curmana = result.Read<int>(13);
-                data.movementType = (MovementGeneratorType)result.Read<byte>(14);
-                data.SpawnDifficulties = ParseSpawnDifficulties(result.Read<string>(15), "creature", guid, data.MapId, spawnMasks.LookupByKey(data.MapId));
-                short gameEvent = result.Read<short>(16);
-                data.poolId = result.Read<int>(17);
+                if (!result.IsNull(12))
+                    data.curHealthPct = result.Read<uint>(12);
+                data.movementType = (MovementGeneratorType)result.Read<byte>(13);
+                data.SpawnDifficulties = ParseSpawnDifficulties(result.Read<string>(14), "creature", guid, data.MapId, spawnMasks.LookupByKey(data.MapId));
+                short gameEvent = result.Read<sbyte>(15);
+                data.poolId = (int)result.Read<uint>(16);
 
-                if (!result.IsNull(18))
+                if (!result.IsNull(17))
                 {
-                    data.npcflag = (NPCFlags1)(result.Read<ulong>(18) & 0xFFFFFFFF);
-                    data.npcflag2 = (NPCFlags2)((result.Read<ulong>(18) >> 32) & 0xFFFFFFFF);
+                    data.npcflag = (NPCFlags1)(result.Read<ulong>(17) & 0xFFFFFFFF);
+                    data.npcflag2 = (NPCFlags2)((result.Read<ulong>(17) >> 32) & 0xFFFFFFFF);
                 }
 
+                if (!result.IsNull(18))
+                    data.unit_flags = (UnitFlags)result.Read<uint>(18);
+
                 if (!result.IsNull(19))
-                    data.unit_flags = (UnitFlags)result.Read<uint>(19);
+                    data.unit_flags2 = (UnitFlags2)result.Read<uint>(19);
 
                 if (!result.IsNull(20))
-                    data.unit_flags2 = (UnitFlags2)result.Read<uint>(20);
+                    data.unit_flags3 = (UnitFlags3)result.Read<uint>(20);
 
-                if (!result.IsNull(21))
-                    data.unit_flags3 = (UnitFlags3)result.Read<uint>(21);
-
-                data.PhaseUseFlags = (PhaseUseFlagsValues)result.Read<byte>(22);
-                data.PhaseId = result.Read<int>(23);
-                data.PhaseGroup = result.Read<int>(24);
-                data.terrainSwapMap = result.Read<int>(25);
-                data.ScriptId = GetScriptId(result.Read<string>(26));
-                data.StringId = result.Read<string>(27);
+                data.PhaseUseFlags = (PhaseUseFlagsValues)result.Read<byte>(21);
+                data.PhaseId = result.Read<int>(22);
+                data.PhaseGroup = result.Read<int>(23);
+                data.terrainSwapMap = result.Read<int>(24);
+                data.ScriptId = GetScriptId(result.Read<string>(25));
+                data.StringId = result.Read<string>(26);
                 data.spawnGroupData = IsTransportMap(data.MapId) ? GetLegacySpawnGroup() : GetDefaultSpawnGroup(); // transport spawns default to compatibility group
                 
                 var mapEntry = CliDB.MapStorage.LookupByKey(data.MapId);
@@ -4609,6 +4490,17 @@ namespace Game
             return GetCreatureTrainerForGossipOption(creatureId, 0, 0);
         }
 
+        public IReadOnlyList<int> GetCreatureTrainerIds(int creatureId) =>
+            _creatureTrainerIds.TryGetValue(creatureId, out var ids) ? ids : System.Array.Empty<int>();
+
+        internal void RegisterCreatureTrainer(int creatureId, int trainerId, int gossipMenuId, int gossipOptionIndex)
+        {
+            _creatureDefaultTrainers[(creatureId, gossipMenuId, gossipOptionIndex)] = trainerId;
+            if (!_creatureTrainerIds.TryGetValue(creatureId, out var ids))
+                _creatureTrainerIds[creatureId] = ids = new();
+            if (!ids.Contains(trainerId)) ids.Add(trainerId);
+        }
+
         public int GetCreatureTrainerForGossipOption(int creatureId, int gossipMenuId, int gossipOptionIndex)
         {
             return _creatureDefaultTrainers.LookupByKey((creatureId, gossipMenuId, gossipOptionIndex));
@@ -4793,6 +4685,7 @@ namespace Game
                 go.ContentTuningId = 0;
                 go.ScriptId = 0;
 
+                CheckAndFixGOFishingHoleRestock(go, "GameObjects.db2");
                 _gameObjectTemplateStorage[db2go.Id] = go;
             }
 
@@ -4985,6 +4878,7 @@ namespace Game
                             break;
                     }
 
+                    CheckAndFixGOFishingHoleRestock(got, "gameobject_template");
                     _gameObjectTemplateStorage[entry] = got;
                 }
                 while (result.NextRow());
@@ -5304,7 +5198,7 @@ namespace Game
                 }
 
                 short gameEvent = result.Read<sbyte>(15);
-                data.poolId = result.Read<int>(16);
+                data.poolId = (int)result.Read<uint>(16);
                 data.PhaseUseFlags = (PhaseUseFlagsValues)result.Read<byte>(17);
                 data.PhaseId = result.Read<int>(18);
                 data.PhaseGroup = result.Read<int>(19);
@@ -5793,6 +5687,15 @@ namespace Game
                 $"have data{N}={dataN} but Spell (Entry {dataN}) not exist.");
         }
 
+        void CheckAndFixGOFishingHoleRestock(GameObjectTemplate goInfo, string source)
+        {
+            int minimum = goInfo.FishingHole.minRestock, maximum = goInfo.FishingHole.maxRestock;
+            if (!goInfo.NormalizeFishingHoleRestockRange()) return;
+            Log.outError(LogFilter.Sql,
+                $"GameObject (Entry: {goInfo.entry}, Name: {goInfo.name}) in `{source}` has invalid fishing restock range " +
+                $"data2={minimum}, data3={maximum}; using {goInfo.FishingHole.minRestock}..{goInfo.FishingHole.maxRestock}.");
+        }
+
         void CheckAndFixGOChairHeightId(GameObjectTemplate goInfo, ref int dataN, uint N)
         {
             if (dataN <= (UnitStandStateType.SitHighChair - UnitStandStateType.SitLowChair))
@@ -6046,12 +5949,12 @@ namespace Game
             uint count = 0;
 
             //                                        0   1        2         3             4             5                6
-            SQLResult result = DB.World.Query("SELECT Id, FlagsCu, FoodType, MinMoneyLoot, MaxMoneyLoot, SpellPPMChance, QuestLogItemId FROM item_template_addon");
+            SQLResult result = DB.World.Query("SELECT Id, FlagsCu, FoodType, MinMoneyLoot, MaxMoneyLoot, SpellPPMChance, RandomBonusListTemplateId, QuestLogItemId FROM item_template_addon");
             if (!result.IsEmpty())
             {
                 do
                 {
-                    int itemId = result.Read<int>(0);
+                    int itemId = (int)result.Read<uint>(0);
                     ItemTemplate itemTemplate = GetItemTemplate(itemId);
                     if (itemTemplate == null)
                     {
@@ -6076,7 +5979,8 @@ namespace Game
                     itemTemplate.MinMoneyLoot = minMoneyLoot;
                     itemTemplate.MaxMoneyLoot = maxMoneyLoot;
                     itemTemplate.SpellPPMRate = result.Read<float>(5);
-                    itemTemplate.QuestLogItemId = result.Read<int>(6);
+                    itemTemplate.RandomBonusListTemplateId = (int)result.Read<uint>(6);
+                    itemTemplate.QuestLogItemId = result.Read<int>(7);
                     ++count;
                 } while (result.NextRow());
             }
@@ -6130,6 +6034,7 @@ namespace Game
 
         public void AddVendorItem(int entry, VendorItem vItem, bool persist = true)
         {
+            _legacyVendorReagents.Clear();
             VendorItemData vList = cacheVendorItemStorage[entry];
             vList.AddItem(vItem);
 
@@ -6150,6 +6055,7 @@ namespace Game
 
         public bool RemoveVendorItem(int entry, int item, ItemVendorType type, bool persist = true)
         {
+            _legacyVendorReagents.Clear();
             var iter = cacheVendorItemStorage.LookupByKey(entry);
             if (iter == null)
                 return false;
@@ -6309,6 +6215,15 @@ namespace Game
         {
             return cacheVendorItemStorage.LookupByKey(entry);
         }
+
+        readonly System.Collections.Concurrent.ConcurrentDictionary<int, bool> _legacyVendorReagents = new();
+        public bool IsLegacyVendorReagent(int itemId) => _legacyVendorReagents.GetOrAdd(itemId, id =>
+        {
+            foreach (VendorItemData vendor in cacheVendorItemStorage.Values)
+                for (int i = 0; i < vendor.GetItemCount(); ++i)
+                    if (vendor.GetItem(i).Type == ItemVendorType.Item && vendor.GetItem(i).item == id) return true;
+            return false;
+        });
 
         public IReadOnlyList<float> GetCreatureTemplateSparringValues(int entry)
         {
@@ -7273,7 +7188,7 @@ namespace Game
                         }
 
                         int itemid = result.Read<int>(2);
-                        if (GetItemTemplate(itemid).GetId() == 0)
+                        if (GetItemTemplate(itemid) == null)
                         {
                             Log.outError(LogFilter.Sql,
                                 $"Item id {itemid} (race {currentRace} class {currentClass}) " +
@@ -7572,7 +7487,13 @@ namespace Game
             {
                 {
                     //                                         0      1      2     3    4    5     6    7     8        9
-                    SQLResult result = DB.World.Query("SELECT race, class, level, str, agi, sta, inte, spi, basehp, basemana FROM player_levelstats");
+                    // Classic health is class base HP plus the health supplied by stamina.
+                    SQLResult result = DB.World.Query("SELECT r.race, c.class, c.level, CAST(c.str + r.str AS SIGNED), CAST(c.agi + r.agi AS SIGNED), CAST(c.sta + r.sta AS SIGNED), CAST(c.inte + r.inte AS SIGNED), CAST(c.spi + r.spi AS SIGNED), c.basehp, c.basemana " +
+                        // Only configured race/class pairs own player level data.
+                        // A cartesian product invents invalid combinations and logs
+                        // thousands of errors even when both source tables are valid.
+                        "FROM playercreateinfo p JOIN player_classlevelstats c ON c.class=p.class " +
+                        "JOIN player_racestats r ON r.race=p.race");
                 
                     if (result.IsEmpty())
                     {
@@ -7635,11 +7556,13 @@ namespace Game
                             for (var i = 0; i < (int)Stats.Max; i++)
                             {
                                 playerInfo.levelInfo[currentlevel - 1].stats[i] =
-                                    (ushort)(result.Read<ushort>(i + 3));
+                                    checked((int)result.Read<long>(i + 3));
                             }
 
-                            playerInfo.levelInfo[currentlevel - 1].baseHealth = result.Read<ushort>(8);
-                            playerInfo.levelInfo[currentlevel - 1].baseMana = result.Read<ushort>(9);
+                            playerInfo.levelInfo[currentlevel - 1].baseHealth = checked((int)result.Read<uint>(8));
+                            var baseMp = CliDB.BaseMPGameTable.GetRow(currentlevel);
+                            int baseMana = checked((int)result.Read<uint>(9));
+                            playerInfo.levelInfo[currentlevel - 1].baseMana = baseMana != 0 ? baseMana : baseMp != null ? (int)CliDB.GetGameTableColumnForClass(baseMp, currentClass) : 0;
                         }
 
                         ++count;
@@ -7716,67 +7639,50 @@ namespace Game
             // Loading xp per level data
             Log.outInfo(LogFilter.ServerLoading, "Loading Player Create XP Data...");
             {
-                _playerXPperLevel = new int[WorldConfig.Values[WorldCfg.MaxPlayerLevel].Int32];
+                // Forever/TC ObjectMgr::LoadPlayerInfo: XP per level comes from the client xp.txt game table;
+                // `player_xp_for_level` only overrides it (the 1.60.1 world database leaves it empty).
+                int rowCount = Math.Max(CliDB.XpGameTable.GetTableRowCount(), WorldConfig.Values[WorldCfg.MaxPlayerLevel].Int32);
+                _playerXPperLevel = new int[rowCount];
+
+                for (int level = 1; level < CliDB.XpGameTable.GetTableRowCount(); ++level)
+                    _playerXPperLevel[level] = (int)CliDB.XpGameTable.GetRow(level).Total;
 
                 //                                          0      1
                 SQLResult result = DB.World.Query("SELECT Level, Experience FROM player_xp_for_level");
 
-                if (result.IsEmpty())
+                uint count = 0;
+                if (!result.IsEmpty())
                 {
-                    Log.outError(LogFilter.ServerLoading, 
-                        $"Loaded 0 xp for level definitions. " +
-                        $"DB table `player_xp_for_level` is empty.");
+                    do
+                    {
+                        int currentlevel = result.Read<byte>(0);
+                        int currentxp = result.Read<int>(1);
 
-                    Global.WorldMgr.StopNow();
-                    return;
+                        if (currentlevel >= WorldConfig.Values[WorldCfg.MaxPlayerLevel].Int32)
+                        {
+                            if (currentlevel > SharedConst.StrongMaxLevel)        // hardcoded level maximum
+                                Log.outError(LogFilter.Sql, $"Wrong (> {SharedConst.StrongMaxLevel}) level {currentlevel} in `player_xp_for_level` table, ignoring.");
+                            else
+                                ++count;    // make result loading percent "expected" correct in case disabled detail mode for example.
+                            continue;
+                        }
+                        //PlayerXPperLevel
+                        _playerXPperLevel[currentlevel] = currentxp;
+                        ++count;
+                    } while (result.NextRow());
                 }
 
-                uint count = 0;
-                // ...overwrite if needed (custom values)
-
-                do
-                {
-                    int currentlevel = result.Read<byte>(0);
-                    int currentxp = result.Read<int>(1);
-
-                    if (currentlevel >= WorldConfig.Values[WorldCfg.MaxPlayerLevel].Int32)
-                    {
-                        if (currentlevel > SharedConst.StrongMaxLevel)        // hardcoded level maximum
-                        {
-                            Log.outError(LogFilter.Sql, 
-                                $"Wrong (> {SharedConst.StrongMaxLevel}) level {currentlevel} " +
-                                $"in `player_xp_for_levels` table, ignoring.");
-                        }
-                        else
-                        {
-                            Log.outError(LogFilter.Sql,
-                                $"Unused (> MaxPlayerLevel in worldserver.conf) level {currentlevel} " +
-                                $"in `player_xp_for_levels` table, ignoring.");
-
-                            ++count;    // make result loading percent "expected" correct in case disabled detail mode for example.
-                        }
-                        continue;
-                    }
-                    //PlayerXPperLevel
-                    _playerXPperLevel[currentlevel] = currentxp;
-                    ++count;
-                } while (result.NextRow());
-
-                // fill level gaps
+                // fill level gaps - only accounting levels > MAX_LEVEL
                 for (var level = 1; level < WorldConfig.Values[WorldCfg.MaxPlayerLevel].Int32; ++level)
                 {
                     if (_playerXPperLevel[level] == 0)
                     {
-                        Log.outError(LogFilter.Sql, 
-                            $"Level {level + 1} does not have XP for level data. " +
-                            $"Using data of level [{level}] + 100XP.");
-
-                        _playerXPperLevel[level] = _playerXPperLevel[level - 1] + 100;
+                        Log.outError(LogFilter.Sql, $"Level {level + 1} does not have XP for level data. Using data of level [{level}] + 12000.");
+                        _playerXPperLevel[level] = _playerXPperLevel[level - 1] + 12000;
                     }
                 }
 
-                Log.outInfo(LogFilter.ServerLoading, 
-                    $"Loaded {count} xp for level definition(s) from database in {Time.Diff(oldMSTime)} ms.");
+                Log.outInfo(LogFilter.ServerLoading, $"Loaded {count} xp for level definition(s) from database in {Time.Diff(oldMSTime)} ms.");
             }
         }
 
@@ -8038,7 +7944,7 @@ namespace Game
                 var pInfo = map.Value;
 
                 // fatal error if no level 1 data
-                if (pInfo == null || pInfo[0].health == 0)
+                if (pInfo == null || pInfo[0] == null || pInfo[0].health == 0)   // TC: missing level reads as health 0
                 {
                     Log.outError(LogFilter.Sql, 
                         $"Creature {map.Key} does not have pet stats data for Level 1!");
@@ -8049,7 +7955,7 @@ namespace Game
                 // fill level gaps
                 for (byte level = 1; level < WorldConfig.Values[WorldCfg.MaxPlayerLevel].Int32; ++level)
                 {
-                    if (pInfo[level].health == 0)
+                    if (pInfo[level] == null || pInfo[level].health == 0)
                     {
                         Log.outError(LogFilter.Sql, 
                             $"Creature {map.Key} has no data for Level {level + 1} " +
@@ -8390,7 +8296,7 @@ namespace Game
             {
                 SQLResult result = DB.World.Query("SELECT " +
                     //0  1          2           3                         4                     5               6         7            8            9                  10               11                  12
-                    "ID, QuestType, QuestLevel, QuestScalingFactionGroup, QuestMaxScalingLevel, QuestPackageID, MinLevel, QuestSortID, QuestInfoID, SuggestedGroupNum, RewardNextQuest, RewardXPDifficulty, RewardXPMultiplier, " +
+                    "qt.ID, QuestType, COALESCE(qtcl.QuestLevel, qcl.QuestLevel, 0), 0, 0, QuestPackageID, COALESCE(qcl.MinLevel, 0), QuestSortID, QuestInfoID, SuggestedGroupNum, RewardNextQuest, RewardXPDifficulty, RewardXPMultiplier, " +
                     //13                    14                     15                16           17           18               19
                     "RewardMoneyDifficulty, RewardMoneyMultiplier, RewardBonusMoney, RewardSpell, RewardHonor, RewardKillHonor, StartItem, " +
                     //20                         21                          22                        23     24       25
@@ -8418,10 +8324,14 @@ namespace Game
                     //93                94                  95                 96                  97                 98                  99                 100
                     "RewardCurrencyID1, RewardCurrencyQty1, RewardCurrencyID2, RewardCurrencyQty2, RewardCurrencyID3, RewardCurrencyQty3, RewardCurrencyID4, RewardCurrencyQty4, " +
                     //101                102                 103          104          105             106               107        108                  109
-                    "AcceptedSoundKitID, CompleteSoundKitID, AreaGroupID, TimeAllowed, AllowableRaces, TreasurePickerID, Expansion, ManagedWorldStateID, QuestSessionBonus, " +
+                    "AcceptedSoundKitID, CompleteSoundKitID, AreaGroupID, TimeAllowed, AllowableRaces, 0, Expansion, ManagedWorldStateID, QuestSessionBonus, " +
                     //110      111             112               113              114                115                116                 117                 118
-                    "LogTitle, LogDescription, QuestDescription, AreaDescription, PortraitGiverText, PortraitGiverName, PortraitTurnInText, PortraitTurnInName, QuestCompletionLog " +
-                    "FROM quest_template");
+                    "LogTitle, LogDescription, QuestDescription, AreaDescription, PortraitGiverText, PortraitGiverName, PortraitTurnInText, PortraitTurnInName, QuestCompletionLog, " +
+                    //119                120       121               122          123             124
+                    "qt.ContentTuningID, FlagsEx3, ResetByScheduler, RewardFavor, qtcl.LevelType, qcl.MaxLevel " +
+                    "FROM quest_template qt " +
+                    "LEFT JOIN quest_template_classic_level qtcl ON qtcl.ID = qt.ID " +
+                    "LEFT JOIN quest_classic_level qcl ON qcl.ID = qt.ID");
             
                 if (result.IsEmpty())
                 {
@@ -8624,6 +8534,11 @@ namespace Game
                     } while (result.NextRow());
                 }
             }
+
+            // Classic 1.60: quest_classic_level.MaxLevel overrides quest_template_addon.MaxLevel when set
+            foreach (var quest in _questTemplates.Values)
+                if (quest.ClassicMaxLevel != 0)
+                    quest.MaxLevel = quest.ClassicMaxLevel;
 
             // Load `quest_mail_sender`
             {
@@ -11747,7 +11662,6 @@ namespace Game
             uint currencyRewardCount = 0;
             uint factionRewardCount = 0;
             uint itemChoiceRewardCount = 0;
-            uint mawPowersCount = 0;
 
             do
             {
@@ -11767,7 +11681,7 @@ namespace Game
             } while (choiceResult.NextRow());
 
             //                                                  0           1                   2               3       4            5
-            SQLResult responses = DB.World.Query("SELECT ChoiceId, ResponseId, ResponseIdentifier, ChoiceArtFileId, Flags, WidgetSetID, " +
+            SQLResult responses = DB.World.Query("SELECT ChoiceId, ResponseId, 0, ChoiceArtFileId, Flags, WidgetSetID, " +
                 //                     6           7        8               9      10      11        12              13          14            15              16
                 "UiTextureAtlasElementID, SoundKitID, GroupID, UiTextureKitID, Answer, Header, SubHeader, ButtonTooltip, Description, Confirmation, RewardQuestID " +
                 "FROM playerchoice_response ORDER BY `Index` ASC");
@@ -11791,7 +11705,7 @@ namespace Game
                     PlayerChoiceResponse response = new();
 
                     response.ResponseId = responseId;
-                    response.ResponseIdentifier = responses.Read<short>(2);
+                    response.ResponseIdentifier = 0; // column removed in 1.60.1 schema
                     response.ChoiceArtFileId = responses.Read<int>(3);
                     response.Flags = responses.Read<int>(4);
                     response.WidgetSetID = responses.Read<int>(5);
@@ -12137,56 +12051,11 @@ namespace Game
                 } while (rewards.NextRow());
             }
 
-            //                                                        0          1               2      3             4       5          6
-            SQLResult mawPowersResult = DB.World.Query("SELECT ChoiceId, ResponseId, TypeArtFileID, Rarity, RarityColor, SpellID, MaxStacks FROM playerchoice_response_maw_power");
-            if (!mawPowersResult.IsEmpty())
-            {
-                do
-                {
-                    int choiceId = mawPowersResult.Read<int>(0);
-                    int responseId = mawPowersResult.Read<int>(1);
-
-                    PlayerChoice choice = _playerChoices.LookupByKey(choiceId);
-                    if (choice == null)
-                    {
-                        Log.outError(LogFilter.Sql, 
-                            $"Table `playerchoice_response_maw_power` " +
-                            $"references non-existing ChoiceId: {choiceId} " +
-                            $"(ResponseId: {responseId}), skipped.");
-                        continue;
-                    }
-
-                    var response = choice.Responses.Find(playerChoiceResponse => { return playerChoiceResponse.ResponseId == responseId; });
-                    if (response == null)
-                    {
-                        Log.outError(LogFilter.Sql, 
-                            $"Table `playerchoice_response_maw_power` " +
-                            $"references non-existing ResponseId: {responseId} " +
-                            $"for ChoiceId {choiceId}, skipped.");
-                        continue;
-                    }
-
-                    PlayerChoiceResponseMawPower mawPower = new();
-                    mawPower.TypeArtFileID = mawPowersResult.Read<int>(2);
-                    if (!mawPowersResult.IsNull(3))
-                        mawPower.Rarity = mawPowersResult.Read<int>(3);
-                    if (!mawPowersResult.IsNull(4))
-                        mawPower.RarityColor = mawPowersResult.Read<int>(4);
-                    mawPower.SpellID = mawPowersResult.Read<int>(5);
-                    mawPower.MaxStacks = mawPowersResult.Read<int>(6);
-                    response.MawPower = mawPower;
-
-                    ++mawPowersCount;
-
-                } while (mawPowersResult.NextRow());
-            }
-
             Log.outInfo(LogFilter.ServerLoading, 
                 $"Loaded {_playerChoices.Count} player choices, {responseCount} responses, " +
                 $"{rewardCount} rewards, {itemRewardCount} item rewards, " +
                 $"{currencyRewardCount} currency rewards, {factionRewardCount} faction rewards, " +
-                $"{itemChoiceRewardCount} item choice " +
-                $"rewards and {mawPowersCount} maw powers in {Time.Diff(oldMSTime)} ms.");
+                $"{itemChoiceRewardCount} item choice rewards in {Time.Diff(oldMSTime)} ms.");
         }
 
         public void LoadPlayerChoicesLocale()
@@ -12330,7 +12199,7 @@ namespace Game
             _jumpChargeParams.Clear();
 
             //                                         0   1      2                            3            4              5                6
-            SQLResult result = DB.World.Query("SELECT id, speed, treatSpeedAsMoveTimeSeconds, jumpGravity, spellVisualId, progressCurveId, parabolicCurveId FROM jump_charge_params");
+            SQLResult result = DB.World.Query("SELECT id, speed, treatSpeedAsMoveTimeSeconds, 0, spellVisualId, progressCurveId, parabolicCurveId FROM jump_charge_params");
             if (result.IsEmpty())
                 return;
 
@@ -12339,7 +12208,8 @@ namespace Game
                 int id = result.Read<int>(0);
                 Speed speed = (Speed)result.Read<float>(1);
                 bool treatSpeedAsMoveTimeSeconds = result.Read<bool>(2);
-                float jumpGravity = result.Read<float>(3);
+                // 1.60.1 schema: jumpGravity replaced by minHeight/maxHeight/unlimitedSpeed (not modelled yet) - use default gravity
+                float jumpGravity = (float)MotionMaster.gravity;
                 int? spellVisualId = null;
                 int? progressCurveId = null;
                 int? parabolicCurveId = null;
@@ -12351,15 +12221,6 @@ namespace Game
                         $"for id {id}, set to default charge speed {MotionMaster.SPEED_CHARGE}.");
 
                     speed = MotionMaster.SPEED_CHARGE;
-                }
-
-                if (jumpGravity <= 0.0f)
-                {
-                    Log.outError(LogFilter.Sql, 
-                        $"Table `jump_charge_params` uses invalid jump gravity {jumpGravity} " +
-                        $"for id {id}, set to default {MotionMaster.gravity}.");
-
-                    jumpGravity = (float)MotionMaster.gravity;
                 }
 
                 if (!result.IsNull(4))
@@ -12602,7 +12463,7 @@ namespace Game
 
                 Global.WorldMgr.StopNow();
             }
-            return unchecked(_mailId++);
+            return unchecked(System.Threading.Interlocked.Increment(ref _mailId) - 1);
         }
 
         public int GeneratePetNumber()
@@ -12958,32 +12819,9 @@ namespace Game
             RelativeTime oldMSTime = Time.NowRelative;
             _mapCorpsePositionStorage.Clear();
 
-            //                                            0        1          2
-            SQLResult result = DB.World.Query("SELECT `MapId`, `CorpseX`, `CorpseY` FROM `map_corpse_position`");
-
-            if (result.IsEmpty())
-            {
-                Log.outInfo(LogFilter.ServerLoading, 
-                    "Loaded 0 map corpse positions. " +
-                    "DB table `map_corpse_position` is empty.");
-                return;
-            }
-
-            uint count = 0;
-            do
-            {
-                Vector2 corpse;
-                int mapId = result.Read<int>(0);
-                corpse.X = result.Read<float>(1);
-                corpse.Y = result.Read<float>(2);
-
-                _mapCorpsePositionStorage[mapId] = corpse;
-
-                ++count;
-            } while (result.NextRow());
-
-            Log.outInfo(LogFilter.ServerLoading, 
-                $"Loaded {count} map corpse positions in {Time.Diff(oldMSTime)} ms.");
+            // `map_corpse_position` does not exist in the 1.60.1 world DB and the reference core does not load it - skipped.
+            Log.outInfo(LogFilter.ServerLoading,
+                $"Loaded 0 map corpse positions (table not present in 1.60.1 world DB) in {Time.Diff(oldMSTime)} ms.");
         }
 
         //Vehicles
@@ -13311,6 +13149,7 @@ namespace Game
         Dictionary<int, VendorItemData> cacheVendorItemStorage = new();
         Dictionary<int, Trainer> trainers = new();
         Dictionary<(int creatureId, int gossipMenuId, int gossipOptionIndex), int> _creatureDefaultTrainers = new();
+        Dictionary<int, List<int>> _creatureTrainerIds = new();
         Dictionary<int, NpcText> npcTextStorage = new();
 
         //GameObject
@@ -13853,6 +13692,7 @@ namespace Game
 
         public void InitializeQueryData()
         {
+            QueryDataBuffer = new ByteBuffer();
             Write(QueryDataBuffer);
         }
 
@@ -14296,15 +14136,6 @@ namespace Game
         public List<PlayerChoiceResponseRewardItem> ItemChoices = new();
     }
 
-    public struct PlayerChoiceResponseMawPower
-    {
-        public int TypeArtFileID;
-        public int? Rarity;
-        public int? RarityColor;
-        public int SpellID;
-        public int MaxStacks;
-    }
-
     public class PlayerChoiceResponse
     {
         public int ResponseId;
@@ -14324,7 +14155,6 @@ namespace Game
         public string Confirmation;
         public PlayerChoiceResponseReward Reward;
         public int? RewardQuestID;
-        public PlayerChoiceResponseMawPower? MawPower;
     }
 
     public class PlayerChoice

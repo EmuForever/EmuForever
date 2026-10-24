@@ -29,6 +29,13 @@ namespace Game.Maps
             if (!u.IsAlive() || !c.IsAlive() || c == u || u.IsInFlight())
                 return;
 
+            // Cell visits include whole boundary cells. Reject distant pairs
+            // before ownership/condition/stealth work, preserving the core's
+            // explicit always-visible exceptions and its exact distance policy.
+            if (!c.IsAIEnabled() || c.HasUnitState(UnitState.Sightless)) return;
+            // Same test, cheapest part first: almost every pair is in range or out of range on distance
+            // alone, and the always-visible exceptions only matter for the out-of-range ones.
+            if (!c.IsWithinDist(u, c.GetSightRange(u), false) && !u.IsAlwaysVisibleFor(c) && !c.CanAlwaysSee(u)) return;
             if (!c.HasUnitState(UnitState.Sightless))
             {
                 if (c.IsAIEnabled() && c.CanSeeOrDetect(u, false, true))
@@ -64,14 +71,26 @@ namespace Game.Maps
         internal GridMapTypeMask _mask;
     }
 
-    public class VisibleNotifier : Notifier
+    public class VisibleNotifier : Notifier, IDisposable
     {
+        VisibilityScratch _scratch;
         public VisibleNotifier(Player pl)
         {
             i_player = pl;
             i_data = new UpdateData(pl.GetMapId());
-            vis_guids = new List<ObjectGuid>(pl.m_clientGUIDs);
-            i_visibleNow = new List<WorldObject>();
+            _scratch = VisibilityScratch.Rent();
+            vis_guids = _scratch.Remaining;
+            vis_guids.UnionWith(pl.m_clientGUIDs);
+            i_visibleNow = _scratch.Created;
+        }
+
+        public void Dispose()
+        {
+            var scratch = _scratch;
+            _scratch = null;
+            vis_guids = null;
+            i_visibleNow = null;
+            scratch?.Return();
         }
 
         public override void Visit(IReadOnlyList<WorldObject> objs)
@@ -124,7 +143,9 @@ namespace Game.Maps
 
             foreach (var outOfRangeGuid in vis_guids)
             {
-                i_player.m_clientGUIDs.Remove(outOfRangeGuid);
+                if (!i_player.m_clientGUIDs.Remove(outOfRangeGuid)) continue;
+                var removed = Global.ObjAccessor.GetWorldObject(i_player, outOfRangeGuid);
+                if (removed != null) i_player.BeforeVisibilityDestroy(removed, i_player);
                 i_data.AddOutOfRangeGUID(outOfRangeGuid);
 
                 if (outOfRangeGuid.IsPlayer())
@@ -135,7 +156,7 @@ namespace Game.Maps
                 }
             }
 
-            if (!i_data.HasData())
+            if (i_player.GetSession().IsServerControlled || !i_data.HasData())
                 return;
 
             UpdateObject packet;
@@ -148,17 +169,27 @@ namespace Game.Maps
 
         internal Player i_player;
         internal UpdateData i_data;
-        internal List<ObjectGuid> vis_guids;
+        internal HashSet<ObjectGuid> vis_guids;
         internal List<WorldObject> i_visibleNow;
     }
 
     public class VisibleChangesNotifier : Notifier
     {
         IReadOnlyList<WorldObject> i_objects;
+        readonly bool _knownAlreadyUpdated;
 
-        public VisibleChangesNotifier(IReadOnlyList<WorldObject> objects)
+        public VisibleChangesNotifier(IReadOnlyList<WorldObject> objects, bool knownAlreadyUpdated = false)
         {
             i_objects = objects;
+            _knownAlreadyUpdated = knownAlreadyUpdated;
+        }
+
+        void UpdatePlayer(Player player)
+        {
+            // Forced changes first refresh reverse edges. Grid traversal then only
+            // needs to discover new observers, avoiding duplicate checks in a crowd.
+            if (_knownAlreadyUpdated && i_objects.Count == 1 && player.HaveAtClient(i_objects[0])) return;
+            player.UpdateVisibilityOf(i_objects);
         }
 
         public override void Visit(IReadOnlyList<Player> objs)
@@ -167,12 +198,12 @@ namespace Game.Maps
             {
                 Player player = objs[i];
 
-                player.UpdateVisibilityOf(i_objects);
+                UpdatePlayer(player);
 
                 foreach (var visionPlayer in player.GetSharedVisionList())
                 {
                     if (visionPlayer.seerView == player)
-                        visionPlayer.UpdateVisibilityOf(i_objects);
+                        UpdatePlayer(visionPlayer);
                 }
             }
         }
@@ -185,7 +216,7 @@ namespace Game.Maps
                 foreach (var visionPlayer in creature.GetSharedVisionList())
                 {
                     if (visionPlayer.seerView == creature)
-                        visionPlayer.UpdateVisibilityOf(i_objects);
+                        UpdatePlayer(visionPlayer);
                 }
             }
         }
@@ -200,7 +231,7 @@ namespace Game.Maps
                 {
                     Player pl = caster.ToPlayer();
                     if (pl != null && pl.seerView == dynamicObject)
-                        pl.UpdateVisibilityOf(i_objects);
+                        UpdatePlayer(pl);
                 }
             }
         }
@@ -208,21 +239,21 @@ namespace Game.Maps
 
     public class PlayerRelocationNotifier : VisibleNotifier
     {
-        public PlayerRelocationNotifier(Player player) : base(player) { }
+        readonly bool _knownAlreadyUpdated;
+        public PlayerRelocationNotifier(Player player, bool knownAlreadyUpdated = false) : base(player)
+        { _knownAlreadyUpdated = knownAlreadyUpdated; }
 
         public override void Visit(IReadOnlyList<Player> objs)
         {
-            base.Visit(objs);
-
             for (var i = 0; i < objs.Count; ++i)
             {
                 Player player = objs[i];
-                vis_guids.Remove(player.GetGUID());
-
-                i_player.UpdateVisibilityOf(player, i_data, i_visibleNow);
-
+                // GridCell also visits its aggregate WorldObject list. VisibleNotifier handles
+                // the observer's visibility there once; this typed pass only notifies peers.
                 if (player.seerView.IsNeedNotify(NotifyFlags.VisibilityChanged))
                     continue;
+
+                if (_knownAlreadyUpdated && player.HaveAtClient(i_player)) continue;
 
                 player.UpdateVisibilityOf(i_player);
             }
@@ -230,17 +261,11 @@ namespace Game.Maps
 
         public override void Visit(IReadOnlyList<Creature> objs)
         {
-            base.Visit(objs);
-
             bool relocated_for_ai = (i_player == i_player.seerView);
 
             for (var i = 0; i < objs.Count; ++i)
             {
                 Creature creature = objs[i];
-                vis_guids.Remove(creature.GetGUID());
-
-                i_player.UpdateVisibilityOf(creature, i_data, i_visibleNow);
-
                 if (relocated_for_ai && !creature.IsNeedNotify(NotifyFlags.VisibilityChanged))
                     CreatureUnitRelocationWorker(creature, i_player);
             }
@@ -249,9 +274,11 @@ namespace Game.Maps
 
     public class CreatureRelocationNotifier : Notifier
     {
-        public CreatureRelocationNotifier(Creature c)
+        readonly bool _knownAlreadyUpdated;
+        public CreatureRelocationNotifier(Creature c, bool knownAlreadyUpdated = false)
         {
             i_creature = c;
+            _knownAlreadyUpdated = knownAlreadyUpdated;
         }
 
         public override void Visit(IReadOnlyList<Player> objs)
@@ -259,7 +286,8 @@ namespace Game.Maps
             for (var i = 0; i < objs.Count; ++i)
             {
                 Player player = objs[i];
-                if (!player.seerView.IsNeedNotify(NotifyFlags.VisibilityChanged))
+                if (!player.seerView.IsNeedNotify(NotifyFlags.VisibilityChanged) &&
+                    (!_knownAlreadyUpdated || !player.HaveAtClient(i_creature)))
                     player.UpdateVisibilityOf(i_creature);
 
                 CreatureUnitRelocationWorker(i_creature, player);
@@ -286,6 +314,13 @@ namespace Game.Maps
 
     public class DelayedUnitRelocation : Notifier
     {
+        public static float CreatureSearchRadius(Creature creature, float maximum) =>
+            Math.Min(maximum, Math.Max(creature.GetVisibilityRange(), creature.GetSightRange()));
+        // Headless players need nearby gameplay grids, not a 533-yard client visibility preload.
+        // Real clients retain the full radius for distant/visibility-overridden world objects.
+        public static float PlayerSearchRadius(Player player, float clientRadius) => player.GetSession().IsServerControlled
+            ? Math.Min(clientRadius, player.GetSightRange()) : clientRadius;
+
         public DelayedUnitRelocation(Cell c, CellCoord pair, Map map, float radius)
         {
             i_map = map;
@@ -307,8 +342,11 @@ namespace Game.Maps
                 if (player != viewPoint && !viewPoint.IsPositionValid())
                     continue;
 
-                var relocate = new PlayerRelocationNotifier(player);
-                Cell.VisitAllObjects(viewPoint, relocate, i_radius, false);
+                // New-position cells cannot find stationary observers left behind.
+                // Invalidate existing reverse edges before discovering new observers.
+                player.RefreshVisibilityObservers();
+                using var relocate = new PlayerRelocationNotifier(player, knownAlreadyUpdated: true);
+                Cell.VisitAllObjects(viewPoint, relocate, PlayerSearchRadius(player, i_radius), false);
 
                 relocate.SendToSelf();
             }
@@ -322,13 +360,15 @@ namespace Game.Maps
                 if (!creature.IsNeedNotify(NotifyFlags.VisibilityChanged))
                     continue;
 
-                CreatureRelocationNotifier relocate = new(creature);
+                creature.RefreshVisibilityObservers();
+                CreatureRelocationNotifier relocate = new(creature, knownAlreadyUpdated: true);
 
                 var c2world_relocation = new Visitor(relocate, GridMapTypeMask.AllWorld);
                 var c2grid_relocation = new Visitor(relocate, GridMapTypeMask.AllGrid);
 
-                cell.Visit(p, c2world_relocation, i_map, creature, i_radius);
-                cell.Visit(p, c2grid_relocation, i_map, creature, i_radius);
+                float radius = CreatureSearchRadius(creature, i_radius);
+                cell.Visit(p, c2world_relocation, i_map, creature, radius);
+                cell.Visit(p, c2grid_relocation, i_map, creature, radius);
             }
         }
 
@@ -617,7 +657,26 @@ namespace Game.Maps
                     continue;
 
                 if (obj.IsInWorld)
-                    obj.Update(i_timeDiff);
+                {
+                    TimeSpan diff = i_timeDiff;
+                    if (obj is Creature creature)
+                    {
+                        diff += creature.PendingUpdateDiff;
+                        if (diff < Creature.IdleUpdateInterval && creature.CanDeferIdleUpdate())
+                        {
+                            creature.PendingUpdateDiff = diff;
+                            continue;
+                        }
+                        creature.PendingUpdateDiff = TimeSpan.Zero;
+                    }
+                    long started = System.Diagnostics.Stopwatch.GetTimestamp();
+                    obj.Update(diff);
+                    double elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+                    if (obj.IsCreature()) MapTickProfile.CreatureMs += elapsed;
+                    else if (obj.IsGameObject()) MapTickProfile.GameObjectMs += elapsed;
+                    if (elapsed >= 100)
+                        Log.outWarn(LogFilter.Server, $"Map {obj.GetMapId()} slow object update: {obj.GetType().Name} entry {obj.GetEntry()} ({obj.GetGUID().GetCounter()}) took {elapsed:F1} ms.");
+                }
             }
         }
 
@@ -2680,7 +2739,7 @@ namespace Game.Maps
 
         public bool Invoke(GameObject go)
         {
-            if (m_uiEntry == 0 || go.GetEntry() == m_uiEntry && m_pObject.IsWithinDist(go, m_fRange, false))
+            if ((m_uiEntry == 0 || go.GetEntry() == m_uiEntry) && m_pObject.IsWithinDist(go, m_fRange, false))
                 return true;
 
             return false;

@@ -208,8 +208,8 @@ namespace Game.Collision
 
             uint chunkSize = reader.ReadUInt32();
             uint count = reader.ReadUInt32();
-            if (count == 0)
-                return false;
+            if (count == 0) // models without (collision) geometry end here
+                return true;
 
             for (var i = 0; i < count; ++i)
                 vertices.Add(reader.Read<Vector3>());
@@ -351,17 +351,19 @@ namespace Game.Collision
                 return false;
 
             reader.ReadUInt32(); //chunkSize notused
+            Flags = reader.ReadUInt32();
             RootWMOID = reader.ReadUInt32();
 
-            // read group models
-            if (reader.ReadStringFromChars(4) != "GMOD")
-                return false;
+            // read group models (optional)
+            if (reader.BaseStream.Position + 4 > reader.BaseStream.Length || reader.ReadStringFromChars(4) != "GMOD")
+                return true;
 
             uint count = reader.ReadUInt32();
             for (var i = 0; i < count; ++i)
             {
                 GroupModel group = new();
-                group.ReadFromFile(reader);
+                if (!group.ReadFromFile(reader))
+                    return false;
                 groupModels.Add(group);
             }
 

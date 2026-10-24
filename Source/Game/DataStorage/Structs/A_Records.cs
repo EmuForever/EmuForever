@@ -18,7 +18,7 @@ namespace Game.DataStorage
         private sbyte _faction;
         /// <summary> it's Achievement parent (can`t start while parent uncomplete,
         /// use its Criteria if don`t have own, use its progress on begin) </summary>
-        public short Supercedes;
+        public int Supercedes;
         public short Category;
         /// <summary>
         /// need this count of completed criterias (own or referenced achievement criterias)
@@ -28,11 +28,15 @@ namespace Game.DataStorage
         private int _flags;
         public short UiOrder;
         public int IconFileID;
+        public int RewardItemID;
         public int CriteriaTree;
         /// <summary>
         /// referenced achievement (counting of all completed criterias)
         /// </summary>
         public short SharesCriteria;
+        public int CovenantID;
+        public int HiddenBeforeDisplaySeason;
+        public int LegacyAfterTimeEvent;
 
         #region Properties
         public AchievementFaction Faction => (AchievementFaction)_faction;
@@ -78,10 +82,8 @@ namespace Game.DataStorage
         public ushort BattleMasterListID;
         public byte PriorityMin;
         public byte PriorityMax;
-        public int ItemID;
-        public int ItemQuantity;
         public ushort CurrencyType;
-        public byte CurrencyQuantity;
+        public int CurrencyQuantity;
         public ushort UiMapID;
         public int[] BonusPlayerConditionID = new int[2];
         public byte[] BonusValue = new byte[2];
@@ -109,7 +111,7 @@ namespace Game.DataStorage
         public int Id;
         public ushort Fallback;
         public byte BehaviorTier;
-        public int BehaviorID;
+        public short BehaviorID;
         public int[] Flags = new int[2];
     }
 
@@ -148,10 +150,11 @@ namespace Game.DataStorage
         public byte FactionGroupMask;
         public float AmbientMultiplier;
         private int _mountFlags;
-        public short PvpCombatWorldStateID;
+        public int PvpCombatWorldStateID;
         public byte WildBattlePetLevelMin;
         public byte WildBattlePetLevelMax;
         public byte WindSettingsID;
+        public int ContentTuningID;
         private int[] _flags = new int[2];
         public ushort[] LiquidTypeID = new ushort[4];
 
@@ -198,11 +201,10 @@ namespace Game.DataStorage
 
     public sealed class AreaTriggerRecord
     {
-        public LocalizedString Message;
         public Vector3 Pos;
         public int Id;
         public short ContinentID;
-        public sbyte PhaseUseFlags;
+        public int PhaseUseFlags;
         public short PhaseID;
         public short PhaseGroupID;
         public float Radius;
@@ -212,8 +214,8 @@ namespace Game.DataStorage
         public float BoxYaw;
         public sbyte ShapeType;
         public short ShapeID;
-        public short AreaTriggerActionSetID;
-        public sbyte Flags;
+        public int AreaTriggerActionSetID;
+        public int Flags;
     }
 
     public sealed class ArmorLocationRecord
@@ -235,7 +237,7 @@ namespace Game.DataStorage
         public int UiBarOverlayColor;
         public int UiBarBackgroundColor;
         public ushort ChrSpecializationID;
-        public byte Flags;
+        public int Flags;
         public byte ArtifactCategoryID;
         public int UiModelSceneID;
         public int SpellVisualKitID;
@@ -256,8 +258,9 @@ namespace Game.DataStorage
         public int OverrideShapeshiftDisplayID;
         public int UiItemAppearanceID;
         public int UiAltItemAppearanceID;
-        public byte Flags;
+        public int Flags;
         public ushort UiCameraID;
+        public int UsablePlayerConditionID;
     }
 
     public sealed class ArtifactAppearanceSetRecord
@@ -269,7 +272,7 @@ namespace Game.DataStorage
         public ushort UiCameraID;
         public ushort AltHandUICameraID;
         public sbyte ForgeAttachmentOverride;
-        public byte Flags;
+        public int Flags;
         public int ArtifactID;
     }
 
@@ -287,7 +290,7 @@ namespace Game.DataStorage
         public byte ArtifactID;
         public byte MaxPurchasableRank;
         public int Label;
-        public byte Flags;
+        public int Flags;
         public byte Tier;
 
         //#region Properties
@@ -444,7 +447,7 @@ namespace Game.DataStorage
         public int Id;
         public uint AzeritePowerSetID;
         public int AzeritePowerID;
-        public int Class;
+        public sbyte Class;
         public byte Tier;
         public int OrderIndex;
     }

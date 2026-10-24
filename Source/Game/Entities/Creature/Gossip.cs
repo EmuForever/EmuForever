@@ -497,7 +497,7 @@ namespace Game.Misc
         public void SendQuestQueryResponse(Quest quest)
         {
             if (WorldConfig.Values[WorldCfg.CacheDataQueries].Bool)
-                _session.SendPacket(quest.response[(int)_session.GetSessionDbLocaleIndex()]);
+                _session.SendPacket(quest.GetQueryData(_session.GetSessionDbLocaleIndex()));
             else
             {
                 var queryPacket = quest.BuildQueryData(_session.GetSessionDbLocaleIndex(), _session.GetPlayer());

@@ -228,7 +228,7 @@ namespace Game.Networking.Packets
                 _worldPacket.WritePackedGuid(entry.SenderGuid);
                 _worldPacket.WriteFloat((float)entry.TimeLeft.TotalSeconds);
                 _worldPacket.WriteInt32(entry.AltSenderID);
-                _worldPacket.WriteInt8(entry.AltSenderType);
+                _worldPacket.WriteInt32(entry.AltSenderType); // Forever layout: TC MailQueryNextTimeResult::Write
                 _worldPacket.WriteInt32(entry.StationeryID);
             }
         }
@@ -321,22 +321,23 @@ namespace Game.Networking.Packets
         public void Write(WorldPacket data)
         {
             data.WriteUInt8(Position);
+            // Forever layout: TC operator<<(MailAttachedItem)
             data.WriteInt64(AttachID);
+            Item.Write(data);
             data.WriteInt32(Count);
             data.WriteInt32(Charges);
             data.WriteInt32(MaxDurability);
             data.WriteInt32(Durability);
-            Item.Write(data);
             data.WriteBits(Enchants.Count, 4);
             data.WriteBits(Gems.Count, 2);
             data.WriteBit(Unlocked);
             data.FlushBits();
 
-            foreach (ItemGemData gem in Gems)
-                gem.Write(data);
-
             foreach (ItemEnchantData en in Enchants)
                 en.Write(data);
+
+            foreach (ItemGemData gem in Gems)
+                gem.Write(data);
         }
 
         public byte Position;
@@ -423,12 +424,13 @@ namespace Game.Networking.Packets
                     break;
             }
 
+            // Forever layout: TC operator<<(MailListEntry)
+            foreach (var item in Attachments)
+                item.Write(data);
+
             data.WriteBits(Subject.GetByteCount(), 8);
             data.WriteBits(Body.GetByteCount(), 13);
             data.FlushBits();
-
-            foreach (var item in Attachments)
-                item.Write(data);
 
             data.WriteString(Subject);
             data.WriteString(Body);

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -392,6 +392,11 @@ namespace Game
                 cond.ErrorType = result.Read<int>(12);
                 cond.ErrorTextId = result.Read<int>(13);
                 cond.ScriptId = Global.ObjectMgr.GetScriptId(result.Read<string>(14));
+                cond.RawSourceTypeOrReferenceId = iSourceTypeOrReferenceId;
+                cond.RawConditionTypeOrReference = iConditionTypeOrReference;
+                cond.RawConditionValue1 = cond.ConditionValue1;
+                cond.RawConditionValue2 = cond.ConditionValue2;
+                cond.RawConditionValue3 = cond.ConditionValue3;
 
                 if (iConditionTypeOrReference >= 0)
                     cond.ConditionType = (ConditionTypes)iConditionTypeOrReference;
@@ -2221,10 +2226,8 @@ namespace Game
             if (condition.LifetimeMaxPVPRank != 0 && player.m_activePlayerData.LifetimeMaxRank != condition.LifetimeMaxPVPRank)
                 return false;
 
-            if (condition.MovementFlags[0] != 0 && !Convert.ToBoolean((uint)player.GetUnitMovementFlags() & condition.MovementFlags[0]))
-                return false;
-
-            if (condition.MovementFlags[1] != 0 && !Convert.ToBoolean((uint)player.GetUnitMovementFlags2() & condition.MovementFlags[1]))
+            // 1.60.1: PlayerCondition has a single MovementFlags field
+            if (condition.MovementFlags != 0 && !Convert.ToBoolean((uint)player.GetUnitMovementFlags() & (uint)condition.MovementFlags))
                 return false;
 
             if (condition.WeaponSubclassMask != 0)

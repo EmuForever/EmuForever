@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -103,7 +103,15 @@ namespace Game.Entities
                 return false;
 
             ItemTemplate itemProto = GetTemplate(); // checked in Item.LoadFromDB
-            SetBagSize(itemProto.GetContainerSlots());
+            byte bagSize = itemProto.GetContainerSlots();
+            if (bagSize > ItemConst.MaxBagSize)
+            {
+                Log.outError(LogFilter.PlayerItems,
+                    $"Bag item {entry} (GUID: {guid}) reports {bagSize} slots; clamping to supported maximum {ItemConst.MaxBagSize} while loading.");
+                bagSize = ItemConst.MaxBagSize;
+            }
+
+            SetBagSize(bagSize);
             // cleanup bag content related item value fields (its will be filled correctly from `character_inventory`)
             for (byte i = 0; i < ItemConst.MaxBagSize; ++i)
             {
@@ -232,7 +240,7 @@ namespace Game.Entities
             buffer1.WriteUInt32(buffer.GetSize());
             buffer1.WriteBytes(buffer.GetData());
 
-            data.AddUpdateBlock(buffer1);
+            data.AddUpdateBlock(buffer1, GetUpdateFieldFlagsFor(target));
         }
 
         public override void ClearUpdateMask(bool remove)
@@ -243,7 +251,7 @@ namespace Game.Entities
 
         public bool IsEmpty()
         {
-            for (var i = 0; i < GetBagSize(); ++i)
+            for (var i = 0; i < Math.Min(GetBagSize(), m_bagslot.Length); ++i)
             {
                 if (m_bagslot[i] != null)
                     return false;

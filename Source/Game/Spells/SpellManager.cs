@@ -641,18 +641,17 @@ namespace Game.Entities
 
         public SpellInfo GetSpellInfo(int spellId, Difficulty difficulty)
         {
-            var list = mSpellInfoMap[spellId];
-
-            if (list.TryFind(out SpellInfo result, out _, spellInfo => spellInfo.Difficulty == difficulty))
-                return result;
+            if (!mSpellInfoMap.TryGetValues(spellId, out var list)) return null;
+            for (int i=0;i<list.Count;++i)
+                if (list[i].Difficulty==difficulty) return list[i];
 
             DifficultyRecord difficultyEntry = CliDB.DifficultyStorage.LookupByKey(difficulty);
             if (difficultyEntry != null)
             {
                 do
                 {
-                    if (list.TryFind(out result, out _, spellInfo => spellInfo.Difficulty == difficultyEntry.FallbackDifficultyID))
-                        return result;
+                    for (int i=0;i<list.Count;++i)
+                        if (list[i].Difficulty==difficultyEntry.FallbackDifficultyID) return list[i];
 
                     difficultyEntry = CliDB.DifficultyStorage.LookupByKey(difficultyEntry.FallbackDifficultyID);
                 } while (difficultyEntry != null);
@@ -1617,7 +1616,9 @@ namespace Game.Entities
                     continue;
 
                 // Nothing to do if no flags set
-                if (spellInfo.ProcFlags == null)
+                // ProcFlagsInit is a value type; comparing it to null never skips
+                // empty masks and falsely reports ordinary passive auras as bad DB data.
+                if (spellInfo.ProcFlags.ProcFlags == 0 && spellInfo.ProcFlags.ProcFlags2 == 0)
                     continue;
 
                 bool addTriggerFlag = false;
@@ -2412,13 +2413,30 @@ namespace Game.Entities
                 return loadData[key];
             }
 
+            // Classic 1.60+ client data uses effect/aura/target values retail does not define yet: skip those effects and report them once (as TrinityCore-forever does)
+            Dictionary<string, Dictionary<int, int>> unknownEffectValues = new();
+            void CountUnknown(string kind, int value)
+            {
+                if (!unknownEffectValues.TryGetValue(kind, out var counts))
+                    unknownEffectValues[kind] = counts = new();
+                counts[value] = counts.GetValueOrDefault(value) + 1;
+            }
+
             foreach (var effect in CliDB.SpellEffectStorage.Values)
             {
                 Cypher.Assert(effect.EffectIndex < SpellConst.MaxEffects, $"MAX_SPELL_EFFECTS must be at least {effect.EffectIndex}");
-                Cypher.Assert(effect.Effect < SpellEffectName.TotalSpellEffects, $"TOTAL_SPELL_EFFECTS must be at least {effect.Effect}");
-                Cypher.Assert(effect.EffectAura < AuraType.Total, $"TOTAL_AURAS must be at least {effect.EffectAura}");
-                Cypher.Assert(effect.ImplicitTarget[0] < (int)Targets.TotalSpellTargets, $"TOTAL_SPELL_TARGETS must be at least {effect.ImplicitTarget[0]}");
-                Cypher.Assert(effect.ImplicitTarget[1] < (int)Targets.TotalSpellTargets, $"TOTAL_SPELL_TARGETS must be at least {effect.ImplicitTarget[1]}");
+                if (effect.Effect >= SpellEffectName.TotalSpellEffects || effect.EffectAura < 0 || effect.EffectAura >= AuraType.Total
+                    || effect.ImplicitTarget[0] >= (int)Targets.TotalSpellTargets || effect.ImplicitTarget[1] >= (int)Targets.TotalSpellTargets)
+                {
+                    if (effect.Effect >= SpellEffectName.TotalSpellEffects)
+                        CountUnknown("Effect", (int)effect.Effect);
+                    if (effect.EffectAura < 0 || effect.EffectAura >= AuraType.Total)
+                        CountUnknown("EffectAura", (int)effect.EffectAura);
+                    foreach (int target in effect.ImplicitTarget)
+                        if (target >= (int)Targets.TotalSpellTargets)
+                            CountUnknown("ImplicitTarget", target);
+                    continue;
+                }
 
                 GetLoadHelper(effect.SpellID, effect.DifficultyID).Effects[effect.EffectIndex] = effect;
 
@@ -2450,6 +2468,10 @@ namespace Game.Entities
                         break;
                 }
             }
+
+            foreach (var (kind, counts) in unknownEffectValues)
+                foreach (var (value, count) in counts)
+                    Log.outWarn(LogFilter.ServerLoading, $"SpellEffect.db2 has {count} effect(s) with unknown {kind} {value}, skipped.");
 
             foreach (SpellAuraOptionsRecord auraOptions in CliDB.SpellAuraOptionsStorage.Values)
                 GetLoadHelper(auraOptions.SpellID, auraOptions.DifficultyID).AuraOptions = auraOptions;
@@ -2638,6 +2660,32 @@ namespace Game.Entities
 
         }
 
+        public void LoadClassicSpellEffects()
+        {
+            if (WorldConfig.Values[WorldCfg.Expansion].Int32 != (int)Expansion.Classic) return;
+            var result = DB.World.Query("SELECT SpellID, EffectIndex, Effect, Aura, BasePoints, DieSides, RealPointsPerLevel, PointsPerCombo FROM spell_classic_effect");
+            if (result.IsEmpty()) return;
+            int count = 0;
+            do
+            {
+                SpellInfo spell = GetSpellInfo(result.Read<int>(0), Difficulty.None);
+                int index = result.Read<int>(1);
+                if (spell == null || index < 0 || index >= spell.GetEffects().Count) continue;
+                SpellEffectInfo effect = spell.GetEffect(index);
+                // A shared numeric ID must still identify the same effect in this client.
+                if ((int)effect.Effect != result.Read<int>(2) || (int)effect.ApplyAuraName != result.Read<int>(3)) continue;
+                effect.BasePoints = result.Read<float>(4);
+                effect.DieSides = result.Read<int>(5);
+                effect.RealPointsPerLevel = result.Read<float>(6);
+                effect.PointsPerResource = result.Read<float>(7);
+                effect.Scaling.Coefficient = 0;
+                effect.Scaling.Variance = 0;
+                effect.Scaling.ResourceCoefficient = 0;
+                ++count;
+            } while (result.NextRow());
+            Log.outInfo(LogFilter.ServerLoading, $"Loaded {count} Classic spell damage effects.");
+        }
+
         public void LoadSpellInfoServerside()
         {
             RelativeTime oldMSTime = Time.NowRelative;
@@ -2648,7 +2696,7 @@ namespace Game.Entities
                 //                                                  0          1            2           3            4               5              6
                 SQLResult effectsResult = DB.World.Query("SELECT SpellID, DifficultyID, EffectIndex, Effect, EffectAmplitude, EffectAttributes, EffectAura, " +
                 //         7                 8                 9                       10                    11                  12              13              14
-                "EffectAuraPeriod, EffectBasePoints, EffectBonusCoefficient, EffectChainAmplitude, EffectChainTargets, EffectDieSides, EffectItemType, EffectMechanic, " +
+                "EffectAuraPeriod, EffectBasePoints, EffectBonusCoefficient, EffectChainAmplitude, EffectChainTargets, 0 AS EffectDieSides, EffectItemType, EffectMechanic, " +
                 //         15                       16               17                        18                  19                    20           21         22
                 "EffectPointsPerResource, EffectPosFacing, EffectRealPointsPerLevel, EffectTriggerSpell, BonusCoefficientFromAP, PvpMultiplier, Coefficient, Variance, " +
                 //         23                          24                      25                26                27                  28
@@ -2675,7 +2723,7 @@ namespace Game.Entities
                         effect.EffectBonusCoefficient = effectsResult.Read<float>(9);
                         effect.EffectChainAmplitude = effectsResult.Read<float>(10);
                         effect.EffectChainTargets = effectsResult.Read<int>(11);
-                        effect.EffectDieSides = effectsResult.Read<int>(12);
+                        // column 12 (EffectDieSides) no longer exists in 1.60.1 SpellEffect
                         effect.EffectItemType = effectsResult.Read<int>(13);
                         effect.EffectMechanic = effectsResult.Read<int>(14);
                         effect.EffectPointsPerResource = effectsResult.Read<float>(15);

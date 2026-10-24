@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -156,10 +156,6 @@ namespace Game
 
                 if (gain != 0 && creature != null)
                 {
-                    // Players get only 10% xp for killing creatures of lower expansion levels than himself
-                    if ((creature.GetCreatureDifficulty().GetHealthScalingExpansion() < GetExpansionForLevel(player.GetLevel())))
-                        gain = (int)Math.Round(gain / 10.0);
-
                     if (creature.IsElite())
                     {
                         // Elites in instances have a 2.75x XP bonus instead of the regular 2x world bonus.

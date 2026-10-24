@@ -30,7 +30,24 @@ namespace Game.DataStorage
     public class DB6Storage<TKey, TRecord> : Dictionary<TKey, TRecord>, IDB2Storage where TRecord : new() where TKey: struct
     {
         WDCHeader _header;
+        public uint LayoutHash => _header.LayoutHash;
         string _tableName = typeof(TRecord).Name;
+
+        static bool KeyFits(long id)
+        {
+            Type type = typeof(TKey);
+            if (type.IsEnum)
+                type = type.GetEnumUnderlyingType();
+
+            return Type.GetTypeCode(type) switch
+            {
+                TypeCode.Byte => id >= byte.MinValue && id <= byte.MaxValue,
+                TypeCode.SByte => id >= sbyte.MinValue && id <= sbyte.MaxValue,
+                TypeCode.Int16 => id >= short.MinValue && id <= short.MaxValue,
+                TypeCode.UInt16 => id >= ushort.MinValue && id <= ushort.MaxValue,
+                _ => true
+            };
+        }
 
         TKey ConvertKey(dynamic id)
         {
@@ -83,18 +100,27 @@ namespace Game.DataStorage
             _header = reader.Header;           
 
             foreach (var b in reader.Records)
+            {
+                // 1.60.1 data can contain ids larger than the key type used by this core (e.g. Difficulty 256)
+                if (!KeyFits(b.Key))
+                {
+                    Log.outWarn(LogFilter.ServerLoading, $"{Path.GetFileName(fullFileName)}: record {b.Key} does not fit key type {typeof(TKey).Name}, skipped.");
+                    continue;
+                }
+
                 Add(ConvertKey(b.Key), b.Value.As<TRecord>());
+            }
 
             return true;
         }
 
-        void LoadHotfixData(BitSet availableDb2Locales, HotfixStatements preparedStatement, HotfixStatements preparedStatementLocale)
+        void LoadHotfixData(BitSet availableDb2Locales, HotfixStatements preparedStatement, HotfixStatements preparedStatementLocale, Action<TRecord, TRecord> mergeHotfix = null)
         {
             if (preparedStatement == HotfixStatements.None)
                 return;
 
-            LoadFromDB(false, preparedStatement);
-            LoadFromDB(true, preparedStatement);
+            LoadFromDB(false, preparedStatement, mergeHotfix);
+            LoadFromDB(true, preparedStatement, mergeHotfix);
 
             if (preparedStatementLocale == HotfixStatements.None)
                 return;
@@ -109,7 +135,7 @@ namespace Game.DataStorage
             }
         }        
 
-        void LoadFromDB(bool custom, HotfixStatements preparedStatement)
+        void LoadFromDB(bool custom, HotfixStatements preparedStatement, Action<TRecord, TRecord> mergeHotfix)
         {
             // Even though this query is executed only once, prepared statement is used to send data from mysql server in binary format
             PreparedStatement stmt = HotfixDatabase.GetPreparedStatement(preparedStatement);
@@ -258,7 +284,10 @@ namespace Game.DataStorage
                 }
 
                 var id = fields[_header.IdIndex == -1 ? 0 : _header.IdIndex].GetValue(obj);                
-                base[ConvertKey(id)] = obj;
+                TKey key = ConvertKey(id);
+                if (mergeHotfix != null && TryGetValue(key, out TRecord original))
+                    mergeHotfix(original, obj);
+                base[key] = obj;
             }
             while (result.NextRow());
         }
@@ -464,6 +493,8 @@ namespace Game.DataStorage
 
         public uint GetTableHash() { return _header.TableHash; }
 
+        public uint GetLayoutHash() { return _header != null ? _header.LayoutHash : 0; }
+
         public int GetNumRows() { return ConvertKey(Keys.Max()) + 1; }
 
         public string GetName()
@@ -471,8 +502,16 @@ namespace Game.DataStorage
             return _tableName;
         }
 
-        public void ReadDB2(DB2LoadData data, string fileName, HotfixStatements preparedStatement = HotfixStatements.None, HotfixStatements preparedStatementLocale = HotfixStatements.None)
+        public void ReadDB2(DB2LoadData data, string fileName, HotfixStatements preparedStatement = HotfixStatements.None, HotfixStatements preparedStatementLocale = HotfixStatements.None, Action<TRecord, TRecord> mergeHotfix = null)
         {
+            // WotLK-only stores that the Forever 1.60.1 client does not ship: keep them empty
+            if (DB2LoadData.OptionalFiles.Contains(fileName) && !File.Exists($"{data.path}/{fileName}"))
+            {
+                Log.outWarn(LogFilter.ServerLoading, $"{fileName} not present in client data, store left empty.");
+                data.counter++;
+                return;
+            }
+
             if (!LoadData($"{data.path}/{fileName}"))
             {
                 Log.outError(LogFilter.ServerLoading, "Error loading DB2 files");
@@ -480,7 +519,7 @@ namespace Game.DataStorage
                 return;
             }
 
-            LoadHotfixData(data.availableLocales, preparedStatement, preparedStatementLocale);
+            LoadHotfixData(data.availableLocales, preparedStatement, preparedStatementLocale, mergeHotfix);
 
             Global.DB2Mgr.AddDB2(GetTableHash(), this);
             data.counter++;
@@ -489,6 +528,11 @@ namespace Game.DataStorage
 
     public class DB2LoadData
     {
+        public static readonly HashSet<string> OptionalFiles = new()
+        {
+            "GlyphSlot.db2", "ItemRandomProperties.db2", "ItemRandomSuffix.db2", "PVPItem.db2", "ScalingStatDistribution.db2", "ScalingStatValues.db2"
+        };
+
         public string path = string.Empty;
         public BitSet availableLocales;
         public int counter;

@@ -63,7 +63,7 @@ namespace Game.Movement
             init.SetSmooth();
             init.SetUncompressed();
             init.SetWalk(true);
-            init.SetVelocity((Speed)30.0f);
+            init.SetVelocity((Speed)(30.0f * (1 + owner.GetTotalAuraModifier((AuraType)388) / 100.0f)));
             init.Launch();
         }
 
@@ -189,10 +189,11 @@ namespace Game.Movement
                 int path;
                 uint cost;
                 Global.ObjectMgr.GetTaxiPath(taxi[src], taxi[dst], out path, out cost);
-                if (path >= CliDB.TaxiPathNodesByPath.Keys.Max())
+                // Path IDs are sparse; the highest ID is a valid path too.
+                // Test the actual key instead of scanning/rejecting its maximum.
+                if (!CliDB.TaxiPathNodesByPath.TryGetValue(path,out var nodes))
                     return;
 
-                var nodes = CliDB.TaxiPathNodesByPath[path];
                 if (!nodes.Empty())
                 {
                     TaxiPathNodeRecord start = nodes[0];
@@ -218,7 +219,7 @@ namespace Game.Movement
                     }
                 }
 
-                _pointsForPathSwitch.Add(new TaxiNodeChangeInfo((Math.Max(_path.Count, 1) - 1), (long)Math.Ceiling(cost * discount)));
+                _pointsForPathSwitch.Add(new TaxiNodeChangeInfo((Math.Max(_path.Count, 1) - 1), (long)player.ApplyClassicLegacyPriceMod((ulong)Math.Ceiling(cost * discount), 4)));
             }
         }
 
@@ -301,7 +302,7 @@ namespace Game.Movement
             if (index >= _path.Count)
                 return 0;
 
-            return _path[index].PathID;
+            return (uint)_path[index].PathID;
         }
 
         public override string GetDebugInfo()

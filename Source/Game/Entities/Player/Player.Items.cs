@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -253,13 +253,13 @@ namespace Game.Entities
         }
 
         //Durability
-        public void DurabilityLossAll(double percent, bool inventory)
+        public void DurabilityLossAll(double percent, bool inventory, bool fromDeath = false)
         {
             for (byte i = EquipmentSlot.Start; i < EquipmentSlot.End; i++)
             {
                 Item pItem = GetItemByPos(i);
                 if (pItem != null)
-                    DurabilityLoss(pItem, percent);
+                    DurabilityLoss(pItem, percent, fromDeath);
             }
 
             if (inventory)
@@ -269,7 +269,7 @@ namespace Game.Entities
                 {
                     Item pItem = GetItemByPos(i);
                     if (pItem != null)
-                        DurabilityLoss(pItem, percent);
+                        DurabilityLoss(pItem, percent, fromDeath);
                 }
 
                 for (byte i = InventorySlots.BagStart; i < InventorySlots.BagEnd; i++)
@@ -281,14 +281,14 @@ namespace Game.Entities
                         {
                             Item pItem = GetItemByPos(new(j, i));
                             if (pItem != null)
-                                DurabilityLoss(pItem, percent);
+                                DurabilityLoss(pItem, percent, fromDeath);
                         }
                     }
                 }
             }
         }
 
-        public void DurabilityLoss(Item item, double percent)
+        public void DurabilityLoss(Item item, double percent, bool fromDeath = false)
         {
             if (item == null)
                 return;
@@ -298,7 +298,10 @@ namespace Game.Entities
             if (pMaxDurability == 0)
                 return;
 
-            percent /= GetTotalAuraMultiplier(AuraType.ModDurabilityLoss);
+            int modifier = GetTotalAuraModifier(AuraType.ModDurabilityLoss);
+            if (!fromDeath) modifier -= GetClassicLegacyPerkAmount(1225497);
+            percent = Game.Systems.Legacy.LegacyEffectEngine.DurabilityLoss(percent, modifier);
+            if (percent <= 0) return;
 
             int pDurabilityLoss = (int)(pMaxDurability * percent);
 
@@ -3371,6 +3374,7 @@ namespace Game.Entities
                 // reputation discount
                 price = (long)Math.Floor(price * GetReputationPriceDiscount(creature));
                 price = pProto.GetBuyPrice() > 0 ? Math.Max(1L, price) : price;
+                if (price > 0) price = (long)ApplyClassicLegacyPriceMod((ulong)price, 0);
 
                 int priceMod = GetTotalAuraModifier(AuraType.ModVendorItemsPrices);
                 if (priceMod != 0)
@@ -3886,10 +3890,10 @@ namespace Game.Entities
                     StatMods.ModifyFlat(UnitMods.ResistanceStart + (int)i, resistance, apply, UnitModType.BasePermanent);
             }
 
-            if (proto.GetShieldBlockValue(proto.GetItemLevel()) is int shieldBlockValue && shieldBlockValue != 0)
+            if (proto.GetClass() == ItemClass.Armor && proto.GetSubClass().Armor == ItemSubClassArmor.Shield &&
+                proto.GetShieldBlockValue(proto.GetItemLevel()) is int shieldBlockValue && shieldBlockValue != 0)
             {
-                if (proto.GetClass() == ItemClass.Armor && proto.GetSubClass().Armor == ItemSubClassArmor.Shield)
-                    SetUpdateFieldValue(m_values.ModifyValue(m_activePlayerData).ModifyValue(m_activePlayerData.ShieldBlock), apply ? shieldBlockValue : 0);
+                SetUpdateFieldValue(m_values.ModifyValue(m_activePlayerData).ModifyValue(m_activePlayerData.ShieldBlock), apply ? shieldBlockValue : 0);
             }
 
             var attType = GetAttackBySlot(slot);
@@ -4305,7 +4309,7 @@ namespace Game.Entities
                         if (pBagProto == null)
                             return InventoryResult.WrongBagType;
 
-                        if (pos.Slot >= pBagProto.GetContainerSlots())
+                        if (pos.Slot >= pBag.GetBagSize())
                             return InventoryResult.WrongBagType;
 
                         if (!Item.ItemCanGoIntoBag(proto, pBagProto))
@@ -4373,7 +4377,7 @@ namespace Game.Entities
                         if (pBagProto == null)
                             return InventoryResult.WrongBagType;
 
-                        if (pos.Slot >= pBagProto.GetContainerSlots())
+                        if (pos.Slot >= pBag.GetBagSize())
                             return InventoryResult.WrongBagType;
 
                         if (!Item.ItemCanGoIntoBag(proto, pBagProto))
@@ -5453,12 +5457,16 @@ namespace Game.Entities
                 SetUpdateFieldValue(itemField.ModifyValue(itemField.ItemID), pItem.GetVisibleEntry(this));
                 SetUpdateFieldValue(itemField.ModifyValue(itemField.ItemAppearanceModID), pItem.GetVisibleAppearanceModId(this));
                 SetUpdateFieldValue(itemField.ModifyValue(itemField.ItemVisual), pItem.GetVisibleItemVisual(this));
+                SetUpdateFieldValue(itemField.ModifyValue(itemField.SecondaryItemModifiedAppearanceID), pItem.GetVisibleSecondaryModifiedAppearanceId(this));
+                SetUpdateFieldValue(itemField.ModifyValue(itemField.ItemModifiedAppearanceID), (uint)pItem.GetVisibleModifiedAppearanceId(this));
             }
             else
             {
                 SetUpdateFieldValue(itemField.ModifyValue(itemField.ItemID), 0);
                 SetUpdateFieldValue(itemField.ModifyValue(itemField.ItemAppearanceModID), (ushort)0);
                 SetUpdateFieldValue(itemField.ModifyValue(itemField.ItemVisual), (ushort)0);
+                SetUpdateFieldValue(itemField.ModifyValue(itemField.SecondaryItemModifiedAppearanceID), 0);
+                SetUpdateFieldValue(itemField.ModifyValue(itemField.ItemModifiedAppearanceID), 0u);
             }
         }
 
@@ -5901,6 +5909,31 @@ namespace Game.Entities
         }
 
         public byte GetInventorySlotCount() { return m_activePlayerData.NumBackpackSlots; }
+
+        public bool IsSortBagsRightToLeft() => m_activePlayerData.SortBagsRightToLeft;
+
+        public void SetSortBagsRightToLeft(bool enabled)
+        {
+            SetUpdateFieldValue(m_values.ModifyValue(m_activePlayerData).ModifyValue(m_activePlayerData.SortBagsRightToLeft), enabled);
+        }
+
+        public BagSlotFlags GetBagSlotFlags(int bagIndex)
+        {
+            return bagIndex >= 0 && bagIndex < m_activePlayerData.BagSlotFlags.GetSize()
+                ? (BagSlotFlags)m_activePlayerData.BagSlotFlags[bagIndex] : BagSlotFlags.None;
+        }
+
+        public void ChangeBagSlotFlags(int bagIndex, BagSlotFlags flags, bool enabled)
+        {
+            if (bagIndex < 0 || bagIndex >= m_activePlayerData.BagSlotFlags.GetSize())
+                return;
+
+            const BagSlotFlags clientFlags = (BagSlotFlags)0x03FF;
+            flags &= clientFlags;
+            BagSlotFlags current = GetBagSlotFlags(bagIndex);
+            SetUpdateFieldValue(ref m_values.ModifyValue(m_activePlayerData).ModifyValue(m_activePlayerData.BagSlotFlags, bagIndex),
+                (uint)(enabled ? current | flags : current & ~flags));
+        }
 
         public void SetInventorySlotCount(byte slots)
         {

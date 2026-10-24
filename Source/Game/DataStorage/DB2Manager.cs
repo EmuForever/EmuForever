@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -259,8 +259,17 @@ namespace Game.DataStorage
             foreach (ItemCurrencyCostRecord itemCurrencyCost in ItemCurrencyCostStorage.Values)
                 _itemsWithCurrencyCost.Add(itemCurrencyCost.ItemID);
 
-            foreach (ItemEffectRecord itemEffect in ItemEffectStorage.Values)
-                _itemEffectsByItemId.Add(itemEffect.ParentItemID, itemEffect);
+            // Forever/TC: item -> effect links live in ItemXItemEffect.db2 (ObjectMgr::LoadItemTemplates), ordered by LegacySlotIndex
+            var itemEffectLinks = new List<(int ItemID, ItemEffectRecord Effect)>();
+            foreach (ItemXItemEffectRecord link in ItemXItemEffectStorage.Values)
+            {
+                ItemEffectRecord itemEffect = ItemEffectStorage.LookupByKey(link.ItemEffectID);
+                if (itemEffect != null)
+                    itemEffectLinks.Add((link.ItemID, itemEffect));
+            }
+            itemEffectLinks.Sort((a, b) => a.ItemID != b.ItemID ? a.ItemID.CompareTo(b.ItemID) : a.Effect.LegacySlotIndex.CompareTo(b.Effect.LegacySlotIndex));
+            foreach (var (itemId, itemEffect) in itemEffectLinks)
+                _itemEffectsByItemId.Add(itemId, itemEffect);
 
 
             foreach (ItemLimitCategoryConditionRecord condition in ItemLimitCategoryConditionStorage.Values)
@@ -373,7 +382,13 @@ namespace Game.DataStorage
 
             foreach (PowerTypeRecord powerType in PowerTypeStorage.Values)
             {
-                Cypher.Assert(powerType.PowerTypeEnum < PowerType.Max);
+                // 1.60.1 ships extra power types (e.g. HAPPINESS = 27); skip unknown ones like TrinityCore does
+                if (powerType.PowerTypeEnum < 0 || powerType.PowerTypeEnum >= PowerType.Max || _powerTypes.ContainsKey(powerType.PowerTypeEnum))
+                {
+                    Log.outError(LogFilter.ServerLoading, $"PowerType {powerType.Id} has invalid or duplicate PowerTypeEnum {(int)powerType.PowerTypeEnum} ({powerType.NameGlobalStringTag}), skipped.");
+                    continue;
+                }
+                Log.outDebug(LogFilter.ServerLoading, $"PowerType {powerType.Id}: {(int)powerType.PowerTypeEnum} {powerType.NameGlobalStringTag}");
 
                 _powerTypes[powerType.PowerTypeEnum] = powerType;
             }
@@ -865,7 +880,10 @@ namespace Game.DataStorage
             For some reason the WotLK client expects the retail value for these two affected animation fields and since we have no way to get that value in a clean manner, 
             we have to resort to a hardcoded value for now */
 
-            return 1772; // the Classic client expects the retail storage size so we have to hardcode the value
+            // "no state animation" = one past the client's last AnimationData row. Classic 1.60.1.70291 and later expect 1880
+            // (official creates carry it; other values make the client assert in AnimKit.cpp, originalAnimRec).
+            const int ClassicEmptyAnimStateId = 1880;
+            return Math.Max((int)AnimationDataStorage.GetNumRows(), ClassicEmptyAnimStateId);
         }
 
         public IReadOnlyList<int> GetAreasForGroup(int areaGroupId)
@@ -1542,7 +1560,7 @@ namespace Game.DataStorage
             return _mountDisplays[mountId];
         }
 
-        public string GetNameGenEntry(Race race, Gender gender)
+        public string GetNameGenEntry(Race race, Gender gender, byte nameType = 0)
         {
             Cypher.Assert(gender < Gender.None);
             var listNameGen = _nameGenData.LookupByKey(race);
@@ -1552,7 +1570,11 @@ namespace Game.DataStorage
             if (listNameGen[(int)gender].Empty())
                 return "";
 
-            return listNameGen[(int)gender].SelectRandom().Name;
+            var matchingNames = listNameGen[(int)gender].Where(entry => entry.NameType == nameType).ToList();
+            if (matchingNames.Count != 0)
+                return matchingNames.SelectRandom().Name;
+
+            return nameType == 0 ? listNameGen[(int)gender].SelectRandom().Name : "";
         }
 
         public ResponseCodes ValidateName(string name, Locale locale)
@@ -1642,7 +1664,7 @@ namespace Game.DataStorage
 
         public List<QuestPackageItemRecord> GetQuestPackageItemsFallback(int questPackageID)
         {
-            return _questPackages.LookupByKey(questPackageID).Item2;
+            return _questPackages.LookupByKey(questPackageID)?.Item2;
         }
 
         public uint GetQuestUniqueBitFlag(int questId)
@@ -1651,7 +1673,7 @@ namespace Game.DataStorage
             if (v2 == null)
                 return 0;
 
-            return v2.UniqueBitFlag;
+            return (uint)v2.UniqueBitFlag;
         }
 
         public IReadOnlyList<int> GetPhasesForGroup(int group)

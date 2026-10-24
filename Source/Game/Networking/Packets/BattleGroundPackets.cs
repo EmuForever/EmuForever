@@ -13,6 +13,7 @@ namespace Game.Networking.Packets
     {
         public SeasonInfo() : base(ServerOpcodes.SeasonInfo) { }
 
+        // Forever layout: TC SeasonInfo::Write
         public override void Write()
         {
             _worldPacket.WriteInt32(MythicPlusDisplaySeasonID);
@@ -21,9 +22,16 @@ namespace Game.Networking.Packets
             _worldPacket.WriteInt32(PreviousArenaSeason);
             _worldPacket.WriteInt32(ConquestWeeklyProgressCurrencyID);
             _worldPacket.WriteInt32(PvpSeasonID);
+            _worldPacket.WriteInt32(Unknown1027_1);
             _worldPacket.WriteBit(WeeklyRewardChestsEnabled);
+            _worldPacket.WriteBit(CurrentArenaSeasonUsesTeams);
+            _worldPacket.WriteBit(PreviousArenaSeasonUsesTeams);
             _worldPacket.FlushBits();
         }
+
+        public int Unknown1027_1;
+        public bool CurrentArenaSeasonUsesTeams;
+        public bool PreviousArenaSeasonUsesTeams;
 
         public int MythicPlusDisplaySeasonID;
         public int MythicPlusMilestoneSeasonID;
@@ -132,16 +140,20 @@ namespace Game.Networking.Packets
     {
         public BattlefieldStatusActive() : base(ServerOpcodes.BattlefieldStatusActive) { }
 
+        // Forever layout: TC BattlefieldStatusActive::Write
         public override void Write()
         {
             Hdr.Write(_worldPacket);
             _worldPacket.WriteInt32(Mapid);
             _worldPacket.WriteInt32((Milliseconds)ShutdownTimer);
             _worldPacket.WriteInt32((Milliseconds)StartTimer);
-            _worldPacket.WriteBit(ArenaFaction != 0);
+            _worldPacket.WriteInt8((sbyte)ArenaFaction);
             _worldPacket.WriteBit(LeftEarly);
+            _worldPacket.WriteBit(Brawl);
             _worldPacket.FlushBits();
         }
+
+        public bool Brawl;
 
         public BattlefieldStatusHeader Hdr = new();
         public TimeSpan ShutdownTimer;
@@ -469,7 +481,7 @@ namespace Game.Networking.Packets
                 bracket.Write(_worldPacket);
         }
 
-        BracketInfo[] Bracket = new BracketInfo[7];
+        BracketInfo[] Bracket = new BracketInfo[9];
     }
 
     class PVPMatchInitialize : ServerPacket
@@ -481,7 +493,7 @@ namespace Game.Networking.Packets
             _worldPacket.WriteInt32(MapID);
             _worldPacket.WriteUInt8((byte)State);
             _worldPacket.WriteInt64((UnixTime64)StartTime);
-            _worldPacket.WriteInt64((Milliseconds)Duration);//TODO: Ask IDA to be sure
+            _worldPacket.WriteInt64((long)Duration.TotalSeconds); // Forever layout: TC PVPMatchInitialize::Write (Duration<Seconds>)
             _worldPacket.WriteUInt8(ArenaFaction);
             _worldPacket.WriteInt32((int)BattlemasterListID);
             _worldPacket.WriteBit(Registered);
@@ -525,8 +537,9 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteUInt8((byte)Winner);
-            _worldPacket.WriteInt64((Milliseconds)Duration);//TODO: Ask IDA to be sure
+            // Forever layout: TC PVPMatchComplete::Write
+            _worldPacket.WriteInt32((int)Winner);
+            _worldPacket.WriteInt64((long)Duration.TotalSeconds);
             _worldPacket.WriteBit(LogData != null);
             _worldPacket.WriteBits(SoloShuffleStatus, 2);
             _worldPacket.FlushBits();
@@ -587,11 +600,13 @@ namespace Game.Networking.Packets
         public int BestWeeklyRating;
         public int LastWeeksBestRating;
         public int BestSeasonRating;
-        public int PvpTierID;        
-        public int Unused3;
-        public int Unused4;
-        public int Rank;
+        public int PvpTierID;
+        public int SeasonPvpTier;
+        public int BestWeeklyPvpTier;
+        public byte BestSeasonPvpTierEnum;
         public bool Disqualified;
+
+        // Forever layout: TC RatedPvpInfo::BracketInfo operator<<
 
         public void Write(WorldPacket data)
         {
@@ -611,9 +626,9 @@ namespace Game.Networking.Packets
             data.WriteInt32(LastWeeksBestRating);
             data.WriteInt32(BestSeasonRating);          
             data.WriteInt32(PvpTierID);            
-            data.WriteInt32(Unused3);
-            data.WriteInt32(Unused4);
-            data.WriteInt32(Rank);
+            data.WriteInt32(SeasonPvpTier);
+            data.WriteInt32(BestWeeklyPvpTier);
+            data.WriteUInt8(BestSeasonPvpTierEnum);
             data.WriteBit(Disqualified);
             data.FlushBits();
         }
@@ -641,16 +656,15 @@ namespace Game.Networking.Packets
 
         public class RatingData
         {
+            // Forever layout: TC PVPMatchStatistics::RatingData operator<<
             public void Write(WorldPacket data)
             {
-                foreach (var id in Prematch)
-                    data.WriteInt32(id);
-
-                foreach (var id in Postmatch)
-                    data.WriteInt32(id);
-
-                foreach (var id in PrematchMMR)
-                    data.WriteInt32(id);
+                for (int i = 0; i < 2; ++i)
+                {
+                    data.WriteInt32(Prematch[i]);
+                    data.WriteInt32(Postmatch[i]);
+                    data.WriteInt32(PrematchMMR[i]);
+                }
             }
 
             public int[] Prematch = new int[2];
@@ -692,17 +706,19 @@ namespace Game.Networking.Packets
 
         public class PVPMatchPlayerStatistics
         {
+            // Forever layout: TC PVPMatchStatistics::PVPMatchPlayerStatistics operator<<
             public void Write(WorldPacket data)
             {
                 data.WritePackedGuid(PlayerGUID);
                 data.WriteInt32(Kills);
+                data.WriteInt32(Faction);
                 data.WriteInt32(DamageDone);
                 data.WriteInt32(HealingDone);
                 data.WriteInt32(Stats.Count);
                 data.WriteInt32((int)PrimaryTalentTree);
                 data.WriteInt8((sbyte)Sex);
-                data.WriteUInt32((uint)PlayerRace);
-                data.WriteInt32((int)PlayerClass);
+                data.WriteInt8((sbyte)PlayerRace);
+                data.WriteInt8((sbyte)PlayerClass);
                 data.WriteInt32(CreatureID);
                 data.WriteInt32(HonorLevel);
                 data.WriteInt32(Role);
@@ -710,7 +726,6 @@ namespace Game.Networking.Packets
                 foreach (var pvpStat in Stats)
                     pvpStat.Write(data);
 
-                data.WriteBit(Faction != 0);
                 data.WriteBit(IsInWorld);
                 data.WriteBit(Honor.HasValue);
                 data.WriteBit(PreMatchRating.HasValue);
@@ -741,7 +756,7 @@ namespace Game.Networking.Packets
 
             public ObjectGuid PlayerGUID;
             public int Kills;
-            public byte Faction;
+            public int Faction;
             public bool IsInWorld;
             public HonorData? Honor;
             public int DamageDone;

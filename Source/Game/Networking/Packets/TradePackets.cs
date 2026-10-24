@@ -106,6 +106,7 @@ namespace Game.Networking.Packets
             TradeSlot = _worldPacket.ReadUInt8();
             PackSlot = _worldPacket.ReadUInt8();
             ItemSlotInPack = _worldPacket.ReadUInt8();
+            ClassicInventorySlots.ToServer(ref PackSlot, ref ItemSlotInPack);
         }
 
         public byte TradeSlot;
@@ -223,10 +224,11 @@ namespace Game.Networking.Packets
         {
             public void Write(WorldPacket data)
             {
+                // Forever layout: TC operator<<(TradeItem) - the item instance comes before the stack count
                 data.WriteUInt8(Slot);
+                Item.Write(data);
                 data.WriteInt32(StackCount);
                 data.WritePackedGuid(GiftCreator);
-                Item.Write(data);
                 data.WriteBit(Unwrapped != null);
                 data.FlushBits();
 

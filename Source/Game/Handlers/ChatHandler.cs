@@ -64,10 +64,15 @@ namespace Game
             HandleChat(type, packet.Language, packet.Text);
         }
 
+        // TC registers both opcodes to HandleChatMessageWhisperOpcode; the Forever client sends CMSG_MESSAGE_WHISPER.
         [WorldPacketHandler(ClientOpcodes.ChatMessageWhisper)]
+        [WorldPacketHandler(ClientOpcodes.MessageWhisper)]
         void HandleChatMessageWhisper(ChatMessageWhisper packet)
         {
-            HandleChat(ChatMsg.Whisper, packet.Language, packet.Text, packet.Target);
+            // The client names the target by first name and (separately) surname. Resolve by GUID when it is sent so a
+            // first name shared with a surname-only match cannot misroute; otherwise fall back to the first name.
+            // TC-forever: the target guid, when sent, picks the receiver (HandleChatMessage gets it as targetGuid)
+            HandleChat(ChatMsg.Whisper, packet.Language, packet.Text, packet.Target, packet.TargetGUID);
         }
 
         [WorldPacketHandler(ClientOpcodes.ChatMessageChannel)]
@@ -209,15 +214,23 @@ namespace Game
                     break;
                 case ChatMsg.Whisper:
                     // @todo implement cross realm whispers (someday)
-                    ExtendedPlayerName extName = ObjectManager.ExtractExtendedPlayerName(target);
-
-                    if (!ObjectManager.NormalizePlayerName(ref extName.Name))
+                    Player receiver = null;
+                    if (!channelGuid.IsEmpty())
+                        receiver = Global.ObjAccessor.FindConnectedPlayer(channelGuid);
+                    else
                     {
-                        SendChatPlayerNotfoundNotice(target);
-                        break;
-                    }
+                        // the unit menu hands over "Name " (name + empty surname): trim it, or the lookup says "No player named"
+                        target = target.TrimEnd(' ', '	');
+                        ExtendedPlayerName extName = ObjectManager.ExtractExtendedPlayerName(target);
 
-                    Player receiver = Global.ObjAccessor.FindPlayerByName(extName.Name);
+                        if (!ObjectManager.NormalizePlayerName(ref extName.Name))
+                        {
+                            SendChatPlayerNotfoundNotice(target);
+                            break;
+                        }
+
+                        receiver = Global.ObjAccessor.FindConnectedPlayerByName(extName.Name);
+                    }
                     if (receiver == null || (lang != Language.Addon && !receiver.IsAcceptWhispers() && receiver.GetSession().HasPermission(RBACPermissions.CanFilterWhispers) && !receiver.IsInWhisperWhiteList(sender.GetGUID())))
                     {
                         SendChatPlayerNotfoundNotice(target);

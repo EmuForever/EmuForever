@@ -9,11 +9,18 @@ using System.Numerics;
 
 namespace Game.Collision
 {
+    // WorldModel flags (stored in the .vmo WMOD chunk)
     public enum ModelFlags
     {
-        M2 = 1,
-        HasBound = 1 << 1,
-        ParentSpawn = 1 << 2
+        M2 = 1
+    }
+
+    // ModelSpawn flags (stored per spawn in .vmtile)
+    public enum ModelSpawnFlags
+    {
+        HasBound = 1 << 0,
+        ParentSpawn = 1 << 1,
+        PathOnly = 1 << 2
     }
 
     public class ModelMinimalData
@@ -56,7 +63,7 @@ namespace Game.Collision
             spawn.iRot = reader.Read<Vector3>();
             spawn.iScale = reader.ReadSingle();
 
-            bool has_bound = Convert.ToBoolean(spawn.flags & (uint)ModelFlags.HasBound);
+            bool has_bound = Convert.ToBoolean(spawn.flags & (uint)ModelSpawnFlags.HasBound);
             if (has_bound) // only WMOs have bound in MPQ, only available after computation
             {
                 Vector3 bLow = reader.Read<Vector3>();
@@ -97,6 +104,32 @@ namespace Game.Collision
             Extensions.fromEulerAnglesZYX(MathFunctions.PI * spawn.iRot.Y / 180.0f, MathFunctions.PI * spawn.iRot.X / 180.0f, MathFunctions.PI * spawn.iRot.Z / 180.0f).Inverse(out iInvRot);
 
             iInvScale = 1.0f / iScale;
+        }
+
+        public bool MovesOutward(Vector3 from,Vector3 to)
+        {
+            var center = (iBound.Lo+iBound.Hi)/2;
+            Vector2 offset = new(from.X-center.X,from.Y-center.Y), delta = new(to.X-from.X,to.Y-from.Y);
+            if (Vector2.Dot(offset,delta) < -.001f) return false;
+            if (from.X < iBound.Lo.X && to.X > from.X+.001f || from.X > iBound.Hi.X && to.X < from.X-.001f ||
+                from.Y < iBound.Lo.Y && to.Y > from.Y+.001f || from.Y > iBound.Hi.Y && to.Y < from.Y-.001f) return false;
+            return true;
+        }
+
+        public bool ContainsSmallSolid(Vector3 point)
+        {
+            Vector3 size = iBound.Hi - iBound.Lo;
+            if (iModel == null || !float.IsFinite(iScale) || iScale <= 0 || (iModel.Flags & (uint)ModelFlags.M2) == 0 || !iBound.contains(point) ||
+                size.X > 6 || size.Y > 6 || size.Z > 4 || size.X <= 0 || size.Y <= 0 || size.Z <= 0) return false;
+            // An enclosing bounding box is insufficient: require actual collision
+            // geometry in both directions on every axis. Rooms and large WMOs
+            // are never eligible for this initial-overlap recovery.
+            foreach (Vector3 direction in new[] { Vector3.UnitX, -Vector3.UnitX, Vector3.UnitY, -Vector3.UnitY, Vector3.UnitZ, -Vector3.UnitZ })
+            {
+                float distance = 8;
+                if (!IntersectRay(new Ray(point, direction), ref distance, false, ModelIgnoreFlags.Nothing)) return false;
+            }
+            return true;
         }
 
         public bool IntersectRay(Ray pRay, ref float pMaxDist, bool pStopAtFirstHit, ModelIgnoreFlags ignoreFlags)
@@ -143,7 +176,7 @@ namespace Game.Collision
                 return false;
 
             // M2 files don't contain area info, only WMO files
-            if (Convert.ToBoolean(flags & (uint)ModelFlags.M2))
+            if ((iModel.Flags & (uint)ModelFlags.M2) != 0)
                 return false;
             if (!iBound.contains(p))
                 return false;
@@ -173,5 +206,6 @@ namespace Game.Collision
         }
 
         public void SetUnloaded() { iModel = null; }
+        public WorldModel GetWorldModel() { return iModel; }
     }
 }

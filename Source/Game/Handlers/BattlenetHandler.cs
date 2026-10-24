@@ -14,6 +14,8 @@ namespace Game
         [WorldPacketHandler(ClientOpcodes.BattlenetRequest, Status = SessionStatus.Authed)]
         void HandleBattlenetRequest(BattlenetRequest request)
         {
+            if (HandleClassicBnetRequest(request))
+                return;
             var handler = Global.ServiceMgr.GetHandler(request.Method.GetServiceHash(), request.Method.GetMethodId());
             if (handler != null)
                 handler.Invoke(this, request.Method, new CodedInputStream(request.Data));

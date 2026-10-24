@@ -1022,9 +1022,12 @@ namespace Game.Spells
 
         void GetCooldownDurations(SpellInfo spellInfo, int itemId, ref Milliseconds cooldown, ref SpellCategories categoryId, ref Milliseconds categoryCooldown)
         {
-            Milliseconds tmpCooldown = Milliseconds.Zero;
+            // -1 means no item override was found. Zero is a valid explicit
+            // item cooldown; starting at zero skipped the DB2 fallback for every
+            // ordinary spell and prevented its spell/category cooldown being saved.
+            Milliseconds tmpCooldown = (Milliseconds)(-1);
             SpellCategories tmpCategoryId = SpellCategories.None;
-            Milliseconds tmpCategoryCooldown = Milliseconds.Zero;
+            Milliseconds tmpCategoryCooldown = (Milliseconds)(-1);
 
             // cooldown information stored in ItemEffect.db2, overriding normal cooldown and category
             if (itemId != 0)

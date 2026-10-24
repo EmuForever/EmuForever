@@ -446,6 +446,24 @@ namespace Game.AI
                     }
                     break;
                 }
+                case SmartActions.CompleteQuest:
+                {
+                    Quest quest = Global.ObjectMgr.GetQuestTemplate(e.Action.quest.questId);
+                    if (quest == null) break;
+                    foreach (var target in targets)
+                    {
+                        Player player = target.ToPlayer();
+                        if (player == null || player.GetQuestStatus(quest.Id) == QuestStatus.Rewarded) continue;
+                        if (quest.HasAnyFlag(QuestFlags.CompletionEvent | QuestFlags.CompletionAreaTrigger))
+                        {
+                            if (player.GetQuestStatus(quest.Id) == QuestStatus.Incomplete)
+                                player.AreaExploredOrEventHappens(quest.Id);
+                        }
+                        else if (quest.HasAnyFlag(QuestFlags.TrackingEvent))
+                            player.CompleteQuest(quest.Id);
+                    }
+                    break;
+                }
                 case SmartActions.CallAreaexploredoreventhappens:
                 {
                     foreach (var target in targets)
@@ -1228,6 +1246,32 @@ namespace Game.AI
                     if (flags.HasAnyFlag(SmartActionSummonCreatureFlags.PersonalSpawn))
                         privateObjectOwner = summoner.IsPrivateObject() ? summoner.GetPrivateObjectOwner() : summoner.GetGUID();
                     int spawnsCount = Math.Max(e.Action.summonCreature.count, 1);
+                    bool attackInvoker = flags.HasAnyFlag(SmartActionSummonCreatureFlags.AttackInvoker);
+                    if (e.Action.summonCreature.storageID != 0)
+                        _storedTargets.Remove(e.Action.summonCreature.storageID);
+                    SummonPropertiesRecord summonProperties = null;
+                    var createdBySpell = Global.SpellMgr.GetSpellInfo(e.Action.summonCreature.createdBySpell, Difficulty.None);
+                    if (createdBySpell != null)
+                        foreach (var effect in createdBySpell.GetEffects())
+                            if (effect.IsEffect(SpellEffectName.Summon))
+                            {
+                                summonProperties = CliDB.SummonPropertiesStorage.LookupByKey(effect.MiscValueB);
+                                if (summonProperties != null) break;
+                            }
+
+                    void SummonAt(float sx, float sy, float sz, float so, Unit attackTarget)
+                    {
+                        for (int counter = 0; counter < spawnsCount; ++counter)
+                        {
+                            var summon = summoner.GetMap().SummonCreature(e.Action.summonCreature.creature, new Position(sx, sy, sz, so),
+                                summonProperties, e.Action.summonCreature.duration, summoner, e.Action.summonCreature.createdBySpell, 0, privateObjectOwner);
+                            if (summon == null) continue;
+                            summon.SetTempSummonType((TempSummonType)e.Action.summonCreature.type);
+                            if (e.Action.summonCreature.storageID != 0)
+                                AddToStoredTargetList(new List<WorldObject> { summon }, e.Action.summonCreature.storageID);
+                            if (attackInvoker && attackTarget != null) summon.GetAI()?.AttackStart(attackTarget);
+                        }
+                    }
 
                     float x, y, z, o;
                     foreach (var target in targets)
@@ -1237,33 +1281,13 @@ namespace Game.AI
                         y += e.Target.y;
                         z += e.Target.z;
                         o += e.Target.o;
-                        for (uint counter = 0; counter < spawnsCount; counter++)
-                        {
-                            Creature summon = summoner.SummonCreature(
-                                e.Action.summonCreature.creature, x, y, z, o, 
-                                (TempSummonType)e.Action.summonCreature.type, 
-                                e.Action.summonCreature.duration, privateObjectOwner);
-
-                            if (summon != null)
-                                if (e.Action.summonCreature.attackInvoker != 0)
-                                    summon.GetAI().AttackStart(target.ToUnit());
-                        }
+                        SummonAt(x, y, z, o, target.ToUnit());
                     }
 
                     if (e.GetTargetType() != SmartTargets.Position)
                         break;
 
-                    for (uint counter = 0; counter < spawnsCount; counter++)
-                    {
-                        Creature summon = summoner.SummonCreature(
-                            e.Action.summonCreature.creature, e.Target.x, e.Target.y, e.Target.z, e.Target.o, 
-                            (TempSummonType)e.Action.summonCreature.type, 
-                            e.Action.summonCreature.duration, privateObjectOwner);
-
-                        if (summon != null)
-                            if (unit != null && e.Action.summonCreature.attackInvoker != 0)
-                                summon.GetAI().AttackStart(unit);
-                    }
+                    SummonAt(e.Target.x, e.Target.y, e.Target.z, e.Target.o, unit);
                     break;
                 }
                 case SmartActions.SummonGo:

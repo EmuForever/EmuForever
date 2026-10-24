@@ -752,7 +752,9 @@ namespace Framework.Constants
         CompleteTrackingQuest = 250, /*NYI*/
 
         GainLevels = 253, // Gain levels
-        Count = 257
+
+
+        Count = 284
     }
 
     public enum CriteriaDataType

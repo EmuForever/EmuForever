@@ -26,7 +26,6 @@ namespace Game.DataStorage
         public ushort VehicleUIIndicatorID;
         public int MissileTargetingID;
         public ushort VehiclePOITypeID;
-        public int UiLocomotionType;
         public ushort[] SeatID = new ushort[8];
         public ushort[] PowerDisplayID = new ushort[3];
 
@@ -66,7 +65,7 @@ namespace Game.DataStorage
         private int _flags;
         private int _flagsB;
         private int _flagsC;
-        public sbyte AttachmentID;
+        public int AttachmentID;
         public float EnterPreDelay;
         public float EnterSpeed;
         public float EnterGravity;
@@ -74,12 +73,12 @@ namespace Game.DataStorage
         public float EnterMaxDuration;
         public float EnterMinArcHeight;
         public float EnterMaxArcHeight;
-        public int EnterAnimStart;
-        public int EnterAnimLoop;
-        public int RideAnimStart;
-        public int RideAnimLoop;
-        public int RideUpperAnimStart;
-        public int RideUpperAnimLoop;
+        public short EnterAnimStart;
+        public short EnterAnimLoop;
+        public short RideAnimStart;
+        public short RideAnimLoop;
+        public short RideUpperAnimStart;
+        public short RideUpperAnimLoop;
         public float ExitPreDelay;
         public float ExitSpeed;
         public float ExitGravity;
@@ -87,9 +86,9 @@ namespace Game.DataStorage
         public float ExitMaxDuration;
         public float ExitMinArcHeight;
         public float ExitMaxArcHeight;
-        public int ExitAnimStart;
-        public int ExitAnimLoop;
-        public int ExitAnimEnd;
+        public short ExitAnimStart;
+        public short ExitAnimLoop;
+        public short ExitAnimEnd;
         public short VehicleEnterAnim;
         public sbyte VehicleEnterAnimBone;
         public short VehicleExitAnim;
@@ -106,7 +105,6 @@ namespace Game.DataStorage
         public uint EnterUISoundID;
         public uint ExitUISoundID;
         public int UiSkinFileDataID;
-        public int UiSkin;
         public float CameraEnteringDelay;
         public float CameraEnteringDuration;
         public float CameraExitingDelay;
@@ -116,12 +114,12 @@ namespace Game.DataStorage
         public float CameraEnteringZoom;
         public float CameraSeatZoomMin;
         public float CameraSeatZoomMax;
-        public short EnterAnimKitID;
-        public short RideAnimKitID;
-        public short ExitAnimKitID;
-        public short VehicleEnterAnimKitID;
-        public short VehicleRideAnimKitID;
-        public short VehicleExitAnimKitID;
+        public int EnterAnimKitID;
+        public int RideAnimKitID;
+        public int ExitAnimKitID;
+        public int VehicleEnterAnimKitID;
+        public int VehicleRideAnimKitID;
+        public int VehicleExitAnimKitID;
         public short CameraModeID;
 
         #region Properties

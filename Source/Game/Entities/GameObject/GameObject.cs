@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -297,7 +297,7 @@ namespace Game.Entities
             {
                 case GameObjectTypes.FishingHole:
                     SetGoAnimProgress(animProgress);
-                    m_goValue.FishingHole.MaxOpens = RandomHelper.IRand(GetGoInfo().FishingHole.minRestock, GetGoInfo().FishingHole.maxRestock);
+                    m_goValue.FishingHole.MaxOpens = GetGoInfo().RollFishingHoleMaxOpens();
                     break;
                 case GameObjectTypes.DestructibleBuilding:
                     m_goValue.Building.Health = 20000;//goinfo.DestructibleBuilding.intactNumHits + goinfo.DestructibleBuilding.damagedNumHits;
@@ -576,7 +576,7 @@ namespace Game.Entities
                                         break;
                                     case GameObjectTypes.FishingHole:
                                         // Initialize a new max fish count on respawn
-                                        m_goValue.FishingHole.MaxOpens = RandomHelper.IRand(GetGoInfo().FishingHole.minRestock, GetGoInfo().FishingHole.maxRestock);
+                                        m_goValue.FishingHole.MaxOpens = GetGoInfo().RollFishingHoleMaxOpens();
                                         break;
                                     default:
                                         break;
@@ -1000,6 +1000,16 @@ namespace Game.Entities
             if (fishLoot.IsLooted())
                 fishLoot.FillLoot(defaultzone, LootStorage.Fishing, lootOwner, true, true, LootModes.Default);
 
+            if (fishLoot.items.Count != 0 && RandomHelper.randChance(lootOwner.GetClassicLegacyPerkAmount(1225455)))
+            {
+                Item pole = lootOwner.GetItemByPos(EquipmentSlot.MainHand);
+                if (pole != null && pole.GetEnchantmentId(EnchantmentSlot.EnhancementTemporary) != 0)
+                {
+                    LootItem fish = fishLoot.items[0];
+                    ItemTemplate template = Global.ObjectMgr.GetItemTemplate(fish.itemid);
+                    if (template != null && fish.count < template.GetMaxStackSize()) ++fish.count;
+                }
+            }
             return fishLoot;
         }
 
@@ -1191,12 +1201,7 @@ namespace Game.Entities
             Global.MapMgr.DoForAllMapsWithMapId(data.MapId, map =>
             {
                 // despawn all active objects, and remove their respawns
-                List<GameObject> toUnload = new();
-                foreach (var creature in map.GetGameObjectBySpawnIdStore()[spawnId])
-                    toUnload.Add(creature);
-
-                foreach (GameObject obj in toUnload)
-                    map.AddObjectToRemoveList(obj);
+                map.DespawnAll(SpawnObjectType.GameObject, spawnId);
 
                 map.RemoveRespawnTime(SpawnObjectType.GameObject, spawnId, trans);
             });
@@ -3310,7 +3315,7 @@ namespace Game.Entities
             buffer1.WriteUInt32(buffer.GetSize());
             buffer1.WriteBytes(buffer.GetData());
 
-            data.AddUpdateBlock(buffer1);
+            data.AddUpdateBlock(buffer1, GetUpdateFieldFlagsFor(target));
         }
 
         public override void ClearUpdateMask(bool remove)

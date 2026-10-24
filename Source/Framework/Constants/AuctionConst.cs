@@ -41,21 +41,34 @@ namespace Framework.Constants
         Invoice = 6
     }
 
-    public enum AuctionHouseSortOrder
+    // retail auction house (Forever 1.60.1 client), TC AuctionHouseMgr.h
+    public enum AuctionHouseSortOrder : byte
     {
-        RequiredLevel = 0,
-        Rarity = 1,
-        TimeLeft = 3,
-        /// <summary>It's not certain</summary>
-        ItemLevel = 5,
-        Unk_6 = 6,
-        Seller = 7,
-        CurrentBidTotal = 8,
-        /// <summary>It's not certain</summary>
-        Name = 9,
-        BuyOutPerUnit = 12,
-        CurrentBidPerUnit = 13,
-        BuyOutTotal = 14,
+        Price = 0,
+        Name = 1,
+        Level = 2,
+        Bid = 3,
+        Buyout = 4,
+        TimeRemaining = 5
+    }
+
+    [Flags]
+    public enum AuctionHouseFilterMask : uint
+    {
+        None = 0x0000,
+        UncollectedOnly = 0x0002,
+        UsableOnly = 0x0004,
+        CurrentExpansionOnly = 0x0008,
+        UpgradesOnly = 0x0010,
+        ExactMatch = 0x0020,
+        PoorQuality = 0x0040,
+        CommonQuality = 0x0080,
+        UncommonQuality = 0x0100,
+        RareQuality = 0x0200,
+        EpicQuality = 0x0400,
+        LegendaryQuality = 0x0800,
+        ArtifactQuality = 0x1000,
+        LegendaryCraftedItemOnly = 0x2000,
     }
 
     public enum AuctionHouseSortDirection : byte

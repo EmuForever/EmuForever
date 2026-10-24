@@ -2,6 +2,7 @@
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
+using Framework.Collections;
 using Game.Achievements;
 using Game.BattleGrounds;
 using Game.Chat;
@@ -149,6 +150,7 @@ namespace Game.Entities
         AttackSwingErr? m_swingErrorMsg;
         ServerTime m_regenInterruptTimestamp;
         Milliseconds m_regenTimerCount;
+        float m_healthFraction;
         Milliseconds m_foodEmoteTimerCount;
         Milliseconds m_weaponChangeTimer;
 
@@ -178,7 +180,8 @@ namespace Game.Entities
 
         bool _advancedCombatLoggingEnabled;
 
-        WorldLocation _corpseLocation;
+        // Never null: a character that logs in dead without a saved corpse would otherwise crash on spirit release.
+        WorldLocation _corpseLocation = new();
 
         //Core
         WorldSession _session;
@@ -196,8 +199,13 @@ namespace Game.Entities
         bool m_customizationsChanged;
 
         SpecializationInfo _specializationInfo;
-        public List<ObjectGuid> m_clientGUIDs = new();
-        public List<ObjectGuid> m_visibleTransports = new();
+        // Map-owned; bounded independently of notification frequency and session lifetime.
+        public const int MaxClientInterest = 4096;
+        public BoundedSet<ObjectGuid> m_clientGUIDs;
+        // Reverse links are bounded by the GUID set and retained only while visible.
+        Dictionary<ObjectGuid, WorldObject> _interestObjects;
+        bool _interestLimitReported;
+        public BoundedSet<ObjectGuid> m_visibleTransports = new(256, 16);
         public WorldObject seerView;
         Team m_team;
         ReputationMgr reputationMgr;

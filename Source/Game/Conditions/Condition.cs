@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -654,9 +654,15 @@ namespace Game.Conditions
                     ss.Append(" (Unknown)");
             }
 
+            // row key, used to trace rejected rows back to `conditions`
+            ss.AppendFormat(" {{CondRow:{0},{1},{2},{3},{4},{5},{6},{7},{8},{9}}}", RawSourceTypeOrReferenceId, SourceGroup, SourceEntry, SourceId, ElseGroup,
+                RawConditionTypeOrReference, ConditionTarget, RawConditionValue1 ?? ConditionValue1,
+                RawConditionValue2 ?? ConditionValue2, RawConditionValue3 ?? ConditionValue3);
             ss.Append(']');
             return ss.ToString();
         }
+
+        public override string ToString() => ToString(true);
 
         public ConditionSourceType SourceType;        //SourceTypeOrReferenceId
         public int SourceGroup;
@@ -674,6 +680,13 @@ namespace Game.Conditions
         public int ScriptId;
         public byte ConditionTarget;
         public bool NegativeCondition;
+        public int RawSourceTypeOrReferenceId;
+        public int RawConditionTypeOrReference;
+        // Validation converts legacy TypeID/TypeMask values in place. Diagnostics
+        // must retain the SQL identity so repairs do not match the converted value.
+        public int? RawConditionValue1;
+        public int? RawConditionValue2;
+        public int? RawConditionValue3;
     }
 
     public struct ConditionId

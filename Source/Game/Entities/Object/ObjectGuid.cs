@@ -318,7 +318,9 @@ namespace Game.Entities
 
         public override int GetHashCode()
         {
-            return new { _high, _low }.GetHashCode();
+            // GUIDs are keys throughout visibility, combat and object stores. An
+            // anonymous object here allocates on every Contains/Add/Remove lookup.
+            return HashCode.Combine(_high, _low);
         }
 
         //Static Methods 
@@ -452,7 +454,7 @@ namespace Game.Entities
                 CheckGuidTrigger(_nextGuid);
             }
 
-            return _nextGuid++;
+            return System.Threading.Interlocked.Increment(ref _nextGuid) - 1;
         }
 
         public long GetNextAfterMaxUsed() { return _nextGuid; }

@@ -16,36 +16,48 @@ namespace Game.Networking.Packets
     {
         public QueryCreature(WorldPacket packet) : base(packet) { }
 
+        // Forever layout: TC QueryCreature::Read
         public override void Read()
         {
-            CreatureID = _worldPacket.ReadInt32();
+            // Classic 1.60: 6-bit entry count (flushed), then the creature ids (client batches up to 11 per query)
+            uint count = _worldPacket.ReadBits<uint>(6);
+            _worldPacket.ResetBitPos();
+            CreatureIDs.Clear();
+            for (uint i = 0; i < count; ++i)
+                CreatureIDs.Add(_worldPacket.ReadUInt32());
+
+            CreatureID = CreatureIDs.Count > 0 ? (int)CreatureIDs[0] : 0;
         }
 
-        public int CreatureID;
+        public int CreatureID; // first entry, kept for existing handlers
+        public List<uint> CreatureIDs = new();
     }
 
     public class QueryCreatureResponse : ServerPacket
     {
-        public QueryCreatureResponse() : base(ServerOpcodes.QueryCreatureResponse, ConnectionType.Instance) { }
+        public QueryCreatureResponse() : base(ServerOpcodes.QueryCreatureResponse) { }
 
         public override void Write()
         {
-            _worldPacket.WriteInt32(CreatureID);
-            _worldPacket.WriteBit(Allow);
+            // Forever layout: TC QueryCreatureResponse::Write
+            // Classic 1.60.1: 6-bit entry count (flushed), then per entry the retail layout
+            _worldPacket.WriteBits(1, 6);
             _worldPacket.FlushBits();
+
+            _worldPacket.WriteUInt32((uint)CreatureID);
+            _worldPacket.WriteUInt8((byte)(Allow ? 0 : 1)); // Classic: result byte, stats follow only when 0
 
             if (Allow)
             {
-                _worldPacket.WriteBits(Stats.Title.IsEmpty() ? 0 : Stats.Title.GetByteCount() + 1, 11);
-                _worldPacket.WriteBits(Stats.TitleAlt.IsEmpty() ? 0 : Stats.TitleAlt.GetByteCount() + 1, 11);
-                _worldPacket.WriteBits(Stats.CursorName.IsEmpty() ? 0 : Stats.CursorName.GetByteCount() + 1, 6);
-                _worldPacket.WriteBit(Stats.Civilian);
+                _worldPacket.WriteBits((Stats.Title ?? "").GetByteCount() + 1, 11);
+                _worldPacket.WriteBits((Stats.TitleAlt ?? "").GetByteCount() + 1, 11);
+                _worldPacket.WriteBits((Stats.CursorName ?? "").GetByteCount() + 1, 6);
                 _worldPacket.WriteBit(Stats.Leader);
 
                 for (var i = 0; i < SharedConst.MaxCreatureNames; ++i)
                 {
-                    _worldPacket.WriteBits(Stats.Name[i].GetByteCount() + 1, 11);
-                    _worldPacket.WriteBits(Stats.NameAlt[i].GetByteCount() + 1, 11);
+                    _worldPacket.WriteBits((Stats.Name[i] ?? "").GetByteCount() + 1, 11);
+                    _worldPacket.WriteBits((Stats.NameAlt[i] ?? "").GetByteCount() + 1, 11);
                 }
 
                 for (var i = 0; i < SharedConst.MaxCreatureNames; ++i)
@@ -56,23 +68,22 @@ namespace Game.Networking.Packets
                         _worldPacket.WriteCString(Stats.NameAlt[i]);
                 }
 
-                for (var i = 0; i < 2; ++i)
+                for (var i = 0; i < 3; ++i)
                     _worldPacket.WriteUInt32(Stats.Flags[i]);
 
-                _worldPacket.WriteInt32((int)Stats.CreatureType);
+                _worldPacket.WriteUInt8((byte)Stats.CreatureType);
                 _worldPacket.WriteInt32((int)Stats.CreatureFamily);
-                _worldPacket.WriteInt32((int)Stats.Classification);
-                _worldPacket.WriteInt32(Stats.PetSpellDataId);
+                _worldPacket.WriteInt8((sbyte)Stats.Classification);
 
-                for (var i = 0; i < SharedConst.MaxCreatureKillCredit; ++i)
-                    _worldPacket.WriteInt32(Stats.ProxyCreatureID[i]);
+                for (var i = 0; i < 2; ++i)
+                    _worldPacket.WriteUInt32((uint)Stats.ProxyCreatureID[i]);
 
                 _worldPacket.WriteInt32(Stats.Display.CreatureDisplay.Count);
                 _worldPacket.WriteFloat(Stats.Display.TotalProbability);
 
                 foreach (CreatureXDisplay display in Stats.Display.CreatureDisplay)
                 {
-                    _worldPacket.WriteInt32(display.CreatureDisplayID);
+                    _worldPacket.WriteUInt32((uint)display.CreatureDisplayID);
                     _worldPacket.WriteFloat(display.Scale);
                     _worldPacket.WriteFloat(display.Probability);
                 }
@@ -81,6 +92,7 @@ namespace Game.Networking.Packets
                 _worldPacket.WriteFloat(Stats.EnergyMulti);
 
                 _worldPacket.WriteInt32(Stats.QuestItems.Count);
+                _worldPacket.WriteInt32(Stats.QuestCurrencies.Count);
                 _worldPacket.WriteInt32(Stats.CreatureMovementInfoID);
                 _worldPacket.WriteInt32((int)Stats.HealthScalingExpansion);
                 _worldPacket.WriteInt32((int)Stats.RequiredExpansion);
@@ -90,17 +102,20 @@ namespace Game.Networking.Packets
                 _worldPacket.WriteInt32(Stats.WidgetSetID);
                 _worldPacket.WriteInt32(Stats.WidgetSetUnitConditionID);
 
-                if (!Stats.Title.IsEmpty())
+                if (!string.IsNullOrEmpty(Stats.Title))
                     _worldPacket.WriteCString(Stats.Title);
 
-                if (!Stats.TitleAlt.IsEmpty())
+                if (!string.IsNullOrEmpty(Stats.TitleAlt))
                     _worldPacket.WriteCString(Stats.TitleAlt);
 
-                if (!Stats.CursorName.IsEmpty())
+                if (!string.IsNullOrEmpty(Stats.CursorName))
                     _worldPacket.WriteCString(Stats.CursorName);
 
                 foreach (var questItem in Stats.QuestItems)
                     _worldPacket.WriteInt32(questItem);
+
+                foreach (var questCurrency in Stats.QuestCurrencies)
+                    _worldPacket.WriteInt32(questCurrency);
             }
         }
 
@@ -211,12 +226,14 @@ namespace Game.Networking.Packets
 
     public class QueryNPCTextResponse : ServerPacket
     {
-        public QueryNPCTextResponse() : base(ServerOpcodes.QueryNpcTextResponse, ConnectionType.Instance) { }
+        public QueryNPCTextResponse() : base(ServerOpcodes.QueryNpcTextResponse) { }
 
         public override void Write()
         {
+            // Forever layout: TC QueryNPCTextResponse::Write
             _worldPacket.WriteInt32(TextID);
             _worldPacket.WriteBit(Allow);
+            _worldPacket.FlushBits();
 
             _worldPacket.WriteInt32(Allow ? SharedConst.MaxNpcTextOptions * (4 + 4) : 0);
             if (Allow)
@@ -251,7 +268,7 @@ namespace Game.Networking.Packets
 
     public class QueryGameObjectResponse : ServerPacket
     {
-        public QueryGameObjectResponse() : base(ServerOpcodes.QueryGameObjectResponse, ConnectionType.Instance) { }
+        public QueryGameObjectResponse() : base(ServerOpcodes.QueryGameObjectResponse) { }
 
         public override void Write()
         {
@@ -281,6 +298,7 @@ namespace Game.Networking.Packets
                     statsData.WriteUInt32(questItem);
 
                 statsData.WriteInt32(Stats.ContentTuningId);
+                statsData.WriteInt32(Stats.RequiredLevel); // Forever layout: TC QueryGameObjectResponse::Write
             }
 
             _worldPacket.WriteUInt32(statsData.GetSize());
@@ -315,11 +333,12 @@ namespace Game.Networking.Packets
             _worldPacket.WriteBit(Valid);
             _worldPacket.FlushBits();
 
+            // Forever layout: TC CorpseLocation::Write
             _worldPacket.WritePackedGuid(Player);
             _worldPacket.WriteInt32(ActualMapID);
-            _worldPacket.WriteVector3(Position);
             _worldPacket.WriteInt32(MapID);
             _worldPacket.WritePackedGuid(Transport);
+            _worldPacket.WriteVector3(Position);
         }
 
         public ObjectGuid Player;
@@ -369,7 +388,7 @@ namespace Game.Networking.Packets
 
     public class QueryTimeResponse : ServerPacket
     {
-        public QueryTimeResponse() : base(ServerOpcodes.QueryTimeResponse, ConnectionType.Instance) { }
+        public QueryTimeResponse() : base(ServerOpcodes.QueryTimeResponse) { }
 
         public override void Write()
         {
@@ -386,8 +405,10 @@ namespace Game.Networking.Packets
         public override void Read()
         {
             MissingQuestCount = _worldPacket.ReadInt32();
+            if (MissingQuestCount < 0 || MissingQuestCount > MissingQuestPOIs.Length)
+                throw new System.IO.InvalidDataException($"Invalid quest POI count {MissingQuestCount}.");
 
-            for (byte i = 0; i < MissingQuestCount; ++i)
+            for (int i = 0; i < MissingQuestPOIs.Length; ++i)
                 MissingQuestPOIs[i] = _worldPacket.ReadInt32();
         }
 
@@ -404,11 +425,9 @@ namespace Game.Networking.Packets
             _worldPacket.WriteInt32(QuestPOIDataStats.Count);
             _worldPacket.WriteInt32(QuestPOIDataStats.Count);
 
-            bool useCache = WorldConfig.Values[WorldCfg.CacheDataQueries].Bool;
-
             foreach (QuestPOIData questPOIData in QuestPOIDataStats)
             {
-                if (useCache)
+                if (questPOIData.QueryDataBuffer.GetSize() != 0)
                     _worldPacket.WriteBytes(questPOIData.QueryDataBuffer);
                 else
                     questPOIData.Write(_worldPacket);
@@ -435,7 +454,7 @@ namespace Game.Networking.Packets
 
     class QuestCompletionNPCResponse : ServerPacket
     {
-        public QuestCompletionNPCResponse() : base(ServerOpcodes.QuestCompletionNpcResponse, ConnectionType.Instance) { }
+        public QuestCompletionNPCResponse() : base(ServerOpcodes.QuestCompletionNpcResponse) { }
 
         public override void Write()
         {
@@ -467,7 +486,7 @@ namespace Game.Networking.Packets
 
     class QueryPetNameResponse : ServerPacket
     {
-        public QueryPetNameResponse() : base(ServerOpcodes.QueryPetNameResponse, ConnectionType.Instance) { }
+        public QueryPetNameResponse() : base(ServerOpcodes.QueryPetNameResponse) { }
 
         public override void Write()
         {
@@ -519,11 +538,13 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
+            // Forever layout: TC QueryItemTextResponse::Write
             _worldPacket.WriteBit(Valid);
-            _worldPacket.WriteBits(Text.GetByteCount(), 13);
-
-            _worldPacket.WriteString(Text);
+            _worldPacket.FlushBits();
             _worldPacket.WritePackedGuid(Id);
+            _worldPacket.WriteBits((Text ?? "").GetByteCount(), 13);
+            _worldPacket.FlushBits();
+            _worldPacket.WriteString(Text ?? "");
         }
 
         public ObjectGuid Id;
@@ -599,6 +620,7 @@ namespace Game.Networking.Packets
                 Sex = player.GetNativeGender();
                 ClassID = player.GetClass();
                 Level = (byte)player.GetLevel();
+                PvpFaction = (byte)(Player.TeamIdForRace(player.GetRace()) == (int)BattleGroundTeamId.Alliance ? 1 : 0);
 
                 DeclinedName names = player.GetDeclinedNames();
                 if (names != null)
@@ -616,9 +638,11 @@ namespace Game.Networking.Packets
                 Sex = characterInfo.Sex;
                 ClassID = characterInfo.ClassId;
                 Level = characterInfo.Level;
+                PvpFaction = (byte)(Player.TeamIdForRace(characterInfo.RaceId) == (int)BattleGroundTeamId.Alliance ? 1 : 0);
             }
 
             IsDeleted = characterInfo.IsDeleted;
+            Surname = characterInfo.Surname ?? string.Empty;   // Classic 1.60 (TC PlayerGuidLookupData::Initialize)
             GuidActual = guid;
             VirtualRealmAddress = Global.WorldMgr.GetVirtualRealmAddress();
 
@@ -629,6 +653,8 @@ namespace Game.Networking.Packets
         {
             data.WriteBit(IsDeleted);
             data.WriteBits(Name.GetByteCount(), 6);
+            data.WriteBits((Surname ?? "").GetByteCount(), 9);
+            data.WriteBits(0, 9); // Classic 1.60: second 9-bit sized string, sent empty
 
             for (byte i = 0; i < SharedConst.MaxDeclinedNameCases; ++i)
                 data.WriteBits(DeclinedNames.Name[i].GetByteCount(), 7);
@@ -645,8 +671,10 @@ namespace Game.Networking.Packets
             data.WriteUInt8((byte)Sex);
             data.WriteUInt8((byte)ClassID);
             data.WriteUInt8(Level);
-            data.WriteUInt8(Unused915);
+            data.WriteUInt8(PvpFaction);
+            data.WriteInt32(TimerunningSeasonID);
             data.WriteString(Name);
+            data.WriteString(Surname ?? "");
         }
 
         public bool IsDeleted;
@@ -660,7 +688,10 @@ namespace Game.Networking.Packets
         public Gender Sex = Gender.None;
         public Class ClassID = Class.None;
         public byte Level;
-        public byte Unused915;
+        public byte Unused915; // not sent in Forever layout (replaced by PvpFaction)
+        public byte PvpFaction;
+        public int TimerunningSeasonID;
+        public string Surname = string.Empty;
         public DeclinedName DeclinedNames = new();
     }
 
@@ -686,14 +717,17 @@ namespace Game.Networking.Packets
         public ObjectGuid Player;
         public byte Result; // 0 - full packet, != 0 - only guid
         public PlayerGuidLookupData Data;
-        public NameCacheUnused920 Unused920;
+        public NameCacheUnused920 Unused920; // = TC GuildGuidLookupData
+        public HouseLookupData HouseData;
 
+        // Forever layout: TC operator<<(NameCacheLookupResult)
         public void Write(WorldPacket data)
         {
             data.WriteUInt8(Result);
             data.WritePackedGuid(Player);
             data.WriteBit(Data != null);
             data.WriteBit(Unused920 != null);
+            data.WriteBit(HouseData != null);
             data.FlushBits();
 
             if (Data != null)
@@ -701,6 +735,25 @@ namespace Game.Networking.Packets
 
             if (Unused920 != null)
                 Unused920.Write(data);
+
+            if (HouseData != null)
+                HouseData.Write(data);
+        }
+    }
+
+    public class HouseLookupData
+    {
+        public ObjectGuid Guid;
+        public string Name = string.Empty;
+
+        // Forever layout: TC operator<<(HouseLookupData)
+        public void Write(WorldPacket data)
+        {
+            data.WritePackedGuid(Guid);
+            data.WriteBits(Name.GetByteCount(), 8);
+            data.FlushBits();
+
+            data.WriteString(Name);
         }
     }
 
@@ -739,6 +792,7 @@ namespace Game.Networking.Packets
         public bool Civilian;
         public bool Leader;
         public List<int> QuestItems = new();
+        public List<int> QuestCurrencies = new();
         public int CreatureMovementInfoID;
         public Expansion HealthScalingExpansion;
         public Expansion RequiredExpansion;
@@ -747,7 +801,7 @@ namespace Game.Networking.Packets
         public int CreatureDifficultyID;
         public int WidgetSetID;
         public int WidgetSetUnitConditionID;
-        public uint[] Flags = new uint[2];
+        public uint[] Flags = new uint[3];
         public int[] ProxyCreatureID = new int[SharedConst.MaxCreatureKillCredit];
         public StringArray Name = new(SharedConst.MaxCreatureNames);
         public StringArray NameAlt = new(SharedConst.MaxCreatureNames);
@@ -770,6 +824,7 @@ namespace Game.Networking.Packets
         public float Size;
         public List<int> QuestItems = new();
         public int ContentTuningId;
+        public int RequiredLevel;
     }
 
     class QuestCompletionNPC

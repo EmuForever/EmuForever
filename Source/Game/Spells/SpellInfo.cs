@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -72,7 +72,7 @@ namespace Game.Spells
             {
                 Scaling.MinScalingLevel = _scaling.MinScalingLevel;
                 Scaling.MaxScalingLevel = _scaling.MaxScalingLevel;
-                Scaling.ScalesFromItemLevel = _scaling.ScalesFromItemLevel;
+                Scaling.ScalesFromItemLevel = 0; // removed from SpellScaling in 1.60.1
             }
 
             // SpellAuraOptionsEntry
@@ -113,7 +113,7 @@ namespace Game.Spells
             if (_castreq != null)
             {
                 RequiresSpellFocus = _castreq.RequiresSpellFocus;
-                FacingCasterFlags = _castreq.FacingCasterFlags;
+                FacingCasterFlags = (uint)_castreq.FacingCasterFlags;
                 RequiredAreasID = _castreq.RequiredAreasID;
             }
 
@@ -1100,7 +1100,7 @@ namespace Game.Spells
                                 return SpellCastResult.BadTargets;
 
                             if (!targetCreature.CanHaveLoot()
-                                || !Loots.LootStorage.Pickpocketing.HaveLootFor(targetCreature.GetCreatureDifficulty().PickPocketLootID))
+                                || !Loots.LootStorage.Pickpocketing.HaveLootFor(targetCreature.GetCreatureTemplateStats().PickPocketLootID))
                             {
                                 return SpellCastResult.TargetNoPockets;
                             }
@@ -1676,6 +1676,45 @@ namespace Game.Spells
                         default:
                             break;
                     }
+
+                    // Classic seals use a different family-mask word, and the
+                    // Classic aura IDs predate the modern replacements above.
+                    // Classify the rank chain, including explicit Classic ranks
+                    // if imported spell_ranks is incomplete. This restores native
+                    // per-caster replacement for humans and SI players alike.
+                    if (WorldConfig.Values[WorldCfg.Expansion].Int32 == (int)Expansion.Classic)
+                        switch (GetFirstRankSpell().Id)
+                        {
+                            case 20154: // Seal of Righteousness
+                            case 21084:
+                            case 20287: case 20288: case 20289: case 20290:
+                            case 20291: case 20292: case 20293:
+                            case 20162: // Seal of the Crusader
+                            case 21082:
+                            case 20305: case 20306: case 20307: case 20308:
+                            case 20164: // Seal of Justice
+                            case 20165: // Seal of Light
+                            case 20347: case 20348: case 20349:
+                            case 20166: // Seal of Wisdom
+                            case 20356: case 20357:
+                            case 20375: // Seal of Command
+                            case 20915: case 20918: case 20919: case 20920:
+                                _spellSpecific = SpellSpecificType.Seal;
+                                break;
+                            case 465:   // Devotion Aura
+                            case 643: case 1032: case 10290: case 10291: case 10292: case 10293:
+                            case 7294:  // Retribution Aura
+                            case 10298: case 10299: case 10300: case 10301:
+                            case 19746: // Concentration Aura
+                            case 19876: // Shadow Resistance Aura
+                            case 19895: case 19896:
+                            case 19888: // Frost Resistance Aura
+                            case 19897: case 19898:
+                            case 19891: // Fire Resistance Aura
+                            case 19899: case 19900:
+                                _spellSpecific = SpellSpecificType.Aura;
+                                break;
+                        }
 
                     break;
                 }
@@ -2952,6 +2991,9 @@ namespace Game.Spells
             Unit unitCaster = caster.ToUnit();
             if (unitCaster == null)
                 return null;
+
+            if (unitCaster.ToPlayer() is Player legacyPlayer && IsPositive() && legacyPlayer.HasClassicFreeHelpfulSpells())
+                return new SpellPowerCost { Power = power.PowerType, Amount = 0 };
 
             if (power.RequiredAuraSpellID != 0 && !unitCaster.HasAura(power.RequiredAuraSpellID))
                 return null;
@@ -4255,7 +4297,7 @@ namespace Game.Spells
                 TargetARadiusEntry = CliDB.SpellRadiusStorage.LookupByKey(effect.EffectRadiusIndex[0]);
                 TargetBRadiusEntry = CliDB.SpellRadiusStorage.LookupByKey(effect.EffectRadiusIndex[1]);
                 ChainTargets = effect.EffectChainTargets;
-                DieSides = effect.EffectDieSides;
+                DieSides = 0; // EffectDieSides removed from SpellEffect in 1.60.1
                 ItemType = effect.EffectItemType;
                 TriggerSpell = effect.EffectTriggerSpell;
                 SpellClassMask = effect.EffectSpellClassMask;
@@ -4357,7 +4399,7 @@ namespace Game.Spells
                 if (Scaling.ResourceCoefficient != 0)
                     comboDamage = Scaling.ResourceCoefficient * value;
             }
-            else if (GetScalingExpectedStat() == ExpectedStatType.None)
+            else if (WorldConfig.Values[WorldCfg.Expansion].Int32 == (int)Expansion.Classic || GetScalingExpectedStat() == ExpectedStatType.None)
             {
                 if (casterUnit != null && basePointsPerLevel != 0.0f)
                 {
@@ -4988,6 +5030,51 @@ namespace Game.Spells
             new StaticData(SpellEffectImplicitTargetTypes.Explicit, SpellTargetObjectTypes.Item), // 313 SPELL_EFFECT_CHANGE_ITEM_BONUSES_2
             new StaticData(SpellEffectImplicitTargetTypes.None,     SpellTargetObjectTypes.None), // 314 SPELL_EFFECT_ADD_SOCKET_BONUS
             new StaticData(SpellEffectImplicitTargetTypes.Caster,   SpellTargetObjectTypes.Unit), // 315 SPELL_EFFECT_LEARN_TRANSMOG_APPEARANCE_FROM_ITEM_MOD_APPEARANCE_GROUP
+            new StaticData(SpellEffectImplicitTargetTypes.Explicit,  SpellTargetObjectTypes.Unit), // 316 SPELL_EFFECT_KILL_CREDIT_LABEL_1
+            new StaticData(SpellEffectImplicitTargetTypes.Explicit,  SpellTargetObjectTypes.Unit), // 317 SPELL_EFFECT_KILL_CREDIT_LABEL_2
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 318 SPELL_EFFECT_318
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 319 SPELL_EFFECT_319
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 320 SPELL_EFFECT_320
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 321 SPELL_EFFECT_321
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 322 SPELL_EFFECT_322
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 323 SPELL_EFFECT_323
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 324 SPELL_EFFECT_324
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 325 SPELL_EFFECT_325
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 326 SPELL_EFFECT_326
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 327 SPELL_EFFECT_327
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 328 SPELL_EFFECT_328
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 329 SPELL_EFFECT_329
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 330 SPELL_EFFECT_330
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 331 SPELL_EFFECT_331
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 332 SPELL_EFFECT_332
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 333 SPELL_EFFECT_333
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 334 SPELL_EFFECT_334
+            new StaticData(SpellEffectImplicitTargetTypes.Explicit,  SpellTargetObjectTypes.Unit), // 335 SPELL_EFFECT_SET_PLAYER_DATA_ELEMENT_ACCOUNT
+            new StaticData(SpellEffectImplicitTargetTypes.Explicit,  SpellTargetObjectTypes.Unit), // 336 SPELL_EFFECT_SET_PLAYER_DATA_ELEMENT_CHARACTER
+            new StaticData(SpellEffectImplicitTargetTypes.Explicit,  SpellTargetObjectTypes.Unit), // 337 SPELL_EFFECT_SET_PLAYER_DATA_FLAG_ACCOUNT
+            new StaticData(SpellEffectImplicitTargetTypes.Explicit,  SpellTargetObjectTypes.Unit), // 338 SPELL_EFFECT_SET_PLAYER_DATA_FLAG_CHARACTER
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 339 SPELL_EFFECT_UI_ACTION
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 340 SPELL_EFFECT_340
+            new StaticData(SpellEffectImplicitTargetTypes.Explicit,  SpellTargetObjectTypes.Unit), // 341 SPELL_EFFECT_LEARN_WARBAND_SCENE
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 342 SPELL_EFFECT_342
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 343 SPELL_EFFECT_343
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 344 SPELL_EFFECT_344
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 345 SPELL_EFFECT_ASSIST_ACTION
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 346 SPELL_EFFECT_346
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 347 SPELL_EFFECT_EQUIP_TRANSMOG_OUTFIT
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 348 SPELL_EFFECT_GIVE_HOUSE_LEVEL
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 349 SPELL_EFFECT_LEARN_HOUSE_ROOM
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 350 SPELL_EFFECT_LEARN_HOUSE_EXTERIOR_COMPONENT
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 351 SPELL_EFFECT_LEARN_HOUSE_THEME
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 352 SPELL_EFFECT_LEARN_HOUSE_ROOM_COMPONENT_TEXTURE
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.Dest), // 353 SPELL_EFFECT_CREATE_AREATRIGGER_2
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 354 SPELL_EFFECT_SET_NEIGHBORHOOD_INITIATIVE
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 355 SPELL_EFFECT_LEARN_HOUSE_TYPE
+            new StaticData(SpellEffectImplicitTargetTypes.None,      SpellTargetObjectTypes.None), // 356 SPELL_EFFECT_356
+            new StaticData(SpellEffectImplicitTargetTypes.Explicit,  SpellTargetObjectTypes.Item), // 357 SPELL_EFFECT_357
+            new StaticData(SpellEffectImplicitTargetTypes.Explicit,  SpellTargetObjectTypes.Item), // 358 SPELL_EFFECT_358
+            new StaticData(SpellEffectImplicitTargetTypes.Explicit,  SpellTargetObjectTypes.Item), // 359 SPELL_EFFECT_359
+            new StaticData(SpellEffectImplicitTargetTypes.Explicit,  SpellTargetObjectTypes.Item), // 360 SPELL_EFFECT_ENCHANT_ITEM_TEMPORARY_2
         ];
 
         #region Fields

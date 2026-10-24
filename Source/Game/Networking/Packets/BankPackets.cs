@@ -11,13 +11,18 @@ namespace Game.Networking.Packets
         public byte Bag;
         public byte Slot;
 
+        public byte BankType;
+
         public AutoBankItem(WorldPacket packet) : base(packet) { }
 
+        // Forever layout: TC AutoBankItem::Read
         public override void Read()
         {
             Inv = new InvUpdate(_worldPacket);
+            BankType = _worldPacket.ReadUInt8();
             Bag = _worldPacket.ReadUInt8();
             Slot = _worldPacket.ReadUInt8();
+            ClassicInventorySlots.ToServer(ref Bag, ref Slot);
         }
     }
 
@@ -34,6 +39,7 @@ namespace Game.Networking.Packets
             Inv = new InvUpdate(_worldPacket);
             Bag = _worldPacket.ReadUInt8();
             Slot = _worldPacket.ReadUInt8();
+            ClassicInventorySlots.ToServer(ref Bag, ref Slot);
         }
     }
 

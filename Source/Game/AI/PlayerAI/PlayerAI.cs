@@ -559,6 +559,8 @@ namespace Game.AI
                 return;
 
             Spell spell = new(me, spellInfo, TriggerCastFlags.CastDirectly);
+            if (spell.CheckUnitTargetRange(victim) != SpellCastResult.SpellCastOk)
+                return;
             if (spell.CheckPetCast(victim) != SpellCastResult.SpellCastOk)
                 return;
 

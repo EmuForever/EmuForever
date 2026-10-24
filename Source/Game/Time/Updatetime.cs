@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 namespace Game
@@ -86,6 +86,9 @@ namespace Game
 
             if (diff > minUpdateTime)
                 Log.outInfo(LogFilter.Misc, $"Recorded Update Time of {text}: {diff}.");
+            // stall diagnostics: always report steps that block the world loop for over a second
+            if (diff > (Milliseconds)1000)
+                Log.outWarn(LogFilter.Server, $"World loop stall: {text} took {diff}.");
 
             _recordedTime = thisTime;
         }

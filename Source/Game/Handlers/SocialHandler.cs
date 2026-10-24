@@ -20,15 +20,7 @@ namespace Game
         {
             WhoRequest request = whoRequest.Request;
 
-            // zones count, client limit = 10 (2.0.10)
-            // can't be received from real client or broken packet
-            if (whoRequest.Areas.Count > 10)
-                return;
-
-            // user entered strings count, client limit=4 (checked on 2.0.10)
-            // can't be received from real client or broken packet
-            if (request.Words.Count > 4)
-                return;
+            // Classic 1.60 allows up to 63 zones (6 bit count) and 7 words (3 bit count); the packet reader enforces both
 
             // @todo: handle following packet values
             // VirtualRealmNames
@@ -37,7 +29,8 @@ namespace Game
             // ExactName
             // ServerInfo
 
-            request.Words.ForEach(p => p = p.ToLower());
+            for (int i = 0; i < request.Words.Count; ++i)
+                request.Words[i] = request.Words[i].ToLower();
 
             request.Name = request.Name.ToLower();
             request.Guild = request.Guild.ToLower();
@@ -75,8 +68,8 @@ namespace Game
                 if (lvl < request.MinLevel || lvl > request.MaxLevel)
                     continue;
 
-                // check if class matches classmask
-                if (!request.ClassFilter.HasClass(target.Class))
+                // check if class matches classmask (the client sends 1 << class, -1 for all)
+                if ((int)request.ClassFilter >= 0 && ((int)request.ClassFilter & (1 << (int)target.Class)) == 0)
                     continue;
 
                 // check if race matches racemask
@@ -85,16 +78,16 @@ namespace Game
 
                 if (!whoRequest.Areas.Empty())
                 {
-                    if (whoRequest.Areas.Contains(target.ZoneId))
+                    if (!whoRequest.Areas.Contains(target.ZoneId))
                         continue;
                 }
 
                 string wTargetName = target.PlayerName.ToLower();
-                if (!(request.Name.IsEmpty() || wTargetName.Equals(request.Name)))
+                if (!(request.Name.IsEmpty() || wTargetName.Contains(request.Name)))
                     continue;
 
                 string wTargetGuildName = target.GuildName.ToLower();
-                if (!request.Guild.IsEmpty() && !wTargetGuildName.Equals(request.Guild))
+                if (!request.Guild.IsEmpty() && !wTargetGuildName.Contains(request.Guild))
                     continue;
 
                 if (!request.Words.Empty())
@@ -109,9 +102,9 @@ namespace Game
                     {
                         if (!string.IsNullOrEmpty(request.Words[i]))
                         {
-                            if (wTargetName.Equals(request.Words[i]) ||
-                                wTargetGuildName.Equals(request.Words[i]) || 
-                                aname.Equals(request.Words[i]))
+                            if (wTargetName.Contains(request.Words[i]) ||
+                                wTargetGuildName.Contains(request.Words[i]) ||
+                                aname.Contains(request.Words[i]))
                             {
                                 show = true;
                                 break;

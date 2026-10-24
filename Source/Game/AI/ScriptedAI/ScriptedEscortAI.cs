@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -40,7 +40,7 @@ namespace Game.AI
                 return false;
 
             //experimental (unknown) flag not present
-            if (!me.GetCreatureDifficulty().TypeFlags.HasFlag(CreatureTypeFlags.CanAssist))
+            if (!me.GetCreatureTemplateStats().TypeFlags.HasFlag(CreatureTypeFlags.CanAssist))
                 return false;
 
             //not a player

@@ -638,7 +638,7 @@ namespace Scripts.Spells.Hunter
                     return SpellCastResult.Highlevel;
 
                 // use SmsgPetTameFailure?
-                if (!target.GetCreatureTemplate().IsTameable(caster.CanTameExoticPets(), target.GetCreatureDifficulty()))
+                if (!target.GetCreatureTemplate().IsTameable(caster.CanTameExoticPets(), target.GetCreatureTemplateStats()))
                     return SpellCastResult.BadTargets;
 
                 PetStable petStable = caster.GetPetStable();

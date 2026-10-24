@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -98,6 +98,9 @@ namespace Game.Movement
             return (minDist < 3.0f) ? nearestPoly : 0u;
         }
 
+        static readonly float[] NearPolyExtents = [3.0f, 5.0f, 3.0f];
+        static readonly float[] FarPolyExtents = [3.0f, 50.0f, 3.0f];
+
         ulong GetPolyByLocation(float[] point, ref float distance)
         {
             // first we check the current path
@@ -110,9 +113,9 @@ namespace Game.Movement
             // we don't have it in our old path
             // try to get it by findNearestPoly()
             // first try with low search box
-            float[] extents = [3.0f, 5.0f, 3.0f];    // bounds of poly search area
-            float[] closestPoint = [0.0f, 0.0f, 0.0f];
-            if (Detour.dtStatusSucceed(_navMeshQuery.findNearestPoly(point, extents, _filter, ref polyRef, ref closestPoint)) && polyRef != 0)
+            // bounds of poly search area (read-only; shared so the hot path does not rebuild them)
+            float[] closestPoint = new float[3];
+            if (Detour.dtStatusSucceed(_navMeshQuery.findNearestPoly(point, NearPolyExtents, _filter, ref polyRef, ref closestPoint)) && polyRef != 0)
             {
                 distance = Detour.dtVdist(closestPoint, point);
                 return polyRef;
@@ -121,8 +124,7 @@ namespace Game.Movement
             // still nothing ..
             // try with bigger search box
             // Note that the extent should not overlap more than 128 polygons in the navmesh (see dtNavMeshQuery.findNearestPoly)
-            extents[1] = 50.0f;
-            if (Detour.dtStatusSucceed(_navMeshQuery.findNearestPoly(point, extents, _filter, ref polyRef, ref closestPoint)) && polyRef != 0)
+            if (Detour.dtStatusSucceed(_navMeshQuery.findNearestPoly(point, FarPolyExtents, _filter, ref polyRef, ref closestPoint)) && polyRef != 0)
             {
                 distance = Detour.dtVdist(closestPoint, point);
                 return polyRef;
@@ -1148,3 +1150,5 @@ namespace Game.Movement
         Swim = 2
     }
 }
+
+

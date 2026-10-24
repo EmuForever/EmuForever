@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -132,7 +132,7 @@ namespace Game.Chat
             handler.SendSysMessage(CypherStrings.NpcinfoDynamicFlags, target.GetDynamicFlags());
             handler.SendSysMessage(CypherStrings.CommandRawpawntimes, defRespawnDelayStr, curRespawnDelayStr);
 
-            CreatureDifficulty creatureDifficulty = target.GetCreatureDifficulty();
+            CreatureTemplateStats creatureDifficulty = target.GetCreatureTemplateStats();
             handler.SendSysMessage(CypherStrings.NpcinfoLoot, creatureDifficulty.LootID, creatureDifficulty.PickPocketLootID, creatureDifficulty.SkinLootID);
             handler.SendSysMessage(CypherStrings.NpcinfoDungeonId, target.GetInstanceId());
 
@@ -424,7 +424,7 @@ namespace Game.Chat
 
             CreatureTemplate cInfo = creatureTarget.GetCreatureTemplate();
 
-            if (!cInfo.IsTameable(player.CanTameExoticPets(), creatureTarget.GetCreatureDifficulty()))
+            if (!cInfo.IsTameable(player.CanTameExoticPets(), creatureTarget.GetCreatureTemplateStats()))
             {
                 handler.SendSysMessage(CypherStrings.CreatureNonTameable, cInfo.Entry);
                 return false;

@@ -122,6 +122,36 @@ namespace Game.Entities
             }
         }
 
+        public TrainerType GetTrainerType() { return _type; }
+
+        internal bool HasAffordableLesson(Player player, float discount, HashSet<int> databaseSpells)
+        {
+            foreach (var spell in _spells)
+                if (databaseSpells.Contains(spell.SpellId) && (long)(spell.MoneyCost * discount) <= player.GetMoney() &&
+                    player.IsSpellFitByClassAndRace(spell.SpellId) &&
+                    Global.ConditionMgr.IsObjectMeetingTrainerSpellConditions(_id, spell.SpellId, player) && CanTeachSpell(player, spell))
+                    return true;
+            return false;
+        }
+
+        internal int Id => _id;
+
+        // Spells this player could buy now (same checks as the trainer list and TeachSpell), cheapest first.
+        public List<TrainerSpell> GetTeachableSpells(Player player)
+        {
+            List<TrainerSpell> spells = new();
+            foreach (TrainerSpell trainerSpell in _spells)
+            {
+                if (!player.IsSpellFitByClassAndRace(trainerSpell.SpellId) ||
+                    !Global.ConditionMgr.IsObjectMeetingTrainerSpellConditions(_id, trainerSpell.SpellId, player))
+                    continue;
+                if (GetSpellState(player, trainerSpell) == TrainerSpellState.Available)
+                    spells.Add(trainerSpell);
+            }
+            spells.Sort((a, b) => a.MoneyCost.CompareTo(b.MoneyCost));
+            return spells;
+        }
+
         TrainerSpell GetSpell(int spellId)
         {
             return _spells.Find(trainerSpell => trainerSpell.SpellId == spellId);

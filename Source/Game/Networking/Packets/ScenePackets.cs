@@ -18,9 +18,12 @@ namespace Game.Networking.Packets
             _worldPacket.WriteInt32(SceneScriptPackageID);
             _worldPacket.WritePackedGuid(TransportGUID);
             _worldPacket.WriteVector4(Location.GetPosition4D());
+            _worldPacket.WriteInt32(MovieID); // Forever layout: TC PlayScene::Write
             _worldPacket.WriteBit(Encrypted);
             _worldPacket.FlushBits();
         }
+
+        public int MovieID;
 
         public int SceneID;
         public uint PlaybackFlags;
@@ -62,23 +65,29 @@ namespace Game.Networking.Packets
     {
         public ScenePlaybackComplete(WorldPacket packet) : base(packet) { }
 
+        // Forever layout: TC ScenePlaybackComplete::Read
         public override void Read()
         {
             SceneInstanceID = _worldPacket.ReadInt32();
+            TimePassed = _worldPacket.ReadInt32();
         }
 
         public int SceneInstanceID;
+        public int TimePassed;
     }
 
     class ScenePlaybackCanceled : ClientPacket
     {
         public ScenePlaybackCanceled(WorldPacket packet) : base(packet) { }
 
+        // Forever layout: TC ScenePlaybackCanceled::Read
         public override void Read()
         {
             SceneInstanceID = _worldPacket.ReadInt32();
+            TimePassed = _worldPacket.ReadInt32();
         }
 
         public int SceneInstanceID;
+        public int TimePassed;
     }
 }

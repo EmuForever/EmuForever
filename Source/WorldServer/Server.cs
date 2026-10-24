@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Configuration;
@@ -17,18 +17,79 @@ namespace WorldServer
 {
     public class Server
     {
-        static void Main()
+        static void Main(string[] args)
         {
             //Set Culture
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
             Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
 
+            // --verify-mmap <dataDir> <map> <tileX> <tileY> <x1> <y1> <z1> <x2> <y2> <z2>: load one tile, find a path.
+            if (args.Length == 11 && args[0] == "--verify-mmap")
+            {
+                try
+                {
+                    float F(int i) => float.Parse(args[i], CultureInfo.InvariantCulture);
+                    Console.WriteLine("MMap verified: " + MMapVerification.Verify(args[1], int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]),
+                        new[] { F(5), F(6), F(7) }, new[] { F(8), F(9), F(10) }));
+                    Environment.Exit(0);
+                }
+                catch (Exception exception)
+                {
+                    Console.WriteLine("MMap verification failed: " + exception.Message);
+                    Environment.Exit(1);
+                }
+            }
+
+            // --build-si-travel-graph <dataDir> <map>: build (or load) and cache one map's SI travel graph.
+            if (args.Length == 3 && args[0] == "--build-si-travel-graph")
+            {
+                Game.AI.SINavigationTool.BuildGraph(args[1], int.Parse(args[2]));
+                Environment.Exit(0);
+            }
+
+            // --si-walk-random <dataDir> <map> <count>: random connected routes, arrival rate.
+            if (args.Length == 4 && args[0] == "--si-walk-random")
+            {
+                Game.AI.SINavigationTool.RandomWalks(args[1], int.Parse(args[2]), int.Parse(args[3]));
+                Environment.Exit(0);
+            }
+
+            // --si-walk <dataDir> <map> x1 y1 z1 x2 y2 z2 [verbose]: plan an SI bot's walk leg by leg on the mmaps.
+            if ((args.Length == 9 || args.Length == 10) && args[0] == "--si-walk")
+            {
+                float F(int i) => float.Parse(args[i], CultureInfo.InvariantCulture);
+                bool arrived = Game.AI.SINavigationTool.Walk(args[1], int.Parse(args[2]), new(F(3), F(4), F(5)), new(F(6), F(7), F(8)), true, args.Length == 10);
+                Environment.Exit(arrived ? 0 : 1);
+            }
+
+            // Pure SI controller rule checks; no configuration, database or network.
+            if (args.Length == 1 && args[0] == "--verify-si-controller")
+            {
+                try
+                {
+                    foreach (string check in Game.AI.SIPlayer.VerifyController())
+                        Console.WriteLine("SI controller verified: " + check);
+                    Environment.Exit(0);
+                }
+                catch (Exception exception)
+                {
+                    Console.WriteLine("SI controller verification failed: " + exception.Message);
+                    Environment.Exit(1);
+                }
+            }
+
             Console.CancelKeyPress += (o, e) => Global.WorldMgr.StopNow(ShutdownExitCode.Shutdown);
 
             AppDomain.CurrentDomain.UnhandledException += UnhandledExceptionHandler;
 
-            if (!ConfigMgr.Load(Process.GetCurrentProcess().ProcessName + ".conf"))
+            if (!ConfigMgr.Load("Configs/" + Process.GetCurrentProcess().ProcessName + ".conf"))
                 ExitNow();
+
+            Log.outHeader(LogFilter.Server, " ");
+            Log.outHeader(LogFilter.Server, @"╦ ╦ ╔═╗ ╦═╗ ╦   ╔╦╗   ╔═╗ ╔═╗ ╦═╗ ╦  ╦ ╔═╗ ╦═╗");
+            Log.outHeader(LogFilter.Server, @"║║║ ║ ║ ╠╦╝ ║    ║║   ╚═╗ ║╣  ╠╦╝ ╚╗╔╝ ║╣  ╠╦╝");
+            Log.outHeader(LogFilter.Server, @"╚╩╝ ╚═╝ ╩╚═ ╩═╝ ═╩╝   ╚═╝ ╚═╝ ╩╚═  ╚╝  ╚═╝ ╩╚═");
+            Log.outHeader(LogFilter.Server, " ");
 
             if (!StartDB())
                 ExitNow();
@@ -104,6 +165,7 @@ namespace WorldServer
                 Global.BattlegroundMgr.DeleteAllBattlegrounds();
 
                 Global.WorldSocketMgr.StopNetwork();
+                Game.AI.SIMovement.SIMovementRuntime.Shutdown();
 
                 Global.MapMgr.UnloadAll();                     // unload all grids (including locked in memory)
                 Global.TerrainMgr.UnloadAll();
@@ -128,7 +190,7 @@ namespace WorldServer
         static bool StartDB()
         {
             // Load databases
-            DatabaseLoader loader = new(DatabaseTypeFlags.All);
+            DatabaseLoader loader = new();
             loader.AddDatabase(DB.Login, "Login");
             loader.AddDatabase(DB.Characters, "Character");
             loader.AddDatabase(DB.World, "World");
@@ -216,6 +278,7 @@ namespace WorldServer
         {
             var ex = e.ExceptionObject as Exception;
             Log.outException(ex);
+            Log.FlushConsole();
         }
 
         static void ExitNow()
@@ -226,3 +289,5 @@ namespace WorldServer
         }
     }
 }
+
+

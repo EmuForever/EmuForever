@@ -13,9 +13,9 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteInt64(GUID);
             _worldPacket.WriteInt32(Type);
             _worldPacket.WriteInt32(SetID);
+            _worldPacket.WriteInt64(GUID);
         }
 
         public long GUID; // Set Identifier
@@ -101,8 +101,9 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
+            // Forever layout: TC UseEquipmentSetResult::Write
+            _worldPacket.WriteInt32(Reason);
             _worldPacket.WriteUInt64(GUID);
-            _worldPacket.WriteUInt8(Reason);
         }
 
         public ulong GUID; //Set Identifier

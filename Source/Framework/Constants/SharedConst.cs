@@ -149,7 +149,7 @@ namespace Framework.Constants
         public const int MaxAccountTutorialValues = 8;
         public const int AuctionListItemsMax = 50;
         public const int AuctionBrowseItemsMax = 500;
-        public static readonly TimeSpan MinAuctionTime = (Hours)12;
+        public static readonly TimeSpan MinAuctionTime = (Hours)2;  // Classic 1.60: auctions run 2, 8 or 24 hours
         public const int MaxConditionTargets = 3;
 
         /// <summary>
@@ -787,6 +787,8 @@ namespace Framework.Constants
         MechaGnome = 37,
         DracthyrAlliance = 52,
         DracthyrHorde = 70,
+        SkyborneAlliance = 95,
+        SkyborneHorde = 96,
         //CompanionDrake      = 71,
         //CompanionProtoDragon = 72,
         //CompanionSerpent    = 73,
@@ -794,11 +796,11 @@ namespace Framework.Constants
         //DracthyrVisageAlliance = 75,
         //DracthyrVisageHorde= 76,
         //CompanionPterrodax  = 77
-        Max = 78
+        Max = 97
     }
 
     [Flags]
-    public enum RaceMask : int
+    public enum RaceMask : long
     {
         All_FixME = -1,
         None = 0,
@@ -831,11 +833,13 @@ namespace Framework.Constants
         MechaGnome = 1 << 14,
         DracthyrHorde = 1 << 15,
         DracthyrAlliance = 1 << 16,
+        SkyborneAlliance = 1L << 32,
+        SkyborneHorde = 1L << 33,
 
         //Helpers
-        Alliance = Human | Dwarf | NightElf | Gnome | Draenei,
+        Alliance = Human | Dwarf | NightElf | Gnome | Draenei | SkyborneAlliance,
 
-        Horde = Orc | Undead | Tauren | Troll | BloodElf,
+        Horde = Orc | Undead | Tauren | Troll | BloodElf | SkyborneHorde,
 
         Playable = Alliance | Horde,
 
@@ -856,6 +860,8 @@ namespace Framework.Constants
         BattleForAzeroth = 7,
         ShadowLands = 8,
         Dragonflight = 9,
+        TheWarWithin = 10,
+        Midnight = 11,
 
         Max,
         MaxAccountExpansions,

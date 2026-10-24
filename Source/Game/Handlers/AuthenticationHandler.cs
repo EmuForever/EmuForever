@@ -85,7 +85,7 @@ namespace Game
         public void SendFeatureSystemStatusGlueScreen()
         {
             FeatureSystemStatusGlueScreen features = new();
-            features.BpayStoreAvailable = false;
+            features.BpayStoreAvailable = true; // Classic 1.60: C_StoreSecure.IsAvailable() at character select
             features.BpayStoreDisabledByParentalControls = false;
             features.CharUndeleteEnabled = WorldConfig.Values[WorldCfg.FeatureSystemCharacterUndeleteEnabled].Bool;
             features.BpayStoreEnabled = WorldConfig.Values[WorldCfg.FeatureSystemBpayStoreEnabled].Bool;
@@ -106,6 +106,41 @@ namespace Game
             features.EuropaTicketSystemStatus = europaTicketConfig;
 
             SendPacket(features);
+
+            // Client variables as the official server sends them (reference AuthHandler.cpp).
+            MirrorVars variables = new();
+            variables.Variables.AddRange(new (string, string, int)[]
+            {
+                ("raidLockoutExtendEnabled", "1", 0),
+                ("sellAllJunkEnabled", "1", 0),
+                ("bypassItemLevelScalingCode", "0", 0),
+                // 0 = the legacy Store window fed by the BattlePay world packets; 1 = the shop2 catalog shop over REST
+                ("shop2Enabled", "0", 0),
+                ("shop2HostUrlRequests", "https://trinity.actual.battle.net:8443", 0),
+                ("shop2HostUrlAuth", "https://trinity.actual.battle.net:8443", 0),
+                ("shop2UseConnectedRealmGameServiceRegionId", "0", 0),
+                ("bpayStoreEnable", "1", 0),
+                // Social window (O) layout as the official server sends it: side tabs with Recent Allies and the raid list
+                ("recentAlliesEnabledClient", "1", 0),
+                ("recentAlliesRequestDataThrottle", "180", 0),
+                ("socialUIEnabledClient", "1", 0),
+                ("battleNetTitleFriendsEnabledClient", "1", 0),
+                ("battleNetTitleFriendTagsEnabledClient", "1", 0),
+                ("battleNetTitleFriendCustomNamesEnabledClient", "1", 0),
+                ("socialUIFriendsListEnabledClient", "1", 0),
+                ("socialUIRaidListEnabledClient", "1", 0),
+                ("socialUISocialQueueEnabledClient", "1", 0),
+                ("legacyFriendSystemEnabledClient", "0", 0),
+                ("browserEnabled", "1", 0),
+                ("housingEnableCreateGuildNeighborhood", "0", 0),
+                ("housingEnableDeleteHouse", "0", 0),
+                ("housingServiceEnabled", "0", 0),
+                ("housingEnableMoveHouse", "0", 0),
+                ("housingEnableCreateCharterNeighborhood", "0", 0),
+                ("housingEnableBuyHouse", "0", 0),
+                ("housingMarketEnabled", "0", 0),
+            });
+            SendPacket(variables);
         }
     }
 }

@@ -141,37 +141,35 @@ namespace Game.Networking.Packets
     {
         public CalendarSendCalendar() : base(ServerOpcodes.CalendarSendCalendar) { }
 
+        // Forever layout: TC CalendarSendCalendar::Write
         public override void Write()
         {
             _worldPacket.WriteInt32((WowTime)RealmTime);
             _worldPacket.WriteInt32(Invites.Count);
             _worldPacket.WriteInt32(Events.Count);
             _worldPacket.WriteInt32(RaidLockouts.Count);
-            _worldPacket.WriteInt32(RaidResets.Count);
 
             foreach (var invite in Invites)
                 invite.Write(_worldPacket);
 
-            foreach (var lockout in RaidLockouts)
-                lockout.Write(_worldPacket);
-
-            foreach (var reset in RaidResets)
-                reset.Write(_worldPacket);
-
             foreach (var Event in Events)
                 Event.Write(_worldPacket);
+
+            foreach (var lockout in RaidLockouts)
+                lockout.Write(_worldPacket);
         }
 
         public RealmTime RealmTime;
         public List<CalendarSendCalendarInviteInfo> Invites = new();
         public List<CalendarSendCalendarRaidLockoutInfo> RaidLockouts = new();
-        public List<CalendarSendCalendarRaidResetInfo> RaidResets = new();
         public List<CalendarSendCalendarEventInfo> Events = new();
     }
 
     class CalendarSendEvent : ServerPacket
     {
         public CalendarSendEvent() : base(ServerOpcodes.CalendarSendEvent) { }
+
+        // Forever layout: TC CalendarSendEvent::Write
 
         public override void Write()
         {
@@ -180,18 +178,18 @@ namespace Game.Networking.Packets
             _worldPacket.WriteInt64(EventID);
             _worldPacket.WriteUInt8((byte)GetEventType);
             _worldPacket.WriteInt32(TextureID);
-            _worldPacket.WriteUInt32((uint)Flags);
+            _worldPacket.WriteUInt16((ushort)Flags);
             _worldPacket.WriteInt32((WowTime)Date);
             _worldPacket.WriteInt32((WowTime)LockDate);
             _worldPacket.WriteInt64(EventGuildID);
             _worldPacket.WriteInt32(Invites.Count);
 
+            foreach (var invite in Invites)
+                invite.Write(_worldPacket);
+
             _worldPacket.WriteBits(EventName.GetByteCount(), 8);
             _worldPacket.WriteBits(Description.GetByteCount(), 11);
             _worldPacket.FlushBits();
-
-            foreach (var invite in Invites)
-                invite.Write(_worldPacket);
 
             _worldPacket.WriteString(EventName);
             _worldPacket.WriteString(Description);
@@ -219,7 +217,7 @@ namespace Game.Networking.Packets
         {
             _worldPacket.WriteInt64(EventID);
             _worldPacket.WriteInt32((WowTime)Date);
-            _worldPacket.WriteUInt32((uint)Flags);
+            _worldPacket.WriteUInt16((ushort)Flags); // Forever layout: TC CalendarInviteAlert::Write
             _worldPacket.WriteUInt8((byte)EventType);
             _worldPacket.WriteInt32(TextureID);
             _worldPacket.WriteInt64(EventClubID);
@@ -232,10 +230,12 @@ namespace Game.Networking.Packets
             _worldPacket.WritePackedGuid(OwnerGuid);
 
             _worldPacket.WriteBits(EventName.GetByteCount(), 8);
+            _worldPacket.WriteBit(Unknown_1100);
             _worldPacket.FlushBits();
             _worldPacket.WriteString(EventName);
         }
 
+        public bool Unknown_1100;
         public ObjectGuid OwnerGuid;
         public long EventClubID;
         public ObjectGuid InvitedByGuid;
@@ -300,7 +300,7 @@ namespace Game.Networking.Packets
             _worldPacket.WritePackedGuid(InviteGuid);
             _worldPacket.WriteInt64(EventID);
             _worldPacket.WriteInt32((WowTime)Date);
-            _worldPacket.WriteUInt32((uint)Flags);
+            _worldPacket.WriteUInt16((ushort)Flags); // Forever layout: TC CalendarInviteStatus::Write
             _worldPacket.WriteUInt8((byte)Status);
             _worldPacket.WriteInt32((WowTime)ResponseTime);
 
@@ -325,7 +325,7 @@ namespace Game.Networking.Packets
         {
             _worldPacket.WritePackedGuid(InviteGuid);
             _worldPacket.WriteInt64(EventID);
-            _worldPacket.WriteUInt32(Flags);
+            _worldPacket.WriteUInt16((ushort)Flags); // Forever layout: TC CalendarInviteRemoved::Write
 
             _worldPacket.WriteBit(ClearPending);
             _worldPacket.FlushBits();
@@ -365,7 +365,7 @@ namespace Game.Networking.Packets
         {
             _worldPacket.WriteInt64(EventID);
             _worldPacket.WriteInt32((WowTime)Date);
-            _worldPacket.WriteUInt32((uint)Flags);
+            _worldPacket.WriteUInt16((ushort)Flags); // Forever layout: TC CalendarInviteRemovedAlert::Write
             _worldPacket.WriteUInt8((byte)Status);
         }
 
@@ -395,8 +395,8 @@ namespace Game.Networking.Packets
             _worldPacket.WriteInt32((WowTime)Date);            
             _worldPacket.WriteInt32((WowTime)LockDate);
 
-            _worldPacket.WriteUInt32((uint)Flags);
-            _worldPacket.WriteInt32(TextureID);            
+            _worldPacket.WriteUInt16((ushort)Flags); // Forever layout: TC CalendarEventUpdatedAlert::Write
+            _worldPacket.WriteInt32(TextureID);
             _worldPacket.WriteUInt8((byte)EventType);
 
             _worldPacket.WriteBits(EventName.GetByteCount(), 8);
@@ -522,7 +522,7 @@ namespace Game.Networking.Packets
         public override void Read()
         {
             MapID = _worldPacket.ReadInt32();
-            DifficultyID = (Difficulty)_worldPacket.ReadInt32();
+            DifficultyID = (Difficulty)_worldPacket.ReadInt16(); // Forever layout: TC SetSavedInstanceExtend::Read
             Extend = _worldPacket.HasBit();
         }
 
@@ -582,11 +582,12 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteInt64(InstanceID);
+            // Forever layout: TC CalendarRaidLockoutAdded::Write
             _worldPacket.WriteInt32((WowTime)RealmTime);
             _worldPacket.WriteInt32(MapID);
-            _worldPacket.WriteUInt32((uint)DifficultyID);
+            _worldPacket.WriteInt16((short)DifficultyID);
             _worldPacket.WriteInt32((Seconds)TimeRemaining);
+            _worldPacket.WriteInt64(InstanceID);
         }
 
         public long InstanceID;
@@ -602,9 +603,10 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteInt64(InstanceID);
+            // Forever layout: TC CalendarRaidLockoutRemoved::Write
             _worldPacket.WriteInt32(MapID);
-            _worldPacket.WriteUInt32((uint)DifficultyID);
+            _worldPacket.WriteInt16((short)DifficultyID);
+            _worldPacket.WriteInt64(InstanceID);
         }
 
         public long InstanceID;
@@ -620,7 +622,7 @@ namespace Game.Networking.Packets
         {
             _worldPacket.WriteInt32((WowTime)RealmTime);
             _worldPacket.WriteInt32(MapID);
-            _worldPacket.WriteUInt32((uint)DifficultyID);
+            _worldPacket.WriteInt16((short)DifficultyID); // Forever layout: TC CalendarRaidLockoutUpdated::Write
             _worldPacket.WriteInt32((Seconds)OldTimeRemaining);
             _worldPacket.WriteInt32((Seconds)NewTimeRemaining);
         }
@@ -657,7 +659,7 @@ namespace Game.Networking.Packets
         {
             _worldPacket.WriteInt64(EventID);
             _worldPacket.WriteInt32((WowTime)Date);
-            _worldPacket.WriteUInt32(Flags);
+            _worldPacket.WriteUInt16((ushort)Flags); // Forever layout: TC CalendarInviteStatusAlert::Write
             _worldPacket.WriteUInt8(Status);
         }
 
@@ -734,9 +736,11 @@ namespace Game.Networking.Packets
             Status = data.ReadUInt8();
             Moderator = data.ReadUInt8();
 
+            // Forever layout: TC CalendarAddEventInviteInfo operator>>
             bool hasUnused801_1 = data.HasBit();
             bool hasUnused801_2 = data.HasBit();
             bool hasUnused801_3 = data.HasBit();
+            data.ResetBitPos();
 
             if (hasUnused801_1)
                 Unused801_1 = data.ReadPackedGuid();
@@ -762,13 +766,10 @@ namespace Game.Networking.Packets
             EventType = (CalendarEventType)data.ReadUInt8();
             TextureID = data.ReadInt32();
             GameTime = (RealmTime)(WowTime)data.ReadInt32();
-            Flags = (CalendarFlags)data.ReadUInt32();
+            Flags = (CalendarFlags)data.ReadUInt16(); // Forever layout: TC CalendarAddEventInfo operator>>
 
             var InviteCount = data.ReadUInt32();
             Cypher.Assert(InviteCount <= SharedConst.CalendarMaxInvites);
-
-            byte titleLength = data.ReadBits<byte>(8);
-            ushort descriptionLength = data.ReadBits<ushort>(11);
 
             for (var i = 0; i < InviteCount; ++i)
             {
@@ -776,6 +777,9 @@ namespace Game.Networking.Packets
                 invite.Read(data);
                 Invites.Add(invite);
             }
+
+            byte titleLength = data.ReadBits<byte>(8);
+            ushort descriptionLength = data.ReadBits<ushort>(11);
 
             Title = data.ReadString(titleLength);
             Description = data.ReadString(descriptionLength);
@@ -801,7 +805,7 @@ namespace Game.Networking.Packets
             EventType = (CalendarEventType)data.ReadUInt8();
             TextureID = data.ReadInt32();
             Time = (RealmTime)(WowTime)data.ReadInt32();
-            Flags = (CalendarFlags)data.ReadUInt32();
+            Flags = (CalendarFlags)data.ReadUInt16(); // Forever layout: TC CalendarUpdateEventInfo operator>>
 
             byte titleLen = data.ReadBits<byte>(8);
             ushort descLen = data.ReadBits<ushort>(11);
@@ -848,10 +852,11 @@ namespace Game.Networking.Packets
     {
         public void Write(WorldPacket data)
         {
-            data.WriteInt64(InstanceID);
+            // Forever layout: TC CalendarSendCalendarRaidLockoutInfo operator<<
             data.WriteInt32(MapID);
-            data.WriteUInt32((uint)DifficultyID);
+            data.WriteInt16((short)DifficultyID);
             data.WriteInt32((Seconds)ExpireTime);
+            data.WriteInt64(InstanceID);
         }
 
         public long InstanceID;
@@ -885,7 +890,7 @@ namespace Game.Networking.Packets
             data.WriteInt64(EventID);
             data.WriteUInt8((byte)EventType);
             data.WriteInt32((WowTime)Date);
-            data.WriteUInt32((uint)Flags);
+            data.WriteUInt16((ushort)Flags); // Forever layout: TC CalendarSendCalendarEventInfo operator<<
             data.WriteInt32(TextureID);
             data.WriteInt64(EventClubID);
             data.WritePackedGuid(OwnerGuid);

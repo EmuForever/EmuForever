@@ -27,6 +27,7 @@ namespace Game.Networking.Packets
     {
         public QueryGuildInfoResponse() : base(ServerOpcodes.QueryGuildInfoResponse) { }
 
+        // Forever layout: TC QueryGuildInfoResponse::Write
         public override void Write()
         {
             _worldPacket.WritePackedGuid(GuildGUID);
@@ -43,8 +44,7 @@ namespace Game.Networking.Packets
                 _worldPacket.WriteInt32(Info.BorderStyle);
                 _worldPacket.WriteInt32(Info.BorderColor);
                 _worldPacket.WriteInt32(Info.BackgroundColor);
-                _worldPacket.WriteBits(Info.GuildName.GetByteCount(), 7);
-                _worldPacket.FlushBits();
+                _worldPacket.WriteInt32(0); // Classic 1.60: sixth emblem int32 before the ranks
 
                 foreach (var rank in Info.Ranks)
                 {
@@ -56,6 +56,8 @@ namespace Game.Networking.Packets
                     _worldPacket.WriteString(rank.RankName);
                 }
 
+                _worldPacket.WriteBits(Info.GuildName.GetByteCount(), 7);
+                _worldPacket.FlushBits();
                 _worldPacket.WriteString(Info.GuildName);
             }
 
@@ -108,17 +110,19 @@ namespace Game.Networking.Packets
             MemberData = new List<GuildRosterMemberData>();
         }
 
+        // Forever layout: TC GuildRoster::Write
         public override void Write()
         {
             _worldPacket.WriteInt32(NumAccounts);
             _worldPacket.WriteInt32((WowTime)CreateDate);
             _worldPacket.WriteInt32(GuildFlags);
             _worldPacket.WriteInt32(MemberData.Count);
+
+            MemberData.ForEach(p => p.Write(_worldPacket));
+
             _worldPacket.WriteBits(WelcomeText.GetByteCount(), 11);
             _worldPacket.WriteBits(InfoText.GetByteCount(), 11);
             _worldPacket.FlushBits();
-
-            MemberData.ForEach(p => p.Write(_worldPacket));
 
             _worldPacket.WriteString(WelcomeText);
             _worldPacket.WriteString(InfoText);
@@ -165,10 +169,12 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteInt32((int)Result);
-            _worldPacket.WriteInt32((int)Command);
+            // Forever layout: TC GuildCommandResult::Write
+            _worldPacket.WriteUInt8((byte)Result);
+            _worldPacket.WriteUInt8((byte)Command);
 
             _worldPacket.WriteBits(Name.GetByteCount(), 8);
+            _worldPacket.FlushBits();
             _worldPacket.WriteString(Name);
         }
 
@@ -181,14 +187,28 @@ namespace Game.Networking.Packets
     {
         public AcceptGuildInvite(WorldPacket packet) : base(packet) { }
 
-        public override void Read() { }
+        // Forever layout: TC AcceptGuildInvite::Read
+        public override void Read()
+        {
+            GuildGuid = _worldPacket.ReadPackedGuid();
+        }
+
+        public ObjectGuid GuildGuid;
     }
 
     public class GuildDeclineInvitation : ClientPacket
     {
         public GuildDeclineInvitation(WorldPacket packet) : base(packet) { }
 
-        public override void Read() { }
+        // Forever layout: TC GuildDeclineInvitation::Read
+        public override void Read()
+        {
+            GuildGuid = _worldPacket.ReadPackedGuid();
+            IsAuto = _worldPacket.HasBit();
+        }
+
+        public ObjectGuid GuildGuid;
+        public bool IsAuto;
     }
 
     public class DeclineGuildInvites : ClientPacket
@@ -287,23 +307,26 @@ namespace Game.Networking.Packets
     {
         public GuildEventPresenceChange() : base(ServerOpcodes.GuildEventPresenceChange) { }
 
+        // Forever layout: TC GuildEventPresenceChange::Write (Classic 1.60: surname, no Mobile bit)
         public override void Write()
         {
+            string surname = Global.CharacterCacheStorage.GetCharacterSurnameByGuid(Guid) ?? string.Empty;
             _worldPacket.WritePackedGuid(Guid);
             _worldPacket.WriteUInt32(VirtualRealmAddress);
 
             _worldPacket.WriteBits(Name.GetByteCount(), 6);
+            _worldPacket.WriteBits(surname.GetByteCount(), 9);
             _worldPacket.WriteBit(LoggedOn);
-            _worldPacket.WriteBit(Mobile);
             _worldPacket.FlushBits();
 
             _worldPacket.WriteString(Name);
+            _worldPacket.WriteString(surname);
         }
 
         public ObjectGuid Guid;
         public uint VirtualRealmAddress;
         public string Name;
-        public bool Mobile;
+        public bool Mobile; // not sent in Classic 1.60
         public bool LoggedOn;
     }
 
@@ -326,15 +349,19 @@ namespace Game.Networking.Packets
     {
         public GuildEventPlayerJoined() : base(ServerOpcodes.GuildEventPlayerJoined) { }
 
+        // Forever layout: TC GuildEventPlayerJoined::Write (Classic 1.60: surname)
         public override void Write()
         {
+            string surname = Global.CharacterCacheStorage.GetCharacterSurnameByGuid(Guid) ?? string.Empty;
             _worldPacket.WritePackedGuid(Guid);
             _worldPacket.WriteUInt32(VirtualRealmAddress);
 
             _worldPacket.WriteBits(Name.GetByteCount(), 6);
+            _worldPacket.WriteBits(surname.GetByteCount(), 9);
             _worldPacket.FlushBits();
 
             _worldPacket.WriteString(Name);
+            _worldPacket.WriteString(surname);
         }
 
         public ObjectGuid Guid;
@@ -451,6 +478,7 @@ namespace Game.Networking.Packets
             _worldPacket.WriteBit(SelfPromoted);
             _worldPacket.WriteBits(OldLeaderName.GetByteCount(), 6);
             _worldPacket.WriteBits(NewLeaderName.GetByteCount(), 6);
+            _worldPacket.FlushBits(); // Forever layout: TC GuildEventNewLeader::Write
 
             _worldPacket.WritePackedGuid(OldLeaderGUID);
             _worldPacket.WriteUInt32(OldLeaderVirtualRealmAddress);
@@ -565,7 +593,8 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
-            RankID = _worldPacket.ReadInt32();
+            // Forever layout: TC GuildSetRankPermissions::Read
+            RankID = _worldPacket.ReadUInt8();
             RankOrder = _worldPacket.ReadInt32();
             Flags = _worldPacket.ReadUInt32();
             WithdrawGoldLimit = _worldPacket.ReadInt32();
@@ -576,12 +605,12 @@ namespace Game.Networking.Packets
                 TabWithdrawItemLimit[i] = _worldPacket.ReadInt32();
             }
 
-            OldFlags = _worldPacket.ReadUInt32();
-
             _worldPacket.ResetBitPos();
             int rankNameLen = _worldPacket.ReadBits<int>(7);
 
             RankName = _worldPacket.ReadString(rankNameLen);
+
+            OldFlags = _worldPacket.ReadUInt32();
         }
 
         public int RankID;
@@ -828,7 +857,9 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
+            // Forever layout: TC GuildFlaggedForRename::Write
             _worldPacket.WriteBit(FlagSet);
+            _worldPacket.FlushBits();
         }
 
         public bool FlagSet;
@@ -852,12 +883,12 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteBit(InGuildParty);
-            _worldPacket.FlushBits();
-
+            // Forever layout: TC GuildPartyState::Write
             _worldPacket.WriteInt32(NumMembers);
             _worldPacket.WriteInt32(NumRequired);
             _worldPacket.WriteFloat(GuildXPEarnedMult);
+            _worldPacket.WriteBit(InGuildParty);
+            _worldPacket.FlushBits();
         }
 
         public float GuildXPEarnedMult = 0.0f;
@@ -1023,6 +1054,7 @@ namespace Game.Networking.Packets
             Tab = tabId;
         }
 
+        // Forever layout: TC GuildBankQueryResults::Write
         public override void Write()
         {
             // Reuse packet           
@@ -1043,14 +1075,15 @@ namespace Game.Networking.Packets
 
             _worldPacket.WriteInt32(TabInfo.Count);
             _worldPacket.WriteInt32(ItemInfo.Count);
-            _worldPacket.WriteBit(FullUpdate);
-            _worldPacket.FlushBits();
 
             foreach (GuildBankTabInfo tab in TabInfo.Values)
                 tab.Write(_worldPacket);
 
             foreach (GuildBankItemInfo item in ItemInfo.Values)
                 item.Write(_worldPacket);
+
+            _worldPacket.WriteBit(FullUpdate);
+            _worldPacket.FlushBits();
 
             // Create new buffer immediately
             UpdateData();
@@ -1271,9 +1304,8 @@ namespace Game.Networking.Packets
         public override void Write()
         {
             _worldPacket.WriteInt32(Tab);
+            // Forever layout: TC GuildBankLogQueryResults::Write
             _worldPacket.WriteInt32(Entry.Count);
-            _worldPacket.WriteBit(WeeklyBonusMoney.HasValue);
-            _worldPacket.FlushBits();
 
             foreach (GuildBankLogEntry logEntry in Entry)
             {
@@ -1299,6 +1331,9 @@ namespace Game.Networking.Packets
                 if (logEntry.OtherTab.HasValue)
                     _worldPacket.WriteInt8(logEntry.OtherTab.Value);
             }
+
+            _worldPacket.WriteBit(WeeklyBonusMoney.HasValue);
+            _worldPacket.FlushBits();
 
             if (WeeklyBonusMoney.HasValue)
                 _worldPacket.WriteUInt64(WeeklyBonusMoney.Value);
@@ -1530,6 +1565,7 @@ namespace Game.Networking.Packets
 
     public class GuildRosterMemberData
     {
+        // Forever layout: TC GuildRosterMemberData operator<<
         public void Write(WorldPacket data)
         {
             data.WritePackedGuid(Guid);
@@ -1547,17 +1583,22 @@ namespace Game.Networking.Packets
             data.WriteUInt8(Level);
             data.WriteUInt8(ClassID);
             data.WriteUInt8(Gender);
+            DungeonScore.Write(data);
             data.WriteUInt64(GuildClubMemberID);
             data.WriteUInt8(RaceID);
+            data.WriteInt32(TimerunningSeasonID);
 
+            // Classic 1.60: the surname (9 bit length) follows the name
+            string surname = Global.CharacterCacheStorage.GetCharacterSurnameByGuid(Guid) ?? string.Empty;
             data.WriteBits(Name.GetByteCount(), 6);
+            data.WriteBits(surname.GetByteCount(), 9);
             data.WriteBits(Note.GetByteCount(), 8);
             data.WriteBits(OfficerNote.GetByteCount(), 8);
             data.WriteBit(Authenticated);
-            data.WriteBit(SorEligible);
             data.FlushBits();
 
             data.WriteString(Name);
+            data.WriteString(surname);
             data.WriteString(Note);
             data.WriteString(OfficerNote);
         }
@@ -1582,7 +1623,8 @@ namespace Game.Networking.Packets
         public ulong GuildClubMemberID;
         public byte RaceID;
         public bool Authenticated;
-        public bool SorEligible;
+        public bool SorEligible; // not sent in Classic 1.60
+        public int TimerunningSeasonID;
         public GuildRosterProfessionData[] Profession = new GuildRosterProfessionData[2];
         public DungeonScoreSummary DungeonScore = new();
     }
@@ -1684,13 +1726,14 @@ namespace Game.Networking.Packets
 
         public void Write(WorldPacket data)
         {
+            // Forever layout: TC GuildBankQueryResults item entry
             data.WriteInt32(Slot);
+            Item.Write(data);
             data.WriteInt32(Count);
             data.WriteInt32(EnchantmentID);
             data.WriteInt32(Charges);
             data.WriteInt32(OnUseEnchantmentID);
             data.WriteUInt32(Flags);
-            Item.Write(data);
 
             data.WriteBits(SocketEnchant.Count, 2);
             data.WriteBit(Locked);
@@ -1725,6 +1768,7 @@ namespace Game.Networking.Packets
             data.WriteInt32(TabIndex);
             data.WriteBits(Name.GetByteCount(), 7);
             data.WriteBits(Icon.GetByteCount(), 9);
+            data.FlushBits(); // Forever layout: TC GuildBankQueryResults tab entry
 
             data.WriteString(Name);
             data.WriteString(Icon);
@@ -1831,8 +1875,9 @@ namespace Game.Networking.Packets
         public void Write(WorldPacket data)
         {
             data.WriteInt32(Id);
+            // Forever layout: TC GuildNewsEvent operator<< (Type is int8)
             data.WriteInt32((WowTime)CompletedDate);
-            data.WriteInt32(Type);
+            data.WriteInt8((sbyte)Type);
             data.WriteInt32(Flags);
 
             for (byte i = 0; i < 2; i++)

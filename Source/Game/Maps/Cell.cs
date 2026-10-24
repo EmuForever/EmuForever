@@ -154,14 +154,9 @@ namespace Game.Maps
             {
                 for (int y = area.low_bound.Y_coord; y <= area.high_bound.Y_coord; ++y)
                 {
-                    CellCoord cellCoord = new(x, y);
                     //lets skip standing cell since we already visited it
-                    if (cellCoord != standing_cell)
-                    {
-                        Cell r_zone = new(cellCoord);
-                        r_zone.data.nocreate = data.nocreate;
-                        map.Visit(r_zone, visitor);
-                    }
+                    if (x != standing_cell.X_coord || y != standing_cell.Y_coord)
+                        map.VisitCell(x, y, data.nocreate, visitor);
                 }
             }
         }
@@ -179,10 +174,7 @@ namespace Game.Maps
             {
                 for (int y = begin_cell.Y_coord; y <= end_cell.Y_coord; ++y)
                 {
-                    CellCoord cellCoord = new(x, y);
-                    Cell r_zone = new(cellCoord);
-                    r_zone.data.nocreate = data.nocreate;
-                    map.Visit(r_zone, visitor);
+                    map.VisitCell(x, y, data.nocreate, visitor);
                 }
             }
 
@@ -203,16 +195,10 @@ namespace Game.Maps
                 {
                     //we visit cells symmetrically from both sides, heading from center to sides and from up to bottom
                     //e.g. filling 2 trapezoids after filling central cell strip...
-                    CellCoord cellCoord_left = new(x_start - step, y);
-                    Cell r_zone_left = new(cellCoord_left);
-                    r_zone_left.data.nocreate = data.nocreate;
-                    map.Visit(r_zone_left, visitor);
+                    map.VisitCell(x_start - step, y, data.nocreate, visitor);
 
                     //right trapezoid cell visit
-                    CellCoord cellCoord_right = new(x_end + step, y);
-                    Cell r_zone_right = new(cellCoord_right);
-                    r_zone_right.data.nocreate = data.nocreate;
-                    map.Visit(r_zone_right, visitor);
+                    map.VisitCell(x_end + step, y, data.nocreate, visitor);
                 }
             }
         }

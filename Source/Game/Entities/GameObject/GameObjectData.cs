@@ -5,6 +5,7 @@ using Framework.Collections;
 using Framework.Constants;
 using Game.Maps;
 using Game.Networking.Packets;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -231,6 +232,33 @@ namespace Game.Entities
         public QueryGameObjectResponse QueryData;
 
         // helpers
+        (int Minimum, int Maximum) FishingHoleRestockBounds()
+        {
+            int minimum = Math.Clamp(FishingHole.minRestock, 0, ushort.MaxValue);
+            // A missing/reversed maximum must not discard a valid minimum. In
+            // particular, Classic template 180184 has data2=10 and data3=0.
+            int maximum = Math.Clamp(FishingHole.maxRestock, minimum, ushort.MaxValue);
+            return (minimum, maximum);
+        }
+
+        internal bool NormalizeFishingHoleRestockRange()
+        {
+            if (type != GameObjectTypes.FishingHole) return false;
+            var (minimum, maximum) = FishingHoleRestockBounds();
+            bool changed = minimum != FishingHole.minRestock || maximum != FishingHole.maxRestock;
+            FishingHole.minRestock = minimum;
+            FishingHole.maxRestock = maximum;
+            return changed;
+        }
+
+        public int RollFishingHoleMaxOpens()
+        {
+            // Snapshot validated bounds even when a caller bypasses the template
+            // loader. Shared templates are not mutated by parallel map updates.
+            var (minimum, maximum) = FishingHoleRestockBounds();
+            return Random.Shared.Next(minimum, maximum + 1);
+        }
+
         public bool IsDespawnAtAction()
         {
             switch (type)
@@ -1442,7 +1470,7 @@ namespace Game.Entities
             public int IgnoreBoundingBox;                       // 2 Ignore Bounding Box, enum { false, true, }; Default: false
             public int CameraMode;                              // 3 Camera Mode, References: CameraMode, NoValue = 0
             public int FadeRegionRadius;                        // 4 Fade Region Radius, int, Min value: 0, Max value: 2147483647, Default value: 0
-            public int ForgeType;                               // 5 Forge Type, enum { Artifact Forge, Relic Forge, Heart Forge, Soulbind Forge, Anima Reservoir, }; Default: Relic Forge
+            public int ForgeType;                               // 5 Forge Type, client data field
             public int InteractRadiusOverride;                  // 6 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
             public int GarrTalentTreeID;                        // 7 GarrTalentTree ID, References: GarrTalentTree, NoValue = 0
         }
@@ -1539,7 +1567,7 @@ namespace Game.Entities
             public uint WhenAvailable;                           // 1 When Available, References: GameObjectDisplayInfo, NoValue = 0
             public uint GiganticAOI;                             // 2 Gigantic AOI, enum { false, true, }; Default: false
             public uint PlayerChoice;                            // 3 Player Choice, References: PlayerChoice, NoValue = 0
-            public uint MawPowerFilter;                          // 4 Maw Power Filter, References: MawPowerFilter, NoValue = 0
+            public uint Reserved4;                               // 4 Unused client data field
             public uint Script;                                  // 5 Script, References: SpellScript, NoValue = 0
             public uint SpellVisual1;                            // 6 Spell Visual 1, References: SpellVisual, NoValue = 0
             public int InteractRadiusOverride;                  // 7 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0

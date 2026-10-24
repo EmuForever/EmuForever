@@ -27,17 +27,25 @@ namespace Game.Networking.Packets
             DisplayInfo = new PlayerModelDisplayInfo();
         }
 
+        // Forever layout: TC InspectResult::Write
         public override void Write()
         {
             DisplayInfo.Write(_worldPacket);
             _worldPacket.WriteInt32(Glyphs.Count);
             _worldPacket.WriteInt32(Talents.Count);
+            _worldPacket.WriteInt32(PvpTalents.Length);
+            TalentInfo.Write(_worldPacket);
             _worldPacket.WriteInt32(ItemLevel);
+
+            foreach (PVPBracketData bracket in Bracket)
+                bracket.Write(_worldPacket);
+
             _worldPacket.WriteUInt8(LifetimeMaxRank);
             _worldPacket.WriteUInt16(TodayHK);
             _worldPacket.WriteUInt16(YesterdayHK);
             _worldPacket.WriteInt32(LifetimeHK);
             _worldPacket.WriteInt32(HonorLevel);
+            TalentTraits.Write(_worldPacket);
 
             for (int i = 0; i < Glyphs.Count; ++i)
                 _worldPacket.WriteUInt16((ushort)Glyphs[i]);
@@ -45,27 +53,27 @@ namespace Game.Networking.Packets
             for (int i = 0; i < Talents.Count; ++i)
                 _worldPacket.WriteUInt16((ushort)Talents[i]);
 
+            foreach (ushort pvpTalent in PvpTalents)
+                _worldPacket.WriteUInt16(pvpTalent);
+
             _worldPacket.WriteBit(GuildData.HasValue);
             _worldPacket.WriteBit(AzeriteLevel.HasValue);
             _worldPacket.FlushBits();
-
-            foreach (PVPBracketData bracket in Bracket)
-                bracket.Write(_worldPacket);
 
             if (GuildData.HasValue)
                 GuildData.Value.Write(_worldPacket);
 
             if (AzeriteLevel.HasValue)
                 _worldPacket.WriteUInt32(AzeriteLevel.Value);
-
-            TalentTraits.Write(_worldPacket);
         }
 
         public PlayerModelDisplayInfo DisplayInfo;
         public List<int> Glyphs = new();
         public List<int> Talents = new();
         public InspectGuildData? GuildData;
-        public Array<PVPBracketData> Bracket = new(7, default);
+        public ushort[] PvpTalents = new ushort[4]; // MAX_PVP_TALENT_SLOTS
+        public Array<PVPBracketData> Bracket = new(9, default);
+        public InspectClassicTalentInfoUpdate TalentInfo = new();
         public uint? AzeriteLevel;
         public int ItemLevel;
         public int LifetimeHK;
@@ -143,14 +151,15 @@ namespace Game.Networking.Packets
 
         public void Write(WorldPacket data)
         {
+            // Forever layout: TC InspectItemData operator<<
             data.WritePackedGuid(CreatorGUID);
+            Item.Write(data);
             data.WriteUInt8(Index);
             data.WriteInt32(AzeritePowers.Count);
             data.WriteInt32(AzeriteEssences.Count);
             foreach (var id in AzeritePowers)
                 data.WriteInt32(id);
 
-            Item.Write(data);
             data.WriteBit(Usable);
             data.WriteBits(Enchants.Count, 4);
             data.WriteBits(Gems.Count, 2);
@@ -209,9 +218,9 @@ namespace Game.Networking.Packets
 
         public void Write(WorldPacket data)
         {
+            // Forever layout: TC PlayerModelDisplayInfo operator<<
             data.WritePackedGuid(GUID);
             data.WriteInt32(SpecializationID);
-            data.WriteInt32(Items.Count);
             data.WriteBits(Name.GetByteCount(), 6);
             data.WriteUInt8(GenderID);
             data.WriteUInt8(Race);
@@ -221,6 +230,8 @@ namespace Game.Networking.Packets
 
             foreach (var customization in Customizations)
                 customization.Write(data);
+
+            data.WriteInt32(Items.Count);
 
             foreach (InspectItemData item in Items)
                 item.Write(data);
@@ -245,8 +256,9 @@ namespace Game.Networking.Packets
     {
         public void Write(WorldPacket data)
         {
+            // Forever layout: TC PVPBracketData operator<<
             data.WriteUInt8(Bracket);
-            data.WriteInt32(Unused3);
+            data.WriteInt32(RatingID);
             data.WriteInt32(Rating);
             data.WriteInt32(Rank);
             data.WriteInt32(WeeklyPlayed);
@@ -254,11 +266,11 @@ namespace Game.Networking.Packets
             data.WriteInt32(SeasonPlayed);
             data.WriteInt32(SeasonWon);
             data.WriteInt32(WeeklyBestRating);
-            data.WriteInt32(SeasonBestRating);
+            data.WriteInt32(LastWeeksBestRating);
             data.WriteInt32(PvpTierID);
             data.WriteInt32(WeeklyBestWinPvpTierID);
-            data.WriteInt32(Unused1);
-            data.WriteInt32(Unused2);
+            data.WriteInt32(SeasonBestRating);
+            data.WriteUInt8(SeasonBestTierEnum);
             data.WriteInt32(RoundsSeasonPlayed);
             data.WriteInt32(RoundsSeasonWon);
             data.WriteInt32(RoundsWeeklyPlayed);
@@ -277,15 +289,71 @@ namespace Game.Networking.Packets
         public int SeasonBestRating;
         public int PvpTierID;
         public int WeeklyBestWinPvpTierID;
-        public int Unused1;
-        public int Unused2;
-        public int Unused3;
+        public int RatingID;
+        public int LastWeeksBestRating;
+        public byte SeasonBestTierEnum;
         public int RoundsSeasonPlayed;
         public int RoundsSeasonWon;
         public int RoundsWeeklyPlayed;
         public int RoundsWeeklyWon;
         public byte Bracket;
         public bool Disqualified;
+    }
+
+    public class InspectClassicTalentEntry
+    {
+        public int TalentID;
+        public int Rank;
+    }
+
+    public class InspectClassicTalentGroupInfo
+    {
+        public byte NumTalents;
+        public List<InspectClassicTalentEntry> Talents = new();
+        public byte NumGlyphs;
+        public List<ushort> GlyphIDs = new();
+        public sbyte Role;
+        public int PrimarySpecialization;
+
+        // Forever layout: TC ClassicTalentGroupInfo operator<<
+        public void Write(WorldPacket data)
+        {
+            data.WriteUInt8(NumTalents);
+            data.WriteInt32(Talents.Count);
+            data.WriteUInt8(NumGlyphs);
+            data.WriteInt32(GlyphIDs.Count);
+            data.WriteInt8(Role);
+            data.WriteInt32(PrimarySpecialization);
+
+            foreach (var talent in Talents)
+            {
+                data.WriteInt32(talent.TalentID);
+                data.WriteInt32(talent.Rank);
+            }
+
+            foreach (ushort glyph in GlyphIDs)
+                data.WriteUInt16(glyph);
+        }
+    }
+
+    public class InspectClassicTalentInfoUpdate
+    {
+        public int UnspentTalentPoints;
+        public byte ActiveGroup;
+        public bool IsPetTalents;
+        public List<InspectClassicTalentGroupInfo> Talents = new();
+
+        // Forever layout: TC ClassicTalentInfoUpdate operator<<
+        public void Write(WorldPacket data)
+        {
+            data.WriteInt32(UnspentTalentPoints);
+            data.WriteUInt8(ActiveGroup);
+            data.WriteInt32(Talents.Count);
+            foreach (var group in Talents)
+                group.Write(data);
+            data.WriteBit(IsPetTalents);
+            data.FlushBits();
+        }
     }
 
     public class TraitInspectInfo

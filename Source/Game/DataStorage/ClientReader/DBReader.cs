@@ -20,6 +20,7 @@ namespace Game.DataStorage
     class DBReader
     {
         private const uint WDC4FmtSig = 0x34434457; // WDC4
+        private const uint WDC5FmtSig = 0x35434457; // WDC5
 
         public WDCHeader Header;
         public FieldMetaData[] FieldMeta;
@@ -36,7 +37,12 @@ namespace Game.DataStorage
             {
                 Header = new WDCHeader();
                 Header.Signature = reader.ReadUInt32();
-                if (Header.Signature != WDC4FmtSig)
+                if (Header.Signature == WDC5FmtSig)
+                {
+                    reader.ReadUInt32(); // version (5)
+                    reader.ReadBytes(128); // schema string
+                }
+                else if (Header.Signature != WDC4FmtSig)
                     return false;
 
                 Header.RecordCount = reader.ReadInt32();

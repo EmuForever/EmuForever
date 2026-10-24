@@ -15,9 +15,10 @@ namespace Game.Networking.Packets
     {
         public CollectionItemSetFavorite(WorldPacket packet) : base(packet) { }
 
+        // Forever layout: TC CollectionItemSetFavorite::Read
         public override void Read()
         {
-            Type = (CollectionType)_worldPacket.ReadUInt32();
+            Type = (CollectionType)_worldPacket.ReadUInt8();
             Id = _worldPacket.ReadInt32();
             IsFavorite = _worldPacket.HasBit();
         }

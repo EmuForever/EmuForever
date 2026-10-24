@@ -149,6 +149,14 @@ namespace Game
 
         public void SendLfgPlayerLockInfo()
         {
+            // Classic 1.60 has no Dungeon Finder: send the lists empty. The retail-format dungeon/lock entries crashed the client's
+            // LFG code at login once LFGDungeons rows had their TypeID (reference LFGHandler.cpp).
+            if (Framework.Configuration.ConfigMgr.GetDefaultValue("Classic.EmptyDungeonFinder", true))
+            {
+                SendPacket(new LfgPlayerInfo());
+                return;
+            }
+
             // Get Random dungeons that can be done at a certain level and expansion
             int level = GetPlayer().GetLevel();
             var randomDungeons = Global.LFGMgr.GetRandomAndSeasonalDungeons(level, GetExpansion());
@@ -221,6 +229,13 @@ namespace Game
             Group group = GetPlayer().GetGroup();
             if (group == null)
                 return;
+
+            // Classic 1.60 has no Dungeon Finder: no lock entries (see SendLfgPlayerLockInfo)
+            if (Framework.Configuration.ConfigMgr.GetDefaultValue("Classic.EmptyDungeonFinder", true))
+            {
+                SendPacket(new LfgPartyInfo());
+                return;
+            }
 
             LfgPartyInfo lfgPartyInfo = new();
 

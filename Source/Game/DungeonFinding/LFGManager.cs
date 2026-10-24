@@ -2368,8 +2368,10 @@ namespace Game.DungeonFinding
             type = dbc.TypeID;
             expansion = dbc.ExpansionLevel;
             group = dbc.GroupID;
-            minlevel = dbc.MinLevel;
-            maxlevel = (byte)dbc.MaxLevel;
+            // 1.60.1: LFGDungeons level range comes from ContentTuning
+            var levels = Global.DB2Mgr.GetContentTuningData(dbc.ContentTuningID, 0);
+            minlevel = (byte)(levels.HasValue ? levels.Value.MinLevel : 0);
+            maxlevel = (byte)(levels.HasValue ? levels.Value.MaxLevel : 0);
             difficulty = dbc.DifficultyID;
             seasonal = dbc.HasAnyFlag(LfgFlags.Seasonal);
         }

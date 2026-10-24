@@ -30,14 +30,14 @@ namespace Game.DataStorage
         public ushort IntroSound;
         public ushort UwIntroSound;
         public ushort AreaTableID;
-        public byte Flags;
+        public int Flags;
     }
 
     public sealed class WorldEffectRecord
     {
         public int Id;
         public int QuestFeedbackEffectID;
-        public byte WhenToDisplay;
+        public int WhenToDisplay;
         public byte TargetType;
         public int TargetAsset;
         public int PlayerConditionID;
@@ -58,7 +58,7 @@ namespace Game.DataStorage
         public int HitRectRight;
         public int PlayerConditionID;
         public uint Flags;
-        public int[] AreaID = new int[SharedConst.MaxWorldMapOverlayArea];
+        public int[] AreaID = new int[4];
     }
 
     public sealed class WorldStateExpressionRecord

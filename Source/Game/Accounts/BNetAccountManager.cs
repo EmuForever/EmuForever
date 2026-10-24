@@ -37,10 +37,10 @@ namespace Game
             stmt.SetInt8(1, (sbyte)SrpVersion.v2);
             stmt.SetBytes(2, salt);
             stmt.SetBytes(3, verifier);
-            DB.Login.DirectExecute(stmt);
+            if (!DB.Login.DirectExecute(stmt)) return AccountOpResult.DBInternalError;
 
             int newAccountId = GetId(email);
-            Cypher.Assert(newAccountId != 0);
+            if (newAccountId <= 0) return AccountOpResult.DBInternalError;
 
             if (withGameAccount)
             {

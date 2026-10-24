@@ -19,7 +19,7 @@ namespace Game.Collision
             ++unbalanced_times;
             uint Idx;
             if (m_obj2Idx.TryGetValue(obj, out Idx))
-                m_objects[(int)Idx] = null;
+                { m_objects[(int)Idx] = null; if (Idx < m_objectArray.Length) m_objectArray[Idx] = null; }
             else
                 m_objects_to_push.Remove(obj);
         }
@@ -35,24 +35,28 @@ namespace Game.Collision
             m_objects.AddRange(m_objects_to_push);
 
             m_tree.Build(m_objects);
+            // The tree's indices refer to this order; queries read this snapshot until the next rebalance.
+            m_objectArray = m_objects.ToArray();
         }
 
         public void IntersectRay(Ray ray, WorkerCallback intersectCallback, ref float maxDist)
         {
             Balance();
-            MDLCallback temp_cb = new(intersectCallback, m_objects.ToArray(), (uint)m_objects.Count);
+            // Was m_objects.ToArray() per query: every ray and height probe copied the cell's whole model list.
+            MDLCallback temp_cb = new(intersectCallback, m_objectArray, (uint)m_objectArray.Length);
             m_tree.IntersectRay(ray, temp_cb, ref maxDist, true);
         }
 
         public void IntersectPoint(Vector3 point, WorkerCallback intersectCallback)
         {
             Balance();
-            MDLCallback callback = new(intersectCallback, m_objects.ToArray(), (uint)m_objects.Count);
+            MDLCallback callback = new(intersectCallback, m_objectArray, (uint)m_objectArray.Length);
             m_tree.IntersectPoint(point, callback);
         }
 
         BIH m_tree = new();
         List<T> m_objects = new();
+        T[] m_objectArray = [];
         Dictionary<T, uint> m_obj2Idx = new();
         HashSet<T> m_objects_to_push = new();
         int unbalanced_times;

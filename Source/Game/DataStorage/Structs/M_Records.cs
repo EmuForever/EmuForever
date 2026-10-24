@@ -27,6 +27,7 @@ namespace Game.DataStorage
         public LocalizedString MapDescription1;
         public LocalizedString PvpShortDescription;
         public LocalizedString PvpLongDescription;
+        public float[] Corpse = new float[2];
         public byte MapType;
         private sbyte _instanceType;
         private byte _expansionID;
@@ -37,7 +38,6 @@ namespace Game.DataStorage
         public short CosmeticParentMapID;
         public byte TimeOffset;
         public float MinimapIconScale;
-        public int RaidOffset;
         /// <summary>
         /// map_id of entrance map in ghost mode (continent always and in most cases = normal entrance)
         /// </summary>
@@ -45,6 +45,10 @@ namespace Game.DataStorage
         public byte MaxPlayers;
         public short WindSettingsID;
         public int ZmpFileDataID;
+        public int WdtFileDataID;
+        public int OceanLiquidTypeID;
+        public int NavigationMaxDistance;
+        public int PreloadFileDataID;
         private int[] _flags = new int[3];
 
         #region Properties
@@ -138,30 +142,34 @@ namespace Game.DataStorage
         public LocalizedString Name;
         public int Id;
         public ushort MapID;
-        public byte Flags;
+        public int Flags;
+        public int MaxMedals;
         public uint ExpansionLevel;
         /// <summary>
         /// maybe?
         /// </summary>
         public int RequiredWorldStateID;
-        public short[] CriteriaCount = new short[3];
+        public short[] CriteriaCount = new short[5];
+        public int[] FirstRewardQuestID = new int[6];
+        public int[] RewardQuestID = new int[6];
     }
 
     public sealed class MapDifficultyRecord
     {
-        public int Id;
         /// <summary>
         /// m_message_lang (text showed when transfer to map failed)
         /// </summary>
         public LocalizedString Message;
-        public int ItemContextPickerID;
-        public int ContentTuningID;
-        private byte _difficultyID;
-        public byte LockID;
+        public int Id;
+        private ushort _difficultyID;
+        public int LockID;
         private byte _resetInterval;
-        public byte MaxPlayers;
+        public int MaxPlayers;
         public byte ItemContext;
-        private byte _flags;
+        public int ItemContextPickerID;
+        private int _flags;
+        public int ContentTuningID;
+        public int WorldStateExpressionID;
         public int MapID;
 
         #region Properties
@@ -222,7 +230,7 @@ namespace Game.DataStorage
         private int _type;
         public int Asset;
         public int SecondaryAsset;
-        public sbyte TertiaryAsset;
+        public int TertiaryAsset;
 
         #region Properties
         public ModifierTreeType Type => (ModifierTreeType)_type;
@@ -236,12 +244,14 @@ namespace Game.DataStorage
         public LocalizedString Description;
         public int Id;
         public ushort MountTypeID;
-        private ushort _flags;
+        private int _flags;
         public sbyte SourceTypeEnum;
         public int SourceSpellID;
         public int PlayerConditionID;
         public float MountFlyRideHeight;
         public int UiModelSceneID;
+        public int MountSpecialRiderAnimKitID;
+        public int MountSpecialSpellVisualKitID;
 
         #region Properties
         public MountFlags Flags => (MountFlags)_flags;
@@ -265,13 +275,16 @@ namespace Game.DataStorage
     public sealed class MountCapabilityRecord
     {
         public int Id;
-        private byte _flags;
+        private int _flags;
         public ushort ReqRidingSkill;
         public ushort ReqAreaID;
         public int ReqSpellAuraID;
         public int ReqSpellKnownID;
         public int ModSpellAuraID;
         public short ReqMapID;
+        public int PlayerConditionID;
+        public int FlightCapabilityID;
+        public int DriveCapabilityID;
 
         #region Properties
         public MountCapabilityFlags Flags => (MountCapabilityFlags)_flags;
@@ -307,22 +320,26 @@ namespace Game.DataStorage
         public int Id;
         public int CreatureDisplayInfoID;
         public int PlayerConditionID;
+        public ushort Unknown1100;
         public int MountID;
     }
 
     public sealed class MovieRecord
     {
         public int Id;
+        public LocalizedString Summary;
         public byte Volume;
         public byte KeyID;
         public int AudioFileDataID;
         public int SubtitleFileDataID;
+        public int SubtitleFileFormat;
     }
 
     public sealed class MythicPlusSeasonRecord
     {
         public int Id;
         public int MilestoneSeason;
+        public int StartTimeEvent;
         public int ExpansionLevel;
         public int HeroicLFGDungeonMinGear;
     }

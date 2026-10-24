@@ -8,18 +8,18 @@ namespace Game.DataStorage
 {
     public sealed class FactionRecord
     {
-        private long[] _reputationRaceMask = new long[4];
+        public int Id;
         public LocalizedString Name;
         public LocalizedString Description;
-        public int Id;
         public short ReputationIndex;
         public ushort ParentFactionID;
         public byte Expansion;
-        public byte FriendshipRepID;
+        public int FriendshipRepID;
         public int Flags;
         public ushort ParagonFactionID;
         public int RenownFactionID;
         public int RenownCurrencyID;
+        public int RenownThresholdCurveID;
         private short[] _reputationClassMask = new short[4];
         public ushort[] ReputationFlags = new ushort[4];
         public int[] ReputationBase = new int[4];
@@ -32,9 +32,13 @@ namespace Game.DataStorage
         /// The highest rank the faction will profit from incoming spillover
         /// </summary>
         public byte[] ParentFactionCap = new byte[2];
+        public int[] ReputationRaceMask1 = new int[2];
+        public int[] ReputationRaceMask2 = new int[2];
+        public int[] ReputationRaceMask3 = new int[2];
+        public int[] ReputationRaceMask4 = new int[2];
 
         #region Properties
-        public RaceMask ReputationRaceMask(int index) => (RaceMask)_reputationRaceMask[index];
+        public RaceMask ReputationRaceMask(int index) => (RaceMask)(index switch { 0 => ReputationRaceMask1, 1 => ReputationRaceMask2, 2 => ReputationRaceMask3, _ => ReputationRaceMask4 })[0];
         public ClassMask ReputationClassMask(int index) => (ClassMask)_reputationClassMask[index];
         #endregion
 
@@ -45,16 +49,17 @@ namespace Game.DataStorage
 
     public sealed class FactionTemplateRecord
     {
-        static int MAX_FACTION_RELATIONS = 8;
-
         public int Id;
         public ushort Faction;
-        private ushort _flags;
+        private int _flags;
         public byte FactionGroup;
         public byte FriendGroup;
         public byte EnemyGroup;
-        public ushort[] Enemies = new ushort[MAX_FACTION_RELATIONS];
-        public ushort[] Friend = new ushort[MAX_FACTION_RELATIONS];
+        public ushort[] Enemies = new ushort[8];
+        public ushort[] Friend = new ushort[8];
+
+        static int MAX_FACTION_RELATIONS = 8;
+
 
        
         #region Properties
@@ -122,15 +127,19 @@ namespace Game.DataStorage
     {
         public int Id;
         public LocalizedString Reaction;
-        public byte FriendshipRepID;
-        public ushort ReactionThreshold;
+        public int FriendshipRepID;
+        public int ReactionThreshold;
+        public int OverrideColor;
     }
 
     public sealed class FriendshipReputationRecord
     {
         public LocalizedString Description;
+        public LocalizedString StandingModified;
+        public LocalizedString StandingChanged;
         public int Id;
-        public int Field34146722002;
-        public int Field34146722003;
+        public int FactionID;
+        public int TextureFileID;
+        public int Flags;
     }
 }

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -144,7 +144,7 @@ namespace Game.Accounts
         void SavePermission(RBACPermissions permission, bool granted, int realmId)
         {
             PreparedStatement stmt = LoginDatabase.GetPreparedStatement(LoginStatements.INS_RBAC_ACCOUNT_PERMISSION);
-            stmt.SetInt32(0, GetId());
+            stmt.SetUInt32(0, unchecked((uint)GetId()));
             stmt.SetInt32(1, (int)permission);
             stmt.SetBool(2, granted);
             stmt.SetInt32(3, realmId);
@@ -176,7 +176,7 @@ namespace Game.Accounts
                     $"Ok and DB updated");
 
                 PreparedStatement stmt = LoginDatabase.GetPreparedStatement(LoginStatements.DEL_RBAC_ACCOUNT_PERMISSION);
-                stmt.SetInt32(0, GetId());
+                stmt.SetUInt32(0, unchecked((uint)GetId()));
                 stmt.SetInt32(1, (int)permissionId);
                 stmt.SetInt32(2, realmId);
                 DB.Login.Execute(stmt);
@@ -202,7 +202,7 @@ namespace Game.Accounts
 
             // Load account permissions (granted and denied) that affect current realm
             PreparedStatement stmt = LoginDatabase.GetPreparedStatement(LoginStatements.SEL_RBAC_ACCOUNT_PERMISSIONS);
-            stmt.SetInt32(0, GetId());
+            stmt.SetUInt32(0, unchecked((uint)GetId()));
             stmt.SetInt32(1, GetRealmId());
             SQLResult result = DB.Login.Query(stmt);
             LoadFromDBCallback(result);
@@ -217,7 +217,7 @@ namespace Game.Accounts
 
             // Load account permissions (granted and denied) that affect current realm
             PreparedStatement stmt = LoginDatabase.GetPreparedStatement(LoginStatements.SEL_RBAC_ACCOUNT_PERMISSIONS);
-            stmt.SetInt32(0, GetId());
+            stmt.SetUInt32(0, unchecked((uint)GetId()));
             stmt.SetInt32(1, GetRealmId());
 
             return DB.Login.AsyncQuery(stmt);

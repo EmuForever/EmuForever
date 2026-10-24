@@ -4,6 +4,7 @@
 using Framework.Constants;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 
 namespace Game.Collision
@@ -101,6 +102,54 @@ namespace Game.Collision
             return true;
         }
 
+        public IReadOnlyList<ModelInstance> GetEmbeddedSmallModels(int mapId, Vector3 point)
+        {
+            var tree = iInstanceMapTrees.LookupByKey(mapId);
+            return tree == null ? Array.Empty<ModelInstance>() : tree.GetEmbeddedSmallModels(ConvertPositionToInternalRep(point.X,point.Y,point.Z));
+        }
+        public bool MovingOutOfSmallModels(Vector3 from,Vector3 to,IReadOnlyList<ModelInstance> models)
+        {
+            from = ConvertPositionToInternalRep(from.X,from.Y,from.Z); to = ConvertPositionToInternalRep(to.X,to.Y,to.Z);
+            foreach (var model in models) if (!model.MovesOutward(from,to)) return false;
+            return true;
+        }
+        public bool OutsideSmallModels(Vector3 point, IReadOnlyList<ModelInstance> models)
+        {
+            point = ConvertPositionToInternalRep(point.X,point.Y,point.Z);
+            foreach (var model in models)
+                if (point.X >= model.iBound.Lo.X - .35f && point.X <= model.iBound.Hi.X + .35f &&
+                    point.Y >= model.iBound.Lo.Y - .35f && point.Y <= model.iBound.Hi.Y + .35f &&
+                    point.Z >= model.iBound.Lo.Z - .35f && point.Z <= model.iBound.Hi.Z + .35f) return false;
+            return true;
+        }
+        public bool IsInLineOfSightExcluding(int mapId, Vector3 from, Vector3 to, IReadOnlySet<uint> ignored)
+        {
+            var tree = iInstanceMapTrees.LookupByKey(mapId);
+            return tree == null || tree.IsInLineOfSight(ConvertPositionToInternalRep(from.X,from.Y,from.Z),
+                ConvertPositionToInternalRep(to.X,to.Y,to.Z), ModelIgnoreFlags.Nothing, ignored);
+        }
+
+        // World-space bounds of the nearest static model crossing the segment, or null when clear.
+        public (uint Id, bool M2, Vector3 Lo, Vector3 Hi)? FindLineBlocker(int mapId, Vector3 from, Vector3 to, IReadOnlySet<uint> ignored = null)
+        {
+            if (!IsLineOfSightCalcEnabled() || Global.DisableMgr.IsVMAPDisabledFor(mapId, DisableFlags.VmapLOS))
+                return null;
+            var tree = iInstanceMapTrees.LookupByKey(mapId);
+            var hit = tree?.GetFirstHit(ConvertPositionToInternalRep(from.X, from.Y, from.Z), ConvertPositionToInternalRep(to.X, to.Y, to.Z), ignored);
+            if (hit == null)
+                return null;
+            // Internal X/Y are mirrored around the map center, so the corners swap.
+            Vector3 a = ConvertPositionToInternalRep(hit.iBound.Hi.X, hit.iBound.Hi.Y, hit.iBound.Lo.Z);
+            Vector3 b = ConvertPositionToInternalRep(hit.iBound.Lo.X, hit.iBound.Lo.Y, hit.iBound.Hi.Z);
+            return (hit.Id, hit.GetWorldModel()?.Flags is uint flags && (flags & (uint)ModelFlags.M2) != 0, a, b);
+        }
+
+        public IReadOnlySet<uint> EmbeddedSmallModelIds(int mapId, Vector3 point)
+        {
+            var models = GetEmbeddedSmallModels(mapId, point);
+            return models.Count == 0 ? null : models.Select(model => model.Id).ToHashSet();
+        }
+
         public bool GetObjectHitPos(int mapId, float x1, float y1, float z1, float x2, float y2, float z2, out float rx, out float ry, out float rz, float modifyDist)
         {
             if (IsLineOfSightCalcEnabled() && !Global.DisableMgr.IsVMAPDisabledFor(mapId, DisableFlags.VmapLOS))
@@ -180,7 +229,7 @@ namespace Game.Collision
             return false;
         }
 
-        public WorldModel AcquireModelInstance(string filename, uint flags = 0)
+        public WorldModel AcquireModelInstance(string filename)
         {
             lock (LoadedModelFilesLock)
             {
@@ -196,8 +245,6 @@ namespace Game.Collision
                     }
 
                     Log.outDebug(LogFilter.Maps, "VMapManager: loading file '{0}'", filename);
-                    model.GetModel().Flags = flags;
-
                     iLoadedModelFiles.Add(filename, model);
                 }
                 model.IncRefCount();
@@ -248,9 +295,14 @@ namespace Game.Collision
             return pos;
         }
 
+        public static string GetTileFileName(int mapId, int tileX, int tileY, string extension)
+        {
+            return $"{mapId:D4}/{mapId:D4}_{tileX:D2}_{tileY:D2}.{extension}";
+        }
+
         public static string GetMapFileName(int mapId)
         {
-            return $"{mapId:D4}.vmtree";
+            return $"{mapId:D4}/{mapId:D4}.vmtree";
         }
 
         public void SetEnableLineOfSightCalc(bool pVal) { _enableLineOfSightCalc = pVal; }

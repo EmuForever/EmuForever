@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -921,7 +921,7 @@ namespace Game.Entities
                         if (dungeonEncounter != null)
                         {
                             creature.m_personalLoot = LootManager.GenerateDungeonEncounterPersonalLoot(dungeonEncounter.Id, creature.GetLootId(),
-                                LootStorage.Creature, LootType.Corpse, creature, creature.GetCreatureDifficulty().GoldMin, creature.GetCreatureDifficulty().GoldMax,                                
+                                LootStorage.Creature, LootType.Corpse, creature, creature.GetCreatureTemplateStats().GoldMin, creature.GetCreatureTemplateStats().GoldMax,                                
                                 creature.GetLootMode(), creature.GetMap().GetMapDifficulty(), tappers);
                         }
                         else if (!tappers.Empty())
@@ -936,7 +936,7 @@ namespace Game.Entities
                                 loot.FillLoot(lootid, LootStorage.Creature, looter, dungeonEncounter != null, false, creature.GetLootMode());
 
                             if (creature.GetLootMode() > 0)
-                                loot.GenerateMoneyLoot(creature.GetCreatureDifficulty().GoldMin, creature.GetCreatureDifficulty().GoldMax);
+                                loot.GenerateMoneyLoot(creature.GetCreatureTemplateStats().GoldMin, creature.GetCreatureTemplateStats().GoldMax);
 
                             if (group != null)
                                 loot.NotifyLootList(creature.GetMap());
@@ -963,7 +963,7 @@ namespace Game.Entities
                                 loot.FillLoot(lootid, LootStorage.Creature, tapper, true, false, creature.GetLootMode());
 
                             if (creature.GetLootMode() > 0)
-                                loot.GenerateMoneyLoot(creature.GetCreatureDifficulty().GoldMin, creature.GetCreatureDifficulty().GoldMax);
+                                loot.GenerateMoneyLoot(creature.GetCreatureTemplateStats().GoldMin, creature.GetCreatureTemplateStats().GoldMax);
 
                             creature.m_personalLoot[tapper.GetGUID()] = loot;
                         }
@@ -1052,10 +1052,10 @@ namespace Game.Entities
                     || (player != null && WorldConfig.Values[WorldCfg.DurabilityLossInPvp].Bool))
                 {
                     double baseLoss = WorldConfig.Values[WorldCfg.RateDurabilityLossOnDeath].Float;
-                    var loss = (int)(baseLoss - (baseLoss * plrVictim.GetTotalAuraMultiplier(AuraType.ModDurabilityLoss)));
+                    var loss = (int)(100 * Game.Systems.Legacy.LegacyEffectEngine.DurabilityLoss(baseLoss, plrVictim.GetTotalAuraModifier(AuraType.ModDurabilityLoss)));
                     Log.outDebug(LogFilter.Unit, $"We are dead, losing {loss} percent durability.");
                     // Durability loss is calculated more accurately again for each item in Player.DurabilityLoss
-                    plrVictim.DurabilityLossAll(baseLoss, false);
+                    plrVictim.DurabilityLossAll(baseLoss, false, true);
                     // durability lost message
                     plrVictim.SendDurabilityLoss(plrVictim, loss);
                 }
@@ -1084,7 +1084,7 @@ namespace Game.Entities
                         creature.AllLootRemovedFromCorpse();
 
                     if (creature.CanHaveLoot() 
-                        && LootStorage.Skinning.HaveLootFor(creature.GetCreatureDifficulty().SkinLootID))
+                        && LootStorage.Skinning.HaveLootFor(creature.GetCreatureTemplateStats().SkinLootID))
                     {
                         creature.SetDynamicFlag(UnitDynFlags.CanSkin);
                         creature.SetUnitFlag(UnitFlags.Skinnable);
@@ -1174,7 +1174,10 @@ namespace Game.Entities
                     {
                         Creature killedCre = victim.ToCreature();
                         if (killedCre != null)
+                        {
+                            killerPlr.ApplyLegacyKillBenefits(killedCre);
                             Global.ScriptMgr.OnCreatureKill(killerPlr, killedCre);
+                        }
                     }
                 }
                 else
@@ -1410,6 +1413,9 @@ namespace Game.Entities
             }
             else // Impossible get negative result but....
                 damageInfo.Damage = 0;
+
+            if (IsCreature() && damageInfo.Target.IsPlayer() && damageInfo.Damage >= damageInfo.Target.GetMaxHealth())
+                Log.outWarn(LogFilter.Unit, $"Lethal melee spike: {GetName()} entry {GetEntry()} level {GetLevel()} -> {damageInfo.Target.GetName()} level {damageInfo.Target.GetLevel()}; damage={damageInfo.Damage}, raw={damage}, target HP={damageInfo.Target.GetHealth()}/{damageInfo.Target.GetMaxHealth()}, armor={damageInfo.Target.GetArmor()}, AP={GetTotalAttackPowerValue(damageInfo.AttackType)}, attack seconds={GetAPMultiplier(damageInfo.AttackType, false)}, template damage modifier={ToCreature().GetCreatureTemplateStats().DamageModifier}, outcome={damageInfo.HitOutCome}");
         }
 
         MeleeHitOutcome RollMeleeOutcomeAgainst(Unit victim, WeaponAttackType attType)

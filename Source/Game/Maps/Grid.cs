@@ -2,6 +2,7 @@
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
+using Framework.Collections;
 using Game.Entities;
 using System;
 using System.Collections.Generic;
@@ -348,7 +349,9 @@ namespace Game.Maps
     {
         public void Insert(WorldObject obj)
         {
-            worldObjects.Add(obj);
+            // Repeated relocation/container notifications must not duplicate the same
+            // object in either the aggregate view or a typed view.
+            if (!worldObjects.Add(obj)) return;
             switch (obj.GetTypeId())
             {
                 case TypeId.Unit:
@@ -380,7 +383,7 @@ namespace Game.Maps
 
         public void Remove(WorldObject obj)
         {
-            worldObjects.Remove(obj);
+            if (!worldObjects.Remove(obj)) return;
             switch (obj.GetTypeId())
             {
                 case TypeId.Unit:
@@ -438,15 +441,18 @@ namespace Game.Maps
             return 0;
         }
 
-        public List<Player> players = new();
-        public List<Creature> creatures = new();
-        public List<Corpse> corpses = new();
-        public List<DynamicObject> dynamicObjects = new();
-        public List<AreaTrigger> areaTriggers = new();
-        public List<SceneObject> sceneObjects = new();
-        public List<Conversation> conversations = new();
-        public List<GameObject> gameObjects = new();
-        public List<WorldObject> worldObjects = new();
+        // Far above expected cell density, but finite. Aggregate admission happens
+        // first, so a capacity failure cannot leave typed/aggregate views disagreeing.
+        public const int MaxCellObjects = 65536;
+        public readonly BoundedDenseSet<Player> players = new(MaxCellObjects);
+        public readonly BoundedDenseSet<Creature> creatures = new(MaxCellObjects);
+        public readonly BoundedDenseSet<Corpse> corpses = new(MaxCellObjects);
+        public readonly BoundedDenseSet<DynamicObject> dynamicObjects = new(MaxCellObjects);
+        public readonly BoundedDenseSet<AreaTrigger> areaTriggers = new(MaxCellObjects);
+        public readonly BoundedDenseSet<SceneObject> sceneObjects = new(MaxCellObjects);
+        public readonly BoundedDenseSet<Conversation> conversations = new(MaxCellObjects);
+        public readonly BoundedDenseSet<GameObject> gameObjects = new(MaxCellObjects);
+        public readonly BoundedDenseSet<WorldObject> worldObjects = new(MaxCellObjects);
     }
 
     public enum GridState

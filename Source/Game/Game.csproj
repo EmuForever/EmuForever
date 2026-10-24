@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Framework\Framework.csproj" />
+    <EmbeddedResource Include="..\..\Tools\Opcodes\opcode-provenance-70425.json" LogicalName="Game.Networking.opcode-provenance-70425.json" />
   </ItemGroup> 
   
 </Project>
+

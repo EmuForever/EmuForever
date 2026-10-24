@@ -9,23 +9,24 @@ using System.Collections.Generic;
 
 namespace Game.Networking.Packets
 {
-    public class AuctionListItems : ClientPacket
+    // The Forever 1.60.1 client uses the retail auction house (buckets and commodities), so these layouts follow
+    // TrinityCore's AuctionHousePackets.cpp rather than the WotLK Classic list packets.
+
+    class AuctionBrowseQuery : ClientPacket
     {
         public ObjectGuid Auctioneer;
         public int Offset;
-        public byte MinLevel;
+        public byte MinLevel = 1;
         public byte MaxLevel;
-        public ItemQuality Quality;
+        public AuctionHouseFilterMask Filters;
         public byte[] KnownPets;
         public sbyte MaxPetLevel;
         public AddOnInfo? TaintedBy;
         public string Name;
-        public bool UsableOnly;
-        public bool ExactMatch;
-        public Array<AuctionListFilterClass> ItemClassFilters = new((int)ItemClass.Max);
-        public Array<AuctionSortDef> Sorts = new(8);
+        public Array<AuctionListFilterClass> ItemClassFilters = new(7);
+        public Array<AuctionSortDef> Sorts = new(2);
 
-        public AuctionListItems(WorldPacket packet) : base(packet) { }
+        public AuctionBrowseQuery(WorldPacket packet) : base(packet) { }
 
         public override void Read()
         {
@@ -33,20 +34,18 @@ namespace Game.Networking.Packets
             Offset = _worldPacket.ReadInt32();
             MinLevel = _worldPacket.ReadUInt8();
             MaxLevel = _worldPacket.ReadUInt8();
-            Quality = (ItemQuality)_worldPacket.ReadInt32();
-            int sortsCount = _worldPacket.ReadUInt8();
-            int knownPetSize = _worldPacket.ReadInt32();
-            MaxPetLevel = _worldPacket.ReadInt8();
+            _worldPacket.ReadUInt8();   // Unused1007_1
+            _worldPacket.ReadUInt8();   // Unused1007_2
+            Filters = (AuctionHouseFilterMask)_worldPacket.ReadUInt32();
 
+            int knownPetSize = _worldPacket.ReadInt32();
             int sizeLimit = CliDB.BattlePetSpeciesStorage.GetNumRows() / 8 + 1;
-            if (knownPetSize >= sizeLimit)
-            {
-                throw new System.Exception(
-                    $"Attempted to read more array elements " +
-                    $"from packet {knownPetSize} than allowed {sizeLimit}");
-            }
+            if (knownPetSize < 0 || knownPetSize >= sizeLimit)
+                throw new Exception($"Attempted to read more array elements from packet {knownPetSize} than allowed {sizeLimit}");
 
             KnownPets = new byte[knownPetSize];
+            MaxPetLevel = _worldPacket.ReadInt8();
+            _worldPacket.ReadUInt32();  // Unused1026
             for (var i = 0; i < knownPetSize; ++i)
                 KnownPets[i] = _worldPacket.ReadUInt8();
 
@@ -54,25 +53,79 @@ namespace Game.Networking.Packets
                 TaintedBy = new();
 
             int nameLength = _worldPacket.ReadBits<int>(8);
-            Name = _worldPacket.ReadString(nameLength);
-
-            _worldPacket.ResetBitPos();
             int itemClassFilterCount = _worldPacket.ReadBits<int>(3);
-            UsableOnly = _worldPacket.HasBit();
-            ExactMatch = _worldPacket.HasBit();
+            int sortCount = _worldPacket.ReadBits<int>(2);
 
             if (TaintedBy.HasValue)
                 TaintedBy.Value.Read(_worldPacket);
 
+            Name = _worldPacket.ReadString(nameLength);
             for (var i = 0; i < itemClassFilterCount; ++i)
                 ItemClassFilters[i] = new AuctionListFilterClass(_worldPacket);
 
-            int sortDataSize = _worldPacket.ReadInt32();
-            for (var i = 0; i < sortsCount; ++i)
+            for (var i = 0; i < sortCount; ++i)
+                Sorts[i] = new AuctionSortDef(_worldPacket);
+        }
+    }
+
+    class AuctionCancelCommoditiesPurchase : ClientPacket
+    {
+        public ObjectGuid Auctioneer;
+        public AddOnInfo? TaintedBy;
+
+        public AuctionCancelCommoditiesPurchase(WorldPacket packet) : base(packet) { }
+
+        public override void Read()
+        {
+            Auctioneer = _worldPacket.ReadPackedGuid();
+            if (_worldPacket.HasBit())
             {
-                var current = new AuctionSortDef(_worldPacket);
-                Cypher.Assert(!Sorts.Contains(current));
-                Sorts.Add(current);
+                TaintedBy = new();
+                TaintedBy.Value.Read(_worldPacket);
+            }
+        }
+    }
+
+    class AuctionConfirmCommoditiesPurchase : ClientPacket
+    {
+        public ObjectGuid Auctioneer;
+        public int ItemID;
+        public int Quantity;
+        public AddOnInfo? TaintedBy;
+
+        public AuctionConfirmCommoditiesPurchase(WorldPacket packet) : base(packet) { }
+
+        public override void Read()
+        {
+            Auctioneer = _worldPacket.ReadPackedGuid();
+            ItemID = _worldPacket.ReadInt32();
+            Quantity = _worldPacket.ReadInt32();
+            if (_worldPacket.HasBit())
+            {
+                TaintedBy = new();
+                TaintedBy.Value.Read(_worldPacket);
+            }
+        }
+    }
+
+    class AuctionGetCommodityQuote : ClientPacket
+    {
+        public ObjectGuid Auctioneer;
+        public int ItemID;
+        public int Quantity;
+        public AddOnInfo? TaintedBy;
+
+        public AuctionGetCommodityQuote(WorldPacket packet) : base(packet) { }
+
+        public override void Read()
+        {
+            Auctioneer = _worldPacket.ReadPackedGuid();
+            ItemID = _worldPacket.ReadInt32();
+            Quantity = _worldPacket.ReadInt32();
+            if (_worldPacket.HasBit())
+            {
+                TaintedBy = new();
+                TaintedBy.Value.Read(_worldPacket);
             }
         }
     }
@@ -89,96 +142,154 @@ namespace Game.Networking.Packets
         }
     }
 
-    class AuctionHelloResponse : ServerPacket
-    {
-        public ObjectGuid Guid;
-        public Milliseconds PurchasedItemDeliveryDelay;
-        public Milliseconds CancelledItemDeliveryDelay;
-        public AuctionHouseId AuctionHouseId;
-        public bool OpenForBusiness = true;
-
-        public AuctionHelloResponse() : base(ServerOpcodes.AuctionHelloResponse) { }
-
-        public override void Write()
-        {
-            _worldPacket.WritePackedGuid(Guid);
-            _worldPacket.WriteInt32(PurchasedItemDeliveryDelay);
-            _worldPacket.WriteInt32(CancelledItemDeliveryDelay);
-            _worldPacket.WriteInt32((int)AuctionHouseId);
-            _worldPacket.WriteBit(OpenForBusiness);
-            _worldPacket.FlushBits();
-        }
-    }
-
-    class AuctionListBidderItems : ClientPacket
+    class AuctionListBiddedItems : ClientPacket
     {
         public ObjectGuid Auctioneer;
         public int Offset;
-        public Array<int> AuctionItemIDs = new(100);
-        public Array<AuctionSortDef> Sorts = new(8);
+        public Array<int> AuctionIDs = new(100);
+        public Array<AuctionSortDef> Sorts = new(2);
         public AddOnInfo? TaintedBy;
 
-        public AuctionListBidderItems(WorldPacket packet) : base(packet) { }
-
-        public override void Read()
-        {
-            Auctioneer = _worldPacket.ReadPackedGuid();
-            Offset = _worldPacket.ReadInt32();            
-
-            int auctionIDCount = _worldPacket.ReadBits<int>(7);
-            if (_worldPacket.HasBit())
-                TaintedBy = new();
-
-            if (TaintedBy.HasValue)
-                TaintedBy.Value.Read(_worldPacket);
-
-            for (var i = 0; i < auctionIDCount; ++i)
-                AuctionItemIDs[i] = _worldPacket.ReadInt32();
-        }
-    }
-
-    public class AuctionListBidderItemsResult : ServerPacket
-    {
-        public List<AuctionItem> Items = new();
-        public int TotalCount;
-        public Milliseconds DesiredDelay;
-
-        public AuctionListBidderItemsResult() : base(ServerOpcodes.AuctionListBidderItemsResult) { }
-
-        public override void Write()
-        {
-            _worldPacket.WriteInt32(Items.Count);
-            _worldPacket.WriteInt32(TotalCount);
-            _worldPacket.WriteInt32(DesiredDelay);
-
-            foreach (AuctionItem item in Items)
-                item.Write(_worldPacket);
-        }
-    }
-
-    class AuctionListOwnerItems : ClientPacket
-    {
-        public ObjectGuid Auctioneer;
-        public int Offset;
-        public AddOnInfo? TaintedBy;
-
-        public AuctionListOwnerItems(WorldPacket packet) : base(packet) { }
+        public AuctionListBiddedItems(WorldPacket packet) : base(packet) { }
 
         public override void Read()
         {
             Auctioneer = _worldPacket.ReadPackedGuid();
             Offset = _worldPacket.ReadInt32();
-
             if (_worldPacket.HasBit())
                 TaintedBy = new();
 
+            int auctionIdCount = _worldPacket.ReadBits<int>(7);
+            int sortCount = _worldPacket.ReadBits<int>(2);
+
             if (TaintedBy.HasValue)
                 TaintedBy.Value.Read(_worldPacket);
+
+            for (var i = 0; i < auctionIdCount; ++i)
+                AuctionIDs[i] = _worldPacket.ReadInt32();
+
+            for (var i = 0; i < sortCount; ++i)
+                Sorts[i] = new AuctionSortDef(_worldPacket);
+        }
+    }
+
+    class AuctionListBucketsByBucketKeys : ClientPacket
+    {
+        public ObjectGuid Auctioneer;
+        public AddOnInfo? TaintedBy;
+        public Array<AuctionBucketKey> BucketKeys = new(100);
+        public Array<AuctionSortDef> Sorts = new(2);
+
+        public AuctionListBucketsByBucketKeys(WorldPacket packet) : base(packet) { }
+
+        public override void Read()
+        {
+            Auctioneer = _worldPacket.ReadPackedGuid();
+            if (_worldPacket.HasBit())
+                TaintedBy = new();
+
+            int bucketKeysCount = _worldPacket.ReadBits<int>(7);
+            int sortCount = _worldPacket.ReadBits<int>(2);
+
+            if (TaintedBy.HasValue)
+                TaintedBy.Value.Read(_worldPacket);
+
+            for (var i = 0; i < bucketKeysCount; ++i)
+                BucketKeys[i] = new AuctionBucketKey(_worldPacket);
+
+            for (var i = 0; i < sortCount; ++i)
+                Sorts[i] = new AuctionSortDef(_worldPacket);
+        }
+    }
+
+    class AuctionListItemsByBucketKey : ClientPacket
+    {
+        public ObjectGuid Auctioneer;
+        public int Offset;
+        public sbyte Unknown830;
+        public AddOnInfo? TaintedBy;
+        public Array<AuctionSortDef> Sorts = new(2);
+        public AuctionBucketKey BucketKey;
+
+        public AuctionListItemsByBucketKey(WorldPacket packet) : base(packet) { }
+
+        public override void Read()
+        {
+            Auctioneer = _worldPacket.ReadPackedGuid();
+            BucketKey = new AuctionBucketKey(_worldPacket);
+            Offset = _worldPacket.ReadInt32();
+            Unknown830 = _worldPacket.ReadInt8();
+            if (_worldPacket.HasBit())
+                TaintedBy = new();
+
+            int sortCount = _worldPacket.ReadBits<int>(2);
+
+            if (TaintedBy.HasValue)
+                TaintedBy.Value.Read(_worldPacket);
+
+            for (var i = 0; i < sortCount; ++i)
+                Sorts[i] = new AuctionSortDef(_worldPacket);
+        }
+    }
+
+    class AuctionListItemsByItemID : ClientPacket
+    {
+        public ObjectGuid Auctioneer;
+        public int ItemID;
+        public int SuffixItemNameDescriptionID;
+        public int Offset;
+        public AddOnInfo? TaintedBy;
+        public Array<AuctionSortDef> Sorts = new(2);
+
+        public AuctionListItemsByItemID(WorldPacket packet) : base(packet) { }
+
+        public override void Read()
+        {
+            Auctioneer = _worldPacket.ReadPackedGuid();
+            ItemID = _worldPacket.ReadInt32();
+            SuffixItemNameDescriptionID = _worldPacket.ReadInt32();
+            Offset = _worldPacket.ReadInt32();
+            if (_worldPacket.HasBit())
+                TaintedBy = new();
+
+            int sortCount = _worldPacket.ReadBits<int>(2);
+
+            if (TaintedBy.HasValue)
+                TaintedBy.Value.Read(_worldPacket);
+
+            for (var i = 0; i < sortCount; ++i)
+                Sorts[i] = new AuctionSortDef(_worldPacket);
+        }
+    }
+
+    class AuctionListOwnedItems : ClientPacket
+    {
+        public ObjectGuid Auctioneer;
+        public int Offset;
+        public AddOnInfo? TaintedBy;
+        public Array<AuctionSortDef> Sorts = new(2);
+
+        public AuctionListOwnedItems(WorldPacket packet) : base(packet) { }
+
+        public override void Read()
+        {
+            Auctioneer = _worldPacket.ReadPackedGuid();
+            Offset = _worldPacket.ReadInt32();
+            if (_worldPacket.HasBit())
+                TaintedBy = new();
+
+            int sortCount = _worldPacket.ReadBits<int>(2);
+
+            if (TaintedBy.HasValue)
+                TaintedBy.Value.Read(_worldPacket);
+
+            for (var i = 0; i < sortCount; ++i)
+                Sorts[i] = new AuctionSortDef(_worldPacket);
         }
     }
 
     class AuctionPlaceBid : ClientPacket
-    {   
+    {
         public ObjectGuid Auctioneer;
         public long BidAmount;
         public int AuctionID;
@@ -213,6 +324,7 @@ namespace Game.Networking.Packets
         {
             Auctioneer = _worldPacket.ReadPackedGuid();
             AuctionID = _worldPacket.ReadInt32();
+            ItemID = _worldPacket.ReadInt32();
 
             if (_worldPacket.HasBit())
             {
@@ -249,6 +361,35 @@ namespace Game.Networking.Packets
         }
     }
 
+    class AuctionSellCommodity : ClientPacket
+    {
+        public ObjectGuid Auctioneer;
+        public long UnitPrice;
+        public TimeSpan RunTime;
+        public AddOnInfo? TaintedBy;
+        public Array<AuctionItemForSale> Items = new(64);
+
+        public AuctionSellCommodity(WorldPacket packet) : base(packet) { }
+
+        public override void Read()
+        {
+            Auctioneer = _worldPacket.ReadPackedGuid();
+            UnitPrice = _worldPacket.ReadInt64();
+            RunTime = (Minutes)_worldPacket.ReadInt32();
+
+            if (_worldPacket.HasBit())
+                TaintedBy = new();
+
+            int itemCount = _worldPacket.ReadBits<int>(6);
+
+            if (TaintedBy.HasValue)
+                TaintedBy.Value.Read(_worldPacket);
+
+            for (var i = 0; i < itemCount; ++i)
+                Items[i] = new AuctionItemForSale(_worldPacket);
+        }
+    }
+
     class AuctionSellItem : ClientPacket
     {
         public long BuyoutPrice;
@@ -256,7 +397,7 @@ namespace Game.Networking.Packets
         public long MinBid;
         public TimeSpan RunTime;
         public AddOnInfo? TaintedBy;
-        public Array<AuctionItemForSale> Items = new(1);
+        public Array<AuctionItemForSale> Items = new(64);
 
         public AuctionSellItem(WorldPacket packet) : base(packet) { }
 
@@ -270,7 +411,7 @@ namespace Game.Networking.Packets
             if (_worldPacket.HasBit())
                 TaintedBy = new();
 
-            uint itemCount = _worldPacket.ReadBits<uint>(6);
+            int itemCount = _worldPacket.ReadBits<int>(6);
 
             if (TaintedBy.HasValue)
                 TaintedBy.Value.Read(_worldPacket);
@@ -280,8 +421,22 @@ namespace Game.Networking.Packets
         }
     }
 
+    class AuctionSetFavoriteItem : ClientPacket
+    {
+        public AuctionFavoriteInfo Item;
+        public bool IsNotFavorite = true;
+
+        public AuctionSetFavoriteItem(WorldPacket packet) : base(packet) { }
+
+        public override void Read()
+        {
+            IsNotFavorite = _worldPacket.HasBit();
+            Item = new AuctionFavoriteInfo(_worldPacket);
+        }
+    }
+
     class AuctionClosedNotification : ServerPacket
-    { 
+    {
         public AuctionOwnerNotification Info;
         public TimeSpan ProceedsMailDelay;
         public bool Sold = true;
@@ -312,7 +467,7 @@ namespace Game.Networking.Packets
         ///<summary> the sum of outbid is (1% of current bid) * 5, if the bid is too small, then this value is 1 copper.</summary>
         public long MinIncrement;
         ///<summary> the amount of money that the player bid in copper</summary>
-        public long Money; 
+        public long Money;
         public TimeSpan DesiredDelay;
 
         public AuctionCommandResult() : base(ServerOpcodes.AuctionCommandResult) { }
@@ -326,7 +481,123 @@ namespace Game.Networking.Packets
             _worldPacket.WritePackedGuid(Guid);
             _worldPacket.WriteInt64(MinIncrement);
             _worldPacket.WriteInt64(Money);
-            _worldPacket.WriteInt32((Seconds)DesiredDelay);
+            _worldPacket.WriteInt32((Milliseconds)DesiredDelay);
+        }
+    }
+
+    class AuctionGetCommodityQuoteResult : ServerPacket
+    {
+        public long? TotalPrice;
+        public int? Quantity;
+        public TimeSpan? QuoteDuration;
+        public int ItemID;
+        public TimeSpan DesiredDelay;
+
+        public AuctionGetCommodityQuoteResult() : base(ServerOpcodes.AuctionGetCommodityQuoteResult) { }
+
+        public override void Write()
+        {
+            _worldPacket.WriteBit(TotalPrice.HasValue);
+            _worldPacket.WriteBit(Quantity.HasValue);
+            _worldPacket.WriteBit(QuoteDuration.HasValue);
+            _worldPacket.WriteInt32(ItemID);
+            _worldPacket.WriteInt32((Milliseconds)DesiredDelay);
+
+            if (TotalPrice.HasValue)
+                _worldPacket.WriteInt64(TotalPrice.Value);
+
+            if (Quantity.HasValue)
+                _worldPacket.WriteInt32(Quantity.Value);
+
+            if (QuoteDuration.HasValue)
+                _worldPacket.WriteInt64((long)QuoteDuration.Value.TotalMilliseconds);
+        }
+    }
+
+    class AuctionFavoriteList : ServerPacket
+    {
+        public TimeSpan DesiredDelay;
+        public List<AuctionFavoriteInfo> Items = new();
+
+        public AuctionFavoriteList() : base(ServerOpcodes.AuctionFavoriteList) { }
+
+        public override void Write()
+        {
+            _worldPacket.WriteInt32((Milliseconds)DesiredDelay);
+            _worldPacket.WriteBits(Items.Count, 7);
+            _worldPacket.FlushBits();
+
+            foreach (AuctionFavoriteInfo favoriteInfo in Items)
+                favoriteInfo.Write(_worldPacket);
+        }
+    }
+
+    class AuctionHelloResponse : ServerPacket
+    {
+        public ObjectGuid Guid;
+        public Milliseconds PurchasedItemDeliveryDelay;
+        public Milliseconds CancelledItemDeliveryDelay;
+        public AuctionHouseId AuctionHouseId;
+        public bool OpenForBusiness = true;
+
+        public AuctionHelloResponse() : base(ServerOpcodes.AuctionHelloResponse) { }
+
+        public override void Write()
+        {
+            _worldPacket.WritePackedGuid(Guid);
+            _worldPacket.WriteInt32(PurchasedItemDeliveryDelay);
+            _worldPacket.WriteInt32(CancelledItemDeliveryDelay);
+            _worldPacket.WriteInt32((int)AuctionHouseId);
+            _worldPacket.WriteBit(OpenForBusiness);
+            _worldPacket.FlushBits();
+        }
+    }
+
+    public class AuctionListBiddedItemsResult : ServerPacket
+    {
+        public List<AuctionItem> Items = new();
+        public TimeSpan DesiredDelay;
+        public bool HasMoreResults;
+
+        public AuctionListBiddedItemsResult() : base(ServerOpcodes.AuctionListBiddedItemsResult) { }
+
+        public override void Write()
+        {
+            _worldPacket.WriteInt32(Items.Count);
+            _worldPacket.WriteInt32((Milliseconds)DesiredDelay);
+
+            foreach (AuctionItem item in Items)
+                item.Write(_worldPacket);
+
+            _worldPacket.WriteBit(HasMoreResults);
+            _worldPacket.FlushBits();
+        }
+    }
+
+    public class AuctionListBucketsResult : ServerPacket
+    {
+        public List<BucketInfo> Buckets = new();
+        public TimeSpan DesiredDelay;
+        public AuctionHouseFilterMask Filters;
+        public int TotalCount;
+        public AuctionHouseBrowseMode BrowseMode;
+        public bool HasMoreResults;
+
+        public AuctionListBucketsResult() : base(ServerOpcodes.AuctionListBucketsResult) { }
+
+        public override void Write()
+        {
+            _worldPacket.WriteInt32(Buckets.Count);
+            _worldPacket.WriteInt32((Milliseconds)DesiredDelay);
+            _worldPacket.WriteInt32((int)Filters);
+            _worldPacket.WriteInt32(TotalCount);
+
+            foreach (BucketInfo bucketInfo in Buckets)
+                bucketInfo.Write(_worldPacket);
+
+            _worldPacket.WriteBit(BrowseMode == AuctionHouseBrowseMode.SpecificKeys);
+            _worldPacket.WriteBit(HasMoreResults);
+            _worldPacket.FlushBits();
         }
     }
 
@@ -334,8 +605,11 @@ namespace Game.Networking.Packets
     {
         public List<AuctionItem> Items = new();
         public int TotalCount;
-        public Milliseconds DesiredDelay;
-        public bool OnlyUsable;
+        public TimeSpan DesiredDelay;
+        public AuctionHouseListType ListType;
+        public bool HasMoreResults;
+        public AuctionBucketKey BucketKey = new();
+        public int TotalQuantity;
 
         public AuctionListItemsResult() : base(ServerOpcodes.AuctionListItemsResult) { }
 
@@ -343,31 +617,43 @@ namespace Game.Networking.Packets
         {
             _worldPacket.WriteInt32(Items.Count);
             _worldPacket.WriteInt32(TotalCount);
-            _worldPacket.WriteInt32(DesiredDelay);
-            _worldPacket.WriteBit(OnlyUsable);
-            _worldPacket.FlushBits();
+            _worldPacket.WriteInt32((Milliseconds)DesiredDelay);
 
             foreach (AuctionItem item in Items)
                 item.Write(_worldPacket);
+
+            _worldPacket.WriteBits((int)ListType, 2);
+            _worldPacket.WriteBit(HasMoreResults);
+            _worldPacket.FlushBits();
+
+            BucketKey.Write(_worldPacket);
+            _worldPacket.WriteInt32(TotalQuantity);
         }
     }
 
-    public class AuctionListOwnerItemsResult : ServerPacket
+    public class AuctionListOwnedItemsResult : ServerPacket
     {
         public List<AuctionItem> Items = new();
-        public int TotalCount;
-        public Milliseconds DesiredDelay;
+        public List<AuctionItem> SoldItems = new();
+        public TimeSpan DesiredDelay;
+        public bool HasMoreResults;
 
-        public AuctionListOwnerItemsResult() : base(ServerOpcodes.AuctionListOwnerItemsResult) { }
+        public AuctionListOwnedItemsResult() : base(ServerOpcodes.AuctionListOwnedItemsResult) { }
 
         public override void Write()
         {
             _worldPacket.WriteInt32(Items.Count);
-            _worldPacket.WriteInt32(TotalCount);
-            _worldPacket.WriteInt32(DesiredDelay);
+            _worldPacket.WriteInt32(SoldItems.Count);
+            _worldPacket.WriteInt32((Milliseconds)DesiredDelay);
 
             foreach (AuctionItem item in Items)
                 item.Write(_worldPacket);
+
+            foreach (AuctionItem item in SoldItems)
+                item.Write(_worldPacket);
+
+            _worldPacket.WriteBit(HasMoreResults);
+            _worldPacket.FlushBits();
         }
     }
 
@@ -388,7 +674,7 @@ namespace Game.Networking.Packets
     }
 
     class AuctionOwnerBidNotification : ServerPacket
-    {    
+    {
         public AuctionOwnerNotification Info;
         public ObjectGuid Bidder;
         public long MinIncrement;
@@ -404,7 +690,7 @@ namespace Game.Networking.Packets
     }
 
     public class AuctionReplicateResponse : ServerPacket
-    { 
+    {
         public int ChangeNumberCursor;
         public int ChangeNumberGlobal;
         public TimeSpan DesiredDelay;
@@ -429,7 +715,7 @@ namespace Game.Networking.Packets
     }
 
     class AuctionWonBidNotification : ServerPacket
-    {  
+    {
         public AuctionWonNotification Info;
 
         public AuctionWonBidNotification() : base(ServerOpcodes.AuctionWonNotification) { }
@@ -438,29 +724,6 @@ namespace Game.Networking.Packets
         {
             Info.Write(_worldPacket);
         }
-    }
-
-    class AuctionListPendingSales: ClientPacket
-    {
-        public AuctionListPendingSales(WorldPacket packet) : base(packet) { }
-
-        public override void Read() { }
-    }
-
-    class AuctionListPendingSalesResult : ServerPacket
-    {
-        public AuctionListPendingSalesResult() : base(ServerOpcodes.AuctionListPendingSalesResult) { }
-
-        public override void Write()
-        {
-            _worldPacket.WriteInt32(Mails.Count);
-            _worldPacket.WriteInt32(TotalNumRecords);
-            foreach (var mail in Mails)
-                mail.Write(_worldPacket);
-        }
-
-        public int TotalNumRecords;
-        public List<MailListEntry> Mails = new();
     }
 
     //Structs
@@ -519,11 +782,11 @@ namespace Game.Networking.Packets
     public struct AuctionListFilterSubClass
     {
         public ItemSubClass ItemSubclass;
-        public InventoryTypeMask InvTypeMask;
+        public ulong InvTypeMask;
 
         public AuctionListFilterSubClass(WorldPacket data)
         {
-            InvTypeMask = (InventoryTypeMask)data.ReadUInt64();
+            InvTypeMask = data.ReadUInt64();
             ItemSubclass = data.ReadInt32();
         }
     }
@@ -531,13 +794,12 @@ namespace Game.Networking.Packets
     public class AuctionListFilterClass
     {
         public ItemClass ItemClass;
-        public Array<AuctionListFilterSubClass> SubClassFilters = new(ItemConst.MaxItemSubclassTotal);
+        public Array<AuctionListFilterSubClass> SubClassFilters = new(31);
 
         public AuctionListFilterClass(WorldPacket data)
         {
             ItemClass = (ItemClass)data.ReadInt32();
             int subClassFilterCount = data.ReadBits<int>(5);
-            Cypher.Assert(subClassFilterCount <= ItemConst.MaxItemSubclassTotal);
 
             for (var i =  0; i < subClassFilterCount; ++i)
                 SubClassFilters[i] = new AuctionListFilterSubClass(data);
@@ -547,19 +809,19 @@ namespace Game.Networking.Packets
     public struct AuctionSortDef
     {
         public AuctionHouseSortOrder Order;
-        public AuctionHouseSortDirection Direction;
+        public bool ReverseSort;
 
-        public AuctionSortDef(AuctionHouseSortOrder order, AuctionHouseSortDirection direction)
+        public AuctionSortDef(AuctionHouseSortOrder order, bool reverseSort)
         {
             Order = order;
-            Direction = direction;
+            ReverseSort = reverseSort;
         }
 
         public AuctionSortDef(WorldPacket data)
         {
             data.ResetBitPos();
             Order = (AuctionHouseSortOrder)data.ReadUInt8();
-            Direction = (AuctionHouseSortDirection)data.ReadUInt8();
+            ReverseSort = data.HasBit();
         }
     }
 
@@ -572,6 +834,33 @@ namespace Game.Networking.Packets
         {
             Guid = data.ReadPackedGuid();
             UseCount = data.ReadInt32();
+        }
+    }
+
+    public struct AuctionFavoriteInfo
+    {
+        public int Order;
+        public int ItemID;
+        public int ItemLevel;
+        public int BattlePetSpeciesID;
+        public int SuffixItemNameDescriptionID;
+
+        public AuctionFavoriteInfo(WorldPacket data)
+        {
+            Order = data.ReadInt32();
+            ItemID = data.ReadInt32();
+            ItemLevel = data.ReadInt32();
+            BattlePetSpeciesID = data.ReadInt32();
+            SuffixItemNameDescriptionID = data.ReadInt32();
+        }
+
+        public void Write(WorldPacket data)
+        {
+            data.WriteInt32(Order);
+            data.WriteInt32(ItemID);
+            data.WriteInt32(ItemLevel);
+            data.WriteInt32(BattlePetSpeciesID);
+            data.WriteInt32(SuffixItemNameDescriptionID);
         }
     }
 
@@ -606,7 +895,7 @@ namespace Game.Networking.Packets
         public byte? MaxBattlePetQuality;
         public byte? MaxBattlePetLevel;
         public byte? BattlePetBreedID;
-        public uint? Unk901_1;
+        public uint? BattlePetLevelMask;
         public bool ContainsOwnerItem;
         public bool ContainsOnlyCollectedAppearances;
 
@@ -617,16 +906,13 @@ namespace Game.Networking.Packets
             data.WriteInt32(RequiredLevel);
             data.WriteInt64(MinPrice);
             data.WriteInt32(ItemModifiedAppearanceIDs.Count);
-            if (!ItemModifiedAppearanceIDs.Empty())
-            {
-                foreach (int id in ItemModifiedAppearanceIDs)
-                    data.WriteInt32(id);
-            }
+            foreach (int id in ItemModifiedAppearanceIDs)
+                data.WriteInt32(id);
 
             data.WriteBit(MaxBattlePetQuality.HasValue);
             data.WriteBit(MaxBattlePetLevel.HasValue);
             data.WriteBit(BattlePetBreedID.HasValue);
-            data.WriteBit(Unk901_1.HasValue);
+            data.WriteBit(BattlePetLevelMask.HasValue);
             data.WriteBit(ContainsOwnerItem);
             data.WriteBit(ContainsOnlyCollectedAppearances);
             data.FlushBits();
@@ -640,8 +926,8 @@ namespace Game.Networking.Packets
             if (BattlePetBreedID.HasValue)
                 data.WriteUInt8(BattlePetBreedID.Value);
 
-            if (Unk901_1.HasValue)
-                data.WriteUInt32(Unk901_1.Value);
+            if (BattlePetLevelMask.HasValue)
+                data.WriteUInt32(BattlePetLevelMask.Value);
         }
     }
 
@@ -671,6 +957,8 @@ namespace Game.Networking.Packets
         public AuctionBucketKey AuctionBucketKey;
         public ObjectGuid? Creator;
 
+        public uint Unused1110;
+
         public void Write(WorldPacket data)
         {
             data.WriteBit(Item != null);
@@ -688,12 +976,15 @@ namespace Game.Networking.Packets
             {
                 data.WriteBit(Bidder.HasValue);
                 data.WriteBit(BidAmount.HasValue);
+
+                if (Bidder.HasValue)
+                    data.WritePackedGuid(Bidder.Value);
+
+                if (BidAmount.HasValue)
+                    data.WriteInt64(BidAmount.Value);
             }
 
             data.FlushBits();
-
-            if (Item != null)
-                Item.Write(data);
 
             data.WriteInt32(Count);
             data.WriteInt32(Charges);
@@ -702,9 +993,16 @@ namespace Game.Networking.Packets
             data.WritePackedGuid(Owner);
             data.WriteInt32((Milliseconds)DurationLeft);
             data.WriteUInt8(DeleteReason);
+            data.WriteUInt32(Unused1110);
+
+            if (Item != null)
+                Item.Write(data);
 
             foreach (ItemEnchantData enchant in Enchantments)
                 enchant.Write(data);
+
+            foreach (ItemGemData gem in Gems)
+                gem.Write(data);
 
             if (MinBid.HasValue)
                 data.WriteInt64(MinBid.Value);
@@ -725,23 +1023,11 @@ namespace Game.Networking.Packets
                 data.WriteInt32((UnixTime)EndTime);
             }
 
-            if (Creator.HasValue)
-                data.WritePackedGuid(Creator.Value);
-
-            if (!CensorBidInfo)
-            {
-                if (Bidder.HasValue)
-                    data.WritePackedGuid(Bidder.Value);
-
-                if (BidAmount.HasValue)
-                    data.WriteInt64(BidAmount.Value);
-            }
-
-            foreach (ItemGemData gem in Gems)
-                gem.Write(data);
-
             if (AuctionBucketKey != null)
                 AuctionBucketKey.Write(data);
+
+            if (Creator.HasValue)
+                data.WritePackedGuid(Creator.Value);
         }
     }
 

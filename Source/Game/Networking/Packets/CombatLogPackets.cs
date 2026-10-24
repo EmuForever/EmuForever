@@ -47,6 +47,8 @@ namespace Game.Networking.Packets
     {
         public SpellNonMeleeDamageLog() : base(ServerOpcodes.SpellNonMeleeDamageLog, ConnectionType.Instance) { }
 
+        // Forever layout: TC SpellNonMeleeDamageLog::Write
+
         public override void Write()
         {
             _worldPacket.WritePackedGuid(Me);
@@ -61,21 +63,22 @@ namespace Game.Networking.Packets
             _worldPacket.WriteInt32(Absorbed);
             _worldPacket.WriteInt32(Resisted);
             _worldPacket.WriteInt32(ShieldBlock);
+            _worldPacket.WriteInt32(ReflectingSpellID);
+            _worldPacket.WriteInt32((int)Flags);
             _worldPacket.WriteInt32(WorldTextViewers.Count);
             _worldPacket.WriteInt32(Supporters.Count);
+
+            foreach (CombatWorldTextViewerInfo worldTextViewer in WorldTextViewers)
+                worldTextViewer.Write(_worldPacket);
 
             foreach (SpellSupportInfo supportInfo in Supporters)
                 supportInfo.Write(_worldPacket);
 
             _worldPacket.WriteBit(Periodic);
-            _worldPacket.WriteBits((uint)Flags, 7);
             _worldPacket.WriteBit(false); // Debug info
             WriteLogDataBit();
             _worldPacket.WriteBit(ContentTuning != null);
             FlushBits();
-
-            foreach (CombatWorldTextViewerInfo worldTextViewer in WorldTextViewers)
-                worldTextViewer.Write(_worldPacket);
 
             WriteLogData();
             if (ContentTuning != null)
@@ -92,6 +95,7 @@ namespace Game.Networking.Packets
         public int Overkill = -1;
         public SpellSchoolMask SchoolMask;
         public int ShieldBlock;
+        public int ReflectingSpellID;
         public int Resisted;
         public bool Periodic;
         public int Absorbed;
@@ -151,7 +155,7 @@ namespace Game.Networking.Packets
                 {
                     _worldPacket.WritePackedGuid(powerDrainTarget.Victim);
                     _worldPacket.WriteUInt32(powerDrainTarget.Points);
-                    _worldPacket.WriteUInt32(powerDrainTarget.PowerType);
+                    _worldPacket.WriteInt8((sbyte)powerDrainTarget.PowerType); // Forever layout: TC SpellExecuteLog::Write
                     _worldPacket.WriteFloat(powerDrainTarget.Amplitude);
                 }
 
@@ -216,13 +220,14 @@ namespace Game.Networking.Packets
             _worldPacket.WriteBit(ContentTuning != null);
             FlushBits();
 
-            WriteLogData();
-
+            // Forever layout: TC SpellHealLog::Write
             if (CritRollMade.HasValue)
                 _worldPacket.WriteFloat(CritRollMade.Value);
 
             if (CritRollNeeded.HasValue)
                 _worldPacket.WriteFloat(CritRollNeeded.Value);
+
+            WriteLogData();
 
             if (ContentTuning != null)
                 ContentTuning.Write(_worldPacket);
@@ -252,10 +257,12 @@ namespace Game.Networking.Packets
             _worldPacket.WritePackedGuid(CasterGUID);
             _worldPacket.WriteInt32(SpellID);
             _worldPacket.WriteInt32(Effects.Count);
+
+            // Forever layout: TC SpellPeriodicAuraLog::Write
+            Effects.ForEach(p => p.Write(_worldPacket));
+
             WriteLogDataBit();
             FlushBits();
-
-            Effects.ForEach(p => p.Write(_worldPacket));
 
             WriteLogData();
         }
@@ -292,14 +299,15 @@ namespace Game.Networking.Packets
                 data.WriteBit(ContentTuning != null);
                 data.FlushBits();
 
-                if (ContentTuning != null)
-                    ContentTuning.Write(data);
-
+                // Forever layout: TC PeriodicAuraLogEffect operator<<
                 if (DebugInfo.HasValue)
                 {
                     data.WriteFloat(DebugInfo.Value.CritRollMade);
                     data.WriteFloat(DebugInfo.Value.CritRollNeeded);
                 }
+
+                if (ContentTuning != null)
+                    ContentTuning.Write(data);
             }
 
             public AuraType Effect;
@@ -326,8 +334,11 @@ namespace Game.Networking.Packets
             _worldPacket.WritePackedGuid(Victim);
             _worldPacket.WriteInt32(InterruptedSpellID);
             _worldPacket.WriteInt32(SpellID);
+            _worldPacket.WriteBit(HideFromCombatLog); // Forever layout: TC SpellInterruptLog::Write
+            _worldPacket.FlushBits();
         }
 
+        public bool HideFromCombatLog;
         public ObjectGuid Caster;
         public ObjectGuid Victim;
         public int InterruptedSpellID;
@@ -381,7 +392,7 @@ namespace Game.Networking.Packets
             _worldPacket.WritePackedGuid(CasterGUID);
 
             _worldPacket.WriteInt32(SpellID);
-            _worldPacket.WriteInt32((int)Type);
+            _worldPacket.WriteInt8((sbyte)Type); // Forever layout: TC SpellEnergizeLog::Write
             _worldPacket.WriteInt32(Amount);
             _worldPacket.WriteInt32(OverEnergize);
 
@@ -426,8 +437,12 @@ namespace Game.Networking.Packets
 
             foreach (SpellLogMissEntry missEntry in Entries)
                 missEntry.Write(_worldPacket);
+
+            _worldPacket.WriteBit(HideFromCombatLog); // Forever layout: TC SpellMissLog::Write
+            _worldPacket.FlushBits();
         }
 
+        public bool HideFromCombatLog;
         public int SpellID;
         public ObjectGuid Caster;
         public List<SpellLogMissEntry> Entries = new();
@@ -564,17 +579,8 @@ namespace Game.Networking.Packets
             if (hitInfo.HasAnyFlag(HitInfo.Block | HitInfo.Unk12))
                 attackRoundInfo.WriteFloat(Unk);
 
-            attackRoundInfo.WriteUInt8((byte)ContentTuning.TuningType);
-            attackRoundInfo.WriteUInt8(ContentTuning.TargetLevel);
-            attackRoundInfo.WriteUInt8(ContentTuning.Expansion);
-            attackRoundInfo.WriteInt16(ContentTuning.PlayerLevelDelta);
-            attackRoundInfo.WriteInt8(ContentTuning.TargetScalingLevelDelta);
-            attackRoundInfo.WriteFloat(ContentTuning.PlayerItemLevel);
-            attackRoundInfo.WriteFloat(ContentTuning.TargetItemLevel);
-            attackRoundInfo.WriteUInt32(ContentTuning.ScalingHealthItemLevelCurveID);
-            attackRoundInfo.WriteUInt32((uint)ContentTuning.Flags);
-            attackRoundInfo.WriteInt32(ContentTuning.PlayerContentTuningID);
-            attackRoundInfo.WriteInt32(ContentTuning.TargetContentTuningID);
+            // Forever layout: TC AttackerStateUpdate::Write (ContentTuningParams operator<<)
+            ContentTuning.Write(attackRoundInfo);
 
             WriteLogDataBit();
             FlushBits();
@@ -637,7 +643,7 @@ namespace Game.Networking.Packets
         public List<SpellSupportInfo> Supporters = new();
     }
 
-    class SpellHealAbsorbLog : ServerPacket
+    class SpellHealAbsorbLog : CombatLogServerPacket
     {
         public SpellHealAbsorbLog() : base(ServerOpcodes.SpellHealAbsorbLog, ConnectionType.Instance) { }
 
@@ -650,8 +656,12 @@ namespace Game.Networking.Packets
             _worldPacket.WriteInt32(AbsorbedSpellID);
             _worldPacket.WriteInt32(Absorbed);
             _worldPacket.WriteInt32(OriginalHeal);
+            // Forever layout: TC SpellHealAbsorbLog::Write
+            WriteLogDataBit();
             _worldPacket.WriteBit(ContentTuning != null);
             _worldPacket.FlushBits();
+
+            WriteLogData();
 
             if (ContentTuning != null)
                 ContentTuning.Write(_worldPacket);

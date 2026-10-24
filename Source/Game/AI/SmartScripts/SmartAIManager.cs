@@ -768,6 +768,7 @@ namespace Game.AI
                 SmartActions.Sound => Marshal.SizeOf(typeof(SmartAction.Sound)),
                 SmartActions.PlayEmote => Marshal.SizeOf(typeof(SmartAction.Emote)),
                 SmartActions.FailQuest => Marshal.SizeOf(typeof(SmartAction.Quest)),
+                SmartActions.CompleteQuest => Marshal.SizeOf(typeof(SmartAction.Quest)),
                 SmartActions.OfferQuest => Marshal.SizeOf(typeof(SmartAction.QuestOffer)),
                 SmartActions.SetReactState => Marshal.SizeOf(typeof(SmartAction.React)),
                 SmartActions.ActivateGobject => 0,
@@ -1723,11 +1724,13 @@ namespace Game.AI
                     break;
                 case SmartActions.CallAreaexploredoreventhappens:
                 case SmartActions.CallGroupeventhappens:
+                case SmartActions.CompleteQuest:
                     Quest qid = Global.ObjectMgr.GetQuestTemplate(e.Action.quest.questId);
                     if (qid != null)
                     {
                         if (!qid.HasAnyFlag(QuestFlags.CompletionEvent) 
-                            && !qid.HasAnyFlag(QuestFlags.CompletionAreaTrigger))
+                            && !qid.HasAnyFlag(QuestFlags.CompletionAreaTrigger)
+                            && !(e.GetActionType() == SmartActions.CompleteQuest && qid.HasAnyFlag(QuestFlags.TrackingEvent)))
                         {
                             Log.outError(LogFilter.ScriptsAi, 
                                 $"SmartAIMgr: {e} Flags for Quest entry {e.Action.quest.questId} " +
@@ -1818,7 +1821,10 @@ namespace Game.AI
                         return false;
                     }
 
-                    TC_SAI_IS_BOOLEAN_VALID(e, e.Action.summonCreature.attackInvoker);
+                    if ((e.Action.summonCreature.flags & ~(int)SmartActionSummonCreatureFlags.All) != 0)
+                        return false;
+                    if (e.Action.summonCreature.createdBySpell != 0 && !IsSpellValid(e, e.Action.summonCreature.createdBySpell))
+                        return false;
                     break;
                 case SmartActions.CallKilledmonster:
                     if (!IsCreatureValid(e, e.Action.killedMonster.creature))
@@ -2511,6 +2517,14 @@ namespace Game.AI
                     case SmartTargets.CreatureRange:
                     case SmartTargets.ClosestCreature:
                         return true; // ignore
+                    case SmartTargets.CreatureGuid:
+                        if (e.GetActionType() == SmartActions.Talk && e.Action.talk.useTalkTarget == 0)
+                        {
+                            var speaker = Global.ObjectMgr.GetCreatureData(e.Target.unitGUID.dbGuid);
+                            entry = speaker?.Id ?? 0;
+                            break;
+                        }
+                        goto default;
                     default:
                         if (e.EntryOrGuid < 0)
                         {
@@ -2659,6 +2673,34 @@ namespace Game.AI
                 return false;
             }
             return true;
+        }
+
+        // Read loaded metadata without cloning executable script state per SI
+        // search. Only ambient startup routes are safe: quest-triggered escorts
+        // and routes started on another target do not describe this NPC's patrol.
+        public int GetAmbientPatrolPathId(int entry, long spawnId)
+        {
+            var scripts = _eventMap[(int)SmartScriptType.Creature];
+            IReadOnlyList<SmartScriptHolder> events = null;
+            if (spawnId > 0 && spawnId <= int.MaxValue)
+                scripts.TryGetValues(-(int)spawnId, out events);
+            if (events == null || events.Count == 0)
+                scripts.TryGetValues(entry, out events);
+            if (events == null) return 0;
+            int pathId = 0;
+            foreach (var script in events)
+            {
+                if (script.Action.type != SmartActions.WpStart || script.Action.wpStart.quest != 0 ||
+                    script.Target.type != SmartTargets.Self ||
+                    script.Event.type is not (SmartEvents.Respawn or SmartEvents.Reset or SmartEvents.JustCreated)) continue;
+                int candidate = script.Action.wpStart.pathID;
+                if (candidate <= 0) continue;
+                // Conditional scripts can assign different routes. Never invent
+                // one when the database does not identify a unique ambient path.
+                if (pathId != 0 && pathId != candidate) return 0;
+                pathId = candidate;
+            }
+            return pathId;
         }
 
         public List<SmartScriptHolder> GetScript(int entry, SmartScriptType type)
@@ -3664,9 +3706,9 @@ namespace Game.AI
             public int type;
             public Milliseconds duration;
             public int storageID;
-            public int attackInvoker;
             public int flags; // SmartActionSummonCreatureFlags
             public int count;
+            public int createdBySpell;
         }
 
         public struct ThreatPCT

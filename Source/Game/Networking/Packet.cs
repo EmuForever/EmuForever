@@ -37,7 +37,7 @@ namespace Game.Networking
     {
         protected ServerPacket(ServerOpcodes opcode)
         {
-            connectionType = ConnectionType.Realm;
+            connectionType = ServerOpcodeConnections.GetDefault(opcode);
             _worldPacket = new WorldPacket(opcode);
         }
 
@@ -114,7 +114,7 @@ namespace Game.Networking
 
         public WorldPacket(byte[] data) : base(data)
         {
-            opcode = ReadUInt16();
+            opcode = ReadUInt32();
         }
 
         public ObjectGuid ReadPackedGuid()
@@ -223,6 +223,7 @@ namespace Game.Networking
         }
 
         public uint GetOpcode() { return opcode; }
+        public void SetOpcode(uint value) { opcode = value; }
 
         public ServerTime GetReceivedTime() { return m_receivedTime; }
         public void SetReceiveTime(ServerTime receivedTime) { m_receivedTime = receivedTime; }

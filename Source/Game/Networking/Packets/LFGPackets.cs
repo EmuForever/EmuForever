@@ -16,8 +16,8 @@ namespace Game.Networking.Packets
         {
             QueueAsGroup = _worldPacket.HasBit();
             bool hasPartyIndex = _worldPacket.HasBit();
-            Unknown = _worldPacket.HasBit();
-            Roles = (LfgRoles)_worldPacket.ReadUInt32();
+            Unknown = _worldPacket.HasBit(); // Mercenary
+            Roles = (LfgRoles)_worldPacket.ReadUInt8(); // Forever layout: TC DFJoin::Read
             var slotsCount = _worldPacket.ReadInt32();
 
             if (hasPartyIndex)
@@ -70,8 +70,9 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
+            // Forever layout: TC DFSetRoles::Read
             bool hasPartyIndex = _worldPacket.HasBit();
-            RolesDesired = (LfgRoles)_worldPacket.ReadUInt32();
+            RolesDesired = (LfgRoles)_worldPacket.ReadUInt8();
             if (hasPartyIndex)
                 PartyIndex = _worldPacket.ReadUInt8();
         }
@@ -165,8 +166,9 @@ namespace Game.Networking.Packets
         {
             Ticket.Write(_worldPacket);
 
+            // Forever layout: TC LFGUpdateStatus::Write
             _worldPacket.WriteUInt8(SubType);
-            _worldPacket.WriteUInt8(Reason);
+            _worldPacket.WriteUInt32(Reason);
             _worldPacket.WriteInt32(Slots.Count);
             _worldPacket.WriteUInt8(RequestedRoles);
             _worldPacket.WriteInt32(SuspendedPlayers.Count);
@@ -178,8 +180,8 @@ namespace Game.Networking.Packets
             foreach (var player in SuspendedPlayers)
                 _worldPacket.WritePackedGuid(player);
 
-            _worldPacket.WriteBit(IsParty);
             _worldPacket.WriteBit(NotifyUI);
+            _worldPacket.WriteBit(IsParty);
             _worldPacket.WriteBit(Joined);
             _worldPacket.WriteBit(LfgJoined);
             _worldPacket.WriteBit(Queued);
@@ -189,7 +191,7 @@ namespace Game.Networking.Packets
 
         public RideTicket Ticket = new();
         public byte SubType;
-        public byte Reason;
+        public uint Reason;
         public List<int> Slots = new();
         public byte RequestedRoles;
         public List<ObjectGuid> SuspendedPlayers = new();
@@ -238,12 +240,13 @@ namespace Game.Networking.Packets
             foreach (ulong bgQueueID in BgQueueIDs)
                 _worldPacket.WriteUInt64(bgQueueID);
 
+            foreach (var member in Members)
+                member.Write(_worldPacket);
+
+            // Forever layout: TC LFGRoleCheckUpdate::Write
             _worldPacket.WriteBit(IsBeginning);
             _worldPacket.WriteBit(IsRequeue);
             _worldPacket.FlushBits();
-
-            foreach (var member in Members)
-                member.Write(_worldPacket);
         }
 
         public byte PartyIndex;
@@ -264,7 +267,8 @@ namespace Game.Networking.Packets
         {
             Ticket.Write(_worldPacket);
 
-            _worldPacket.WriteUInt8(Result);
+            // Forever layout: TC LFGJoinResult::Write
+            _worldPacket.WriteInt32(Result);
             _worldPacket.WriteUInt8(ResultDetail);
             _worldPacket.WriteInt32(BlackList.Count);
             _worldPacket.WriteInt32(BlackListNames.Count);
@@ -276,12 +280,11 @@ namespace Game.Networking.Packets
                 _worldPacket.WriteBits(str.GetByteCount() + 1, 24);
 
             foreach (string str in BlackListNames)
-                if (!str.IsEmpty())
-                    _worldPacket.WriteCString(str);
+                _worldPacket.WriteCString(str);
         }
 
         public RideTicket Ticket = new();
-        public byte Result;
+        public int Result;
         public byte ResultDetail;
         public List<LFGBlackListPkt> BlackList = new();
         public List<string> BlackListNames = new();
@@ -342,7 +345,7 @@ namespace Game.Networking.Packets
 
     class LfgBootPlayer : ServerPacket
     {
-        public LfgBootPlayer() : base(ServerOpcodes.LfgBootPlayer, ConnectionType.Instance) { }
+        public LfgBootPlayer() : base(ServerOpcodes.LfgBootPlayer) { }
 
         public override void Write()
         {
@@ -393,14 +396,14 @@ namespace Game.Networking.Packets
 
     class LfgDisabled : ServerPacket
     {
-        public LfgDisabled() : base(ServerOpcodes.LfgDisabled, ConnectionType.Instance) { }
+        public LfgDisabled() : base(ServerOpcodes.LfgDisabled) { }
 
         public override void Write() { }
     }
 
     class LfgOfferContinue : ServerPacket
     {
-        public LfgOfferContinue(int slot) : base(ServerOpcodes.LfgOfferContinue, ConnectionType.Instance)
+        public LfgOfferContinue(int slot) : base(ServerOpcodes.LfgOfferContinue)
         {
             Slot = slot;
         }
@@ -415,7 +418,7 @@ namespace Game.Networking.Packets
 
     class LfgTeleportDenied : ServerPacket
     {
-        public LfgTeleportDenied(LfgTeleportResult reason) : base(ServerOpcodes.LfgTeleportDenied, ConnectionType.Instance)
+        public LfgTeleportDenied(LfgTeleportResult reason) : base(ServerOpcodes.LfgTeleportDenied)
         {
             Reason = reason;
         }
@@ -581,13 +584,14 @@ namespace Game.Networking.Packets
             data.WriteUInt32(CompletedMask);
             data.WriteUInt32(EncounterMask);
             data.WriteInt32(ShortageReward.Count);
-            data.WriteBit(FirstReward);
-            data.WriteBit(ShortageEligible);
-            data.FlushBits();
-
             Rewards.Write(data);
             foreach (var shortageReward in ShortageReward)
                 shortageReward.Write(data);
+
+            // Forever layout: TC LfgPlayerDungeonInfo operator<<
+            data.WriteBit(FirstReward);
+            data.WriteBit(ShortageEligible);
+            data.FlushBits();
         }
 
         public int Slot;
@@ -678,12 +682,14 @@ namespace Game.Networking.Packets
         {
             data.WriteBit(RewardItem != null);
             data.WriteBit(RewardCurrency.HasValue);
+            data.FlushBits();
+
+            // Forever layout: TC LFGPlayerRewards operator<<
+            data.WriteInt32(Quantity);
+            data.WriteInt32(BonusQuantity);
 
             if (RewardItem != null)
                 RewardItem.Write(data);
-
-            data.WriteInt32(Quantity);
-            data.WriteInt32(BonusQuantity);
 
             if (RewardCurrency.HasValue)
                 data.WriteInt32(RewardCurrency.Value);
@@ -703,7 +709,7 @@ namespace Game.Networking.Packets
             data.WriteBit(VotePassed);
             data.WriteBit(MyVoteCompleted);
             data.WriteBit(MyVote);
-            data.WriteBits(Reason.GetByteCount(), 8);
+            data.WriteBits(Reason.GetByteCount(), 9); // Forever layout: TC LfgBootInfo operator<<
             data.WritePackedGuid(Target);
             data.WriteUInt32(TotalVotes);
             data.WriteUInt32(BootVotes);

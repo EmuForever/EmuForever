@@ -42,6 +42,13 @@ namespace Game
                 HandleDuelCancelled();
         }
 
+        internal void RespondToDuelForSI(bool accept)
+        {
+            if(!IsServerControlled||GetPlayer()?.duel==null)return;
+            if(accept)HandleDuelAccepted(GetPlayer().duel.Opponent.m_playerData.DuelArbiter);
+            else HandleDuelCancelled();
+        }
+
         void HandleDuelAccepted(ObjectGuid arbiterGuid)
         {
             Player player = GetPlayer();

@@ -82,6 +82,22 @@ namespace Framework.Constants
         public const byte MaxCount = Profession2Tool - Profession1Tool;
     }
 
+    [Flags]
+    public enum BagSlotFlags : uint
+    {
+        None = 0,
+        DisableAutoSort = 0x0001,
+        PriorityEquipment = 0x0002,
+        PriorityConsumables = 0x0004,
+        PriorityTradeGoods = 0x0008,
+        PriorityJunk = 0x0010,
+        PriorityQuestItems = 0x0020,
+        ExcludeJunkSell = 0x0040,
+        PriorityReagents = 0x0080,
+        ExpansionCurrent = 0x0100,
+        ExpansionLegacy = 0x0200
+    }
+
     public struct InventorySlots
     {
         public const byte BagStart = 30;
@@ -1698,8 +1714,7 @@ namespace Framework.Constants
         None = 0,
         Item = 1,
         Currency = 2,
-        Spell = 3,
-        MawPower = 4
+        Spell = 3
     }
 
     public enum CurrencyTypes

@@ -1,14 +1,12 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
-using Framework.Cryptography;
 using Framework.Cryptography.Ed25519;
 using Framework.IO;
 using Game.DataStorage;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Security.Cryptography;
 
 namespace Game.Networking.Packets
@@ -53,7 +51,7 @@ namespace Game.Networking.Packets
             _worldPacket.WriteUInt8(DosZeroBits);
         }
 
-        public byte[] Challenge = new byte[16];
+        public byte[] Challenge = new byte[32];
         public byte[] DosChallenge = new byte[32]; // Encryption seeds
         public byte DosZeroBits;
     }
@@ -80,12 +78,31 @@ namespace Game.Networking.Packets
             int realmJoinTicketSize = _worldPacket.ReadInt32();
             if (realmJoinTicketSize != 0)
                 RealmJoinTicket = _worldPacket.ReadString(realmJoinTicketSize);
+
+            // Forever 1.60 sends a JSON ticket ({"gameAccount":"..."}); older clients send the account name.
+            RealmJoinTicket = GameAccountFromTicket(RealmJoinTicket);
+        }
+
+        static string GameAccountFromTicket(string ticket)
+        {
+            if (string.IsNullOrEmpty(ticket) || ticket[0] != '{')
+                return ticket ?? "";
+
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(ticket);
+                if (doc.RootElement.TryGetProperty("gameAccount", out var account))
+                    return account.GetString() ?? "";
+            }
+            catch (System.Text.Json.JsonException) { }
+
+            return ticket;
         }
 
         public uint RegionID;
         public uint BattlegroupID;
         public uint RealmID;
-        public Array<byte> LocalChallenge = new(16);
+        public Array<byte> LocalChallenge = new(32);
         public byte[] Digest = new byte[DigestLength];
         public ulong DosResponse;
         public string RealmJoinTicket;
@@ -98,6 +115,7 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
+            // Forever layout: TC AuthResponse::Write
             _worldPacket.WriteUInt32((uint)Result);
             _worldPacket.WriteBit(SuccessInfo != null);
             _worldPacket.WriteBit(WaitInfo.HasValue);
@@ -111,23 +129,57 @@ namespace Game.Networking.Packets
                 _worldPacket.WriteUInt8(SuccessInfo.ActiveExpansionLevel);
                 _worldPacket.WriteUInt8(SuccessInfo.AccountExpansionLevel);
                 _worldPacket.WriteUInt32(SuccessInfo.TimeSecondsUntilPCKick);
-                _worldPacket.WriteInt32(SuccessInfo.AvailableClasses.Count);
+                _worldPacket.WriteInt32(SuccessInfo.AvailableClasses?.Count ?? 0);
                 _worldPacket.WriteInt32(SuccessInfo.Templates.Count);
                 _worldPacket.WriteUInt32(SuccessInfo.CurrencyID);
+
+                _worldPacket.WriteUInt32(SuccessInfo.GameTimeInfo.BillingType);
+                _worldPacket.WriteUInt32(SuccessInfo.GameTimeInfo.MinutesRemaining);
+                _worldPacket.WriteUInt32(SuccessInfo.GameTimeInfo.RealBillingType);
+                _worldPacket.WriteBit(SuccessInfo.GameTimeInfo.IsInIGR);
+                _worldPacket.WriteBit(SuccessInfo.GameTimeInfo.IsPaidForByIGR);
+                _worldPacket.WriteBit(SuccessInfo.GameTimeInfo.IsCAISEnabled);
+                _worldPacket.FlushBits();
+
                 _worldPacket.WriteInt64(SuccessInfo.Time);
 
-                foreach (var raceClassAvailability in SuccessInfo.AvailableClasses)
-                {
-                    _worldPacket.WriteUInt8((byte)raceClassAvailability.RaceID);
-                    _worldPacket.WriteInt32(raceClassAvailability.Classes.Count);
+                foreach (VirtualRealmInfo virtualRealm in SuccessInfo.VirtualRealms)
+                    virtualRealm.Write(_worldPacket);
 
-                    foreach (var classAvailability in raceClassAvailability.Classes)
+                if (SuccessInfo.AvailableClasses != null)
+                {
+                    foreach (RaceClassAvailability raceAvailability in SuccessInfo.AvailableClasses)
                     {
-                        _worldPacket.WriteUInt8((byte)classAvailability.ClassID);
-                        _worldPacket.WriteUInt8((byte)classAvailability.ActiveExpansionLevel);
-                        _worldPacket.WriteUInt8((byte)classAvailability.AccountExpansionLevel);
-                        _worldPacket.WriteUInt8((byte)classAvailability.MinActiveExpansionLevel);
+                        _worldPacket.WriteUInt8((byte)raceAvailability.RaceID);
+                        _worldPacket.WriteInt32(raceAvailability.Classes.Count);
+                        foreach (ClassAvailability classAvailability in raceAvailability.Classes)
+                        {
+                            _worldPacket.WriteUInt8((byte)classAvailability.ClassID);
+                            _worldPacket.WriteUInt8((byte)classAvailability.ActiveExpansionLevel);
+                            _worldPacket.WriteUInt8((byte)classAvailability.AccountExpansionLevel);
+                            _worldPacket.WriteUInt8((byte)classAvailability.MinActiveExpansionLevel);
+                        }
                     }
+                }
+
+                foreach (CharacterTemplate characterTemplate in SuccessInfo.Templates)
+                {
+                    _worldPacket.WriteInt32(characterTemplate.TemplateSetId);
+                    _worldPacket.WriteInt32(characterTemplate.Classes?.Count ?? 0);
+                    if (characterTemplate.Classes != null)
+                        foreach (CharacterTemplateClass templateClass in characterTemplate.Classes)
+                        {
+                            _worldPacket.WriteUInt8((byte)templateClass.ClassID);
+                            _worldPacket.WriteUInt8((byte)templateClass.FactionGroup);
+                        }
+
+                    string name = characterTemplate.Name ?? string.Empty;
+                    string description = characterTemplate.Description ?? string.Empty;
+                    _worldPacket.WriteBits(name.GetByteCount(), 7);
+                    _worldPacket.WriteBits(description.GetByteCount(), 10);
+                    _worldPacket.FlushBits();
+                    _worldPacket.WriteString(name);
+                    _worldPacket.WriteString(description);
                 }
 
                 _worldPacket.WriteBit(SuccessInfo.IsExpansionTrial);
@@ -135,19 +187,8 @@ namespace Game.Networking.Packets
                 _worldPacket.WriteBit(SuccessInfo.NumPlayersHorde.HasValue);
                 _worldPacket.WriteBit(SuccessInfo.NumPlayersAlliance.HasValue);
                 _worldPacket.WriteBit(SuccessInfo.ExpansionTrialExpiration.HasValue);
-                _worldPacket.WriteBit(SuccessInfo.NewBuildKeys != null);
+                _worldPacket.WriteBit(SuccessInfo.CurrentBuild != null);
                 _worldPacket.FlushBits();
-
-                {
-                    _worldPacket.WriteUInt32(SuccessInfo.GameTimeInfo.BillingPlan);
-                    _worldPacket.WriteUInt32(SuccessInfo.GameTimeInfo.TimeRemain);
-                    _worldPacket.WriteUInt32(SuccessInfo.GameTimeInfo.Unknown735);
-                    // 3x same bit is not a mistake - preserves legacy client behavior of BillingPlanFlags::SESSION_IGR
-                    _worldPacket.WriteBit(SuccessInfo.GameTimeInfo.InGameRoom); // inGameRoom check in function checking which lua event to fire when remaining time is near end - BILLING_NAG_DIALOG vs IGR_BILLING_NAG_DIALOG
-                    _worldPacket.WriteBit(SuccessInfo.GameTimeInfo.InGameRoom); // inGameRoom lua return from Script_GetBillingPlan
-                    _worldPacket.WriteBit(SuccessInfo.GameTimeInfo.InGameRoom); // not used anywhere in the client
-                    _worldPacket.FlushBits();
-                }
 
                 if (SuccessInfo.NumPlayersHorde.HasValue)
                     _worldPacket.WriteUInt16(SuccessInfo.NumPlayersHorde.Value);
@@ -158,34 +199,13 @@ namespace Game.Networking.Packets
                 if(SuccessInfo.ExpansionTrialExpiration.HasValue)
                     _worldPacket.WriteInt64(SuccessInfo.ExpansionTrialExpiration.Value);
 
-                if (SuccessInfo.NewBuildKeys != null)
+                if (SuccessInfo.CurrentBuild != null)
                 {
                     for (int i = 0; i < 16; ++i)
                     {
-                        _worldPacket.WriteUInt8(SuccessInfo.NewBuildKeys.NewBuildKey[i]);
-                        _worldPacket.WriteUInt8(SuccessInfo.NewBuildKeys.SomeKey[i]);
+                        _worldPacket.WriteUInt8(SuccessInfo.CurrentBuild.BuildKey[i]);
+                        _worldPacket.WriteUInt8(SuccessInfo.CurrentBuild.ConfigKey[i]);
                     }
-                }
-
-                foreach (VirtualRealmInfo virtualRealm in SuccessInfo.VirtualRealms)
-                    virtualRealm.Write(_worldPacket);
-
-                foreach (var characterTemplate in SuccessInfo.Templates)
-                {
-                    _worldPacket.WriteInt32(characterTemplate.TemplateSetId);
-                    _worldPacket.WriteInt32(characterTemplate.Classes.Count);
-                    foreach (var templateClass in characterTemplate.Classes)
-                    {
-                        _worldPacket.WriteUInt8((byte)templateClass.ClassID);
-                        _worldPacket.WriteUInt8((byte)templateClass.FactionGroup);
-                    }
-
-                    _worldPacket.WriteBits(characterTemplate.Name.GetByteCount(), 7);
-                    _worldPacket.WriteBits(characterTemplate.Description.GetByteCount(), 10);
-                    _worldPacket.FlushBits();
-
-                    _worldPacket.WriteString(characterTemplate.Name);
-                    _worldPacket.WriteString(characterTemplate.Description);
                 }
             }
 
@@ -220,20 +240,22 @@ namespace Game.Networking.Packets
             public ushort? NumPlayersHorde; // number of horde players in this realm. @todo implement
             public ushort? NumPlayersAlliance; // number of alliance players in this realm. @todo implement
             public long? ExpansionTrialExpiration; // expansion trial expiration unix timestamp
-            public NewBuild NewBuildKeys;
+            public NewBuild CurrentBuild;
 
             public struct GameTime
             {
-                public uint BillingPlan;
-                public uint TimeRemain;
-                public uint Unknown735;
-                public bool InGameRoom;
+                public uint BillingType;
+                public uint MinutesRemaining;
+                public uint RealBillingType;
+                public bool IsInIGR;
+                public bool IsPaidForByIGR;
+                public bool IsCAISEnabled;
             }
 
             public class NewBuild
             {
-                public Array<byte> NewBuildKey = new Array<byte>(16);
-                public Array<byte> SomeKey = new Array<byte>(16);
+                public byte[] BuildKey = new byte[16];
+                public byte[] ConfigKey = new byte[16];
             }
         }
     }
@@ -266,40 +288,48 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            ByteBuffer whereBuffer = new();
-            whereBuffer.WriteUInt8((byte)Payload.Where.Type);
+            // Forever layout: TC ConnectTo::Write (single ConnectPayload with empty BleepToken)
+            // Classic 1.60.1 JAM ConnectTo layout. The older RSA-signed payload
+            // makes the client interpret the signature as payload metadata.
+            _worldPacket.WriteUInt32(1); // Payload count
+            _worldPacket.WriteUInt32((uint)Serial);
+            _worldPacket.WriteUInt8(Con);
+            _worldPacket.WriteUInt64(unchecked((ulong)Key));
+            _worldPacket.WriteUInt32(NativeRealmAddress);
+            _worldPacket.WriteUInt32(Key3);
+
+            _worldPacket.WriteUInt8((byte)Payload.Where.Type);
 
             switch (Payload.Where.Type)
             {
                 case AddressType.IPv4:
-                    whereBuffer.WriteBytes(Payload.Where.IPv4);
+                    _worldPacket.WriteBytes(Payload.Where.IPv4);
                     break;
                 case AddressType.IPv6:
-                    whereBuffer.WriteBytes(Payload.Where.IPv6);
+                    _worldPacket.WriteBytes(Payload.Where.IPv6);
                     break;
                 case AddressType.NamedSocket:
-                    whereBuffer.WriteString(Payload.Where.NameSocket);
+                    _worldPacket.WriteCString(Payload.Where.NameSocket); // TC: data << char const* (NUL terminated)
                     break;
                 default:
                     break;
             }
 
-            Sha256 hash = new();
-            hash.Process(whereBuffer.GetData(), (int)whereBuffer.GetSize());
-            hash.Process((uint)Payload.Where.Type);
-            hash.Finish(BitConverter.GetBytes(Payload.Port));
-
-            Payload.Signature = RsaCrypt.RSA.SignHash(hash.Digest, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1).Reverse().ToArray();
-
-            _worldPacket.WriteBytes(Payload.Signature, Payload.Signature.Length);
-            _worldPacket.WriteBytes(whereBuffer);
             _worldPacket.WriteUInt16(Payload.Port);
-            _worldPacket.WriteUInt32((uint)Serial);
-            _worldPacket.WriteUInt8(Con);
-            _worldPacket.WriteInt64(Key);
+
+            // Empty BleepToken: empty token, empty proxy ID (one NUL byte),
+            // empty address, and zero lifespan.
+            _worldPacket.WriteBits(0, 5);
+            _worldPacket.WriteBits(1, 24);
+            _worldPacket.WriteBits(0, 6);
+            _worldPacket.FlushBits();
+            _worldPacket.WriteInt64(0);
+            _worldPacket.WriteCString(string.Empty);
         }
 
         public long Key;
+        public uint NativeRealmAddress;
+        public uint Key3;
         public ConnectToSerial Serial;
         public ConnectPayload Payload;
         public byte Con;
@@ -308,7 +338,6 @@ namespace Game.Networking.Packets
         {
             public SocketAddress Where;
             public ushort Port;
-            public byte[] Signature = new byte[256];
         }
 
         public struct SocketAddress
@@ -335,15 +364,20 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
+            // Forever 1.60 order: DosResponse, LocalChallenge[32], Digest[24], Key
             DosResponse = _worldPacket.ReadInt64();
-            Key = _worldPacket.ReadInt64();
-            LocalChallenge = _worldPacket.ReadBytes(16);
+            LocalChallenge = _worldPacket.ReadBytes(32);
             Digest = _worldPacket.ReadBytes(DigestLength);
+            Key = _worldPacket.ReadInt64();
+            NativeRealmAddress = _worldPacket.ReadUInt32();
+            Key3 = _worldPacket.ReadUInt32();
         }
 
         public long DosResponse;
         public long Key;
-        public byte[] LocalChallenge = new byte[16];
+        public uint NativeRealmAddress;
+        public uint Key3;
+        public byte[] LocalChallenge = new byte[32];
         public byte[] Digest = new byte[DigestLength];
     }
 
@@ -360,8 +394,9 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
-            Serial = (ConnectToSerial)_worldPacket.ReadUInt32();
+            // Forever layout: TC ConnectToFailed::Read
             Con = _worldPacket.ReadUInt8();
+            Serial = (ConnectToSerial)_worldPacket.ReadUInt32();
         }
 
         public ConnectToSerial Serial;
@@ -374,7 +409,11 @@ namespace Game.Networking.Packets
         bool Enabled;
         static byte[] expandedPrivateKey;
 
-        static byte[] EnableEncryptionSeed = [0x90, 0x9C, 0xD0, 0x50, 0x5A, 0x2C, 0x14, 0xDD, 0x5C, 0x2C, 0xC0, 0x64, 0x14, 0xF3, 0xFE, 0xC9];
+        static byte[] EnableEncryptionSeed =
+        [
+            0x66, 0xBE, 0x29, 0x79, 0xEF, 0xF2, 0xD5, 0xB5, 0x61, 0x53, 0xF6, 0x5F, 0x45, 0xAE, 0x81, 0xCB,
+            0x32, 0xEC, 0x94, 0xEC, 0x75, 0xB3, 0x5F, 0x44, 0x6A, 0x63, 0x43, 0x67, 0x17, 0x20, 0x44, 0x34
+        ];
         static byte[] EnableEncryptionContext = [0xA7, 0x1F, 0xB6, 0x9B, 0xC9, 0x7C, 0xDD, 0x96, 0xE9, 0xBB, 0xB8, 0x21, 0x39, 0x8D, 0x5A, 0xD4];
 
         static byte[] EnterEncryptedModePrivateKey =
@@ -390,6 +429,8 @@ namespace Game.Networking.Packets
             expandedPrivateKey = Ed25519.ExpandedPrivateKeyFromSeed(EnterEncryptedModePrivateKey);
         }
 
+        public int RegionGroup = 8; // WoW Forever's working 1.60.1 client expects region group 8.
+
         public EnterEncryptedMode(byte[] encryptionKey, bool enabled) : base(ServerOpcodes.EnterEncryptedMode)
         {
             EncryptionKey = encryptionKey;
@@ -398,11 +439,16 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            HmacSha256 toSign = new(EncryptionKey);
-            toSign.Process(BitConverter.GetBytes(Enabled), 1);
-            toSign.Finish(EnableEncryptionSeed, 16);
+            byte[] toSign;
+            using (HMACSHA512 hmac = new(EncryptionKey))
+            {
+                hmac.TransformBlock([(byte)(Enabled ? 1 : 0)], 0, 1, null, 0);
+                hmac.TransformFinalBlock(EnableEncryptionSeed, 0, EnableEncryptionSeed.Length);
+                toSign = hmac.Hash;
+            }
 
-            _worldPacket.WriteBytes(Ed25519.Sign(toSign.Digest, expandedPrivateKey, 0, EnableEncryptionContext));
+            _worldPacket.WriteInt32(RegionGroup);
+            _worldPacket.WriteBytes(Ed25519.Sign(toSign, expandedPrivateKey, 0, EnableEncryptionContext));
             _worldPacket.WriteBit(Enabled);
             _worldPacket.FlushBits();
         }
@@ -415,13 +461,17 @@ namespace Game.Networking.Packets
         {
             data.WriteUInt32(WaitCount);
             data.WriteUInt32(WaitTime);
+            data.WriteUInt8(AllowedFactionGroupForCharacterCreate);
             data.WriteBit(HasFCM);
+            data.WriteBit(CanCreateOnlyIfExisting);
             data.FlushBits();
         }
 
         public uint WaitCount; // position of the account in the login queue
         public uint WaitTime; // Wait time in login queue in minutes, if sent queued and this value is 0 client displays "unknown time"
+        public byte AllowedFactionGroupForCharacterCreate;
         public bool HasFCM; // true if the account has a forced character migration pending. @todo implement
+        public bool CanCreateOnlyIfExisting;
     }
 
     struct VirtualRealmNameInfo

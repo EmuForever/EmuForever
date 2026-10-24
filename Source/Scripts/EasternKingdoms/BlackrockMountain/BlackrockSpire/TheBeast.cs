@@ -17,6 +17,7 @@ namespace Scripts.EasternKingdoms.BlackrockMountain.BlackrockSpire.Thebeast
     }
 
     [Script]
+    [Script("boss_the_beast")]
     class boss_thebeast : BossAI
     {
         public boss_thebeast(Creature creature) : base(creature, DataTypes.TheBeast) { }

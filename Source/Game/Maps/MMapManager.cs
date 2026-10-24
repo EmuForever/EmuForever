@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -14,7 +14,8 @@ namespace Game
         MMapManager() { }
 
         const string MAP_FILE_NAME_FORMAT = "{0}/mmaps/{1:D4}.mmap";
-        const string TILE_FILE_NAME_FORMAT = "{0}/mmaps/{1:D4}{2:D2}{3:D2}.mmtile";
+        const string TILE_FILE_NAME_FORMAT = "{0}/mmaps/{1:D4}_{2:D2}_{3:D2}.mmtile";       // generator v16
+        const string LEGACY_TILE_FILE_NAME_FORMAT = "{0}/mmaps/{1:D4}{2:D2}{3:D2}.mmtile";  // generator v15
 
         public void Initialize(MultiMap<int, int> mapData)
         {
@@ -42,6 +43,20 @@ namespace Game
             }
 
             using BinaryReader reader = new(new FileStream(filename, FileMode.Open, FileAccess.Read), Encoding.UTF8);
+            // v16 files start with MmapNavMeshHeader { magic, version, dtNavMeshParams, offmeshConnectionCount };
+            // v15 files hold the bare dtNavMeshParams. Offmesh connections are already baked into the tiles.
+            if (reader.BaseStream.Length >= 40 && reader.ReadUInt32() == MapConst.mmapMagic)
+            {
+                uint version = reader.ReadUInt32();
+                if (version != MapConst.mmapVersion && version != MapConst.mmapLegacyVersion)
+                {
+                    Log.outError(LogFilter.Maps, $"MMAP:loadMapData: {mapId:D4}.mmap was built with generator v{version}, expected v{MapConst.mmapVersion}");
+                    return false;
+                }
+            }
+            else
+                reader.BaseStream.Position = 0;
+
             Detour.dtNavMeshParams Params = new();
             Params.orig[0] = reader.ReadSingle();
             Params.orig[1] = reader.ReadSingle();
@@ -69,12 +84,33 @@ namespace Game
             return true;
         }
 
+        static string TileFileName(string basePath, int mapId, int x, int y)
+        {
+            string fileName = string.Format(TILE_FILE_NAME_FORMAT, basePath, mapId, x, y);
+            return File.Exists(fileName) ? fileName : string.Format(LEGACY_TILE_FILE_NAME_FORMAT, basePath, mapId, x, y);
+        }
+
+        // Resolve on the map thread; callers may deserialize this file in isolation on a worker.
+        public string GetTileFileName(string basePath, int mapId, int x, int y)
+        {
+            string path = TileFileName(basePath, mapId, x, y);
+            if (!File.Exists(path) && parentMapData.TryGetValue(mapId, out int parent)) path = TileFileName(basePath, parent, x, y);
+            return path;
+        }
+
         uint PackTileID(int x, int y)
         {
             return (uint)(x << 16 | y);
         }
 
+        // Tiles are loaded by grid loading on map threads and on demand by bot route planning.
         public bool LoadMap(string basePath, int mapId, int x, int y)
+        {
+            lock (_sync)
+                return LoadMapImpl(basePath, mapId, x, y);
+        }
+
+        bool LoadMapImpl(string basePath, int mapId, int x, int y)
         {
             // make sure the mmap is loaded and ready to load tiles
             if (!LoadMapData(basePath, mapId))
@@ -90,11 +126,11 @@ namespace Game
                 return false;
 
             // load this tile . mmaps/MMMXXYY.mmtile
-            string fileName = string.Format(TILE_FILE_NAME_FORMAT, basePath, mapId, x, y);
+            string fileName = TileFileName(basePath, mapId, x, y);
             if (!File.Exists(fileName))
             {
                 if (parentMapData.ContainsKey(mapId))
-                    fileName = string.Format(TILE_FILE_NAME_FORMAT, basePath, parentMapData[mapId], x, y);
+                    fileName = TileFileName(basePath, parentMapData[mapId], x, y);
             }
 
             if (!File.Exists(fileName))
@@ -112,7 +148,7 @@ namespace Game
                     $"MMAP:loadMap: Bad header in mmap {mapId:D4}{x:D2}{y:D2}.mmtile");
                 return false;
             }
-            if (fileHeader.mmapVersion != MapConst.mmapVersion)
+            if (fileHeader.mmapVersion != MapConst.mmapVersion && fileHeader.mmapVersion != MapConst.mmapLegacyVersion)
             {
                 Log.outError(LogFilter.Maps, 
                     $"MMAP:loadMap: {mapId:D4}{x:D2}{y:D2}.mmtile " +
@@ -142,7 +178,14 @@ namespace Game
             return false;
         }
 
+        // Tiles are loaded by grid loading on map threads and on demand by bot route planning.
         public bool LoadMapInstance(string basePath, int meshMapId, int instanceMapId, int instanceId)
+        {
+            lock (_sync)
+                return LoadMapInstanceImpl(basePath, meshMapId, instanceMapId, instanceId);
+        }
+
+        bool LoadMapInstanceImpl(string basePath, int meshMapId, int instanceMapId, int instanceId)
         {
             if (!LoadMapData(basePath, meshMapId))
                 return false;
@@ -169,7 +212,14 @@ namespace Game
             return true;
         }
 
+        // Tiles are loaded by grid loading on map threads and on demand by bot route planning.
         public bool UnloadMap(int mapId, int x, int y)
+        {
+            lock (_sync)
+                return UnloadMapImpl(mapId, x, y);
+        }
+
+        bool UnloadMapImpl(int mapId, int x, int y)
         {
             // check if we have this map loaded
             MMapData mmap = GetMMapData(mapId);
@@ -220,7 +270,14 @@ namespace Game
             return false;
         }
 
+        // Tiles are loaded by grid loading on map threads and on demand by bot route planning.
         public bool UnloadMap(int mapId)
+        {
+            lock (_sync)
+                return UnloadMapImpl(mapId);
+        }
+
+        bool UnloadMapImpl(int mapId)
         {
             if (!loadedMMaps.ContainsKey(mapId))
             {
@@ -255,7 +312,14 @@ namespace Game
             return true;
         }
 
+        // Tiles are loaded by grid loading on map threads and on demand by bot route planning.
         public bool UnloadMapInstance(int meshMapId, int instanceMapId, int instanceId)
+        {
+            lock (_sync)
+                return UnloadMapInstanceImpl(meshMapId, instanceMapId, instanceId);
+        }
+
+        bool UnloadMapInstanceImpl(int meshMapId, int instanceMapId, int instanceId)
         {
             // check if we have this map loaded
             MMapData mmap = GetMMapData(meshMapId);
@@ -303,6 +367,7 @@ namespace Game
         public uint GetLoadedTilesCount() { return loadedTiles; }
         public int GetLoadedMapsCount() { return loadedMMaps.Count; }
 
+        readonly object _sync = new();
         Dictionary<int, MMapData> loadedMMaps = new();
         uint loadedTiles;
 
@@ -331,3 +396,4 @@ namespace Game
         public byte usesLiquids;
     }
 }
+

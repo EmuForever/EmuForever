@@ -902,7 +902,7 @@ namespace Scripts.Spells.Items
             {
                 Player player = GetCaster().ToPlayer();
                 Creature creature = GetTarget().ToCreature();
-                CreatureDifficulty creatureDifficulty = creature.GetCreatureDifficulty();
+                CreatureTemplateStats creatureDifficulty = creature.GetCreatureTemplateStats();
                 // missing lootid has been reported on startup - just return
                 if (creatureDifficulty.SkinLootID == 0)
                     return;

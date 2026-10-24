@@ -14,190 +14,188 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
+            // Forever layout: TC FeatureSystemStatus::Write
             _worldPacket.WriteUInt8(ComplaintStatus);
-
             _worldPacket.WriteUInt32(CfgRealmID);
             _worldPacket.WriteInt32(CfgRealmRecID);
-
             _worldPacket.WriteUInt32(RAFSystem.MaxRecruits);
             _worldPacket.WriteUInt32(RAFSystem.MaxRecruitMonths);
             _worldPacket.WriteUInt32(RAFSystem.MaxRecruitmentUses);
             _worldPacket.WriteUInt32(RAFSystem.DaysInCycle);
-            _worldPacket.WriteUInt32(RAFSystem.Unknown1007);
-
-            _worldPacket.WriteUInt32(TokenPollTimeSeconds);
-            _worldPacket.WriteUInt32(KioskSessionMinutes);
-            _worldPacket.WriteInt64(TokenBalanceAmount);
-
-            _worldPacket.WriteUInt32(BpayStoreProductDeliveryDelay);
-            _worldPacket.WriteUInt32(ClubsPresenceUpdateTimer);
-            _worldPacket.WriteUInt32(HiddenUIClubsPresenceUpdateTimer);
-
-            _worldPacket.WriteInt32(ActiveSeason);
+            _worldPacket.WriteUInt32(RAFSystem.RewardsVersion);
+            _worldPacket.WriteUInt32(CommercePricePollTimeSeconds);
+            QuickJoinConfig.Write(_worldPacket);
+            _worldPacket.WriteInt64(RedeemForBalanceAmount);
+            _worldPacket.WriteUInt32(ClubsPresenceDelay);
+            _worldPacket.WriteUInt32(ClubPresenceUnsubscribeDelay);
+            Squelch.Write(_worldPacket);
+            _worldPacket.WriteInt32(SocialRestriction);
+            _worldPacket.WriteInt32(ContentSetID);
+            _worldPacket.WriteInt32(DisabledGameModes.Count);
             _worldPacket.WriteInt32(GameRuleValues.Count);
+            _worldPacket.WriteInt32(ActiveTimerunningSeasonID);
+            _worldPacket.WriteInt32(RemainingTimerunningSeasonSeconds);
+            _worldPacket.WriteInt16(MaxPlayerGuidLookupsPerRequest);
+            _worldPacket.WriteInt16(NameLookupTelemetryInterval);
+            _worldPacket.WriteUInt32(NotFoundCacheTimeSeconds);
+            _worldPacket.WriteUInt32(RealmPvpTypeOverride);
+            _worldPacket.WriteInt32(AddonChatThrottle.MaxTries);
+            _worldPacket.WriteInt32(AddonChatThrottle.TriesRestoredPerSecond);
+            _worldPacket.WriteInt32(AddonChatThrottle.UsedTriesPerMessage);
+            _worldPacket.WriteInt32(GuildChatThrottle.UsedTriesPerMessage);
+            _worldPacket.WriteInt32(GuildChatThrottle.TriesRestoredPerSecond);
+            _worldPacket.WriteInt32(GroupChatThrottle.UsedTriesPerMessage);
+            _worldPacket.WriteInt32(GroupChatThrottle.TriesRestoredPerSecond);
+            _worldPacket.WriteFloat(AddonPerformanceMsgWarning);
+            _worldPacket.WriteFloat(AddonPerformanceMsgError);
+            _worldPacket.WriteFloat(AddonPerformanceMsgOverall);
 
-            _worldPacket.WriteInt16(MaxPlayerNameQueriesPerPacket);
-            _worldPacket.WriteInt16(PlayerNameQueryTelemetryInterval);
-            _worldPacket.WriteUInt32((uint)PlayerNameQueryInterval.TotalSeconds);
-
+            foreach (GameModeData gameMode in DisabledGameModes)
+                gameMode.Write(_worldPacket);
             foreach (GameRuleValuePair gameRuleValue in GameRuleValues)
                 gameRuleValue.Write(_worldPacket);
 
             _worldPacket.WriteBit(VoiceEnabled);
             _worldPacket.WriteBit(EuropaTicketSystemStatus.HasValue);
-            _worldPacket.WriteBit(BpayStoreEnabled);
             _worldPacket.WriteBit(BpayStoreAvailable);
-            _worldPacket.WriteBit(BpayStoreDisabledByParentalControls);
             _worldPacket.WriteBit(ItemRestorationButtonEnabled);
-            _worldPacket.WriteBit(BrowserEnabled);
-
             _worldPacket.WriteBit(SessionAlert.HasValue);
             _worldPacket.WriteBit(RAFSystem.Enabled);
             _worldPacket.WriteBit(RAFSystem.RecruitingEnabled);
             _worldPacket.WriteBit(CharUndeleteEnabled);
             _worldPacket.WriteBit(RestrictedAccount);
-            _worldPacket.WriteBit(CommerceSystemEnabled);
-            _worldPacket.WriteBit(TutorialsEnabled);
-
-            _worldPacket.WriteBit(Unk67);
-            _worldPacket.WriteBit(WillKickFromWorld);
+            _worldPacket.WriteBit(CommerceServerEnabled);
+            _worldPacket.WriteBit(TutorialEnabled);
+            _worldPacket.WriteBit(VeteranTokenRedeemWillKick);
+            _worldPacket.WriteBit(WorldTokenRedeemWillKick);
             _worldPacket.WriteBit(KioskModeEnabled);
             _worldPacket.WriteBit(CompetitiveModeEnabled);
-            _worldPacket.WriteBit(TokenBalanceEnabled);
-            _worldPacket.WriteBit(WarModeFeatureEnabled);
-            _worldPacket.WriteBit(ClubsEnabled);
-            _worldPacket.WriteBit(ClubsBattleNetClubTypeAllowed);
-
-            _worldPacket.WriteBit(ClubsCharacterClubTypeAllowed);
-            _worldPacket.WriteBit(ClubsPresenceUpdateEnabled);
-            _worldPacket.WriteBit(VoiceChatDisabledByParentalControl);
-            _worldPacket.WriteBit(VoiceChatMutedByParentalControl);
+            _worldPacket.WriteBit(RedeemForBalanceAvailable);
+            _worldPacket.WriteBit(WarModeEnabled);
+            _worldPacket.WriteBit(CommunitiesEnabled);
+            _worldPacket.WriteBit(BnetGroupsEnabled);
+            _worldPacket.WriteBit(CharacterCommunitiesEnabled);
+            _worldPacket.WriteBit(ClubPresenceAllowSubscribeAll);
+            _worldPacket.WriteBit(VoiceChatParentalDisabled);
+            _worldPacket.WriteBit(VoiceChatParentalMuted);
             _worldPacket.WriteBit(QuestSessionEnabled);
-            _worldPacket.WriteBit(IsMuted);
+            _worldPacket.WriteBit(IsChatMuted);
             _worldPacket.WriteBit(ClubFinderEnabled);
-            _worldPacket.WriteBit(Unknown901CheckoutRelated);
-
-            _worldPacket.WriteBit(TextToSpeechFeatureEnabled);
-            _worldPacket.WriteBit(ChatDisabledByDefault);
-            _worldPacket.WriteBit(ChatDisabledByPlayer);
-            _worldPacket.WriteBit(LFGListCustomRequiresAuthenticator);
-            _worldPacket.WriteBit(AddonsDisabled);
-            _worldPacket.WriteBit(WarGamesEnabled);
-            _worldPacket.WriteBit(ContentTrackingEnabled);
-
-            _worldPacket.WriteBit(IsSellAllJunkEnabled);
-            _worldPacket.WriteBit(IsGroupFinderEnabled);
-            _worldPacket.WriteBit(IsLFDEnabled);
-            _worldPacket.WriteBit(IsLFREnabled);
-            _worldPacket.WriteBit(IsPremadeGroupEnabled);
-
+            _worldPacket.WriteBit(CommunityFinderEnabled);
+            _worldPacket.WriteBit(BrowserCrashReporterEnabled);
+            _worldPacket.WriteBit(SpeakForMeAllowed);
+            _worldPacket.WriteBit(DoesAccountNeedAADCPrompt);
+            _worldPacket.WriteBit(IsAccountOptedInToAADC);
+            _worldPacket.WriteBit(LfgRequireAuthenticatorEnabled);
+            _worldPacket.WriteBit(ScriptsDisallowedForBeta);
+            _worldPacket.WriteBit(TimerunningEnabled);
+            _worldPacket.WriteBit(PlayerIdentityOptionsEnabled);
+            _worldPacket.WriteBit(IsPlayerContentTrackingEnabled);
+            _worldPacket.WriteBit(LfdEnabled);
+            _worldPacket.WriteBit(LfrEnabled);
+            _worldPacket.WriteBit(PetHappinessEnabled);
+            _worldPacket.WriteBit(GuildEventsEditsEnabled);
+            _worldPacket.WriteBit(GuildTradeSkillsEnabled);
+            _worldPacket.WriteBits(ClassicFlagBits10, 10);
+            _worldPacket.WriteBit(IsAccountCurrencyTransferEnabled);
+            _worldPacket.WriteBit(NetEaseChatTelemetryEnabled);
+            _worldPacket.WriteBit(LobbyMatchmakerQueueFromMainlineEnabled);
+            _worldPacket.WriteBit(CanSendLobbyMatchmakerPartyCustomizations);
+            _worldPacket.WriteBit(AddonProfilingEnabled);
+            _worldPacket.WriteBit(GlobalUserGeneratedContentMuteEnabled);
+            _worldPacket.WriteBit(AccountUserGeneratedContentIsRisky);
+            _worldPacket.WriteBit(FriendsDisabled);
             _worldPacket.FlushBits();
-
-            {
-                _worldPacket.WriteBit(QuickJoinConfig.ToastsDisabled);
-                _worldPacket.WriteFloat(QuickJoinConfig.ToastDuration);
-                _worldPacket.WriteFloat(QuickJoinConfig.DelayDuration);
-                _worldPacket.WriteFloat(QuickJoinConfig.QueueMultiplier);
-                _worldPacket.WriteFloat(QuickJoinConfig.PlayerMultiplier);
-                _worldPacket.WriteFloat(QuickJoinConfig.PlayerFriendValue);
-                _worldPacket.WriteFloat(QuickJoinConfig.PlayerGuildValue);
-
-                _worldPacket.WriteFloat(QuickJoinConfig.ThrottleInitialThreshold);
-                _worldPacket.WriteFloat(QuickJoinConfig.ThrottleDecayTime);
-                _worldPacket.WriteFloat(QuickJoinConfig.ThrottlePrioritySpike);
-                _worldPacket.WriteFloat(QuickJoinConfig.ThrottleMinThreshold);
-                _worldPacket.WriteFloat(QuickJoinConfig.ThrottlePvPPriorityNormal);
-                _worldPacket.WriteFloat(QuickJoinConfig.ThrottlePvPPriorityLow);
-                _worldPacket.WriteFloat(QuickJoinConfig.ThrottlePvPHonorThreshold);
-
-                _worldPacket.WriteFloat(QuickJoinConfig.ThrottleLfgListPriorityDefault);
-                _worldPacket.WriteFloat(QuickJoinConfig.ThrottleLfgListPriorityAbove);
-                _worldPacket.WriteFloat(QuickJoinConfig.ThrottleLfgListPriorityBelow);
-                _worldPacket.WriteFloat(QuickJoinConfig.ThrottleLfgListIlvlScalingAbove);
-                _worldPacket.WriteFloat(QuickJoinConfig.ThrottleLfgListIlvlScalingBelow);
-                _worldPacket.WriteFloat(QuickJoinConfig.ThrottleRfPriorityAbove);
-                _worldPacket.WriteFloat(QuickJoinConfig.ThrottleRfIlvlScalingAbove);
-                _worldPacket.WriteFloat(QuickJoinConfig.ThrottleDfMaxItemLevel);
-                _worldPacket.WriteFloat(QuickJoinConfig.ThrottleDfBestPriority);
-            }
-
-            if (SessionAlert.HasValue)
-            {
-                _worldPacket.WriteInt32(SessionAlert.Value.Delay);
-                _worldPacket.WriteInt32(SessionAlert.Value.Period);
-                _worldPacket.WriteInt32(SessionAlert.Value.DisplayTime);
-            }        
-
-            _worldPacket.WriteBit(Squelch.IsSquelched);
-            _worldPacket.WritePackedGuid(Squelch.BnetAccountGuid);
-            _worldPacket.WritePackedGuid(Squelch.GuildGuid);
 
             if (EuropaTicketSystemStatus.HasValue)
                 EuropaTicketSystemStatus.Value.Write(_worldPacket);
+            if (SessionAlert.HasValue)
+                SessionAlert.Value.Write(_worldPacket);
         }
-
         public bool VoiceEnabled;
-        public bool BrowserEnabled;
         public bool BpayStoreAvailable;
-        public bool BpayStoreEnabled;
         public SessionAlertConfig? SessionAlert;
         public EuropaTicketConfig? EuropaTicketSystemStatus;
         public uint CfgRealmID;
         public byte ComplaintStatus;
         public int CfgRealmRecID;
-        public uint TokenPollTimeSeconds;
-        public long TokenBalanceAmount;
-        public uint BpayStoreProductDeliveryDelay;
-        public uint ClubsPresenceUpdateTimer;
-        public uint HiddenUIClubsPresenceUpdateTimer; // Timer for updating club presence when communities ui frame is hidden
-        public uint KioskSessionMinutes;
-        public int ActiveSeason; // Currently active Classic season
-        public short MaxPlayerNameQueriesPerPacket = 50;
-        public short PlayerNameQueryTelemetryInterval = 600;
-        public TimeSpan PlayerNameQueryInterval = (Seconds)10;
+        public uint CommercePricePollTimeSeconds = 300;
+        public long RedeemForBalanceAmount;
+        public uint ClubsPresenceDelay;
+        public uint ClubPresenceUnsubscribeDelay;
+        public int SocialRestriction;
+        public int ContentSetID;
+        public int ActiveTimerunningSeasonID;
+        public int RemainingTimerunningSeasonSeconds;
+        public short MaxPlayerGuidLookupsPerRequest = 50;
+        public short NameLookupTelemetryInterval = 600;
+        public uint NotFoundCacheTimeSeconds = 10;
+        public uint RealmPvpTypeOverride;
+        public ChatThrottleParams AddonChatThrottle;
+        public ChatThrottleParams GuildChatThrottle;
+        public ChatThrottleParams GroupChatThrottle;
+        public float AddonPerformanceMsgWarning;
+        public float AddonPerformanceMsgError;
+        public float AddonPerformanceMsgOverall;
+        public List<GameModeData> DisabledGameModes = new();
+        public List<GameRuleValuePair> GameRuleValues = new();
+        public ushort ClassicFlagBits10 = 2;
         public bool ItemRestorationButtonEnabled;
-        public bool CharUndeleteEnabled; // Implemented
-        public bool BpayStoreDisabledByParentalControls;
-        public bool CommerceSystemEnabled;
-        public bool Unk67;
-        public bool WillKickFromWorld;
+        public bool CharUndeleteEnabled;
+        public bool CommerceServerEnabled;
+        public bool VeteranTokenRedeemWillKick;
+        public bool WorldTokenRedeemWillKick;
         public bool RestrictedAccount;
-        public bool TutorialsEnabled;
-        public bool NPETutorialsEnabled;
+        public bool TutorialEnabled;
         public bool KioskModeEnabled;
         public bool CompetitiveModeEnabled;
-        public bool TokenBalanceEnabled;
-        public bool WarModeFeatureEnabled;
-        public bool ClubsEnabled;
-        public bool ClubsBattleNetClubTypeAllowed;
-        public bool ClubsCharacterClubTypeAllowed;
-        public bool ClubsPresenceUpdateEnabled;
-        public bool VoiceChatDisabledByParentalControl;
-        public bool VoiceChatMutedByParentalControl;
+        public bool RedeemForBalanceAvailable;
+        public bool WarModeEnabled = true;
+        public bool CommunitiesEnabled;
+        public bool BnetGroupsEnabled;
+        public bool CharacterCommunitiesEnabled;
+        public bool ClubPresenceAllowSubscribeAll;
+        public bool VoiceChatParentalDisabled;
+        public bool VoiceChatParentalMuted;
         public bool QuestSessionEnabled;
-        public bool IsMuted;
+        public bool IsChatMuted;
         public bool ClubFinderEnabled;
-        public bool Unknown901CheckoutRelated;
-        public bool TextToSpeechFeatureEnabled;
-        public bool ChatDisabledByDefault;
-        public bool ChatDisabledByPlayer;
-        public bool LFGListCustomRequiresAuthenticator;
-        public bool AddonsDisabled;
-        public bool WarGamesEnabled; // classic only
-        public bool ContentTrackingEnabled;
-        public bool IsSellAllJunkEnabled;
-        public bool IsGroupFinderEnabled = true;  // classic only
-        public bool IsLFDEnabled = true;  // classic only
-        public bool IsLFREnabled = true;  // classic only
-        public bool IsPremadeGroupEnabled = true;  // classic only
+        public bool CommunityFinderEnabled;
+        public bool BrowserCrashReporterEnabled;
+        public bool SpeakForMeAllowed;
+        public bool DoesAccountNeedAADCPrompt;
+        public bool IsAccountOptedInToAADC;
+        public bool LfgRequireAuthenticatorEnabled;
+        public bool ScriptsDisallowedForBeta;
+        public bool TimerunningEnabled;
+        public bool PlayerIdentityOptionsEnabled;
+        public bool IsPlayerContentTrackingEnabled;
+        public bool LfdEnabled;
+        public bool LfrEnabled = true;
+        public bool PetHappinessEnabled = true;
+        public bool GuildEventsEditsEnabled = true;
+        public bool GuildTradeSkillsEnabled = true;
+        public bool IsAccountCurrencyTransferEnabled;
+        public bool NetEaseChatTelemetryEnabled;
+        public bool LobbyMatchmakerQueueFromMainlineEnabled;
+        public bool CanSendLobbyMatchmakerPartyCustomizations;
+        public bool AddonProfilingEnabled;
+        public bool GlobalUserGeneratedContentMuteEnabled;
+        public bool AccountUserGeneratedContentIsRisky;
+        public bool FriendsDisabled;
 
         public SocialQueueConfig QuickJoinConfig;
         public SquelchInfo Squelch;
         public RafSystemFeatureInfo RAFSystem;
-        public List<GameRuleValuePair> GameRuleValues = new();
-
         public struct SessionAlertConfig
         {
+            public void Write(WorldPacket data)
+            {
+                data.WriteInt32(Delay);
+                data.WriteInt32(Period);
+                data.WriteInt32(DisplayTime);
+            }
+
             public int Delay;
             public int Period;
             public int DisplayTime;
@@ -205,6 +203,34 @@ namespace Game.Networking.Packets
 
         public struct SocialQueueConfig
         {
+            public void Write(WorldPacket data)
+            {
+                data.WriteFloat(ToastDuration);
+                data.WriteFloat(DelayDuration);
+                data.WriteFloat(QueueMultiplier);
+                data.WriteFloat(PlayerMultiplier);
+                data.WriteFloat(PlayerFriendValue);
+                data.WriteFloat(PlayerGuildValue);
+                data.WriteFloat(ThrottleInitialThreshold);
+                data.WriteFloat(ThrottleDecayTime);
+                data.WriteFloat(ThrottlePrioritySpike);
+                data.WriteFloat(ThrottleMinThreshold);
+                data.WriteFloat(ThrottlePvPPriorityNormal);
+                data.WriteFloat(ThrottlePvPPriorityLow);
+                data.WriteFloat(ThrottlePvPHonorThreshold);
+                data.WriteFloat(ThrottleLfgListPriorityDefault);
+                data.WriteFloat(ThrottleLfgListPriorityAbove);
+                data.WriteFloat(ThrottleLfgListPriorityBelow);
+                data.WriteFloat(ThrottleLfgListIlvlScalingAbove);
+                data.WriteFloat(ThrottleLfgListIlvlScalingBelow);
+                data.WriteFloat(ThrottleRfPriorityAbove);
+                data.WriteFloat(ThrottleRfIlvlScalingAbove);
+                data.WriteFloat(ThrottleDfMaxItemLevel);
+                data.WriteFloat(ThrottleDfBestPriority);
+                data.WriteBit(ToastsDisabled);
+                data.FlushBits();
+            }
+
             public bool ToastsDisabled;
             public float ToastDuration;
             public float DelayDuration;
@@ -232,6 +258,13 @@ namespace Game.Networking.Packets
 
         public struct SquelchInfo
         {
+            public void Write(WorldPacket data)
+            {
+                data.WriteBit(IsSquelched);
+                data.WritePackedGuid(BnetAccountGuid);
+                data.WritePackedGuid(GuildGuid);
+            }
+
             public bool IsSquelched;
             public ObjectGuid BnetAccountGuid;
             public ObjectGuid GuildGuid;
@@ -245,8 +278,31 @@ namespace Game.Networking.Packets
             public uint MaxRecruitMonths;
             public uint MaxRecruitmentUses;
             public uint DaysInCycle;
-            public uint Unknown1007;
+            public uint RewardsVersion;
         }
+    }
+
+    // SMSG_MIRROR_VARS: client variables the server sets (store, social window, browser).
+    public class MirrorVars : ServerPacket
+    {
+        public MirrorVars() : base(ServerOpcodes.MirrorVars) { }
+
+        public override void Write()
+        {
+            _worldPacket.WriteUInt32((uint)Variables.Count);
+            foreach (var (name, value, updateType) in Variables)
+            {
+                byte[] nameBytes = System.Text.Encoding.UTF8.GetBytes(name), valueBytes = System.Text.Encoding.UTF8.GetBytes(value);
+                _worldPacket.WriteBits(updateType, 1);
+                _worldPacket.WriteBits(nameBytes.Length + 1, 24);   // SizedCString: length includes the terminator
+                _worldPacket.WriteBits(valueBytes.Length + 1, 24);
+                _worldPacket.FlushBits();
+                _worldPacket.WriteBytes(nameBytes); _worldPacket.WriteUInt8(0);
+                _worldPacket.WriteBytes(valueBytes); _worldPacket.WriteUInt8(0);
+            }
+        }
+
+        public List<(string Name, string Value, int UpdateType)> Variables = new();
     }
 
     public class FeatureSystemStatusGlueScreen : ServerPacket
@@ -255,78 +311,37 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteBit(BpayStoreEnabled);
-            _worldPacket.WriteBit(BpayStoreAvailable);
-            _worldPacket.WriteBit(BpayStoreDisabledByParentalControls);
-            _worldPacket.WriteBit(CharUndeleteEnabled);
-            _worldPacket.WriteBit(CommerceSystemEnabled);
-            _worldPacket.WriteBit(Unk14);
-            _worldPacket.WriteBit(WillKickFromWorld);
-            _worldPacket.WriteBit(IsExpansionPreorderInStore);
-
-            _worldPacket.WriteBit(KioskModeEnabled);
-            _worldPacket.WriteBit(CompetitiveModeEnabled);
-            _worldPacket.WriteBit(false); // unused, 10.0.2
-            _worldPacket.WriteBit(TrialBoostEnabled);
-            _worldPacket.WriteBit(TokenBalanceEnabled);
-            _worldPacket.WriteBit(LiveRegionCharacterListEnabled);
-            _worldPacket.WriteBit(LiveRegionCharacterCopyEnabled);
-            _worldPacket.WriteBit(LiveRegionAccountCopyEnabled);
-
-            _worldPacket.WriteBit(LiveRegionKeyBindingsCopyEnabled);
-            _worldPacket.WriteBit(Unknown901CheckoutRelated);
-            _worldPacket.WriteBit(false); // unused, 10.0.2
-            _worldPacket.WriteBit(EuropaTicketSystemStatus.HasValue);
-            _worldPacket.WriteBit(false); // unused, 10.0.2
-            _worldPacket.WriteBit(LaunchETA.HasValue);
-            _worldPacket.WriteBit(AddonsDisabled);
-            _worldPacket.WriteBit(Unused1000);
-
-            _worldPacket.WriteBit(AccountSaveDataExportEnabled);
-            _worldPacket.WriteBit(AccountLockedByExport);
-            _worldPacket.WriteBit(!RealmHiddenAlert.IsEmpty());
-
-            if (!RealmHiddenAlert.IsEmpty())
-                _worldPacket.WriteBits(RealmHiddenAlert.GetByteCount() + 1, 11);
-
-            _worldPacket.FlushBits();
-
-            if (EuropaTicketSystemStatus.HasValue)
-                EuropaTicketSystemStatus.Value.Write(_worldPacket);
-
-            _worldPacket.WriteUInt32(TokenPollTimeSeconds);
-            _worldPacket.WriteUInt32(KioskSessionMinutes);
-            _worldPacket.WriteInt64(TokenBalanceAmount);
+            // Forever layout: TC FeatureSystemStatusGlueScreen::Write (active Classic branch; GameRules bodies appended after the header)
+            // Classic 1.60.1 layout, ported from ForeverWorld Packets.FeatureSystemStatusGlueScreen.
+            // Bit 0 (MSB of the first byte) is BpayStoreAvailable: the glue handler copies it to C_StoreSecure.IsAvailable(), so without
+            // it the Store says "unavailable" at character select. The other flags are not mapped for Classic and stay off (reference).
+            _worldPacket.WriteUInt8((byte)(BpayStoreAvailable ? 0x80 : 0x00));
+            for (int i = 1; i < 6; i++)
+                _worldPacket.WriteUInt8(0);
+            _worldPacket.WriteUInt32(0);
+            _worldPacket.WriteInt64(0);
             _worldPacket.WriteInt32(MaxCharactersPerRealm);
-            _worldPacket.WriteInt32(LiveRegionCharacterCopySourceRegions.Count);
-            _worldPacket.WriteUInt32(BpayStoreProductDeliveryDelay);
-            _worldPacket.WriteInt32(ActiveCharacterUpgradeBoostType);
-            _worldPacket.WriteInt32(ActiveClassTrialBoostType);
-            _worldPacket.WriteInt32((int)MinimumExpansionLevel);
-            _worldPacket.WriteInt32((int)MaximumExpansionLevel);
-            _worldPacket.WriteInt32(ActiveSeason);
-            _worldPacket.WriteInt32(GameRuleValues.Count);
-            _worldPacket.WriteInt16(MaxPlayerNameQueriesPerPacket);
-            _worldPacket.WriteInt16(PlayerNameQueryTelemetryInterval);
-            _worldPacket.WriteUInt32((uint)PlayerNameQueryInterval.TotalSeconds);
-            _worldPacket.WriteInt32(DebugTimeEvents.Count);
-            _worldPacket.WriteInt32(Unused1007);
-
-            if (LaunchETA.HasValue)
-                _worldPacket.WriteInt32(LaunchETA.Value);
-
-            if (!RealmHiddenAlert.IsEmpty())
-                _worldPacket.WriteCString(RealmHiddenAlert);
-
-            foreach (var sourceRegion in LiveRegionCharacterCopySourceRegions)
-                _worldPacket.WriteInt32(sourceRegion);
-
-            foreach (GameRuleValuePair gameRuleValue in GameRuleValues)
-                gameRuleValue.Write(_worldPacket);
-
-            foreach (DebugTimeEventInfo debugTimeEventInfo in DebugTimeEvents)
-                debugTimeEventInfo.Write(_worldPacket);
+            _worldPacket.WriteUInt32(0);
+            _worldPacket.WriteInt32(0);
+            _worldPacket.WriteInt32(0);
+            _worldPacket.WriteInt32(0);
+            _worldPacket.WriteInt32(0);
+            _worldPacket.WriteInt32(Framework.Configuration.ConfigMgr.GetDefaultValue("Realm.CfgContentSetID", 137));
+            _worldPacket.WriteUInt32(0);
+            _worldPacket.WriteUInt32(0); // GameRules: sent in-game with SMSG_FEATURE_SYSTEM_STATUS (reference)
+            _worldPacket.WriteUInt32(0);
+            _worldPacket.WriteInt32(0);
+            _worldPacket.WriteInt32(0);
+            _worldPacket.WriteInt32(86400);
+            _worldPacket.WriteInt32(-1);
+            _worldPacket.WriteInt16(50);
+            _worldPacket.WriteInt16(600);
+            _worldPacket.WriteUInt32(10);
+            _worldPacket.WriteUInt32(0);
+            _worldPacket.WriteInt32(0);
+            _worldPacket.WriteUInt32(0);
         }
+
 
         public bool BpayStoreAvailable;                 // NYI
         public bool BpayStoreDisabledByParentalControls;// NYI
@@ -437,8 +452,10 @@ namespace Game.Networking.Packets
             data.WriteBit(BugsEnabled);
             data.WriteBit(ComplaintsEnabled);
             data.WriteBit(SuggestionsEnabled);
+            data.FlushBits();
 
             ThrottleState.Write(data);
+            ExpensiveThrottleState.Write(data);
         }
         
         public bool TicketsEnabled;
@@ -447,6 +464,35 @@ namespace Game.Networking.Packets
         public bool SuggestionsEnabled;
 
         public SavedThrottleObjectState ThrottleState;
+        public SavedThrottleObjectState ExpensiveThrottleState;
+    }
+
+    public struct ChatThrottleParams
+    {
+        public void Write(WorldPacket data)
+        {
+            data.WriteInt32(MaxTries);
+            data.WriteInt32(TriesRestoredPerSecond);
+            data.WriteInt32(UsedTriesPerMessage);
+        }
+
+        public int MaxTries;
+        public int TriesRestoredPerSecond;
+        public int UsedTriesPerMessage;
+    }
+
+    public struct GameModeData
+    {
+        public void Write(WorldPacket data)
+        {
+            data.WriteUInt8(GameMode);
+            data.WriteInt32(ContentSetID);
+            data.WriteInt32(GameModeRecordID);
+        }
+
+        public byte GameMode;
+        public int ContentSetID;
+        public int GameModeRecordID;
     }
 
     public struct GameRuleValuePair
@@ -455,10 +501,12 @@ namespace Game.Networking.Packets
         {
             data.WriteInt32(Rule);
             data.WriteInt32(Value);
+            data.WriteFloat(ValueF);
         }
         
         public int Rule;
         public int Value;
+        public float ValueF;
     }
 
     public struct DebugTimeEventInfo

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Collections;
@@ -55,6 +55,7 @@ namespace Game.Achievements
             AchievementRecord achievement = tree.Achievement;
             if (achievement == null)
                 return false;
+            if (Game.Systems.Legacy.LegacyManager.IsForeignChallenge(achievement.Id)) return false;
 
             if (HasAchieved(achievement.Id))
             {
@@ -226,6 +227,15 @@ namespace Game.Achievements
             DB.Characters.Execute(stmt);
 
             DB.Characters.CommitTransaction(trans);
+        }
+
+        public void ImportLegacyAchievement(int id, long date)
+        {
+            if (_completedAchievements.ContainsKey(id)) return;
+            AchievementRecord achievement = CliDB.AchievementStorage.LookupByKey(id);
+            if (achievement == null) return;
+            _completedAchievements[id] = new CompletedAchievementData { Date = (ServerTime)(UnixTime64)date, Changed = false };
+            if (!achievement.Flags.HasAnyFlag(AchievementFlags.TrackingFlag)) _achievementPoints += achievement.Points;
         }
 
         public void LoadFromDB(SQLResult achievementResult, SQLResult criteriaResult)
@@ -455,6 +465,7 @@ namespace Game.Achievements
 
         public override void CompletedAchievement(AchievementRecord achievement, Player referencePlayer)
         {
+            if (Game.Systems.Legacy.LegacyManager.IsForeignChallenge(achievement.Id)) return;
             // Disable for GameMasters with GM-mode enabled or for players that don't have the related RBAC permission
             if (_owner.IsGameMaster() || _owner.GetSession().HasPermission(RBACPermissions.CannotEarnAchievements))
                 return;
@@ -483,6 +494,8 @@ namespace Game.Achievements
             ca.Changed = true;
             _completedAchievements[achievement.Id] = ca;
 
+            Game.Systems.Legacy.LegacyManager.CompleteChallenge(_owner, achievement.Id);
+
             if (achievement.Flags.HasAnyFlag(AchievementFlags.RealmFirstReach | AchievementFlags.RealmFirstKill))
                 Global.AchievementMgr.SetRealmCompleted(achievement);
 
@@ -493,6 +506,10 @@ namespace Game.Achievements
             referencePlayer.UpdateCriteria(CriteriaType.EarnAchievementPoints, achievement.Points, 0, 0, null);
 
             Global.ScriptMgr.OnAchievementCompleted(referencePlayer, achievement);
+
+            // Classic 1.60: Legacy challenges are achievements; their Legacy Points raise the Legacy reward track renown
+            if (!_owner.GetSession().PlayerLoading())
+                _owner.UpdateClassicLegacyUnlock();
 
             // reward items and titles if any
             AchievementReward reward = Global.AchievementMgr.GetAchievementReward(achievement);

@@ -11,8 +11,10 @@
     <PackageReference Include="MySqlConnector" Version="2.5.0" />
   </ItemGroup>
 
+  <!-- Native recastnavigation Detour (x64), built by Source\Native\DetourNative\build.cmd. -->
   <ItemGroup>
-    <ProjectReference Include="..\CustomCollections\CustomCollections.csproj" />
+    <None Include="..\Native\bin\DetourNative.dll" Link="DetourNative.dll" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
   
 </Project>

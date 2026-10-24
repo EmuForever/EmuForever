@@ -95,11 +95,13 @@ namespace Game.Networking.Packets
     {
         public ChannelNotifyJoined() : base(ServerOpcodes.ChannelNotifyJoined) { }
 
+        // Forever layout: TC ChannelNotifyJoined::Write
         public override void Write()
         {
             _worldPacket.WriteBits(Channel.GetByteCount(), 7);
             _worldPacket.WriteBits(ChannelWelcomeMsg.GetByteCount(), 11);
             _worldPacket.WriteUInt32((uint)ChannelFlags);
+            _worldPacket.WriteUInt8(UserFlags);
             _worldPacket.WriteInt32(ChatChannelID);
             _worldPacket.WriteUInt64(InstanceID);
             _worldPacket.WritePackedGuid(ChannelGUID);
@@ -110,6 +112,7 @@ namespace Game.Networking.Packets
         public string ChannelWelcomeMsg = string.Empty;
         public int ChatChannelID;
         public ulong InstanceID;
+        public byte UserFlags;
         public ChannelFlags ChannelFlags;
         public string Channel = string.Empty;
         public ObjectGuid ChannelGUID;

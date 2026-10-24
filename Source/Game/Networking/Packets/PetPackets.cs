@@ -130,7 +130,7 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteUInt8((byte)Result);
+            _worldPacket.WriteInt32((int)Result); // Forever layout: TC PetStableResult::Write
         }
 
         public StableResult Result;
@@ -170,11 +170,12 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteUInt8((byte)Result);
+            // Forever layout: TC PetNameInvalid::Write
+            _worldPacket.WriteUInt32((uint)Result);
             _worldPacket.WritePackedGuid(RenameData.PetGUID);
             _worldPacket.WriteInt32(RenameData.PetNumber);
 
-            _worldPacket.WriteUInt8((byte)RenameData.NewName.GetByteCount());
+            _worldPacket.WriteBits(RenameData.NewName.GetByteCount(), 8);
 
             _worldPacket.WriteBit(RenameData.HasDeclinedNames);
 
@@ -182,10 +183,13 @@ namespace Game.Networking.Packets
             {
                 for (int i = 0; i < SharedConst.MaxDeclinedNameCases; i++)
                     _worldPacket.WriteBits(RenameData.DeclinedNames.Name[i].GetByteCount(), 7);
+                _worldPacket.FlushBits();
 
                 for (int i = 0; i < SharedConst.MaxDeclinedNameCases; i++)
                     _worldPacket.WriteString(RenameData.DeclinedNames.Name[i]);
             }
+            else
+                _worldPacket.FlushBits();
 
             _worldPacket.WriteString(RenameData.NewName);
         }
@@ -274,12 +278,13 @@ namespace Game.Networking.Packets
 
     class PetActionFeedbackPacket : ServerPacket
     {
-        public PetActionFeedbackPacket() : base(ServerOpcodes.PetStableResult) { }
+        public PetActionFeedbackPacket() : base(ServerOpcodes.PetActionFeedback) { }
 
+        // Forever layout: TC PetActionFeedback::Write
         public override void Write()
         {
+            _worldPacket.WriteInt32((int)Response);
             _worldPacket.WriteInt32(SpellID);
-            _worldPacket.WriteUInt8((byte)Response);
         }
 
         public int SpellID;
@@ -288,7 +293,7 @@ namespace Game.Networking.Packets
 
     class PetActionSound : ServerPacket
     {
-        public PetActionSound() : base(ServerOpcodes.PetStableResult) { }
+        public PetActionSound() : base(ServerOpcodes.PetActionSound) { } // Forever layout: TC PetActionSound::Write
 
         public override void Write()
         {
@@ -306,10 +311,10 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteUInt8(Result);
+            _worldPacket.WriteUInt32(Result); // Forever layout: TC PetTameFailure::Write
         }
 
-        public byte Result;
+        public uint Result;
     }
 
     class PetMode : ServerPacket
@@ -319,7 +324,9 @@ namespace Game.Networking.Packets
         public override void Write()
         {
             _worldPacket.WritePackedGuid(PetGUID);
-            _worldPacket.WriteUInt16((ushort)((int)CommandState | Flag << 8));
+            // Forever layout: TC PetMode::Write
+            _worldPacket.WriteUInt8((byte)CommandState);
+            _worldPacket.WriteUInt8(Flag);
             _worldPacket.WriteUInt8((byte)ReactState);
         }
         

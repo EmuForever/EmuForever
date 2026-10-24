@@ -25,6 +25,7 @@ namespace Game.Maps
         public void LoadTransportTemplates()
         {
             RelativeTime oldMSTime = Time.NowRelative;
+            _transportTemplates.Clear();
 
             SQLResult result = DB.World.Query("SELECT entry FROM gameobject_template WHERE Type = 15 ORDER BY entry ASC");
 
@@ -73,17 +74,9 @@ namespace Game.Maps
                     continue;
                 }
 
-                bool hasValidMaps = true;
-                foreach(var mapId in _transportTemplates.Keys)
-                {
-                    if (!CliDB.MapStorage.ContainsKey(mapId))
-                    {
-                        hasValidMaps = false;
-                        break;
-                    }
-                }
-
-                if (!hasValidMaps)
+                // Template keys are gameobject entries, not map IDs. Checking
+                // them rejected every boat after the first loaded template.
+                if (!PathMapsExist(CliDB.TaxiPathNodesByPath[goInfo.MoTransport.taxiPathID]))
                 {
                     Log.outError(LogFilter.Sql, 
                         $"Transport {entry} (name: {goInfo.name}) is trying to spawn " +
@@ -95,13 +88,22 @@ namespace Game.Maps
 
                 // paths are generated per template, saves us from generating it again in case of instanced transports
                 if (GeneratePath(goInfo, out TransportTemplate transport))
+                {
                     _transportTemplates[entry] = transport;
-
-                ++count;
+                    ++count;
+                }
             } while (result.NextRow());
 
 
             Log.outInfo(LogFilter.ServerLoading, $"Loaded {count} transports in {Time.Diff(oldMSTime)} ms.");
+        }
+
+        internal static bool PathMapsExist(TaxiPathNodeRecord[] path)
+        {
+            if (path.Length < 2) return false;
+            foreach (var node in path)
+                if (node == null || !CliDB.MapStorage.ContainsKey(node.ContinentID)) return false;
+            return true;
         }
 
         public void LoadTransportAnimationAndRotation()
@@ -314,7 +316,7 @@ namespace Game.Maps
             for (; eventItr < events.Count; ++eventItr)
             {
                 var eventPointIndex = pathPoints.IndexOf(events[eventItr]);
-                if (eventPointIndex == -1) // last point is a "fake" spline node, events cannot happen there
+                if (eventPointIndex < 0 || eventPointIndex == pathPoints.Count - 1) // final control point has no spline length/event position
                     break;
 
                 double eventLength = leg.Spline.Length(eventPointIndex) - splineLengthToPreviousNode;
@@ -373,6 +375,12 @@ namespace Game.Maps
             transport.AccelerationTime = transport.Speed / transport.AccelerationRate;
             transport.AccelerationDistance = 0.5 * transport.Speed * transport.Speed / transport.AccelerationRate;
 
+            if (transport.Speed <= 0 || transport.AccelerationRate <= 0)
+            {
+                Log.outError(LogFilter.Sql, $"Transport {goInfo.entry} has non-positive speed/acceleration on path {pathId}, skipped.");
+                return false;
+            }
+
             List<TaxiPathNodeRecord> pathPoints = new();
             List<TaxiPathNodeRecord> pauses = new();
             List<TaxiPathNodeRecord> events = new();
@@ -388,6 +396,10 @@ namespace Game.Maps
             {
                 if (node.ContinentID != leg.MapId || prevNodeWasTeleport)
                 {
+                    // The final teleport position doubles as the next Catmull-Rom
+                    // control point, as in the Trinity Forever transport builder.
+                    if (prevNodeWasTeleport && pathPoints.Count != 0) pathPoints.Add(pathPoints[^1]);
+                    if (!HasSplineLeg(pathPoints, goInfo.entry, pathId, leg.MapId)) return false;
                     InitializeLeg(leg, transport.Events, pathPoints, pauses, events, goInfo, ref totalTime);
 
                     leg = new();
@@ -399,9 +411,10 @@ namespace Game.Maps
                 }
 
                 prevNodeWasTeleport = node.HasFlag(TaxiPathNodeFlags.Teleport);
-                pathPoints.Add(node);
-                if (node.HasFlag(TaxiPathNodeFlags.Stop))
+                if (pathPoints.Count != 0 && node.HasFlag(TaxiPathNodeFlags.Stop))
                     pauses.Add(node);
+
+                pathPoints.Add(node);
 
                 if (node.ArrivalEventID != 0 || node.DepartureEventID != 0)
                     events.Add(node);
@@ -410,7 +423,10 @@ namespace Game.Maps
             }
 
             if (leg.Spline == null)
+            {
+                if (!HasSplineLeg(pathPoints, goInfo.entry, pathId, leg.MapId)) return false;
                 InitializeLeg(leg, transport.Events, pathPoints, pauses, events, goInfo, ref totalTime);
+            }
 
             if (transport.MapIds.Count > 1)
             {
@@ -421,6 +437,15 @@ namespace Game.Maps
             transport.TotalPathTime = totalTime;
 
             return true;
+        }
+
+        static bool HasSplineLeg(List<TaxiPathNodeRecord> nodes, int entry, int path, int map)
+        {
+            // Catmull-Rom needs two endpoint controls and two traversed points.
+            // Reject incomplete imported paths before any spline length/index use.
+            if (nodes.Count >= 4) return true;
+            Log.outError(LogFilter.Sql, $"Transport {entry} path {path} has only {nodes.Count} nodes on map {map}; incomplete spline leg skipped.");
+            return false;
         }
         
         public void AddPathNodeToTransport(int transportEntry, RelativeTime timeSeg, TransportAnimationRecord node)

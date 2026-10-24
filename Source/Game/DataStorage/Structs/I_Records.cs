@@ -37,26 +37,22 @@ namespace Game.DataStorage
     public sealed class ItemRecord
     {
         public int Id;
-        private byte _classID;
+        private int _classID;
         private byte _subclassID;
         public byte Material;
         private sbyte _inventoryType;
-        public int RequiredLevel;
         public byte SheatheType;
-        public ushort RandomSelect;
-        public ushort ItemRandomSuffixGroupID;
+        public int ItemPetFoodID;
         public sbyte SoundOverrideSubclassID;
-        public ushort ScalingStatDistributionID;
         public int IconFileDataID;
-        public byte ItemGroupSoundsID;
+        public int ItemGroupSoundsID;
         public int ContentTuningID;
-        public uint MaxDurability;
-        public byte AmmunitionType;
-        public int ScalingStatValue;
-        public byte[] DamageType = new byte[ItemConst.MaxDamages];
-        public short[] Resistances = new short[7];
-        public ushort[] MinDamage = new ushort[ItemConst.MaxDamages];
-        public ushort[] MaxDamage = new ushort[ItemConst.MaxDamages];
+        public int ModifiedCraftingReagentItemID;
+        public byte Unknown1200;
+        public int CraftingQualityID;
+        public int ItemSquishEraID;
+        public float RecraftReagentCountPercentage;
+        public byte OrderSource;
 
         #region Properties
         public ItemClass ClassID => (ItemClass)_classID;
@@ -72,6 +68,7 @@ namespace Game.DataStorage
         public int ItemDisplayInfoID;
         public int DefaultIconFileDataID;
         public int UiOrder;
+        public int PlayerConditionID;
     }
 
     public sealed class ItemArmorQualityRecord
@@ -129,15 +126,21 @@ namespace Game.DataStorage
         public ushort ChildItemBonusTreeID;
         public ushort ChildItemBonusListID;
         public ushort ChildItemLevelSelectorID;
+        public int ChildItemBonusListGroupID;
+        public int IblGroupPointsModSetID;
+        public int MinMythicPlusLevel;
+        public int MaxMythicPlusLevel;
+        public int ItemCreationContextGroupID;
+        public int Flags;
         public int ParentItemBonusTreeID;
     }
 
     public sealed class ItemChildEquipmentRecord
     {
         public int Id;        
-        public int ChildItemID;
-        public byte ChildItemEquipSlot;
         public int ParentItemID;
+        public int ChildItemID;
+        public int ChildItemEquipSlot;
     }
 
     public sealed class ItemClassRecord
@@ -146,7 +149,7 @@ namespace Game.DataStorage
         public LocalizedString ClassName;
         public sbyte ClassID;
         public float PriceModifier;
-        public byte Flags;
+        public int Flags;
     }
 
     public sealed class ItemContextPickerEntryRecord
@@ -215,7 +218,7 @@ namespace Game.DataStorage
         private ushort _spellCategoryID;
         public int SpellID;
         public ushort ChrSpecializationID;
-        public int ParentItemID;
+        public int PlayerConditionID;   // Forever/TC layout; items link to effects through ItemXItemEffect
 
         #region Properties
         public Milliseconds CoolDown => (Milliseconds)_coolDownMSec;
@@ -228,12 +231,13 @@ namespace Game.DataStorage
     public sealed class ItemExtendedCostRecord
     {
         public int Id;
+        public long Money;
         public ushort RequiredArenaRating;
         /// <summary>
         /// arena slot restrictions (min slot value)
         /// </summary>
         public byte ArenaBracket;
-        public byte Flags;
+        public int Flags;
         public byte MinFactionID;
         private int _minReputation;
         /// <summary>
@@ -243,19 +247,19 @@ namespace Game.DataStorage
         /// <summary>
         /// required item id
         /// </summary>
-        public int[] ItemID = new int[ItemConst.MaxItemExtCostItems];
+        public int[] ItemID = new int[5];
         /// <summary>
         /// required count of 1st item
         /// </summary>
-        public ushort[] ItemCount = new ushort[ItemConst.MaxItemExtCostItems];
+        public ushort[] ItemCount = new ushort[5];
         /// <summary>
         /// required curency id
         /// </summary>
-        public ushort[] CurrencyID = new ushort[ItemConst.MaxItemExtCostCurrencies];
+        public ushort[] CurrencyID = new ushort[5];
         /// <summary>
         /// required curency count
         /// </summary>
-        public int[] CurrencyCount = new int[ItemConst.MaxItemExtCostCurrencies];
+        public int[] CurrencyCount = new int[5];
 
         #region Properties
         public ReputationRank MinReputation => (ReputationRank)_minReputation;
@@ -267,6 +271,7 @@ namespace Game.DataStorage
         public int Id;
         public ushort MinItemLevel;
         public ushort ItemLevelSelectorQualitySetID;
+        public ushort AzeriteUnlockMappingSet;
     }
 
     public sealed class ItemLevelSelectorQualityRecord : IEquatable<ItemLevelSelectorQualityRecord>, IEquatable<ItemQuality>
@@ -298,7 +303,7 @@ namespace Game.DataStorage
         public int Id;
         public LocalizedString Name;
         public byte Quantity;
-        public byte Flags;
+        public int Flags;
     }
 
     public sealed class ItemLimitCategoryConditionRecord
@@ -316,7 +321,8 @@ namespace Game.DataStorage
         public int ItemAppearanceModifierID;
         public int ItemAppearanceID;
         public int OrderIndex;
-        public int TransmogSourceTypeEnum;
+        public sbyte TransmogSourceTypeEnum;
+        public int Flags;
     }
 
     public sealed class ItemModifiedAppearanceExtraRecord
@@ -365,11 +371,10 @@ namespace Game.DataStorage
 
     public sealed class ItemSearchNameRecord
     {
-        private long _raceMask;
-        public LocalizedString Display;
         public int Id;
+        public LocalizedString Display;
         public byte OverallQualityID;
-        public sbyte ExpansionID;
+        public int ExpansionID;
         public ushort MinFactionID;
         public int MinReputation;
         public int AllowableClass;
@@ -378,10 +383,11 @@ namespace Game.DataStorage
         public ushort RequiredSkillRank;
         public uint RequiredAbility;
         public ushort ItemLevel;
-        public int[] Flags = new int[ItemConst.MaxItemProtoFlags];
+        public int[] Flags = new int[5];
+        private int[] _raceMask = new int[2];
 
         #region Properties
-        public RaceMask RaceMask => (RaceMask)_raceMask;
+        public RaceMask RaceMask => (RaceMask)_raceMask[0];
         #endregion
     };
 
@@ -392,7 +398,7 @@ namespace Game.DataStorage
         private uint _setFlags;
         public uint RequiredSkill;
         public ushort RequiredSkillRank;
-        public uint[] ItemID = new uint[ItemConst.MaxItemSetItems];
+        public uint[] ItemID = new uint[17];
 
         #region Properties
         public ItemSetFlags SetFlags => (ItemSetFlags)_setFlags;
@@ -416,6 +422,7 @@ namespace Game.DataStorage
         public int Id;
         public ushort ChrSpecID;
         public int SpellID;
+        public ushort TraitSubTreeID;
         public byte Threshold;
         public int ItemSetID;
     }
@@ -423,44 +430,49 @@ namespace Game.DataStorage
     public sealed class ItemSparseRecord
     {
         public int Id;
-        private long _allowableRace;
         public LocalizedString Description;
         public LocalizedString Display3;
         public LocalizedString Display2;
         public LocalizedString Display1;
         public LocalizedString Display;
+        private int _expansionID;
         public float DmgVariance;
+        public int LimitCategory;
         private int _durationInInventory;
         public float QualityModifier;
         public uint BagFamily;
         public int StartQuestID;
+        public int LanguageID;
         public float ItemRange;
-        public float[] StatPercentageOfSocket = new float[ItemConst.MaxStats];
-        public int[] StatPercentEditor = new int[ItemConst.MaxStats];
+        public float[] StatPercentageOfSocket = new float[10];
+        public int[] StatPercentEditor = new int[10];
+        private int[] _statModifierBonusStat = new int[10];
         public int Stackable;
         public int MaxCount;
         private int _minReputation;
         public int RequiredAbility;
+        private int[] _allowableRace = new int[2];
         public uint SellPrice;
         public uint BuyPrice;
         public int VendorStackCount;
         public float PriceVariance;
         public float PriceRandomValue;
-        public int[] Flags = new int[ItemConst.MaxItemProtoFlags];
+        public int[] Flags = new int[5];
         public int FactionRelated;
         public int ModifiedCraftingReagentItemID;
         public int ContentTuningID;
         public int PlayerLevelToItemLevelCurveID;
-        public uint MaxDurability;
+        public int ItemLevelOffsetCurveID;
+        public int ItemLevelOffsetItemLevel;
+        public int ItemSquishEraID;
         public ushort ItemNameDescriptionID;
         public ushort RequiredTransmogHoliday;
         public ushort RequiredHoliday;
-        public ushort LimitCategory;
         public ushort GemProperties;
         public ushort SocketMatchEnchantmentId;
         public ushort TotemCategoryID;
         public ushort InstanceBound;
-        public ushort[] ZoneBound = new ushort[ItemConst.MaxItemProtoZones];
+        public ushort[] ZoneBound = new ushort[2];
         public ushort ItemSet;
         public ushort LockID;
         public ushort PageID;
@@ -470,35 +482,25 @@ namespace Game.DataStorage
         public ushort RequiredSkill;
         public ushort ItemLevel;
         private short _allowableClass;
-        public ushort ItemRandomSuffixGroupID;
-        public ushort RandomSelect;
-        public ushort[] MinDamage = new ushort[ItemConst.MaxDamages];
-        public ushort[] MaxDamage = new ushort[ItemConst.MaxDamages];
-        public short[] Resistances = new short[ItemConst.MaxResistances];
-        public ushort ScalingStatDistributionID;
-        public short[] StatModifierBonusAmount = new short[ItemConst.MaxStats];
-        private byte _expansionID;
         public byte ArtifactID;
         public byte SpellWeight;
         public byte SpellWeightCategory;
-        public byte[] SocketType = new byte[ItemConst.MaxGemSockets];
+        public byte[] SocketType = new byte[3];
         public byte SheatheType;
         public byte Material;
         public byte PageMaterialID;
-        public byte LanguageID;
         public byte Bonding;
         private byte _damageType;
-        private sbyte[] _statModifierBonusStat = new sbyte[ItemConst.MaxStats];
         public byte ContainerSlots;
         public byte RequiredPVPMedal;
         public byte RequiredPVPRank;
+        public sbyte RequiredLevel;
         private sbyte _inventoryType;
         private sbyte _overallQualityID;
         public byte AmmunitionType;
-        public sbyte RequiredLevel;
 
         #region Properties
-        public RaceMask AllowableRace => (RaceMask)_allowableRace;
+        public RaceMask AllowableRace => (RaceMask)_allowableRace[0];
         public ClassMask AllowableClass => (ClassMask)_allowableClass;
         public SpellSchools DamageType => (SpellSchools)_damageType;
         public ItemModType StatModifierBonusStat(int itemStatSlot) => (ItemModType)_statModifierBonusStat[itemStatSlot];
@@ -531,6 +533,13 @@ namespace Game.DataStorage
     {
         public int Id;
         public ushort SpecID;
+        public int ItemID;
+    }
+
+    public sealed class ItemXItemEffectRecord
+    {
+        public int Id;
+        public int ItemEffectID;
         public int ItemID;
     }
 

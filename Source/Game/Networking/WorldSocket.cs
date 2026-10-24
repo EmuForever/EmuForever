@@ -8,7 +8,9 @@ using Framework.IO;
 using Framework.Networking;
 using Game.Networking.Packets;
 using System;
+using System.Linq;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 
 namespace Game.Networking
 {
@@ -17,10 +19,22 @@ namespace Game.Networking
         static readonly string ClientConnectionInitialize = "WORLD OF WARCRAFT CONNECTION - CLIENT TO SERVER - V2";
         static readonly string ServerConnectionInitialize = "WORLD OF WARCRAFT CONNECTION - SERVER TO CLIENT - V2";
 
-        static readonly byte[] AuthCheckSeed = [0xC5, 0xC6, 0x98, 0x95, 0x76, 0x3F, 0x1D, 0xCD, 0xB6, 0xA1, 0x37, 0x28, 0xB3, 0x12, 0xFF, 0x8A];
-        static readonly byte[] SessionKeySeed = [0x58, 0xCB, 0xCF, 0x40, 0xFE, 0x2E, 0xCE, 0xA6, 0x5A, 0x90, 0xB8, 0x01, 0x68, 0x6C, 0x28, 0x0B];
-        static readonly byte[] ContinuedSessionSeed = [0x16, 0xAD, 0x0C, 0xD4, 0x46, 0xF9, 0x4F, 0xB2, 0xEF, 0x7D, 0xEA, 0x2A, 0x17, 0x66, 0x4D, 0x2F];
-        static readonly byte[] EncryptionKeySeed = [0xE9, 0x75, 0x3C, 0x50, 0x90, 0x93, 0x61, 0xDA, 0x3B, 0x07, 0xEE, 0xFA, 0xFF, 0x9D, 0x41, 0xB8];
+        // Forever 1.60.1 (70425) seeds, from ForeverWorld SessionKeys.
+        static readonly byte[] SessionKeySeed =
+        [
+            0xE8, 0x1E, 0x8B, 0x59, 0x27, 0x62, 0x1E, 0xAA, 0x86, 0x15, 0x18, 0xEA, 0xC0, 0xBF, 0x66, 0x8C,
+            0x6D, 0xBF, 0x83, 0x93, 0xBC, 0xAA, 0x80, 0x52, 0x5B, 0x1E, 0xDC, 0x23, 0xA0, 0x12, 0xB7, 0x50
+        ];
+        static readonly byte[] ContinuedSessionSeed =
+        [
+            0x56, 0x5C, 0x61, 0x9C, 0x48, 0x3A, 0x52, 0x1F, 0x61, 0x5D, 0x05, 0x49, 0xB2, 0x9A, 0x39, 0xBF,
+            0x4B, 0x97, 0xB0, 0x1B, 0xF9, 0x6C, 0xDE, 0xD6, 0x80, 0x1D, 0xAB, 0x26, 0x02, 0xA9, 0x9B, 0x9D
+        ];
+        static readonly byte[] EncryptionKeySeed =
+        [
+            0x71, 0xC9, 0xED, 0x5A, 0xA7, 0x0E, 0x4D, 0xFF, 0x4C, 0x36, 0xA6, 0x5A, 0x3E, 0x46, 0x8A, 0x4A,
+            0x5D, 0xA1, 0x48, 0xC8, 0x30, 0x47, 0x4A, 0xDE, 0xF6, 0x0D, 0x6C, 0xBE, 0x6F, 0xE4, 0x55, 0x73
+        ];
 
         static readonly int HeaderSize = 16;
 
@@ -49,10 +63,10 @@ namespace Game.Networking
         public WorldSocket(Socket socket) : base(socket)
         {
             _connectType = ConnectionType.Realm;
-            _serverChallenge = Array.Empty<byte>().GenerateRandomKey(16);
+            _serverChallenge = Array.Empty<byte>().GenerateRandomKey(32);
             _worldCrypt = new WorldCrypt();
 
-            _encryptKey = new byte[16];
+            _encryptKey = new byte[32];
 
             _headerBuffer = new SocketBuffer(HeaderSize);
             _packetBuffer = new SocketBuffer(0);
@@ -265,6 +279,7 @@ namespace Game.Networking
 
             PacketLog.Write(packet.GetData(), packet.GetOpcode(), GetRemoteIpAddress(), _connectType, true);
 
+            packet.SetOpcode(ClassicOpcodeMap.ToCore(packet.GetOpcode()));
             ClientOpcodes opcode = (ClientOpcodes)packet.GetOpcode();
 
             if (opcode != ClientOpcodes.HotfixRequest && !header.IsValidSize())
@@ -377,7 +392,7 @@ namespace Game.Networking
             packet.WritePacketData();
 
             var data = packet.GetData();
-            ServerOpcodes opcode = packet.GetOpcode();
+            ServerOpcodes opcode = (ServerOpcodes)ClassicOpcodeMap.ToClient((uint)packet.GetOpcode());
             PacketLog.Write(data, (uint)opcode, GetRemoteIpAddress(), _connectType, false);
 
             ByteBuffer buffer = new();
@@ -385,8 +400,8 @@ namespace Game.Networking
             int packetSize = data.Length;
             if (packetSize > 0x400 && _worldCrypt.IsInitialized)
             {
-                buffer.WriteInt32(packetSize + 2);
-                buffer.WriteUInt32(ZLib.adler32(ZLib.adler32(0x9827D8F1, BitConverter.GetBytes((ushort)opcode), 2), data, (uint)packetSize));
+                buffer.WriteInt32(packetSize + 4);
+                buffer.WriteUInt32(ZLib.adler32(ZLib.adler32(0x9827D8F1, BitConverter.GetBytes((uint)opcode), 4), data, (uint)packetSize));
 
                 byte[] compressedData;
                 uint compressedSize = CompressPacket(data, opcode, out compressedData);
@@ -394,15 +409,15 @@ namespace Game.Networking
                 buffer.WriteBytes(compressedData, (int)compressedSize);
 
                 packetSize = (int)(compressedSize + 12);
-                opcode = ServerOpcodes.CompressedPacket;
+                opcode = (ServerOpcodes)ClassicOpcodeMap.ToClient((uint)ServerOpcodes.CompressedPacket);
 
                 data = buffer.GetData();
             }
 
             buffer = new ByteBuffer();
-            buffer.WriteUInt16((ushort)opcode);
+            buffer.WriteUInt32((uint)opcode);
             buffer.WriteBytes(data);
-            packetSize += 2 /*opcode*/;
+            packetSize += 4 /*opcode*/;
 
             data = buffer.GetData();
 
@@ -425,9 +440,11 @@ namespace Game.Networking
 
         public uint CompressPacket(byte[] data, ServerOpcodes opcode, out byte[] outData)
         {
-            byte[] uncompressedData = BitConverter.GetBytes((ushort)opcode).Combine(data);
+            byte[] uncompressedData = BitConverter.GetBytes((uint)opcode).Combine(data);
 
-            uint bufferSize = ZLib.deflateBound(_compressionStream, (uint)data.Length);
+            // The compressed stream includes the 4-byte inner opcode before the
+            // packet body, so the output bound must use the full input length.
+            uint bufferSize = ZLib.deflateBound(_compressionStream, (uint)uncompressedData.Length);
             outData = new byte[bufferSize];
 
             _compressionStream.next_out = 0;
@@ -514,59 +531,10 @@ namespace Game.Networking
             // For hook purposes, we get Remoteaddress at this point.
             var address = GetRemoteIpAddress();
 
-            Sha256 digestKeyHash = new();
-            digestKeyHash.Process(account.game.KeyData, account.game.KeyData.Length);
-            if (account.game.OS == "Wn64")
-                digestKeyHash.Finish(buildInfo.Win64AuthSeed);
-            else if (account.game.OS == "Mc64")
-                digestKeyHash.Finish(buildInfo.Mac64AuthSeed);
-            else
-            {
-                Log.outError(LogFilter.Network, 
-                    $"WorldSocket.HandleAuthSession: " +
-                    $"Authentication failed for account: {account.game.Id} ('{authSession.RealmJoinTicket}') " +
-                    $"address: {address}");
-
-                CloseSocket();
-                return;
-            }
-
-            HmacSha256 hmac = new(digestKeyHash.Digest);
-            hmac.Process(authSession.LocalChallenge, authSession.LocalChallenge.Count);
-            hmac.Process(_serverChallenge, 16);
-            hmac.Finish(AuthCheckSeed, 16);
-
-            // Check that Key and account name are the same on client and server
-            if (!hmac.Digest.Compare(authSession.Digest))
-            {
-                Log.outError(LogFilter.Network, 
-                    $"WorldSocket.HandleAuthSession: " +
-                    $"Authentication failed for account: {account.game.Id} ('{authSession.RealmJoinTicket}') " +
-                    $"address: {address}");
-
-                CloseSocket();
-                return;
-            }
-
-            Sha256 keyData = new();
-            keyData.Finish(account.game.KeyData);
-
-            HmacSha256 sessionKeyHmac = new(keyData.Digest);
-            sessionKeyHmac.Process(_serverChallenge, 16);
-            sessionKeyHmac.Process(authSession.LocalChallenge, authSession.LocalChallenge.Count);
-            sessionKeyHmac.Finish(SessionKeySeed, 16);
-
-            _sessionKey = new byte[40];
-            var sessionKeyGenerator = new SessionKeyGenerator256(sessionKeyHmac.Digest, 32);
-            sessionKeyGenerator.Generate(_sessionKey, 40);
-
-            HmacSha256 encryptKeyGen = new(_sessionKey);
-            encryptKeyGen.Process(authSession.LocalChallenge, authSession.LocalChallenge.Count);
-            encryptKeyGen.Process(_serverChallenge, 16);
-            encryptKeyGen.Finish(EncryptionKeySeed, 16);
-
-            // only first 16 bytes of the hmac are used
-            Buffer.BlockCopy(encryptKeyGen.Digest, 0, _encryptKey, 0, 16);
+            // Forever 1.60 digest seed is unknown; ForeverWorld does not verify AuthSession.Digest either.
+            // The session key is derived from the BNet key data, and a wrong key fails at the first GCM frame.
+            _sessionKey = DeriveSessionKey(account.game.KeyData, _serverChallenge, authSession.LocalChallenge.ToArray());
+            _encryptKey = DeriveEncryptKey(_sessionKey, authSession.LocalChallenge.ToArray(), _serverChallenge);
 
             PreparedStatement stmt = null;
 
@@ -761,13 +729,18 @@ namespace Game.Networking
             string login = result.Read<string>(0);
             _sessionKey = result.Read<byte[]>(1);
 
-            HmacSha256 hmac = new(_sessionKey);
-            hmac.Process(BitConverter.GetBytes(authSession.Key), 8);
-            hmac.Process(authSession.LocalChallenge, authSession.LocalChallenge.Length);
-            hmac.Process(_serverChallenge, 16);
-            hmac.Finish(ContinuedSessionSeed, 16);
+            byte[] digest;
+            using (HMACSHA512 hmac = new(_sessionKey))
+            {
+                byte[] keyBytes = BitConverter.GetBytes(authSession.Key);
+                hmac.TransformBlock(keyBytes, 0, keyBytes.Length, null, 0);
+                hmac.TransformBlock(authSession.LocalChallenge, 0, authSession.LocalChallenge.Length, null, 0);
+                hmac.TransformBlock(_serverChallenge, 0, _serverChallenge.Length, null, 0);
+                hmac.TransformFinalBlock(ContinuedSessionSeed, 0, ContinuedSessionSeed.Length);
+                digest = hmac.Hash;
+            }
 
-            if (!hmac.Digest.Compare(authSession.Digest))
+            if (!digest.AsSpan(0, authSession.Digest.Length).SequenceEqual(authSession.Digest))
             {
                 Log.outError(LogFilter.Network,
                     $"WorldSocket.HandleAuthContinuedSession: " +
@@ -777,16 +750,47 @@ namespace Game.Networking
                 return;
             }
 
-            HmacSha256 encryptKeyGen = new(_sessionKey);
-            encryptKeyGen.Process(authSession.LocalChallenge, authSession.LocalChallenge.Length);
-            encryptKeyGen.Process(_serverChallenge, 16);
-            encryptKeyGen.Finish(EncryptionKeySeed, 16);
-
-            // only first 16 bytes of the hmac are used
-            Buffer.BlockCopy(encryptKeyGen.Digest, 0, _encryptKey, 0, 16);
+            _encryptKey = DeriveEncryptKey(_sessionKey, authSession.LocalChallenge, _serverChallenge);
 
             SendPacket(new EnterEncryptedMode(_encryptKey, true));
             AsyncRead();
+        }
+
+        static byte[] DeriveSessionKey(byte[] keyData, byte[] serverChallenge, byte[] localChallenge)
+        {
+            byte[] sessionHmac;
+            using (HMACSHA512 hmac = new(SHA512.HashData(keyData)))
+            {
+                hmac.TransformBlock(serverChallenge, 0, serverChallenge.Length, null, 0);
+                hmac.TransformBlock(localChallenge, 0, localChallenge.Length, null, 0);
+                hmac.TransformFinalBlock(SessionKeySeed, 0, SessionKeySeed.Length);
+                sessionHmac = hmac.Hash;
+            }
+
+            // SessionKeyGenerator<SHA512>
+            byte[] o1 = SHA512.HashData(sessionHmac.AsSpan(0, sessionHmac.Length / 2));
+            byte[] o2 = SHA512.HashData(sessionHmac.AsSpan(sessionHmac.Length / 2));
+            byte[] o0 = SHA512.HashData([.. o1, .. new byte[64], .. o2]);
+            byte[] sessionKey = new byte[40];
+            for (int i = 0, it = 0; i < sessionKey.Length; i++)
+            {
+                if (it == o0.Length)
+                {
+                    o0 = SHA512.HashData([.. o1, .. o0, .. o2]);
+                    it = 0;
+                }
+                sessionKey[i] = o0[it++];
+            }
+            return sessionKey;
+        }
+
+        static byte[] DeriveEncryptKey(byte[] sessionKey, byte[] localChallenge, byte[] serverChallenge)
+        {
+            using HMACSHA512 hmac = new(sessionKey);
+            hmac.TransformBlock(localChallenge, 0, localChallenge.Length, null, 0);
+            hmac.TransformBlock(serverChallenge, 0, serverChallenge.Length, null, 0);
+            hmac.TransformFinalBlock(EncryptionKeySeed, 0, EncryptionKeySeed.Length);
+            return hmac.Hash[..32]; // AES-256-GCM
         }
 
         void HandleConnectToFailed(ConnectToFailed connectToFailed)
@@ -909,8 +913,8 @@ namespace Game.Networking
             // SELECT a.id, a.session_key, ba.last_ip, ba.locked, ba.lock_country, a.expansion, a.mutetime, ba.locale, a.recruiter, a.os, a.timezone_offset, ba.id, aa.SecurityLevel,
             //                                                              13                                                            14    15
             // bab.unbandate > UNIX_TIMESTAMP() OR bab.unbandate = bab.bandate, ab.unbandate > UNIX_TIMESTAMP() OR ab.unbandate = ab.bandate, r.id
-            // FROM account a LEFT JOIN battlenet_accounts ba ON a.battlenet_account = ba.id LEFT JOIN account_access aa ON a.id = aa.AccountID AND aa.RealmID IN (-1, ?)
-            // LEFT JOIN battlenet_account_bans bab ON ba.id = bab.id LEFT JOIN account_banned ab ON a.id = ab.id LEFT JOIN account r ON a.id = r.recruiter
+            // FROM account a LEFT JOIN bnot_accounts ba ON a.battlenet_account = ba.id LEFT JOIN account_access aa ON a.id = aa.AccountID AND aa.RealmID IN (-1, ?)
+            // LEFT JOIN bnot_account_bans bab ON ba.id = bab.id LEFT JOIN account_banned ab ON a.id = ab.id LEFT JOIN account r ON a.id = r.recruiter
             // WHERE a.username = ? AND LENGTH(a.session_key) = 40 ORDER BY aa.RealmID DESC LIMIT 1
             game.Id = fields.Read<int>(0);
             game.KeyData = fields.Read<byte[]>(1);

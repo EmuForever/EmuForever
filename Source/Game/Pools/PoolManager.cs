@@ -613,10 +613,13 @@ namespace Game
         {
             if (EqualChanced.Empty())
             {
-                float chance = 0;
+                double chance = 0;
                 for (int i = 0; i < ExplicitlyChanced.Count; ++i)
                     chance += ExplicitlyChanced[i].chance;
-                if (chance != 100 && chance != 0)
+                // Chances are persisted as MySQL FLOAT. Valid normalized weights
+                // round by a few millionths; exact equality disabled Classic ore
+                // child pools after their database probabilities were repaired.
+                if (!double.IsFinite(chance) || (Math.Abs(chance - 100) > 0.0001 && chance != 0))
                     return false;
             }
             return true;
@@ -661,7 +664,9 @@ namespace Game
             {
                 case "Creature":
                 {
-                    var creatureBounds = spawns.GetMap().GetCreatureBySpawnIdStore()[guid];
+                    // Cleanup removes entries from the same spawn index immediately.
+                    // Iterate the original members, including multiple instances of a spawn.
+                    var creatureBounds = spawns.GetMap().GetCreatureBySpawnIdStore()[guid].ToArray();
                     foreach (var creature in creatureBounds)
                     {
                         // For dynamic spawns, save respawn time here
@@ -678,7 +683,7 @@ namespace Game
                 }
                 case "GameObject":
                 {
-                    var gameobjectBounds = spawns.GetMap().GetGameObjectBySpawnIdStore()[guid];
+                    var gameobjectBounds = spawns.GetMap().GetGameObjectBySpawnIdStore()[guid].ToArray();
                     foreach (var go in gameobjectBounds)
                     {
                         // For dynamic spawns, save respawn time here

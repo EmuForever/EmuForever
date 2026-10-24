@@ -7,6 +7,7 @@ using Game.Entities;
 using Game.Movement;
 using Game.Networking;
 using Game.Networking.Packets;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -208,6 +209,41 @@ namespace Game
             List<int> nodes = new();
             TaxiPathGraph.GetCompleteNodeRoute(from, to, GetPlayer(), nodes);
             GetPlayer().ActivateTaxiPathTo(nodes, unit, 0, preferredMountDisplay);
+        }
+
+        internal bool TakeFlightForSI(Creature master,IReadOnlyList<int> nodes,long reservedMoney=0)
+        {
+            var player=GetPlayer();
+            if(!IsServerControlled||player==null||master==null||nodes.Count<2||nodes.Count>256||
+                player.GetNPCIfCanInteractWith(master.GetGUID(),NPCFlags1.FlightMaster,NPCFlags2.None)!=master)return false;
+            int source=Global.ObjectMgr.GetNearestTaxiNode(master.GetPosition3D(),master.GetMapId(),player.GetTeam());
+            if(source==0||nodes[0]!=source)return false;
+            var flag=player.GetTeam()==Team.Alliance?TaxiNodeFlags.ShowOnAllianceMap:TaxiNodeFlags.ShowOnHordeMap;
+            ulong rawFare=0,paidByLeg=0;
+            float discount=player.GetReputationPriceDiscount(master);
+            // SI uses the normal discovered network, not taxi-cheat/scripted
+            // flights. Validate every transfer instead of skipping bad nodes.
+            for(int i=0;i<nodes.Count;++i)
+            {
+                var node=CliDB.TaxiNodesStorage.LookupByKey(nodes[i]);
+                if(node==null||!node.IsPartOfTaxiNetwork||!node.HasFlag(flag)||!player.m_taxi.IsTaximaskNodeKnown(node.Id))return false;
+                var condition=CliDB.PlayerConditionStorage.LookupByKey(node.ConditionID);
+                if(condition!=null&&!ConditionManager.IsPlayerMeetingCondition(player,condition))return false;
+                if(i>0)
+                {
+                    Global.ObjectMgr.GetTaxiPath(nodes[i-1],nodes[i],out int path,out uint fare);
+                    if(path==0||!CliDB.TaxiPathNodesByPath.TryGetValue(path,out var points)||points.Length<2||points.Any(p=>p==null))return false;
+                    rawFare+=fare;
+                    ulong legFare=player.ApplyClassicLegacyPriceMod((ulong)Math.Ceiling(fare*discount),4);
+                    paidByLeg=legFare>ulong.MaxValue-paidByLeg?ulong.MaxValue:paidByLeg+legFare;
+                }
+            }
+            if(rawFare>uint.MaxValue||reservedMoney<0||reservedMoney>player.GetMoney())return false;
+            ulong actualFare=Math.Max(paidByLeg,player.ApplyClassicLegacyPriceMod((ulong)Math.Ceiling(rawFare*discount),4));
+            if(actualFare>(ulong)(player.GetMoney()-reservedMoney))return false;
+            // Native activation owns payment, mounts, packets and taxi movement.
+            bool activated=player.ActivateTaxiPathTo(new List<int>(nodes),master);
+            return activated||player.IsInFlight()||player.IsBeingTeleported();
         }
 
         public void SendActivateTaxiReply(ActivateTaxiReply reply = ActivateTaxiReply.Ok)

@@ -14,7 +14,7 @@ namespace Game.DataStorage
         public int LegacyUpgradedItemID;
         public int StaticUpgradedItemID;
         public sbyte SourceTypeEnum;
-        public byte Flags;
+        public int Flags;
         public int LegacyItemID;
         public int[] UpgradeItemID = new int[6];
         public ushort[] UpgradeItemBonusListID = new ushort[6];
@@ -29,12 +29,11 @@ namespace Game.DataStorage
         public uint HolidayDescriptionID;
         public byte Priority;
         private sbyte _calendarFilterType;
-        public byte Flags;
-        public uint WorldStateExpressionID;
-        private ushort[] _duration = new ushort[SharedConst.MaxHolidayDurations];
+        public int Flags;
+        private ushort[] _duration = new ushort[10];
         /// <summary>Wow packed time</summary>
-        private int[] _date = new int[SharedConst.MaxHolidayDates];
-        public byte[] CalendarFlags = new byte[SharedConst.MaxHolidayFlags];
+        private int[] _date = new int[26];
+        public byte[] CalendarFlags = new byte[10];
         public int[] TextureFileDataID = new int[3];
 
         #region Properties

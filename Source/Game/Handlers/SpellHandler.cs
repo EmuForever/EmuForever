@@ -20,15 +20,18 @@ namespace Game
         [WorldPacketHandler(ClientOpcodes.UseItem, Processing = PacketProcessing.Inplace)]
         void HandleUseItem(UseItem packet)
         {
-            // ignore for remote control state
-            if (_player.GetUnitBeingMoved() != _player)
-                return;
-
             // Skip casting invalid spells right away
             SpellInfo spellInfo = Global.SpellMgr.GetSpellInfo(packet.Cast.SpellID, _player.GetMap().GetDifficultyID());
             if (spellInfo == null)
             {
                 Log.outError(LogFilter.Network, $"WorldSession::HandleUseItemOpcode: attempted to cast a non-existing spell (Id: {packet.Cast.SpellID})");
+                SendPacket(new CastFailed
+                {
+                    CastID = packet.Cast.CastID,
+                    SpellID = packet.Cast.SpellID,
+                    Visual = packet.Cast.Visual,
+                    Reason = SpellCastResult.SpellUnavailable
+                });
                 return;
             }
 
@@ -243,12 +246,6 @@ namespace Game
                 Spell.SendCastResult(_player, spellInfo, default, cast.Cast.CastID, SpellCastResult.SpellInProgress);
         }
 
-        [WorldPacketHandler(ClientOpcodes.CancelQueuedSpell, Processing = PacketProcessing.ThreadSafe)]
-        void HandleCancelQueuedSpell(CancelQueuedSpell packet)
-        {
-            
-        }
-
         [WorldPacketHandler(ClientOpcodes.CancelCast, Processing = PacketProcessing.ThreadSafe)]
         void HandleCancelCast(CancelCast packet)
         {
@@ -331,7 +328,7 @@ namespace Game
             _player.InterruptSpell(CurrentSpellTypes.AutoRepeat);
         }
 
-        [WorldPacketHandler(ClientOpcodes.CancelChannelling, Processing = PacketProcessing.Inplace)]
+        [WorldPacketHandler(ClientOpcodes.CancelQueuedSpell, Processing = PacketProcessing.Inplace)]
         void HandleCancelQueuedSpellOpcode(CancelQueuedSpell cancelQueuedSpell)
         {
             _player.CancelPendingCastRequest();

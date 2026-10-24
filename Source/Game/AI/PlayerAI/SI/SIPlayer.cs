@@ -1,0 +1,280 @@
+using Framework.Constants;
+using Game.Entities;
+using System;
+using System.Collections.Concurrent;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+
+namespace Game.AI
+{
+    // Server-side port of the QuestBot/LevelBot lifecycle. Start once; retain work across updates.
+    public sealed partial class SIPlayer : PlayerAI, IDisposable
+    {
+        readonly ConcurrentQueue<(string Action, ObjectGuid Target)> _orders = new();
+        SISettings _settings = SISettings.Load();
+        TimeSpan _clock, _nextThink;
+        long _nextSettingsCheck;
+        bool _settingsStopped;
+        public SISettings EffectiveSettings=>_settings;
+        ObjectGuid _target;
+        ObjectGuid _previousTarget;
+        string _goal = "quest";
+        string _previousGoal = "quest";
+        bool _recovering;
+        bool _operatorControlled;
+        public string Status { get; private set; } = "Questing";
+
+        public SIPlayer(siPlayer player) : base(player)
+        {
+            _nextThink = TimeSpan.FromMilliseconds(player.GetGUID().GetCounter() % 250);
+            // Database knowledge is shared by all bots; build it off the map thread.
+            if (!SIQuestKnowledge.IsBuilt) _ = Task.Run(() => SIQuestKnowledge.Instance);
+        }
+
+        // Commands enqueue values. All gameplay mutation happens inside UpdateAI.
+        public void Order(string action, ObjectGuid target = default) => _orders.Enqueue((action, target));
+
+        void ApplyOrders()
+        {
+            while (_orders.TryDequeue(out var order))
+            {
+                if (order.Action == "save")
+                {
+                    me.SaveToDB();
+                    continue;
+                }
+                if (order.Action == "teleport")
+                {
+                    Player destination = Global.ObjAccessor.FindConnectedPlayer(order.Target);
+                    if (destination != null && !me.IsBeingTeleported())
+                    {
+                        Stop();
+                        SetTask(null); _suspendedTask = null; _questPickupAnchor = null; _workingQuestBatch = false; _nextReplan = 0;
+                        ResetQuestingArea();
+                        me.TeleportTo(destination.GetMapId(), destination.GetPositionX(), destination.GetPositionY(),
+                            destination.GetPositionZ(), destination.GetOrientation());
+                    }
+                    continue;
+                }
+                _operatorControlled = order.Action is not ("quest" or "grind" or "resume");
+                if (order.Action == "pause" && _goal != "pause")
+                {
+                    _previousGoal = _goal;
+                    _previousTarget = _target;
+                }
+                if (order.Action == "resume")
+                {
+                    if (_goal != "pause")
+                        continue;
+                    _goal = _previousGoal;
+                    _target = _previousTarget;
+                }
+                else if (order.Action != "pause")
+                {
+                    _goal = order.Action;
+                    _target = order.Target;
+                    if (_goal == "rest") _recovering = true;
+                }
+                else
+                    _goal = "pause";
+                Stop();
+                if (order.Action is not ("pause" or "resume")) { SetTask(null); _suspendedTask = null; _nextReplan = 0; ResetQuestingArea(); }
+            }
+        }
+
+        public override void UpdateAI(TimeSpan diff)
+        {
+            long started = System.Diagnostics.Stopwatch.GetTimestamp();
+            try { UpdateBrain(diff); }
+            finally
+            {
+                TrackActivity();
+                TrackBehaviorState();
+                double elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+                Game.Maps.MapTickProfile.BotAiMs += elapsed;
+                if (elapsed >= 25 && Now >= _nextSlowUpdateReport)
+                {
+                    _nextSlowUpdateReport = Now + 5000;
+                    Report("slow_update", $"{elapsed:F1} ms; behavior {Behavior}; navigation {NavigationMode}; task {Plan}");
+                }
+            }
+        }
+        long _nextSlowUpdateReport;
+        bool Observed() => me.IsInWorld && SIMapObjectIndex.For(me.GetMap()).Observed(me, 200);
+        bool _followingTaxi;
+
+        void UpdateBrain(TimeSpan diff)
+        {
+            _clock += diff;
+            _movementTickSeconds = diff.TotalSeconds;
+            if(Now>=_nextSettingsCheck)
+            {
+                _nextSettingsCheck=Now+5000;
+                var current=SISettings.Load();
+                if(current!=_settings){_settings=current;_nextWorldSnapshot=0;_nextNearbyQuestScan=0;_nextReplan=0;}
+            }
+            if(!_settings.Enabled)
+            {
+                if(!_settingsStopped){Stop();_settingsStopped=true;}
+                Behavior="Disabled";Status="SI.Enabled = 0";return;
+            }
+            _settingsStopped=false;
+            ApplyOrders();
+            StopOutOfRangeHunterShots();
+            me.GetSession().AcceptPartyInviteForSI();
+            if (TickLootAnimation()) return;
+            if (me.IsInWorld && !me.IsBeingTeleported() && me.IsAlive()) me.SetSwim(SwimmingSurface(Here));
+            MaintainNavigation();
+            if (_clock < _nextThink) return;
+            // Nobody sees a bot far from every real player: it decides half as often, which
+            // halves its share of the map update without changing what it does.
+            _nextThink = _clock + TimeSpan.FromMilliseconds(Observed() ? 250 : 500);
+            ReplyToWhispers();
+            RestoreTravelPet();
+
+            TickQuestReservation();
+            if (me.IsBeingTeleported() || me.IsCharmed()) { _preparation.Pause(Now); _encounter.Pause(Now); _task?.Suspend(Now); return; }
+            // Native taxi movement owns the player until landing. Quest/trainer
+            // replans must not cancel its itinerary or time out its saved task.
+            if(me.IsInFlight())
+            {
+                _followingTaxi=true;
+                Behavior="Flight";Status="Following native flight path";
+                _task?.Suspend(Now);_preparation.Pause(Now);_encounter.Pause(Now);return;
+            }
+            if(_followingTaxi)
+            {
+                // Landing is expected relocation, not a summon that should
+                // discard the trainer itinerary and its suspended quest task.
+                _followingTaxi=false;_localQuestMap=me.GetMapId();
+                _lastQuestPosition=Here;_lastQuestPositionAt=Now;
+            }
+            if (!_started) Start();
+            CheckTrainingAvailability();
+            RefreshWorldSnapshot();
+            if(TickDuel())return;
+            if (_goal == "pause") { Behavior = "Pause"; Status = "Paused"; _preparation.Pause(Now); return; }
+            ReviewLocalQuestContext();
+            if (!me.IsAlive())
+            {
+                Behavior = "Death"; _preparation.Pause(Now); _task?.Suspend(Now);
+                EndEncounter(false); RecoverCorpse(); return;
+            }
+            if (_deathAt != 0 || _ghostStartedAt != 0 || Recovery is "CorpseRun" or "AwaitingReclaim" or "AwaitingRelease" or "Blocked" or "SpiritHealer") OnResurrected();
+            RefreshSpellBook();
+            SelectAmmunition();
+            if (me.HasUnitState(UnitState.LostControl | UnitState.Stunned | UnitState.Confused | UnitState.Fleeing))
+            {
+                Behavior = "Control"; _preparation.Pause(Now); _task?.Suspend(Now);
+                _encounter.Pause(Now);
+                ClassReaction(null); Status = "Under a loss-of-control effect"; return;
+            }
+            EmergencySurvival();
+            if (_goal == "flee")
+            {
+                Behavior = "Escape"; _preparation.Pause(Now); _task?.Suspend(Now);
+                EndEncounter(false); if (!ClassReaction(null)) Flee(); return;
+            }
+            if (ContinueLongJourney()) return;
+            // Death/combat can interrupt preparation. Neither releases the current quest order.
+            if (TickCombatBehavior() != SIBehaviorResult.Failure)
+            {
+                Behavior = "Combat"; _preparation.Pause(Now); _task?.Suspend(Now); return;
+            }
+            if (me.IsNonMeleeSpellCast(false, skipAutorepeat: true)) return;
+            ReviewQuestLevels();
+            if (!_preparation.Complete)
+            {
+                Behavior = "Preparation"; _task?.Suspend(Now);
+                _preparation.Resume(Now); _preparation.Tick(Prepare, Now); return;
+            }
+            if (TryLoot()) { Behavior = "Loot"; _task?.Suspend(Now); return; }
+            if (Recuperate() || Rest() || Survive()) { Behavior = "Recovery"; _task?.Suspend(Now); return; }
+            if(TickFlightPaths()){Behavior="FlightPaths";return;}
+            // Maintenance is periodic, not a restart of login preparation or the quest order.
+            if (Now >= _nextMaintenance)
+            {
+                if (Buff()) { _nextMaintenance = Now + 1600; Behavior = "Buffs"; _task?.Suspend(Now); return; }
+                _nextMaintenance = Now + 5000;
+                EquipUpgrades(); StartQuestsFromItems();
+            }
+            RecoverIdleTask();
+            if ((_goal is "quest" or "grind") && TickVendorBehavior()) { Behavior = "Vendor"; return; }
+            if (_goal=="quest"&&SIQuestKnowledge.IsBuilt) NearbyQuestInteraction();
+            if ((_goal is "quest" or "grind") && TickTrainerBehavior()) { Behavior = "Trainer"; return; }
+            Behavior = _goal == "grind" ? "LevelBot" : "QuestBot";
+            TickGoalBehavior();
+        }
+
+        // World PvP: an opposite-faction player the core lets us attack (PvP-flagged on a normal realm, any on a
+        // PvP realm, never in a sanctuary), close in level and in line of sight.
+        Player EnemyPlayer()
+        {
+            Player best = null;
+            float bestDistance = float.MaxValue;
+            foreach (Player player in me.GetPlayerListInGrid(35))
+            {
+                if (player == me || !player.IsAlive() || player.IsGameMaster() || player.IsInFlight() ||
+                    Math.Abs(player.GetLevel() - me.GetLevel()) > 5 || !me.IsValidAttackTarget(player) || !me.IsWithinLOSInMap(player)) continue;
+                float distance = me.GetDistance(player);
+                if (distance < bestDistance) { bestDistance = distance; best = player; }
+            }
+            if (best != null && _combatTarget != best.GetGUID()) Report("pvp_target", $"Attacking {best.GetName()}");
+            return best;
+        }
+
+        void Follow()
+        {
+            Unit leader = Resolve(_target);
+            if (leader != null && leader.IsAlive())
+            {
+                Travel(leader.GetPosition(), "Following", 4);
+                Status = "Following";
+            }
+            else
+            {
+                Stop();
+                Status = "Follow target unavailable";
+            }
+        }
+
+        Unit Resolve(ObjectGuid guid)
+        {
+            if (guid.IsEmpty())
+                return null;
+            Unit target = Global.ObjAccessor.GetUnit(me, guid);
+            return target != null && target.IsInWorld && target.GetMap() == me.GetMap()
+                && me.CanSeeOrDetect(target, distanceCheck: true) ? target : null;
+        }
+
+        bool CanFight(Unit target) => target != null && target.IsInWorld && target.IsAlive() && target.GetMap() == me.GetMap()
+            && target.ToCreature()?.IsEvadingAttacks() != true && me.IsValidAttackTarget(target)
+            && me.CanSeeOrDetect(target, distanceCheck: true) && me.GetExactDist(target) <= 90;
+
+        void Stop()
+        {
+            CloseLootAnimation();
+            _task?.Suspend(Now);
+            CancelTravel();
+            EndEncounter(false);
+            me.CastStop();
+        }
+
+        static readonly SIBufferedLog Diagnostics = new(message => Log.outWarn(LogFilter.Server, message));
+        readonly System.Collections.Generic.Dictionary<string, long> _nextDiagnostic = new();
+        void Report(string type, [InterpolatedStringHandlerArgument("type")] ref SIDiagnosticMessage summary)
+        {
+            if (SIDiagnosticPolicy.Important(type)) Report(type, summary.GetText());
+        }
+        void Report(string type, string summary)
+        {
+            if (!SIDiagnosticPolicy.Important(type) || _nextDiagnostic.TryGetValue(type, out long next) && Now < next) return;
+            _nextDiagnostic[type] = Now + 15000;
+            Diagnostics.Publish($"SIPlayer {me.GetName()} [{type}] {summary}");
+        }
+
+        public void Dispose() { CloseLootAnimation(); ClearRoute(); EndEncounter(false); ReleaseQuestTarget(); }
+    }
+}
+

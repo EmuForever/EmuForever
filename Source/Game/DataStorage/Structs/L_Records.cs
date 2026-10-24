@@ -11,7 +11,7 @@ namespace Game.DataStorage
     {
         public int Id;
         public string Word;
-        public byte LanguageID;
+        public int LanguageID;
     }
 
     public sealed class LanguagesRecord
@@ -29,8 +29,6 @@ namespace Game.DataStorage
         public int Id;
         public LocalizedString Name;
         public LocalizedString Description;
-        public byte MinLevel;
-        public ushort MaxLevel;
         private byte _typeID;
         public byte Subtype;
         public sbyte Faction;
@@ -39,14 +37,11 @@ namespace Game.DataStorage
         public int PopupBgTextureFileID;
         private byte _expansionLevel;
         public short MapID;
-        private byte _difficultyID;
+        private ushort _difficultyID;
         public float MinGear;
         public byte GroupID;
         public byte OrderIndex;
         public uint RequiredPlayerConditionId;
-        public byte TargetLevel;
-        public byte TargetLevelMin;
-        public ushort TargetLevelMax;
         public ushort RandomID;
         public ushort ScenarioID;
         public ushort FinalEncounterID;
@@ -56,9 +51,14 @@ namespace Game.DataStorage
         public byte MinCountTank;
         public byte MinCountHealer;
         public byte MinCountDamage;
+        public byte MaxPremadeCountTank;
+        public byte MaxPremadeCountHealer;
+        public byte MaxPremadeCountDamage;
         public ushort BonusReputationAmount;
         public ushort MentorItemLevel;
         public byte MentorCharLevel;
+        public byte MaxPremadeGroupSize;
+        public int ContentTuningID;
         private int[] _flags = new int[2];
 
         #region Properties
@@ -98,7 +98,7 @@ namespace Game.DataStorage
         public int Id;
         public string Name;
         public string[] Texture = new string[6];
-        public ushort Flags;
+        public int Flags;
         /// <summary>
         /// used to be "Type", maybe needs fixing (works well for now)
         /// </summary>
@@ -116,8 +116,8 @@ namespace Game.DataStorage
         public byte MaterialID;
         public int MinimapStaticCol;
         public byte[] FrameCountTexture = new byte[6];
-        public int[] Color = new int[2];
-        public float[] Float = new float[18];
+        public int[] Color = new int[3];
+        public float[] Float = new float[38];
         public uint[] Int = new uint[4];
         public float[] Coefficient = new float[4];
     }
@@ -125,9 +125,10 @@ namespace Game.DataStorage
     public sealed class LockRecord
     {
         public int Id;
-        public int[] Index = new int[SharedConst.MaxLockCase];
-        public ushort[] Skill = new ushort[SharedConst.MaxLockCase];
-        public byte[] Type = new byte[SharedConst.MaxLockCase];
-        public byte[] Action = new byte[SharedConst.MaxLockCase];
+        public int Flags;
+        public int[] Index = new int[8];
+        public ushort[] Skill = new ushort[8];
+        public byte[] Type = new byte[8];
+        public byte[] Action = new byte[8];
     }
 }

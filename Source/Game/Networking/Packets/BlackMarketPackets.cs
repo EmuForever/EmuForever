@@ -58,9 +58,10 @@ namespace Game.Networking.Packets
         public override void Read()
         {
             Guid = _worldPacket.ReadPackedGuid();
+            // Forever layout: TC BlackMarketBidOnItem::Read
             MarketID = _worldPacket.ReadInt32();
-            BidAmount = _worldPacket.ReadInt64();
             Item.Read(_worldPacket);
+            BidAmount = _worldPacket.ReadInt64();
         }
 
         public ObjectGuid Guid;
@@ -75,9 +76,10 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
+            // Forever layout: TC BlackMarketBidOnItemResult::Write
             _worldPacket.WriteInt32(MarketID);
-            _worldPacket.WriteInt32((int)Result);
             Item.Write(_worldPacket);
+            _worldPacket.WriteInt32((int)Result);
         }
 
         public int MarketID;
@@ -91,9 +93,10 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
+            // Forever layout: TC BlackMarketOutbid/BlackMarketWon::Write
             _worldPacket.WriteInt32(MarketID);
-            _worldPacket.WriteInt32(RandomPropertiesID);
             Item.Write(_worldPacket);
+            _worldPacket.WriteInt32(RandomPropertiesID);
         }
 
         public int MarketID;
@@ -107,9 +110,10 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
+            // Forever layout: TC BlackMarketOutbid/BlackMarketWon::Write
             _worldPacket.WriteInt32(MarketID);
-            _worldPacket.WriteInt32(RandomPropertiesID);
             Item.Write(_worldPacket);
+            _worldPacket.WriteInt32(RandomPropertiesID);
         }
 
         public int MarketID;
@@ -137,13 +141,13 @@ namespace Game.Networking.Packets
         {
             data.WriteInt32(MarketID);
             data.WriteInt32(SellerNPC);
+            Item.Write(data); // Forever layout: TC operator<<(BlackMarketItem)
             data.WriteInt32(Quantity);
             data.WriteInt64(MinBid);
             data.WriteInt64(MinIncrement);
             data.WriteInt64(CurrentBid);
             data.WriteInt32((Seconds)SecondsRemaining);
             data.WriteInt32(NumBids);
-            Item.Write(data);
             data.WriteBit(HighBid);
             data.FlushBits();
         }

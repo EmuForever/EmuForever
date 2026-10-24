@@ -23,7 +23,7 @@ namespace Game
         [WorldPacketHandler(ClientOpcodes.RequestAccountData, Status = SessionStatus.Authed)]
         void HandleRequestAccountData(RequestAccountData request)
         {
-            if (request.DataType > AccountDataTypes.Max)
+            if (request.DataType >= AccountDataTypes.Max)
                 return;
 
             AccountData adata = GetAccountData(request.DataType);
@@ -51,18 +51,39 @@ namespace Game
             if (packet.Size == 0)
             {
                 SetAccountData(packet.DataType, 0, "");
+                SendUpdateAccountDataComplete(packet);
                 return;
             }
 
-            if (packet.Size > 0xFFFF)
+            if (packet.Size > 0xFFFF || packet.CompressedData == null)
             {
-                Log.outError(LogFilter.Network, 
-                    $"UpdateAccountData: Account data packet too big, size {packet.Size}");
+                Log.outError(LogFilter.Network,
+                    $"UpdateAccountData: Account data packet too big or empty, size {packet.Size}");
                 return;
             }
 
-            byte[] data = ZLib.Decompress(packet.CompressedData.GetData(), packet.Size);
-            SetAccountData(packet.DataType, packet.Time, Encoding.Default.GetString(data));
+            byte[] data;
+            try
+            {
+                data = ZLib.Decompress(packet.CompressedData.GetData(), packet.Size);
+            }
+            catch (Exception exception)
+            {
+                Log.outError(LogFilter.Network, $"UpdateAccountData: Failed to decompress account data type {packet.DataType}: {exception.Message}");
+                return;
+            }
+
+            SetAccountData(packet.DataType, packet.Time, Encoding.UTF8.GetString(data));
+            SendUpdateAccountDataComplete(packet);
+        }
+
+        void SendUpdateAccountDataComplete(UserClientUpdateAccountData packet)
+        {
+            UpdateAccountDataComplete complete = new();
+            complete.Player = packet.PlayerGuid;
+            complete.DataType = packet.DataType;
+            complete.Result = 0;
+            SendPacket(complete);
         }
 
         [WorldPacketHandler(ClientOpcodes.SetSelection)]
@@ -71,7 +92,7 @@ namespace Game
             GetPlayer().SetSelection(packet.Selection);
         }
 
-        [WorldPacketHandler(ClientOpcodes.ObjectUpdateFailed, Processing = PacketProcessing.Inplace)]
+        [WorldPacketHandler(ClientOpcodes.ObjectUpdateFailed, Processing = PacketProcessing.ThreadSafe)]
         void HandleObjectUpdateFailed(ObjectUpdateFailed objectUpdateFailed)
         {
             Log.outError(LogFilter.Network,
@@ -81,7 +102,9 @@ namespace Game
             // If create object failed for current player then client will be stuck on loading screen
             if (GetPlayer().GetGUID() == objectUpdateFailed.ObjectGUID)
             {
-                LogoutPlayer(true);
+                // Map handlers must not run global logout/persistence/transfer work.
+                // Closing the session lets the world lifecycle phase remove it safely.
+                KickPlayer("Client failed to create its player object");
                 return;
             }
 
@@ -89,7 +112,7 @@ namespace Game
             GetPlayer().m_clientGUIDs.Remove(objectUpdateFailed.ObjectGUID);
         }
 
-        [WorldPacketHandler(ClientOpcodes.ObjectUpdateRescued, Processing = PacketProcessing.Inplace)]
+        [WorldPacketHandler(ClientOpcodes.ObjectUpdateRescued, Processing = PacketProcessing.ThreadSafe)]
         void HandleObjectUpdateRescued(ObjectUpdateRescued objectUpdateRescued)
         {
             Log.outError(LogFilter.Network, 
@@ -98,7 +121,15 @@ namespace Game
 
             // Client received values update after destroying object
             // re-register object in m_clientGUIDs to send DestroyObject on next visibility update
-            GetPlayer().m_clientGUIDs.Add(objectUpdateRescued.ObjectGUID);
+            if (!GetPlayer().TryTrackVisibleObject(objectUpdateRescued.ObjectGUID))
+            {
+                // A stale client GUID has no world object/reverse edge. Remove it
+                // immediately rather than retaining phantom interest until relocation.
+                var data = new UpdateData(GetPlayer().GetMapId());
+                data.AddDestroyObject(objectUpdateRescued.ObjectGUID);
+                data.BuildPacket(out var packet);
+                SendPacket(packet);
+            }
         }
 
         [WorldPacketHandler(ClientOpcodes.SetActionButton)]

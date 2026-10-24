@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using System;
@@ -66,7 +66,9 @@ namespace Framework.Cryptography
         byte[] CalculateVerifier(string username, string password, byte[] salt)
         {
             // v = g ^ H(s || H(u || ':' || p)) mod N
-            return BigInteger.ModPow(Getg(), CalculateX(username, password, salt), GetN()).ToByteArray();
+            byte[] verifier = BigInteger.ModPow(Getg(), CalculateX(username, password, salt), GetN()).ToByteArray(isUnsigned: true);
+            Array.Resize(ref verifier, GetN().GetByteCount(isUnsigned: true));
+            return verifier;
         }
 
         public abstract BigInteger GetN();
@@ -97,7 +99,6 @@ namespace Framework.Cryptography
         static BigInteger N;// the modulus, an algorithm parameter; all operations are mod this
         static BigInteger g;// a [g]enerator for the ring of integers mod N, algorithm parameter
 
-        static SHA1 _sha1 = SHA1.Create();
 
         static GruntSRP6()
         {
@@ -106,16 +107,16 @@ namespace Framework.Cryptography
         }
 
         public GruntSRP6() : base() { }
-        public GruntSRP6(string username, byte[] salt, byte[] verifier) : base(new BigInteger(_sha1.ComputeHash(Encoding.UTF8.GetBytes(username)), true, true), salt, verifier, N, g, 3) { }
+        public GruntSRP6(string username, byte[] salt, byte[] verifier) : base(new BigInteger(SHA1.HashData(Encoding.UTF8.GetBytes(username)), true, true), salt, verifier, N, g, 3) { }
 
         public override BigInteger CalculateServerEvidence(BigInteger A, BigInteger clientM1, BigInteger K)
         {
-            return new BigInteger(_sha1.ComputeHash(A.ToByteArray().Combine(clientM1.ToByteArray().Combine(K.ToByteArray()))), true, true);
+            return new BigInteger(SHA1.HashData(A.ToByteArray().Combine(clientM1.ToByteArray().Combine(K.ToByteArray()))), true, true);
         }
 
         public override BigInteger CalculateX(string username, string password, byte[] salt)
         {
-            return new BigInteger(_sha1.ComputeHash(salt.Combine(_sha1.ComputeHash(Encoding.UTF8.GetBytes(username + ":" + password)))), true, true);
+            return new BigInteger(SHA1.HashData(salt.Combine(SHA1.HashData(Encoding.UTF8.GetBytes(username + ":" + password)))), true, true);
         }
 
         public override BigInteger? DoVerifyClientEvidence(BigInteger A, BigInteger clientM1)
@@ -123,17 +124,17 @@ namespace Framework.Cryptography
             if ((A % N).IsZero)
                 return null;
 
-            BigInteger u = new(_sha1.ComputeHash(A.ToByteArray().Combine(B.ToByteArray())), false, true);
+            BigInteger u = new(SHA1.HashData(A.ToByteArray().Combine(B.ToByteArray())), false, true);
             byte[] S = BigInteger.ModPow(A * BigInteger.ModPow(v, u, N), b, N).ToByteArray();
 
             byte[] K = SHA1Interleave(S);
 
             // NgHash = H(N) xor H(g)
-            byte[] NHash = _sha1.ComputeHash(N.ToByteArray());
-            byte[] gHash = _sha1.ComputeHash(g.ToByteArray());
+            byte[] NHash = SHA1.HashData(N.ToByteArray());
+            byte[] gHash = SHA1.HashData(g.ToByteArray());
             byte[] NgHash = NHash.Select((x, i) => (byte)(x ^ gHash[i])).ToArray();
 
-            BigInteger ourM = new BigInteger(_sha1.ComputeHash(NgHash.Combine(I.ToByteArray().Combine(s.Combine(A.ToByteArray().Combine(B.ToByteArray().Combine(K)))))), true, true);
+            BigInteger ourM = new BigInteger(SHA1.HashData(NgHash.Combine(I.ToByteArray().Combine(s.Combine(A.ToByteArray().Combine(B.ToByteArray().Combine(K)))))), true, true);
             if (ourM == clientM1)
                 return new BigInteger(K, true, true);
 
@@ -161,8 +162,8 @@ namespace Framework.Cryptography
             p /= 2; // offset into buffers
 
             // hash each of the halves, starting at the first nonzero byte
-            byte[] hash0 = _sha1.ComputeHash(buf0[p..].Combine(S[(S.Length / 2 - p)..]));
-            byte[] hash1 = _sha1.ComputeHash(buf1[p..].Combine(S[(S.Length / 2 - p)..]));
+            byte[] hash0 = SHA1.HashData(buf0[p..].Combine(S[(S.Length / 2 - p)..]));
+            byte[] hash1 = SHA1.HashData(buf1[p..].Combine(S[(S.Length / 2 - p)..]));
 
             // stick the two hashes back together
             byte[] K = new byte[SHA1.HashSizeInBytes * 2];
@@ -323,8 +324,8 @@ namespace Framework.Cryptography
         {
             string tmp = username + ":" + password;
 
-            Rfc2898DeriveBytes rfc = new Rfc2898DeriveBytes(tmp, salt, (int)GetXIterations(), HashAlgorithmName.SHA512);
-            byte[] xBytes = rfc.GetBytes(SHA512.HashSizeInBytes);
+            byte[] xBytes = Rfc2898DeriveBytes.Pbkdf2(Encoding.UTF8.GetBytes(tmp), salt,
+                (int)GetXIterations(), HashAlgorithmName.SHA512, SHA512.HashSizeInBytes);
             BigInteger x = new(xBytes, true, true);
             if ((xBytes[0] & 0x80) != 0)
             {
@@ -333,7 +334,11 @@ namespace Framework.Cryptography
                 x -= new BigInteger(fix, true);
             }
 
-            return x % (N - 1);
+            // The protocol interprets the PBKDF material as signed. C# remainder
+            // keeps that sign; ModPow requires the positive modular representative.
+            BigInteger modulus = N - 1;
+            x %= modulus;
+            return x.Sign < 0 ? x + modulus : x;
         }
 
         public override BigInteger GetN() { return N; }

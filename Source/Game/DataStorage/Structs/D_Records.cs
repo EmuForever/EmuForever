@@ -40,15 +40,16 @@ namespace Game.DataStorage
         private byte _instanceType;
         public byte OrderIndex;
         public sbyte OldEnumValue;
-        private byte _fallbackDifficultyID;
+        private ushort _fallbackDifficultyID;
         public byte MinPlayers;
         public byte MaxPlayers;
-        private byte _flags;
+        private int _flags;
         public byte ItemContext;
-        public byte ToggleDifficultyID;
-        public ushort GroupSizeHealthCurveID;
-        public ushort GroupSizeDmgCurveID;
-        public ushort GroupSizeSpellPointsCurveID;
+        public ushort ToggleDifficultyID;
+        public int GroupSizeHealthCurveID;
+        public int GroupSizeDmgCurveID;
+        public int GroupSizeSpellPointsCurveID;
+        public int Unknown1105;
 
         #region Properties
         public Difficulty Id => (Difficulty)_id;
@@ -75,11 +76,14 @@ namespace Game.DataStorage
         public LocalizedString Name;
         public int Id;
         private short _mapID;
-        private int _difficultyID;
+        private short _difficultyID;
         public int OrderIndex;
+        public int CompleteWorldStateID;
         public sbyte Bit;
         public int Flags;
+        public int SpellIconFileID;
         public int Faction;
+        public int Unknown1115;
 
         #region Properties
         public int MapID => _mapID;

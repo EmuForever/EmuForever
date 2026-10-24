@@ -54,7 +54,7 @@ namespace Game.Networking.Packets
             movementSpline.FaceGUID = moveSpline.facing.target;
             movementSpline.FaceSpot = moveSpline.facing.f;
 
-            if (splineFlags.HasFlag(SplineFlag.Animation))
+            if (moveSpline.anim_tier != null)
             {
                 MonsterSplineAnimTierTransition animTierTransition = new();
                 animTierTransition.TierTransitionID = moveSpline.anim_tier.TierTransitionId;
@@ -90,25 +90,23 @@ namespace Game.Networking.Packets
             var spline = moveSpline.spline;
             Vector3[] array = spline.GetPoints();
 
+            const float minClientSegmentSquared = 0.01f;
             if (splineFlags.HasFlag(SplineFlag.UncompressedPath))
             {
-                if (!splineFlags.HasFlag(SplineFlag.Cyclic))
+                int count = spline.GetPointCount() - (splineFlags.HasFlag(SplineFlag.Cyclic) ? 4 : 3);
+                Vector3 previous = array[1];
+                for (int i = 0; i < count; ++i)
                 {
-                    int count = spline.GetPointCount() - 3;
-                    for (uint i = 0; i < count; ++i)
-                        movementSpline.Points.Add(array[i + 2]);
-                }
-                else
-                {
-                    int count = spline.GetPointCount() - 3;
-                    movementSpline.Points.Add(array[1]);
-                    for (uint i = 0; i < count; ++i)
-                        movementSpline.Points.Add(array[i + 1]);
+                    Vector3 point = array[i + 2];
+                    if (i + 1 < count && Vector3.DistanceSquared(point, previous) < minClientSegmentSquared)
+                        continue;
+                    movementSpline.Points.Add(point);
+                    previous = point;
                 }
             }
             else
             {
-                int lastIdx = spline.GetPointCount() - 3;
+                int lastIdx = spline.GetPointCount() - (splineFlags.HasFlag(SplineFlag.Cyclic) ? 4 : 3);
                 Span<Vector3> realPath = new Span<Vector3>(spline.GetPoints()).Slice(1);
 
                 movementSpline.Points.Add(realPath[lastIdx]);
@@ -116,19 +114,37 @@ namespace Game.Networking.Packets
                 if (lastIdx > 1)
                 {
                     Vector3 middle = (realPath[0] + realPath[lastIdx]) / 2.0f;
-
-                    // first and last points already appended
+                    Vector3 previous = realPath[0];
                     for (int i = 1; i < lastIdx; ++i)
-                        movementSpline.PackedDeltas.Add(middle - realPath[i]);
+                    {
+                        Vector3 delta = middle - realPath[i];
+                        Vector3 node = middle - new Vector3(
+                            QuantizePackedDelta(delta.X, 11),
+                            QuantizePackedDelta(delta.Y, 11),
+                            QuantizePackedDelta(delta.Z, 10));
+                        if (Vector3.DistanceSquared(node, previous) < minClientSegmentSquared ||
+                            Vector3.DistanceSquared(node, realPath[lastIdx]) < minClientSegmentSquared)
+                            continue;
+                        movementSpline.PackedDeltas.Add(delta);
+                        previous = node;
+                    }
                 }
             }
         }
 
+        static float QuantizePackedDelta(float value, int bits)
+        {
+            int packed = (int)(value * 4.0f) & ((1 << bits) - 1);
+            int shift = 32 - bits;
+            return ((packed << shift) >> shift) * 0.25f;
+        }
+
+        // Forever layout: TC MonsterMove::Write
         public override void Write()
         {
             _worldPacket.WritePackedGuid(MoverGUID);
-            _worldPacket.WriteVector3(Pos);
             SplineData.Write(_worldPacket);
+            _worldPacket.WriteVector3(Pos);
         }
 
         public MovementMonsterSpline SplineData;
@@ -224,12 +240,16 @@ namespace Game.Networking.Packets
     {
         public TransferPending() : base(ServerOpcodes.TransferPending) { }
 
+        // Forever layout: TC TransferPending::Write
         public override void Write()
         {
             _worldPacket.WriteInt32(MapID);
             _worldPacket.WriteXYZ(OldMapPosition);
             _worldPacket.WriteBit(Ship.HasValue);
             _worldPacket.WriteBit(TransferSpellID.HasValue);
+            _worldPacket.WriteBit(TaxiPathID.HasValue);
+            _worldPacket.FlushBits();
+
             if (Ship.HasValue)
             {
                 _worldPacket.WriteInt32(Ship.Value.Id);
@@ -239,13 +259,15 @@ namespace Game.Networking.Packets
             if (TransferSpellID.HasValue)
                 _worldPacket.WriteInt32(TransferSpellID.Value);
 
-            _worldPacket.FlushBits();
+            if (TaxiPathID.HasValue)
+                _worldPacket.WriteInt32(TaxiPathID.Value);
         }
 
         public int MapID = -1;
         public Position OldMapPosition;
         public ShipTransferPending? Ship;
         public int? TransferSpellID;
+        public int? TaxiPathID;
 
         public struct ShipTransferPending
         {
@@ -277,16 +299,21 @@ namespace Game.Networking.Packets
     {
         public NewWorld() : base(ServerOpcodes.NewWorld) { }
 
+        // Forever layout: TC NewWorld::Write
         public override void Write()
         {
             _worldPacket.WriteInt32(MapID);
             Loc.Write(_worldPacket);
             _worldPacket.WriteUInt32(Reason);
-            _worldPacket.WriteXYZ(MovementOffset);
+            _worldPacket.WriteXYZ(MovementOffset ?? new Position());
+            _worldPacket.WriteInt32(Counter);
+            _worldPacket.WriteUInt64(InstanceID);
         }
 
         public int MapID;
         public uint Reason;
+        public int Counter;
+        public ulong InstanceID;           // Required for damageMeterResetOnNewInstance cvar
         public TeleportLocation Loc = new();
         public Position MovementOffset;    // Adjusts all pending movement events by this offset
     }
@@ -308,11 +335,15 @@ namespace Game.Networking.Packets
             _worldPacket.WriteInt32(SequenceIndex);
             _worldPacket.WriteXYZ(Pos);
             _worldPacket.WriteFloat(Facing);
-            _worldPacket.WriteUInt8(PreloadWorld);
 
+            // Forever layout: TC MoveTeleport::Write
             _worldPacket.WriteBit(TransportGUID.HasValue);
             _worldPacket.WriteBit(Vehicle.HasValue);
+            _worldPacket.WriteBit(PreloadWorld);
             _worldPacket.FlushBits();
+
+            if (TransportGUID.HasValue)
+                _worldPacket.WritePackedGuid(TransportGUID.Value);
 
             if (Vehicle.HasValue)
             {
@@ -321,9 +352,6 @@ namespace Game.Networking.Packets
                 _worldPacket.WriteBit(Vehicle.Value.VehicleExitTeleport);
                 _worldPacket.FlushBits();
             }
-
-            if (TransportGUID.HasValue)
-                _worldPacket.WritePackedGuid(TransportGUID.Value);
         }
 
         public Position Pos;
@@ -332,7 +360,7 @@ namespace Game.Networking.Packets
         public ObjectGuid MoverGUID;
         public ObjectGuid? TransportGUID;
         public float Facing;
-        public byte PreloadWorld;
+        public bool PreloadWorld;
     }
 
     public class MoveUpdateTeleport : ServerPacket
@@ -341,9 +369,14 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
+            // Forever layout: TC MoveUpdateTeleport::Write
             Status.Write(_worldPacket);
 
             _worldPacket.WriteInt32(MovementForces != null ? MovementForces.Count : 0);
+            if (MovementForces != null)
+                foreach (MovementForce force in MovementForces)
+                    force.Write(_worldPacket);
+
             _worldPacket.WriteBit(WalkSpeed.HasValue);
             _worldPacket.WriteBit(RunSpeed.HasValue);
             _worldPacket.WriteBit(RunBackSpeed.HasValue);
@@ -354,10 +387,6 @@ namespace Game.Networking.Packets
             _worldPacket.WriteBit(TurnRate.HasValue);
             _worldPacket.WriteBit(PitchRate.HasValue);
             _worldPacket.FlushBits();
-
-            if (MovementForces != null)
-                foreach (MovementForce force in MovementForces)
-                    force.Write(_worldPacket);
 
             if (WalkSpeed.HasValue)
                 _worldPacket.WriteFloat(WalkSpeed.Value);
@@ -845,7 +874,8 @@ namespace Game.Networking.Packets
 
             public void Write(WorldPacket data)
             {
-                data.WriteUInt16((ushort)MessageID);
+                // Forever layout: TC MoveStateChange operator<<
+                data.WriteUInt32((uint)MessageID);
                 data.WriteInt32(SequenceIndex);
                 data.WriteBit(Speed.HasValue);
                 data.WriteBit(SpeedRange != null);
@@ -856,10 +886,8 @@ namespace Game.Networking.Packets
                 data.WriteBit(MovementForceGUID.HasValue);
                 data.WriteBit(MovementInertiaID.HasValue);
                 data.WriteBit(MovementInertiaLifetimeMs.HasValue);
+                data.WriteBit(DriveCapabilityRecID.HasValue);
                 data.FlushBits();
-
-                if (@MovementForce != null)
-                    @MovementForce.Write(data);
 
                 if (Speed.HasValue)
                     data.WriteFloat(Speed.Value);
@@ -884,9 +912,11 @@ namespace Game.Networking.Packets
                 {
                     data.WriteFloat(CollisionHeight.Value.Height);
                     data.WriteFloat(CollisionHeight.Value.Scale);
-                    data.WriteBits((byte)CollisionHeight.Value.Reason, 2);
-                    data.FlushBits();
+                    data.WriteUInt8((byte)CollisionHeight.Value.Reason);
                 }
+
+                if (@MovementForce != null)
+                    @MovementForce.Write(data);
 
                 if (MovementForceGUID.HasValue)
                     data.WritePackedGuid(MovementForceGUID.Value);
@@ -896,6 +926,9 @@ namespace Game.Networking.Packets
 
                 if (MovementInertiaLifetimeMs.HasValue)
                     data.WriteUInt32(MovementInertiaLifetimeMs.Value);
+
+                if (DriveCapabilityRecID.HasValue)
+                    data.WriteInt32(DriveCapabilityRecID.Value);
             }
 
             public ServerOpcodes MessageID;
@@ -909,6 +942,7 @@ namespace Game.Networking.Packets
             public ObjectGuid? MovementForceGUID;
             public int? MovementInertiaID;
             public uint? MovementInertiaLifetimeMs;
+            public int? DriveCapabilityRecID;
         }
     }
 
@@ -1010,15 +1044,54 @@ namespace Game.Networking.Packets
     {
         public int TierTransitionID;
         public uint StartTime;
-        public uint EndTime;
+        public uint ExtraDuration;
         public byte AnimTier;
 
+        // Forever layout: TC MonsterSplineAnimTierTransition operator<<
         public void Write(WorldPacket data)
         {
             data.WriteInt32(TierTransitionID);
-            data.WriteUInt32(StartTime);
-            data.WriteUInt32(EndTime);
             data.WriteUInt8(AnimTier);
+            data.WriteUInt32(StartTime);
+            data.WriteUInt32(ExtraDuration);
+        }
+    }
+
+    public struct MonsterSplineTurnData
+    {
+        public float StartFacing;
+        public float TotalTurnRads;
+        public float RadsPerSec;
+
+        // Forever layout: TC MonsterSplineTurnData operator<<
+        public void Write(WorldPacket data)
+        {
+            data.WriteFloat(StartFacing);
+            data.WriteFloat(TotalTurnRads);
+            data.WriteFloat(RadsPerSec);
+        }
+    }
+
+    public struct MonsterSplineSpellVisualNodeInfo
+    {
+        public int SpellID;
+        public SpellCastVisual Visual;
+        public uint StartNodeIndex;
+    }
+
+    public class MonsterSplineClientSpellVisualData
+    {
+        public MonsterSplineSpellVisualNodeInfo[] NodeInfo = new MonsterSplineSpellVisualNodeInfo[16];
+
+        // Forever layout: TC MonsterSplineClientSpellVisualData operator<<
+        public void Write(WorldPacket data)
+        {
+            foreach (var nodeInfo in NodeInfo)
+            {
+                data.WriteInt32(nodeInfo.SpellID);
+                nodeInfo.Visual.Write(data);
+                data.WriteUInt32(nodeInfo.StartNodeIndex);
+            }
         }
     }
 
@@ -1038,28 +1111,17 @@ namespace Game.Networking.Packets
 
     public class MovementSpline
     {
+        // Forever layout: TC MovementSpline operator<<
         public void Write(WorldPacket data)
         {
             data.WriteUInt32(Flags);
+            data.WriteUInt8((byte)Face);
             data.WriteInt32(Elapsed);
             data.WriteUInt32(MoveTime);
             data.WriteUInt32(FadeObjectTime);
             data.WriteUInt8(Mode);
             data.WritePackedGuid(TransportGUID);
             data.WriteInt8(VehicleSeat);
-            data.WriteBits((byte)Face, 2);
-            data.WriteBits(Points.Count, 16);
-            data.WriteBit(VehicleExitVoluntary);
-            data.WriteBit(Interpolate);
-            data.WriteBits(PackedDeltas.Count, 16);
-            data.WriteBit(SplineFilter != null);
-            data.WriteBit(SpellEffectExtraData.HasValue);
-            data.WriteBit(JumpExtraData.HasValue);
-            data.WriteBit(AnimTierTransition.HasValue);
-            data.FlushBits();
-
-            if (SplineFilter != null)
-                SplineFilter.Write(data);
 
             switch (Face)
             {
@@ -1075,11 +1137,26 @@ namespace Game.Networking.Packets
                     break;
             }
 
+            data.WriteBits(Points.Count, 16);
+            data.WriteBit(VehicleExitVoluntary);
+            data.WriteBit(TaxiSmoothing);
+            data.WriteBits(PackedDeltas.Count, 16);
+            data.WriteBit(SplineFilter != null);
+            data.WriteBit(SpellEffectExtraData.HasValue);
+            data.WriteBit(JumpExtraData.HasValue);
+            data.WriteBit(TurnData.HasValue);
+            data.WriteBit(AnimTierTransition.HasValue);
+            data.WriteBit(SpellVisualData != null);
+            data.FlushBits();
+
             foreach (Vector3 pos in Points)
                 data.WriteVector3(pos);
 
             foreach (Vector3 pos in PackedDeltas)
                 data.WritePackXYZ(pos);
+
+            if (SplineFilter != null)
+                SplineFilter.Write(data);
 
             if (SpellEffectExtraData.HasValue)
                 SpellEffectExtraData.Value.Write(data);
@@ -1087,8 +1164,14 @@ namespace Game.Networking.Packets
             if (JumpExtraData.HasValue)
                 JumpExtraData.Value.Write(data);
 
+            if (TurnData.HasValue)
+                TurnData.Value.Write(data);
+
             if (AnimTierTransition.HasValue)
                 AnimTierTransition.Value.Write(data);
+
+            if (SpellVisualData != null)
+                SpellVisualData.Write(data);
         }
 
         public uint Flags; // Spline flags
@@ -1099,14 +1182,16 @@ namespace Game.Networking.Packets
         public List<Vector3> Points = new(); // Spline path
         public byte Mode; // Spline mode - actually always 0 in this packet - Catmullrom mode appears only in SMSG_UPDATE_OBJECT. In this packet it is determined by flags
         public bool VehicleExitVoluntary;
-        public bool Interpolate;
+        public bool TaxiSmoothing;
         public ObjectGuid TransportGUID;
         public sbyte VehicleSeat = -1;
         public List<Vector3> PackedDeltas = new();
         public MonsterSplineFilter SplineFilter;
         public MonsterSplineSpellEffectExtraData? SpellEffectExtraData;
         public MonsterSplineJumpExtraData? JumpExtraData;
+        public MonsterSplineTurnData? TurnData;
         public MonsterSplineAnimTierTransition? AnimTierTransition;
+        public MonsterSplineClientSpellVisualData SpellVisualData;
         public float FaceDirection;
         public ObjectGuid FaceGUID;
         public Vector3 FaceSpot;
@@ -1119,20 +1204,22 @@ namespace Game.Networking.Packets
             Move = new MovementSpline();
         }
 
+        // Forever layout: TC MovementMonsterSpline operator<<
         public void Write(WorldPacket data)
         {
             data.WriteInt32(Id);
-            data.WriteVector3(Destination);
-            data.WriteBit(CrzTeleport);
-            data.WriteBits(StopDistanceTolerance, 3);
-
             Move.Write(data);
+            data.WriteBit(CrzTeleport);
+            data.WriteBit(StopUseFaceDirection);
+            data.WriteBits(StopSplineStyle, 3);
+            data.FlushBits();
         }
 
         public int Id;
-        public Vector3 Destination;
         public bool CrzTeleport;
-        public byte StopDistanceTolerance;    // Determines how far from spline destination the mover is allowed to stop in place 0, 0, 3.0, 2.76, numeric_limits<float>::max, 1.1, float(INT_MAX); default before this field existed was distance 3.0 (index 2)
+        public bool StopUseFaceDirection;
+        public byte StopSplineStyle;
+        public byte StopDistanceTolerance { get => StopSplineStyle; set => StopSplineStyle = value; }   // Determines how far from spline destination the mover is allowed to stop in place 0, 0, 3.0, 2.76, numeric_limits<float>::max, 1.1, float(INT_MAX); default before this field existed was distance 3.0 (index 2)
         public MovementSpline Move;
     }
 

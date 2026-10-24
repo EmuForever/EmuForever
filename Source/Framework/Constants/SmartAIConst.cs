@@ -135,8 +135,9 @@ namespace Framework.Constants
         None = 0,
         PersonalSpawn = 1,
         PreferUnit = 2,
+        AttackInvoker = 4,
 
-        All = PersonalSpawn | PreferUnit,
+        All = PersonalSpawn | PreferUnit | AttackInvoker,
     }
 
     public enum SmartEvents
@@ -247,7 +248,7 @@ namespace Framework.Constants
         ActivateGobject = 9,      //
         RandomEmote = 10,     // Emoteid1, Emoteid2, Emoteid3...
         Cast = 11,     // Spellid, Castflags, TriggeredFlags
-        SummonCreature = 12,     // Creatureid, Summontype, Duration In Ms, Storageid, Attackinvoker, flags(SmartActionSummonCreatureFlags)
+        SummonCreature = 12,     // CreatureId, summonType, durationMs, storedTargetId, flags, count, createdBySpell
         ThreatSinglePct = 13,     // Threat%
         ThreatAllPct = 14,     // Threat%
         CallAreaexploredoreventhappens = 15,     // Questid
@@ -387,6 +388,7 @@ namespace Framework.Constants
         BecomePersonalCloneForPlayer = 149, // summonType 1-8, duration in ms
         TriggerGameEvent = 150, // eventId, useSaiTargetAsGameEventSource
         DoAction = 151,
+        CompleteQuest = 152, // QuestId; event, area trigger or tracking quests only
         End
     }
 

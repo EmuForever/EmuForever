@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -677,10 +677,10 @@ namespace Game.Entities
             {
                 // remove elite bonuses included in DB values
                 CreatureBaseStats stats = Global.ObjectMgr.GetCreatureBaseStats(petlevel, cinfo.UnitClass);
-                CreatureDifficulty creatureDifficulty = GetCreatureDifficulty();
+                CreatureTemplateStats creatureDifficulty = GetCreatureTemplateStats();
 
                 float healthmod = GetHealthMod(cinfo.Classification);
-                int basehp = stats.GenerateHealth(GetCreatureDifficulty());
+                int basehp = stats.GenerateHealth(GetCreatureTemplateStats());
                 int health = (int)(basehp * healthmod);
                 int mana = stats.GenerateMana(creatureDifficulty);
 
@@ -846,7 +846,7 @@ namespace Game.Entities
                              * or not just for this default case)
                              */
                             CreatureBaseStats stats = Global.ObjectMgr.GetCreatureBaseStats(petlevel, cinfo.UnitClass);
-                            float basedamage = stats.GenerateBaseDamage(GetCreatureDifficulty());
+                            float basedamage = stats.GenerateBaseDamage(GetCreatureTemplateStats());
 
                             float weaponBaseMinDamage = basedamage;
                             float weaponBaseMaxDamage = basedamage * 1.5f;

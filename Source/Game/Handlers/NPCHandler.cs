@@ -174,6 +174,9 @@ namespace Game
                 _player.SendAreaSpiritHealerTime(unit);
             }
 
+            // Classic 1.60: "talk to" objectives are credited when the gossip opens (TC-forever HandleGossipHelloOpcode)
+            _player.TalkedToCreature(unit.GetEntry(), unit.GetGUID());
+
             _player.PlayerTalkClass.ClearMenus();
             if (!unit.GetAI().OnGossipHello(_player))
             {
@@ -280,6 +283,8 @@ namespace Game
         [WorldPacketHandler(ClientOpcodes.SpiritHealerActivate)]
         void HandleSpiritHealerActivate(SpiritHealerActivate packet)
         {
+            if (IsServerControlled) return; // SI players never accept resurrection sickness.
+
             Creature unit = 
                 GetPlayer().GetNPCIfCanInteractWith(packet.Healer, NPCFlags1.SpiritHealer, NPCFlags2.None);
 
@@ -326,6 +331,8 @@ namespace Game
                     GetPlayer().TeleportTo(corpseGrave.Loc);
             }
         }
+
+
 
         [WorldPacketHandler(ClientOpcodes.BinderActivate, Processing = PacketProcessing.Inplace)]
         void HandleBinderActivate(Hello packet)
@@ -528,6 +535,7 @@ namespace Game
 
                     ulong price = (ulong)Math.Floor(itemTemplate.GetBuyPrice() * discountMod);
                     price = itemTemplate.GetBuyPrice() > 0 ? Math.Max(1ul, price) : price;
+                    price = GetPlayer().ApplyClassicLegacyPriceMod(price, 0);
 
                     int priceMod = GetPlayer().GetTotalAuraModifier(AuraType.ModVendorItemsPrices);
                     if (priceMod != 0)

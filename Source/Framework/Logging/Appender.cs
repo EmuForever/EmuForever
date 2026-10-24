@@ -18,15 +18,57 @@ class ConsoleAppender : Appender
             ConsoleColor.Green,
             ConsoleColor.Yellow,
             ConsoleColor.Red,
-            ConsoleColor.Blue
+            ConsoleColor.Blue,
+            ConsoleColor.Magenta
         ];
+    }
+
+    // Console output is written by one background thread. A Windows console is slow, and it blocks every
+    // writer outright while its window is paused (for example during a QuickEdit text selection); written
+    // synchronously, that froze map threads for seconds at a time. Bursts beyond the queue are dropped and
+    // counted rather than stalling the game.
+    static readonly System.Collections.Concurrent.BlockingCollection<(ConsoleColor Color, string Text)> Pending = new(20000);
+    static long _dropped;
+    static readonly System.Threading.Thread Writer = StartWriter();
+
+    static System.Threading.Thread StartWriter()
+    {
+        var thread = new System.Threading.Thread(() =>
+        {
+            foreach (var (color, text) in Pending.GetConsumingEnumerable())
+            {
+                try
+                {
+                    long dropped = System.Threading.Interlocked.Exchange(ref _dropped, 0);
+                    if (dropped != 0)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine($" Console output was too busy; skipped {dropped} log lines (log files keep them).");
+                    }
+                    Console.ForegroundColor = color;
+                    Console.WriteLine(text);
+                    Console.ResetColor();
+                }
+                catch (Exception) { /* A closed console must not stop logging. */ }
+            }
+        }) { IsBackground = true, Name = "Console log" };
+        thread.Start();
+        // Let queued lines (a crash report, a shutdown message) reach the console before exit.
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => Flush();
+        return thread;
+    }
+
+    public static void Flush()
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(2);
+        while (Pending.Count > 0 && DateTime.UtcNow < deadline) System.Threading.Thread.Sleep(10);
     }
 
     public override void _write(LogMessage message)
     {
-        Console.ForegroundColor = _consoleColor[(int)message.level];
-        Console.WriteLine(message.prefix + message.text);
-        Console.ResetColor();
+        _ = Writer;
+        if (!Pending.TryAdd((_consoleColor[(int)message.level], $" {message.prefix} {message.text}")))
+            System.Threading.Interlocked.Increment(ref _dropped);
     }
 
     public override AppenderType GetAppenderType()

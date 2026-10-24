@@ -42,8 +42,9 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
+            // Forever layout: TC RequestAccountData::Read
             PlayerGuid = _worldPacket.ReadPackedGuid();
-            DataType = (AccountDataTypes)_worldPacket.ReadBits<uint>(4);
+            DataType = (AccountDataTypes)_worldPacket.ReadInt32();
         }
 
         public ObjectGuid PlayerGuid;
@@ -56,10 +57,11 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WritePackedGuid(Player);
+            // Forever layout: TC UpdateAccountData::Write
             _worldPacket.WriteInt64(Time);
             _worldPacket.WriteUInt32(Size);
-            _worldPacket.WriteBits((uint)DataType, 4);
+            _worldPacket.WritePackedGuid(Player);
+            _worldPacket.WriteInt32((int)DataType);
 
             if (CompressedData == null)
                 _worldPacket.WriteUInt32(0);
@@ -78,16 +80,34 @@ namespace Game.Networking.Packets
         public ByteBuffer CompressedData;
     }
 
+    // TC UpdateAccountDataComplete: acknowledges CMSG_UPDATE_ACCOUNT_DATA; the client keeps the upload pending without it.
+    public class UpdateAccountDataComplete : ServerPacket
+    {
+        public UpdateAccountDataComplete() : base(ServerOpcodes.UpdateAccountDataComplete) { }
+
+        public override void Write()
+        {
+            _worldPacket.WritePackedGuid(Player);
+            _worldPacket.WriteInt32((int)DataType);
+            _worldPacket.WriteInt32(Result);
+        }
+
+        public ObjectGuid Player;
+        public AccountDataTypes DataType = 0;
+        public int Result;
+    }
+
     public class UserClientUpdateAccountData : ClientPacket
     {
         public UserClientUpdateAccountData(WorldPacket packet) : base(packet) { }
 
         public override void Read()
         {
-            PlayerGuid = _worldPacket.ReadPackedGuid();
+            // Forever layout: TC UserClientUpdateAccountData::Read
             Time = _worldPacket.ReadInt64();
             Size = _worldPacket.ReadUInt32();
-            DataType = (AccountDataTypes)_worldPacket.ReadBits<uint>(4);
+            PlayerGuid = _worldPacket.ReadPackedGuid();
+            DataType = (AccountDataTypes)_worldPacket.ReadInt32();
 
             int compressedSize = _worldPacket.ReadInt32();
             if (compressedSize != 0)

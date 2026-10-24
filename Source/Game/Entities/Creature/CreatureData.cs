@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Collections;
@@ -22,7 +22,7 @@ namespace Game.Entities
         public string TitleAlt;
         public string IconName;
         public List<int> GossipMenuIds = new();
-        public Dictionary<Difficulty, CreatureDifficulty> difficultyStorage = new();
+        public CreatureTemplateStats Stats = new();
         public Expansion RequiredExpansion;
         public int VignetteID; // @todo Read Vignette.db2
         public int Faction;
@@ -45,6 +45,7 @@ namespace Game.Entities
         public Class TrainerClass;
         public CreatureType CreatureType;
         public int PetSpellDataId;
+        public int CreatureImmunitiesId;
         public int[] Resistance = new int[(int)SpellSchools.Max];
         public int[] Spells = new int[SharedConst.MaxCreatureSpells];
         public int VehicleId;
@@ -134,12 +135,12 @@ namespace Game.Entities
             return CreatureModel.DefaultVisibleModel;
         }
 
-        public bool IsExotic(CreatureDifficulty creatureDifficulty)
+        public bool IsExotic(CreatureTemplateStats creatureDifficulty)
         {
             return creatureDifficulty.TypeFlags.HasFlag(CreatureTypeFlags.TameableExotic);
         }
 
-        public bool IsTameable(bool canTameExotic, CreatureDifficulty creatureDifficulty)
+        public bool IsTameable(bool canTameExotic, CreatureTemplateStats creatureDifficulty)
         {
             if (CreatureType != CreatureType.Beast || Family == CreatureFamily.None
                 || !creatureDifficulty.TypeFlags.HasFlag(CreatureTypeFlags.Tameable))
@@ -151,15 +152,29 @@ namespace Game.Entities
             return canTameExotic || !IsExotic(creatureDifficulty);
         }
 
+        // Built per locale on first query rather than for every template in all twelve locales up front
+        // (about 600k prebuilt packets, each holding an unwritten buffer, most never sent).
         public void InitializeQueryData()
         {
-            for (var loc = Locale.enUS; loc < Locale.Total; ++loc)
-                QueryData[(int)loc] = BuildQueryData(loc, Difficulty.None);
+            Array.Clear(QueryData);
+        }
+
+        public QueryCreatureResponse GetQueryData(Locale locale)
+        {
+            QueryCreatureResponse cached = System.Threading.Volatile.Read(ref QueryData[(int)locale]);
+            if (cached != null)
+                return cached;
+
+            // Shared by sessions on several network threads: serialize once before publishing it.
+            cached = BuildQueryData(locale, Difficulty.None);
+            cached.WritePacketData();
+            System.Threading.Volatile.Write(ref QueryData[(int)locale], cached);
+            return cached;
         }
 
         public QueryCreatureResponse BuildQueryData(Locale locale, Difficulty difficulty)
         {
-            CreatureDifficulty creatureDifficulty = GetDifficulty(difficulty);
+            CreatureTemplateStats creatureDifficulty = Stats;
 
             var queryTemp = new QueryCreatureResponse();
 
@@ -196,7 +211,7 @@ namespace Game.Entities
 
             stats.CreatureMovementInfoID = MovementId;
             stats.RequiredExpansion = RequiredExpansion;
-            stats.HealthScalingExpansion = creatureDifficulty.HealthScalingExpansion;
+            stats.HealthScalingExpansion = Expansion.Classic;
             stats.VignetteID = VignetteID;
             stats.Class = UnitClass;
             stats.CreatureDifficultyID = creatureDifficulty.CreatureDifficultyID;
@@ -229,37 +244,24 @@ namespace Game.Entities
             return queryTemp;
         }
 
-        public CreatureDifficulty GetDifficulty(Difficulty difficulty)
-        {
-            var creatureDifficulty = difficultyStorage.LookupByKey(difficulty);
-            if (creatureDifficulty != null)
-                return creatureDifficulty;
-
-            // If there is no data for the difficulty, try to get data for the fallback difficulty
-            var difficultyEntry = CliDB.DifficultyStorage.LookupByKey(difficulty);
-            if (difficultyEntry != null)
-                return GetDifficulty(difficultyEntry.FallbackDifficultyID);
-
-            return new CreatureDifficulty();
-        }
     }
 
     public class CreatureBaseStats
     {
         public int[] BaseHealth = new int[(int)Expansion.Current + 1];
         public int BaseMana;
-        public int BaseArmor;
+        public int[] BaseArmor = new int[(int)Expansion.Current + 1];
         public int AttackPower;
         public int RangedAttackPower;
         public float[] BaseDamage = new float[(int)Expansion.Current + 1];
 
         //Helpers
-        public int GenerateHealth(CreatureDifficulty difficulty)
+        public int GenerateHealth(CreatureTemplateStats difficulty)
         { 
-            return (int)Math.Ceiling(BaseHealth[(int)difficulty.GetHealthScalingExpansion()] * difficulty.HealthModifier); 
+            return (int)Math.Ceiling(BaseHealth[0] * difficulty.HealthModifier); 
         }
 
-        public int GenerateMana(CreatureDifficulty difficulty)
+        public int GenerateMana(CreatureTemplateStats difficulty)
         {
             // Mana can be 0.
             if (BaseMana == 0)
@@ -268,14 +270,14 @@ namespace Game.Entities
             return (int)Math.Ceiling(BaseMana * difficulty.ManaModifier);
         }
 
-        public int GenerateArmor(CreatureDifficulty difficulty)
+        public int GenerateArmor(CreatureTemplateStats difficulty)
         { 
-            return (int)Math.Ceiling(BaseArmor * difficulty.ArmorModifier); 
+            return (int)Math.Ceiling(BaseArmor[0] * difficulty.ArmorModifier); 
         }
 
-        public float GenerateBaseDamage(CreatureDifficulty difficulty) 
+        public float GenerateBaseDamage(CreatureTemplateStats difficulty) 
         { 
-            return BaseDamage[(int)difficulty.GetHealthScalingExpansion()]; 
+            return BaseDamage[0]; 
         }
     }
 
@@ -306,8 +308,7 @@ namespace Game.Entities
         public sbyte equipmentId;
         public float WanderDistance;
         public uint currentwaypoint;
-        public int curhealth;
-        public int curmana;
+        public uint? curHealthPct;
         public MovementGeneratorType movementType;
         public NPCFlags1? npcflag;
         public NPCFlags2? npcflag2;
@@ -323,6 +324,7 @@ namespace Game.Entities
         public CreatureGroundMovementType Ground;
         public CreatureFlightMovementType Flight;
         public bool Swim;
+        public bool HoverInitiallyEnabled;
         public bool Rooted;
         public CreatureChaseMovementType Chase;
         public CreatureRandomMovementType Random;
@@ -477,11 +479,10 @@ namespace Game.Entities
         }
     }
 
-    public class CreatureDifficulty
+    public class CreatureTemplateStats
     {
         public byte MinLevel;
         public byte MaxLevel;
-        public Expansion HealthScalingExpansion;
         public float HealthModifier;
         public float ManaModifier;
         public float ArmorModifier;
@@ -489,6 +490,7 @@ namespace Game.Entities
         public int CreatureDifficultyID;
         public CreatureTypeFlags TypeFlags;
         public uint TypeFlags2;
+        public uint TypeFlags3;
         public int LootID;
         public int PickPocketLootID;
         public int SkinLootID;
@@ -496,7 +498,7 @@ namespace Game.Entities
         public int GoldMax;
         public CreatureStaticFlagsHolder StaticFlags;
 
-        public CreatureDifficulty()
+        public CreatureTemplateStats()
         {
             MinLevel = 1;
             MaxLevel = 1;
@@ -507,11 +509,6 @@ namespace Game.Entities
         }
 
         // Helpers
-        public Expansion GetHealthScalingExpansion()
-        {
-            return HealthScalingExpansion == Expansion.LevelCurrent ? PlayerConst.CurrentExpansion : HealthScalingExpansion;
-        }
-
         public SkillType GetRequiredLootSkill()
         {
             if (TypeFlags.HasFlag(CreatureTypeFlags.SkinWithHerbalism))

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -117,7 +117,7 @@ namespace Game.Entities
             SetRangedAttackPower((int)attackPowerValueRanged.NakedValue);
             SetRangedAttackPowerModPos((int)attackPowerValueRanged.ModPos);
             SetRangedAttackPowerModNeg((int)attackPowerValueRanged.ModNeg);
-            SetAttackPowerMultiplier(1.0f);
+            SetRangedAttackPowerMultiplier(1.0f);
 
             if (skipDependents)
                 return;
@@ -172,7 +172,7 @@ namespace Game.Entities
             UnitMod baseMods = new()
             {
                 Flat = new((int)(attackPower / 14.0f * variance)),
-                Mult = new(attackSpeedMulti * GetCreatureDifficulty().DamageModifier), // = DamageModifier * _GetDamageMod(rank)
+                Mult = new(attackSpeedMulti * GetCreatureTemplateStats().DamageModifier), // = DamageModifier * _GetDamageMod(rank)
             };
 
             StatMods.ApplyModsTo(minDamageModified, unitMod, addTotalPct, myBasePerm: baseMods).ReApplyTo(maxDamageModified);

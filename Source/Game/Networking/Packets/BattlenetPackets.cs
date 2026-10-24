@@ -105,7 +105,7 @@ namespace Game.Networking.Packets
     public struct MethodCall
     {
         public uint GetServiceHash() { return (uint)((Type >> 32) & 0xFFFFFFFF); }
-        public uint GetMethodId() { return (uint)(Type & 0xFFFFFFFF); }
+        public uint GetMethodId() { return (uint)Type & 0x3FFFFFFF; }
 
         public void Read(ByteBuffer data)
         {

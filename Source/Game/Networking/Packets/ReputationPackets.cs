@@ -8,27 +8,50 @@ namespace Game.Networking.Packets
 {
     public class InitializeFactions : ServerPacket
     {
-        const ushort FactionCount = 1000;
-
         public InitializeFactions() : base(ServerOpcodes.InitializeFactions, ConnectionType.Instance) { }
 
         public override void Write()
         {
-            for (ushort i = 0; i < FactionCount; ++i)
-            {
-                _worldPacket.WriteUInt16((ushort)((ushort)FactionFlags[i] & 0xFF));
-                _worldPacket.WriteInt32(FactionStandings[i]);
-            }
+            _worldPacket.WriteInt32(Factions.Count);
+            _worldPacket.WriteInt32(Bonuses.Count);
 
-            for (ushort i = 0; i < FactionCount; ++i)
-                _worldPacket.WriteBit(FactionHasBonus[i]);
+            foreach (FactionData faction in Factions)
+                faction.Write(_worldPacket);
 
-            _worldPacket.FlushBits();
+            foreach (FactionBonusData bonus in Bonuses)
+                bonus.Write(_worldPacket);
+
         }
 
-        public int[] FactionStandings = new int[FactionCount];
-        public bool[] FactionHasBonus = new bool[FactionCount]; //@todo: implement faction bonus
-        public ReputationFlags[] FactionFlags = new ReputationFlags[FactionCount];
+        public List<FactionData> Factions = new();
+        public List<FactionBonusData> Bonuses = new();
+    }
+
+    public struct FactionData
+    {
+        public void Write(WorldPacket data)
+        {
+            data.WriteInt32(FactionID);
+            data.WriteUInt16((ushort)Flags);
+            data.WriteInt32(Standing);
+        }
+
+        public int FactionID;
+        public ReputationFlags Flags;
+        public int Standing;
+    }
+
+    public struct FactionBonusData
+    {
+        public void Write(WorldPacket data)
+        {
+            data.WriteInt32(FactionID);
+            data.WriteBit(FactionHasBonus);
+            data.FlushBits();
+        }
+
+        public int FactionID;
+        public bool FactionHasBonus;
     }
 
     class RequestForcedReactions : ClientPacket
@@ -40,7 +63,7 @@ namespace Game.Networking.Packets
 
     class SetForcedReactions : ServerPacket
     {
-        public SetForcedReactions() : base(ServerOpcodes.SetForcedReactions, ConnectionType.Instance) { }
+        public SetForcedReactions() : base(ServerOpcodes.SetForcedReactions) { }
 
         public override void Write()
         {
@@ -90,16 +113,20 @@ namespace Game.Networking.Packets
         public FactionStandingData(int index, int standing)
         {
             Index = index;
+            Change = 0;
             Standing = standing;
         }
 
         public void Write(WorldPacket data)
         {
             data.WriteInt32(Index);
+            data.WriteInt32(Change);
             data.WriteInt32(Standing);
+            data.WriteInt32(0);
         }
 
         int Index;
+        int Change;
         int Standing;
     }
 }

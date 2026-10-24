@@ -109,7 +109,13 @@ namespace Game.Networking.Packets
     {
         public NewTaxiPath() : base(ServerOpcodes.NewTaxiPath) { }
 
-        public override void Write() { }
+        // Forever layout: TC NewTaxiPath::Write
+        public override void Write()
+        {
+            _worldPacket.WriteInt32(TaxiNodesID);
+        }
+
+        public int TaxiNodesID;
     }
 
     class ActivateTaxiReplyPkt : ServerPacket

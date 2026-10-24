@@ -25,6 +25,7 @@ namespace Scripts.EasternKingdoms.BlackrockMountain.BlackrockDepths.Draganthauri
     }
 
     [Script]
+    [Script("boss_emperor_dagran_thaurissan")]
     class boss_draganthaurissan : ScriptedAI
     {
         InstanceScript _instance;

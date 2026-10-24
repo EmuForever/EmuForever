@@ -12,7 +12,8 @@ public class ObjectAccessor : Singleton<ObjectAccessor>
 {
     object _lockObject = new();
 
-    Dictionary<ObjectGuid, Player> _players = new();
+    // Read from every map thread on hot paths (every item owner lookup); lock-free reads.
+    System.Collections.Concurrent.ConcurrentDictionary<ObjectGuid, Player> _players = new();
 
     ObjectAccessor() { }
 
@@ -199,8 +200,7 @@ public class ObjectAccessor : Singleton<ObjectAccessor>
     // this returns Player even if he is not in world, for example teleporting
     public Player FindConnectedPlayer(ObjectGuid guid)
     {
-        lock (_lockObject)
-            return _players.LookupByKey(guid);
+        return _players.TryGetValue(guid, out Player player) ? player : null;
     }
     public Player FindConnectedPlayerByName(string name)
     {
@@ -218,8 +218,7 @@ public class ObjectAccessor : Singleton<ObjectAccessor>
 
     public ICollection<Player> GetPlayers()
     {
-        lock (_lockObject)
-            return _players.Values;
+        return _players.Values; // a snapshot
     }
 
     public void AddObject(Player obj)
@@ -236,7 +235,7 @@ public class ObjectAccessor : Singleton<ObjectAccessor>
         lock (_lockObject)
         {
             PlayerNameMapHolder.Remove(obj);
-            _players.Remove(obj.GetGUID());
+            _players.TryRemove(obj.GetGUID(), out _);
         }
     }
 }
@@ -261,5 +260,6 @@ class PlayerNameMapHolder
         return _playerNameMap.LookupByKey(name);
     }
 
-    static Dictionary<string, Player> _playerNameMap = new();
+    // case-insensitive: names created in lower case ("war") never matched the capitalized lookup
+    static Dictionary<string, Player> _playerNameMap = new(StringComparer.OrdinalIgnoreCase);
 }

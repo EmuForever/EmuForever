@@ -1,6 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
-// Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
-
+// TrinityCore wotlk_classic scripts ported to CypherCore. GPL version 2 or later; see LICENSE.
 using Framework.Constants;
 using Game.Entities;
 using Game.Maps;
@@ -8,126 +6,45 @@ using Game.Scripting;
 
 namespace Scripts.EasternKingdoms.Gnomeregan
 {
-    struct GNOGameObjectIds
-    {
-        public const int CaveInLeft = 146085;
-        public const int CaveInRight = 146086;
-        public const int RedRocket = 103820;
-    }
-
-    struct GNOCreatureIds
-    {
-        public const int BlastmasterEmiShortfuse = 7998;
-        public const int CaverndeepAmbusher = 6207;
-        public const int Grubbis = 7361;
-        public const int ViciousFallout = 7079;
-        public const int Chomper = 6215;
-        public const int Electrocutioner = 6235;
-        public const int CrowdPummeler = 6229;
-        public const int Mekgineer = 7800;
-    }
-
-    struct DataTypes
-    {
-        public const int BlastmasterEvent = 0;
-        public const int ViciousFallout = 1;
-        public const int Electrocutioner = 2;
-        public const int CrowdPummeler = 3;
-        public const int Thermaplugg = 4;
-
-        public const int MaxEncounter = 5;
-
-        // Additional Objects
-        public const int GoCaveInLeft = 6;
-        public const int GoCaveInRight = 7;
-        public const int NpcBastmasterEmiShortfuse = 8;
-    }
-
-    struct DataTypes64
-    {
-        public const int GoCaveInLeft = 0;
-        public const int GoCaveInRight = 1;
-        public const int NpcBastmasterEmiShortfuse = 2;
-    }
-
+    [Script]
     class instance_gnomeregan : InstanceMapScript
     {
         public instance_gnomeregan() : base(nameof(instance_gnomeregan), 90) { }
-
-        class instance_gnomeregan_InstanceMapScript : InstanceScript
+        public override InstanceScript GetInstanceScript(InstanceMap map) => new GnomereganInstance(map);
+        class GnomereganInstance : InstanceScript
         {
-            ObjectGuid uiCaveInLeftGUID;
-            ObjectGuid uiCaveInRightGUID;
-
-            ObjectGuid uiBlastmasterEmiShortfuseGUID;
-
-            public instance_gnomeregan_InstanceMapScript(InstanceMap map) : base(map)
+            ObjectGuid _caveLeft, _caveRight, _blastmaster;
+            public GnomereganInstance(InstanceMap map) : base(map)
             {
                 SetHeaders("GNO");
-                SetBossNumber(DataTypes.MaxEncounter);
+                SetBossNumber(5);
+                LoadDungeonEncounterData(new DungeonEncounterData[]
+                {
+                    new(0, 379), new(1, 378), new(2, 380), new(3, 381), new(4, 382)
+                });
             }
-
             public override void OnCreatureCreate(Creature creature)
             {
-                switch (creature.GetEntry())
-                {
-                    case GNOCreatureIds.BlastmasterEmiShortfuse:
-                        uiBlastmasterEmiShortfuseGUID = creature.GetGUID();
-                        break;
-                }
+                if (creature.GetEntry() == 7998) _blastmaster = creature.GetGUID();
             }
-
             public override void OnGameObjectCreate(GameObject go)
             {
-                switch (go.GetEntry())
-                {
-                    case DataTypes64.GoCaveInLeft:
-                        uiCaveInLeftGUID = go.GetGUID();
-                        break;
-                    case DataTypes64.GoCaveInRight:
-                        uiCaveInRightGUID = go.GetGUID();
-                        break;
-                }
+                if (go.GetEntry() == 146085) _caveLeft = go.GetGUID();
+                else if (go.GetEntry() == 146086) _caveRight = go.GetGUID();
             }
-
             public override void OnUnitDeath(Unit unit)
             {
-                Creature creature = unit.ToCreature();
-                if (creature != null)
-                    switch (creature.GetEntry())
-                    {
-                        case GNOCreatureIds.ViciousFallout:
-                            SetBossState(DataTypes.ViciousFallout, EncounterState.Done);
-                            break;
-                        case GNOCreatureIds.Electrocutioner:
-                            SetBossState(DataTypes.Electrocutioner, EncounterState.Done);
-                            break;
-                        case GNOCreatureIds.CrowdPummeler:
-                            SetBossState(DataTypes.CrowdPummeler, EncounterState.Done);
-                            break;
-                        case GNOCreatureIds.Mekgineer:
-                            SetBossState(DataTypes.Thermaplugg, EncounterState.Done);
-                            break;
-                    }
+                if (!unit.IsCreature()) return;
+                int boss = unit.GetEntry() switch { 7079 => 1, 6235 => 2, 6229 => 3, 7800 => 4, _ => -1 };
+                if (boss >= 0) SetBossState(boss, EncounterState.Done);
             }
-
-            public override ObjectGuid GetGuidData(int uiType)
+            public override ObjectGuid GetGuidData(int type) => type switch
             {
-                switch (uiType)
-                {
-                    case DataTypes64.GoCaveInLeft: return uiCaveInLeftGUID;
-                    case DataTypes64.GoCaveInRight: return uiCaveInRightGUID;
-                    case DataTypes64.NpcBastmasterEmiShortfuse: return uiBlastmasterEmiShortfuseGUID;
-                }
-
-                return ObjectGuid.Empty;
-            }
-        }
-
-        public override InstanceScript GetInstanceScript(InstanceMap map)
-        {
-            return new instance_gnomeregan_InstanceMapScript(map);
+                0 => _caveLeft,
+                1 => _caveRight,
+                2 => _blastmaster,
+                _ => ObjectGuid.Empty
+            };
         }
     }
 }
-

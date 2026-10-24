@@ -17,6 +17,7 @@ namespace Game.Networking.Packets
         {
             VendorGUID = _worldPacket.ReadPackedGuid();
             Slot = _worldPacket.ReadInt32();
+            Slot = ClassicInventorySlots.ToServer((byte)Slot);
         }
 
         public ObjectGuid VendorGUID;
@@ -30,15 +31,16 @@ namespace Game.Networking.Packets
             Item = new ItemInstance();
         }
 
+        // Forever layout: TC BuyItem::Read
         public override void Read()
         {
             VendorGUID = _worldPacket.ReadPackedGuid();
             ContainerGUID = _worldPacket.ReadPackedGuid();
+            Item.Read(_worldPacket);
             Quantity = _worldPacket.ReadInt32();
             Muid = _worldPacket.ReadInt32();
             Slot = _worldPacket.ReadInt32();
             ItemType = (ItemVendorType)_worldPacket.ReadInt32();
-            Item.Read(_worldPacket);
         }
 
         public ObjectGuid VendorGUID;
@@ -76,7 +78,7 @@ namespace Game.Networking.Packets
         {
             _worldPacket.WritePackedGuid(VendorGUID);
             _worldPacket.WriteInt32(Muid);
-            _worldPacket.WriteUInt8((byte)Reason);
+            _worldPacket.WriteInt32((int)Reason); // Forever layout: TC BuyFailed::Write
         }
 
         public ObjectGuid VendorGUID;
@@ -133,7 +135,7 @@ namespace Game.Networking.Packets
         public override void Write()
         {
             _worldPacket.WritePackedGuid(ItemGUID);
-            _worldPacket.WriteUInt8(Result);
+            _worldPacket.WriteUInt32(Result); // Forever layout: TC ItemPurchaseRefundResult::Write
             _worldPacket.WriteBit(Contents != null);
             _worldPacket.FlushBits();
             if (Contents != null)
@@ -269,6 +271,8 @@ namespace Game.Networking.Packets
             ToPackSlot = _worldPacket.ReadUInt8();
             ToSlot = _worldPacket.ReadUInt8();
             Quantity = _worldPacket.ReadInt32();
+            ClassicInventorySlots.ToServer(ref FromPackSlot, ref FromSlot);
+            ClassicInventorySlots.ToServer(ref ToPackSlot, ref ToSlot);
         }
 
         public byte ToSlot;
@@ -288,6 +292,8 @@ namespace Game.Networking.Packets
             Inv = new InvUpdate(_worldPacket);
             DestinationSlot = _worldPacket.ReadUInt8();
             SourceSlot = _worldPacket.ReadUInt8();
+            DestinationSlot = ClassicInventorySlots.ToServer(DestinationSlot);
+            SourceSlot = ClassicInventorySlots.ToServer(SourceSlot);
         }
 
         public InvUpdate Inv;
@@ -306,6 +312,8 @@ namespace Game.Networking.Packets
             ContainerSlotA = _worldPacket.ReadUInt8();
             SlotB = _worldPacket.ReadUInt8();
             SlotA = _worldPacket.ReadUInt8();
+            ClassicInventorySlots.ToServer(ref ContainerSlotA, ref SlotA);
+            ClassicInventorySlots.ToServer(ref ContainerSlotB, ref SlotB);
         }
 
         public InvUpdate Inv;        
@@ -337,6 +345,7 @@ namespace Game.Networking.Packets
             Inv = new InvUpdate(_worldPacket);
             PackSlot = _worldPacket.ReadUInt8();
             Slot = _worldPacket.ReadUInt8();
+            ClassicInventorySlots.ToServer(ref PackSlot, ref Slot);
         }
 
         public InvUpdate Inv;
@@ -366,10 +375,13 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
+            // Forever layout: TC AutoStoreBagItem::Read
             Inv = new InvUpdate(_worldPacket);
-            ContainerSlotA = _worldPacket.ReadUInt8();
             ContainerSlotB = _worldPacket.ReadUInt8();
+            ContainerSlotA = _worldPacket.ReadUInt8();
             SlotA = _worldPacket.ReadUInt8();
+            ClassicInventorySlots.ToServer(ref ContainerSlotA, ref SlotA);
+            ContainerSlotB = ClassicInventorySlots.ToServer(ContainerSlotB);
         }
 
         public InvUpdate Inv;
@@ -387,6 +399,7 @@ namespace Game.Networking.Packets
             Count = _worldPacket.ReadInt32();
             ContainerId = _worldPacket.ReadUInt8();
             SlotNum = _worldPacket.ReadUInt8();
+            ClassicInventorySlots.ToServer(ref ContainerId, ref SlotNum);
         }
 
         public int Count;
@@ -418,28 +431,52 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
+            byte container = Slot;
+            int slotInBag = SlotInBag;
+            if (slotInBag >= 0 && slotInBag < ItemSlot.Null)
+            {
+                byte slot = (byte)slotInBag;
+                ClassicInventorySlots.ToClient(ref container, ref slot);
+                slotInBag = slot;
+            }
+
+            // Forever layout: TC ItemPushResult::Write
             _worldPacket.WritePackedGuid(PlayerGUID);
-            _worldPacket.WriteUInt8(Slot);
-            _worldPacket.WriteInt32(SlotInBag);
-            _worldPacket.WriteInt32(QuestLogItemID);
+            _worldPacket.WriteUInt8(container);
+            _worldPacket.WriteInt32(slotInBag);
+            Item.Write(_worldPacket);
+            _worldPacket.WriteInt32(QuestLogItemID); // ProxyItemID
             _worldPacket.WriteInt32(Quantity);
             _worldPacket.WriteInt32(QuantityInInventory);
+            _worldPacket.WriteInt32(QuantityInQuestLog);
             _worldPacket.WriteInt32(DungeonEncounterID);
             _worldPacket.WriteInt32(BattlePetSpeciesID);
             _worldPacket.WriteInt32(BattlePetBreedID);
-            _worldPacket.WriteUInt32(BattlePetBreedQuality);
+            _worldPacket.WriteUInt8((byte)BattlePetBreedQuality);
             _worldPacket.WriteInt32(BattlePetLevel);
             _worldPacket.WritePackedGuid(ItemGUID);
+            _worldPacket.WriteInt32(Toasts.Count);
+            foreach (UiEventToast toast in Toasts)
+                toast.Write(_worldPacket);
 
             _worldPacket.WriteBit(Pushed);
             _worldPacket.WriteBit(Created);
-            _worldPacket.WriteBits((uint)DisplayText, 3);
+            _worldPacket.WriteBit(FakeQuestItem);
+            _worldPacket.WriteBits((uint)DisplayText, 3); // ChatNotifyType
             _worldPacket.WriteBit(IsBonusRoll);
-            _worldPacket.WriteBit(IsEncounterLoot);
+            _worldPacket.WriteBit(IsEncounterLoot); // IsPersonalLoot
+            _worldPacket.WriteBit(false); // CraftingData (not supported by this core)
+            _worldPacket.WriteBit(FirstCraftOperationID.HasValue);
             _worldPacket.FlushBits();
 
-            Item.Write(_worldPacket);
+            if (FirstCraftOperationID.HasValue)
+                _worldPacket.WriteUInt32(FirstCraftOperationID.Value);
         }
+
+        public int QuantityInQuestLog;
+        public List<UiEventToast> Toasts = new();
+        public bool FakeQuestItem;
+        public uint? FirstCraftOperationID;
 
         public ObjectGuid PlayerGUID;
         public byte Slot;
@@ -631,6 +668,31 @@ namespace Game.Networking.Packets
         public ObjectGuid Item;
     }
 
+    class ChangeBagSlotFlag : ClientPacket
+    {
+        public ChangeBagSlotFlag(WorldPacket packet) : base(packet) { }
+
+        public override void Read()
+        {
+            BagIndex = _worldPacket.ReadUInt8();
+            FlagToChange = (BagSlotFlags)_worldPacket.ReadUInt32();
+            On = _worldPacket.HasBit();
+        }
+
+        public byte BagIndex;
+        public BagSlotFlags FlagToChange;
+        public bool On;
+    }
+
+    class SetSortBagsRightToLeft : ClientPacket
+    {
+        public SetSortBagsRightToLeft(WorldPacket packet) : base(packet) { }
+
+        public override void Read() => Enable = _worldPacket.HasBit();
+
+        public bool Enable;
+    }
+
     class SortBags : ClientPacket
     {
         public SortBags(WorldPacket packet) : base(packet) { }
@@ -758,14 +820,15 @@ namespace Game.Networking.Packets
 
         public void Read(WorldPacket data)
         {
-            Value = data.ReadInt32();
             Type = (ItemModifier)data.ReadUInt8();
+            Value = data.ReadInt32();
         }
 
+        // Forever layout: TC operator<<(ItemMod)
         public void Write(WorldPacket data)
         {
-            data.WriteInt32(Value);
             data.WriteUInt8((byte)Type);
+            data.WriteInt32(Value);
         }
 
         public override int GetHashCode()
@@ -801,20 +864,21 @@ namespace Game.Networking.Packets
 
         public void Read(WorldPacket data)
         {
-            var itemModListCount = data.ReadBits<uint>(6);
+            var itemModListCount = data.ReadBits<uint>(7); // Forever layout: TC operator>>(ItemModList)
             data.ResetBitPos();
 
+            Values.Clear();
             for (var i = 0; i < itemModListCount; ++i)
             {
                 var itemMod = new ItemMod();
                 itemMod.Read(data);
-                Values[i] = itemMod;
+                Values.Add(itemMod);
             }
         }
 
         public void Write(WorldPacket data)
         {
-            data.WriteBits(Values.Count, 6);
+            data.WriteBits(Values.Count, 7); // Forever layout: TC operator<<(ItemModList)
             data.FlushBits();
 
             foreach (ItemMod itemMod in Values)
@@ -898,14 +962,11 @@ namespace Game.Networking.Packets
 
         public void Write(WorldPacket data)
         {
+            // Forever layout: TC operator<<(ItemInstance) - RandomProperties* are not sent (server-side only)
             data.WriteInt32(ItemID);
-            data.WriteInt32(RandomPropertiesSeed);
-            data.WriteInt32(RandomPropertiesID);
-
+            Modifications.Write(data);
             data.WriteBit(ItemBonus != null);
             data.FlushBits();
-
-            Modifications.Write(data);
 
             if (ItemBonus != null)
                 ItemBonus.Write(data);
@@ -913,16 +974,14 @@ namespace Game.Networking.Packets
 
         public void Read(WorldPacket data)
         {
+            // Forever layout: TC operator>>(ItemInstance)
             ItemID = data.ReadInt32();
-            RandomPropertiesSeed = data.ReadInt32();
-            RandomPropertiesID = data.ReadInt32();
+            Modifications.Read(data);
 
             if (data.HasBit())
                 ItemBonus = new();
 
             data.ResetBitPos();
-
-            Modifications.Read(data);
 
             if (ItemBonus != null)
                 ItemBonus.Read(data);
@@ -973,10 +1032,13 @@ namespace Game.Networking.Packets
         public int ItemID;
         public List<int> BonusListIDs = new();
 
+        // Classic 1.60.1 (TrinityCore-forever ItemBonusKey): ItemID, BonusListIDs count, Modifications count, the IDs, the
+        // modifications. This core keeps no modifications here, so the count is 0 like the reference server sends.
         public void Write(WorldPacket data)
         {
             data.WriteInt32(ItemID);
             data.WriteInt32(BonusListIDs.Count);
+            data.WriteUInt32(0); // Modifications
 
             foreach (var id in BonusListIDs)
                     data.WriteInt32(id);
@@ -1048,6 +1110,7 @@ namespace Game.Networking.Packets
             {
                 byte containerSlot = data.ReadUInt8();
                 byte slot = data.ReadUInt8();
+                ClassicInventorySlots.ToServer(ref containerSlot, ref slot);
 
                 Items.Add(new(slot, containerSlot));
             }

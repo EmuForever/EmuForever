@@ -191,6 +191,9 @@ namespace Game.Movement
             packet.Pos = new Vector3(loc.X, loc.Y, loc.Z);
             packet.SplineData.StopDistanceTolerance = 2;
             packet.SplineData.Id = move_spline.GetId();
+            packet.SplineData.StopUseFaceDirection = args.facing.type == MonsterMoveType.FacingAngle;
+            packet.SplineData.Move.Face = args.facing.type;
+            packet.SplineData.Move.FaceDirection = args.facing.angle;
 
             if (transport)
             {
@@ -272,6 +275,8 @@ namespace Game.Movement
         public void SetWalk(bool enable) { args.walk = enable; }
 
         public void SetSmooth() { args.flags.EnableCatmullRom(); }
+
+        public void SetSmoothGroundPath(bool enable) { args.flags.SetUnsetFlag(SplineFlag.SmoothGroundPath, enable); }
 
         public void SetUncompressed() { args.flags.SetUnsetFlag(SplineFlag.UncompressedPath); }
 

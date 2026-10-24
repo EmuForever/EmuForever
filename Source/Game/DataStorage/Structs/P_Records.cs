@@ -17,7 +17,7 @@ namespace Game.DataStorage
     public sealed class PhaseRecord
     {
         public int Id;
-        private ushort _flags;
+        private int _flags;
 
         #region Properties
         public PhaseEntryFlags Flags => (PhaseEntryFlags)_flags;
@@ -45,14 +45,13 @@ namespace Game.DataStorage
 
     public sealed class PlayerConditionRecord
     {        
-        private long _raceMask;
-        public LocalizedString FailureDescription;
         public int Id;
+        public LocalizedString FailureDescription;
         public ushort MinLevel;
         public ushort MaxLevel;
         private int _classMask;
         public uint SkillLogic;
-        public byte LanguageID;
+        public int LanguageID;
         public byte MinLanguage;
         public int MaxLanguage;
         public ushort MaxFactionID;
@@ -65,10 +64,10 @@ namespace Game.DataStorage
         public uint CurrentCompletedQuestLogic;
         public uint SpellLogic;
         public uint ItemLogic;
-        public byte ItemFlags;
+        public int ItemFlags;
         public uint AuraSpellLogic;
         public ushort WorldStateExpressionID;
-        public byte WeatherID;
+        public int WeatherID;
         public byte PartyStatus;
         public byte LifetimeMaxPVPRank;
         public uint AchievementLogic;
@@ -85,16 +84,17 @@ namespace Game.DataStorage
         public int MaxAvgItemLevel;
         public ushort MinAvgEquippedItemLevel;
         public ushort MaxAvgEquippedItemLevel;
-        public byte PhaseUseFlags;
+        public int PhaseUseFlags;
         public ushort PhaseID;
         public int PhaseGroupID;
-        public byte Flags;
+        public int Flags;
         public sbyte ChrSpecializationIndex;
         private sbyte _chrSpecializationRole;
         public int ModifierTreeID;
         private sbyte _powerType;
         public byte PowerTypeComp;
         public byte PowerTypeValue;
+        public int MovementFlags;
         private int _weaponSubclassMask;
         public byte MaxGuildLevel;
         public byte MinGuildLevel;
@@ -102,6 +102,9 @@ namespace Game.DataStorage
         public sbyte MinExpansionTier;
         public byte MinPVPRank;
         public byte MaxPVPRank;
+        public int ContentTuningID;
+        public int CovenantID;
+        public int TraitNodeEntryLogic;
         public ushort[] SkillID = new ushort[4];
         public ushort[] MinSkill = new ushort[4];
         public ushort[] MaxSkill = new ushort[4];
@@ -117,7 +120,7 @@ namespace Game.DataStorage
         private int[] _time = new int[2];
         public int[] AuraSpellID = new int[4];
         public byte[] AuraStacks = new byte[4];
-        public ushort[] Achievement = new ushort[4];
+        public int[] Achievement = new int[4];
         public ushort[] AreaID = new ushort[4];
         public byte[] LfgStatus = new byte[4];
         public byte[] LfgCompare = new byte[4];
@@ -125,10 +128,13 @@ namespace Game.DataStorage
         public int[] CurrencyID = new int[4];
         public uint[] CurrencyCount = new uint[4];
         public uint[] QuestKillMonster = new uint[6];
-        public int[] MovementFlags = new int[2];
+        private int[] _raceMask = new int[2];
+        public int[] TraitNodeEntryID = new int[4];
+        public ushort[] TraitNodeEntryMinRank = new ushort[4];
+        public ushort[] TraitNodeEntryMaxRank = new ushort[4];
 
         #region Properties
-        public RaceMask RaceMask => (RaceMask)_raceMask;
+        public RaceMask RaceMask => (RaceMask)_raceMask[0];
         public ClassMask ClassMask => (ClassMask)_classMask;
         public Gender Gender => (Gender)_gender;
         public Gender NativeGender => (Gender)_nativeGender;
@@ -151,9 +157,9 @@ namespace Game.DataStorage
 
     public sealed class PowerTypeRecord
     {
-        public int Id;
         public string NameGlobalStringTag;
         public string CostGlobalStringTag;        
+        public int Id;
         private sbyte _powerTypeEnum;
         public int MinPower;
         public int MaxBasePower;
@@ -163,7 +169,7 @@ namespace Game.DataStorage
         public int _regenInterruptTimeMS;
         public float RegenPeace;
         public float RegenCombat;
-        private short _flags;
+        private int _flags;
 
         #region Properties
         public PowerTypeFlags Flags => (PowerTypeFlags)_flags;
@@ -251,6 +257,7 @@ namespace Game.DataStorage
         public int ActionBarSpellID;
         public int PvpTalentCategoryID;
         public int LevelRequired;
+        public int PlayerConditionID;
     }
 
     public sealed class PvpTalentCategoryRecord
@@ -270,8 +277,8 @@ namespace Game.DataStorage
 
     public sealed class PvpTierRecord
     {
-        public int Id;
         public LocalizedString Name;        
+        public int Id;
         public short MinRating;
         public short MaxRating;
         public int PrevTier;

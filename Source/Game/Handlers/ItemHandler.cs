@@ -555,7 +555,12 @@ namespace Game
                     else if (packet.ContainerGUID == GetPlayer().GetGUID()) // The client sends the player guid when trying to store an item in the default backpack
                         bag = ItemSlot.Null;
 
-                    GetPlayer().BuyItemFromVendorSlot(packet.VendorGUID, packet.Muid, packet.Item.ItemID, (byte)packet.Quantity, new((ItemSlot)packet.Slot, bag));
+                    // in the backpack the slot is an inventory slot (client numbering); in a bag it is the index inside the bag
+                    byte buySlot = (byte)packet.Slot;
+                    if (bag == ItemSlot.Null)
+                        buySlot = ClassicInventorySlots.ToServer(buySlot);
+
+                    GetPlayer().BuyItemFromVendorSlot(packet.VendorGUID, packet.Muid, packet.Item.ItemID, (byte)packet.Quantity, new((ItemSlot)buySlot, bag));
                     break;
                 case ItemVendorType.Currency:
                     GetPlayer().BuyCurrencyFromVendorSlot(packet.VendorGUID, packet.Muid, packet.Item.ItemID, (byte)packet.Quantity);
@@ -1090,9 +1095,22 @@ namespace Game
         [WorldPacketHandler(ClientOpcodes.SortBags, Processing = PacketProcessing.Inplace)]
         void HandleSortBags(SortBags sortBags)
         {
-            // TODO: Implement sorting
-            // Placeholder to prevent completely locking out bags clientside
+            if (_player.IsAlive())
+                new BagSorter(_player).Sort();
+
             SendPacket(new BagCleanupFinished());
+        }
+
+        [WorldPacketHandler(ClientOpcodes.ChangeBagSlotFlag, Processing = PacketProcessing.Inplace)]
+        void HandleChangeBagSlotFlag(ChangeBagSlotFlag packet)
+        {
+            _player.ChangeBagSlotFlags(packet.BagIndex, packet.FlagToChange, packet.On);
+        }
+
+        [WorldPacketHandler(ClientOpcodes.SetSortBagsRightToLeft, Processing = PacketProcessing.Inplace)]
+        void HandleSetSortBagsRightToLeft(SetSortBagsRightToLeft packet)
+        {
+            _player.SetSortBagsRightToLeft(packet.Enable);
         }
 
         [WorldPacketHandler(ClientOpcodes.SortBankBags, Processing = PacketProcessing.Inplace)]

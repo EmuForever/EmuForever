@@ -12,6 +12,7 @@ namespace Game.Networking.Packets
     {
         public WhoIsRequest(WorldPacket packet) : base(packet) { }
 
+        // Forever layout: TC WhoIsRequest::Read
         public override void Read()
         {
             CharName = _worldPacket.ReadString(_worldPacket.ReadBits<int>(6));
@@ -24,9 +25,11 @@ namespace Game.Networking.Packets
     {
         public WhoIsResponse() : base(ServerOpcodes.WhoIs) { }
 
+        // Forever layout: TC WhoIsResponse::Write
         public override void Write()
         {
             _worldPacket.WriteBits(AccountName.GetByteCount(), 11);
+            _worldPacket.FlushBits();
             _worldPacket.WriteString(AccountName);
         }
 
@@ -37,35 +40,31 @@ namespace Game.Networking.Packets
     {
         public WhoRequestPkt(WorldPacket packet) : base(packet) { }
 
+        // Forever layout: TC WhoRequestPkt::Read
         public override void Read()
         {
-            uint areasCount = _worldPacket.ReadBits<uint>(4);
-            IsFromAddOn = _worldPacket.HasBit();
-
-            Request.Read(_worldPacket);
+            Request.Read(_worldPacket, Areas);
             RequestID = _worldPacket.ReadUInt32();
             Origin = _worldPacket.ReadUInt8();
-
-            for (int i = 0; i < areasCount; ++i)
-                Areas.Add(_worldPacket.ReadInt32());
+            IsFromAddOn = _worldPacket.HasBit();
         }
 
         public WhoRequest Request = new();
         public uint RequestID;
         public byte Origin;   // 1 = Social, 2 = Chat, 3 = Item
         public bool IsFromAddOn;
-        public Array<int> Areas= new(10);
+        public Array<int> Areas = new(63); // Classic 1.60: inside the request, 6 bit count
     }
 
     public class WhoResponsePkt : ServerPacket
     {
         public WhoResponsePkt() : base(ServerOpcodes.Who) { }
 
+        // Forever layout: TC WhoResponsePkt::Write
         public override void Write()
         {
             _worldPacket.WriteUInt32(RequestID);
-            _worldPacket.WriteBits(Response.Count, 6);
-            _worldPacket.FlushBits();
+            _worldPacket.WriteInt32(Response.Count); // Classic 1.60: uint32 count
 
             foreach(var entry in Response)
                 entry.Write(_worldPacket);
@@ -80,19 +79,22 @@ namespace Game.Networking.Packets
     {
         public void Read(WorldPacket data)
         {
-            FactionGroup = data.ReadInt32();
+            // Classic 1.60: uint8, int32, 6 x uint32, bool
+            FactionGroup = data.ReadUInt8();
             Locale = data.ReadInt32();
             RequesterVirtualRealmAddress = data.ReadUInt32();
+            data.Skip(5 * 4 + 1);
         }
 
-        public int FactionGroup;
+        public byte FactionGroup;
         public int Locale;
         public uint RequesterVirtualRealmAddress;
     }
 
     public class WhoRequest
     {
-        public void Read(WorldPacket data)
+        // Forever layout: TC ReadWhoRequest (Classic 1.60)
+        public void Read(WorldPacket data, Array<int> areas)
         {
             MinLevel = data.ReadInt32();
             MaxLevel = data.ReadInt32();
@@ -101,6 +103,7 @@ namespace Game.Networking.Packets
 
             int nameLength = data.ReadBits<int>(6);
             int virtualRealmNameLength = data.ReadBits<int>(9);
+            int surnameLength = data.ReadBits<int>(9);
             int guildNameLength = data.ReadBits<int>(7);
             int guildVirtualRealmNameLength = data.ReadBits<int>(9);
             int wordsCount = data.ReadBits<int>(3);
@@ -108,30 +111,42 @@ namespace Game.Networking.Packets
             ShowEnemies = data.HasBit();
             ShowArenaPlayers = data.HasBit();
             ExactName = data.HasBit();
+            Unknown = data.HasBit();
+            uint areasCount = data.ReadBits<uint>(6);
             if (data.HasBit())
                 ServerInfo = new();
 
             data.ResetBitPos();
 
-            for (int i = 0; i < wordsCount; ++i)
-            {
-                Words.Add(data.ReadString(data.ReadBits<int>(7)));
-                data.ResetBitPos();
-            }
-
             Name = data.ReadString(nameLength);
             VirtualRealmName = data.ReadString(virtualRealmNameLength);
+            Surname = data.ReadString(surnameLength);
             Guild = data.ReadString(guildNameLength);
             GuildVirtualRealmName = data.ReadString(guildVirtualRealmNameLength);
 
+            for (int i = 0; i < wordsCount; ++i)
+            {
+                int len = data.ReadBits<int>(7);
+                data.ResetBitPos();
+                Words.Add(data.ReadString(len));
+            }
+
+            for (int i = 0; i < areasCount; ++i)
+                areas.Add(data.ReadInt32());
+
             if (ServerInfo.HasValue)
-                ServerInfo.Value.Read(data);
+            {
+                var info = new WhoRequestServerInfo();
+                info.Read(data);
+                ServerInfo = info;
+            }
         }
 
         public int MinLevel;
         public int MaxLevel;
         public string Name;
         public string VirtualRealmName;
+        public string Surname;                            // Classic 1.60
         public string Guild;
         public string GuildVirtualRealmName;
         public RaceMask RaceFilter;
@@ -140,11 +155,13 @@ namespace Game.Networking.Packets
         public bool ShowEnemies;
         public bool ShowArenaPlayers;
         public bool ExactName;
+        public bool Unknown;                              // Classic 1.60: fourth flag bit
         public WhoRequestServerInfo? ServerInfo;
     }
 
     public class WhoEntry
     {
+        // Forever layout: TC operator<<(WhoEntry)
         public void Write(WorldPacket data)
         {
             PlayerData.Write(data);
@@ -152,12 +169,19 @@ namespace Game.Networking.Packets
             data.WritePackedGuid(GuildGUID);
             data.WriteUInt32(GuildVirtualRealmAddress);
             data.WriteInt32(AreaID);
+            // Classic 1.60: two more int32 after the area, a {4 x uint32, int8} block and one more bit
+            data.WriteInt32(0);
+            data.WriteInt32(0);
+            for (int i = 0; i < 4; ++i)
+                data.WriteUInt32(0);
+            data.WriteInt8(0);
 
             data.WriteBits(GuildName.GetByteCount(), 7);
             data.WriteBit(IsGM);
-            data.WriteString(GuildName);
-
+            data.WriteBit(false);
             data.FlushBits();
+
+            data.WriteString(GuildName);
         }
 
         public PlayerGuidLookupData PlayerData = new();

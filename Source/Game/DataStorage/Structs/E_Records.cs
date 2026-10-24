@@ -8,18 +8,18 @@ namespace Game.DataStorage
     public sealed class EmotesRecord
     {
         public int Id;
-        private long _raceMask;
         public string EmoteSlashCommand;
-        private int _animId;
+        private short _animId;
         public uint EmoteFlags;
-        public byte EmoteSpecProc;
+        public int EmoteSpecProc;
         public uint EmoteSpecProcParam;
         public uint EventSoundID;
         public uint SpellVisualKitId;
         public int ClassMask;
+        private int[] _raceMask = new int[2];
 
         #region Properties
-        public RaceMask RaceMask => (RaceMask)_raceMask;
+        public RaceMask RaceMask => (RaceMask)_raceMask[0];
         public Anim AnimId => (Anim)_animId;
         #endregion
     }
@@ -64,6 +64,7 @@ namespace Game.DataStorage
         public float PlayerSecondaryStat;
         public float ArmorConstant;
         public float CreatureSpellDamage;
+        public int ContentSetID;
         public int Lvl;
 
         #region Properties

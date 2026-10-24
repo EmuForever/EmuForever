@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -99,8 +99,8 @@ namespace Game.Loots
             var templates = Global.ObjectMgr.GetCreatureTemplates();
             foreach (var creatureTemplate in templates.Values)
             {
-                foreach (var (_, creatureDifficulty) in creatureTemplate.difficultyStorage)
                 {
+                    var creatureDifficulty = creatureTemplate.Stats;
                     if (creatureDifficulty.LootID != 0)
                     {
                         if (!lootIdSet.Contains(creatureDifficulty.LootID))
@@ -311,8 +311,8 @@ namespace Game.Loots
             var templates = Global.ObjectMgr.GetCreatureTemplates();
             foreach (var creatureTemplate in templates.Values)
             {
-                foreach (var (_, creatureDifficulty) in creatureTemplate.difficultyStorage)
                 {
+                    var creatureDifficulty = creatureTemplate.Stats;
                     if (creatureDifficulty.PickPocketLootID != 0)
                     {
                         if (!lootIdSet.Contains(creatureDifficulty.PickPocketLootID))
@@ -410,8 +410,8 @@ namespace Game.Loots
             var templates = Global.ObjectMgr.GetCreatureTemplates();
             foreach (var creatureTemplate in templates.Values)
             {
-                foreach (var (_, creatureDifficulty) in creatureTemplate.difficultyStorage)
                 {
+                    var creatureDifficulty = creatureTemplate.Stats;
                     if (creatureDifficulty.SkinLootID != 0)
                     {
                         if (!lootIdSet.Contains(creatureDifficulty.SkinLootID))
@@ -512,10 +512,20 @@ namespace Game.Loots
         }
     }
 
+    // 1.60.1 world schema: *_loot_template.ItemType (reference LootStoreItem::Type)
+    public enum LootStoreItemType : sbyte
+    {
+        Item = 0,
+        Reference = 1,
+        Currency = 2,
+        TrackingQuest = 3,
+    }
+
     public class LootStoreItem
     {
-        public int itemid;                 // id of the item
-        public int reference;              // referenced TemplateleId
+        public int itemid;                 // id of the item / referenced template / currency / quest (depends on type)
+        public LootStoreItemType type;
+        public int reference;              // referenced TemplateleId (== itemid when type == Reference, else 0)
         public float chance;                // Chance to drop for both quest and non-quest items, Chance to be used for refs
         public LootModes lootmode;
         public bool needs_quest;            // quest drop (negative ChanceOrQuestChance in DB)
@@ -524,10 +534,11 @@ namespace Game.Loots
         public byte maxcount;               // max drop count for the item mincount or Ref multiplicator
         public ConditionsReference conditions;  // additional loot condition
 
-        public LootStoreItem(int _itemid, int _reference, float _chance, bool _needs_quest, LootModes _lootmode, byte _groupid, byte _mincount, byte _maxcount)
+        public LootStoreItem(int _itemid, LootStoreItemType _type, float _chance, bool _needs_quest, LootModes _lootmode, byte _groupid, byte _mincount, byte _maxcount)
         {
             itemid = _itemid;
-            reference = _reference;
+            type = _type;
+            reference = _type == LootStoreItemType.Reference ? _itemid : 0;
             chance = _chance;
             lootmode = _lootmode;
             needs_quest = _needs_quest;
@@ -548,71 +559,94 @@ namespace Game.Loots
 
             float qualityModifier = pProto != null && rate ? WorldConfig.Values[qualityToRate[(int)pProto.GetQuality()]].Float : 1.0f;
 
-            return RandomHelper.randChance(chance * qualityModifier);
+            return RandomHelper.randChance(Game.Systems.Legacy.LegacyEffectEngine.GatheringChance(itemid, chance) * qualityModifier);
         }
 
         public bool IsValid(LootStore store, int entry)
         {
+            string prefix = $"Table '{store.GetName()}' Entry {entry} ItemType {type} Item {itemid}";
+
             if (mincount == 0)
             {
-                Log.outError(LogFilter.Sql, 
-                    $"Table '{store.GetName()}' entry {entry} item {itemid}: " +
-                    $"wrong mincount ({reference}) - skipped");
+                Log.outError(LogFilter.Sql, $"{prefix}: wrong MinCount ({mincount}) - skipped");
                 return false;
             }
 
-            if (reference == 0)                                  // item (quest or non-quest) entry, maybe grouped
+            bool ValidateChanceAndCount()
             {
-                ItemTemplate proto = Global.ObjectMgr.GetItemTemplate(itemid);
-                if (proto == null)
-                {
-                    Log.outError(LogFilter.Sql, 
-                        $"Table '{store.GetName()}' entry {entry} item {itemid}: " +
-                        $"item does not exist - skipped");
-                    return false;
-                }
-
                 if (chance == 0 && groupid == 0)                      // Zero Chance is allowed for grouped entries only
                 {
-                    Log.outError(LogFilter.Sql, 
-                        $"Table '{store.GetName()}' entry {entry} item {itemid}: " +
-                        $"equal-chanced grouped entry, but group not defined - skipped");
+                    Log.outError(LogFilter.Sql, $"{prefix}: equal-chanced grouped entry, but group not defined - skipped");
                     return false;
                 }
 
-                if (chance != 0 && chance < 0.000001f)             // loot with low Chance
+                if (chance != 0 && chance < 0.0001f)                  // loot with low Chance
                 {
-                    Log.outError(LogFilter.Sql, 
-                        $"Table '{store.GetName()}' entry {entry} item {itemid}: " +
-                        $"low Chance ({chance}) - skipped");
+                    Log.outError(LogFilter.Sql, $"{prefix}: low chance ({chance}) - skipped");
                     return false;
                 }
 
-                if (maxcount < mincount)                       // wrong max count
+                if (maxcount < mincount)                              // wrong max count
                 {
-                    Log.outError(LogFilter.Sql, 
-                        $"Table '{store.GetName()}' entry {entry} item {itemid}: " +
-                        $"max count ({maxcount}) less that min count ({reference}) - skipped");
+                    Log.outError(LogFilter.Sql, $"{prefix}: MaxCount ({maxcount}) less that MinCount ({mincount}) - skipped");
                     return false;
                 }
+                return true;
             }
-            else                                                    // mincountOrRef < 0
+
+            switch (type)
             {
-                if (needs_quest)
+                case LootStoreItemType.Item:
+                    if (Global.ObjectMgr.GetItemTemplate(itemid) == null)
+                    {
+                        Log.outError(LogFilter.Sql, $"{prefix}: item does not exist - skipped");
+                        return false;
+                    }
+                    return ValidateChanceAndCount();
+                case LootStoreItemType.Reference:
+                    if (needs_quest)
+                        Log.outError(LogFilter.Sql, $"{prefix}: quest required will be ignored");
+                    else if (chance == 0)                             // no Chance for the reference
+                    {
+                        Log.outError(LogFilter.Sql, $"{prefix}: zero chance is specified for a reference, skipped");
+                        return false;
+                    }
+                    return true;                                      // Referenced template existence is checked at whole store level
+                case LootStoreItemType.Currency:
+                    if (!CliDB.CurrencyTypesStorage.ContainsKey(itemid))
+                    {
+                        Log.outError(LogFilter.Sql, $"{prefix}: currency does not exist - skipped");
+                        return false;
+                    }
+                    if (!ValidateChanceAndCount())
+                        return false;
+                    break;
+                case LootStoreItemType.TrackingQuest:
                 {
-                    Log.outError(LogFilter.Sql,
-                        $"Table '{store.GetName()}' entry {entry} item {itemid}: " +
-                        $"quest Chance will be treated as non-quest Chance");
+                    Quest quest = Global.ObjectMgr.GetQuestTemplate(itemid);
+                    if (quest == null)
+                    {
+                        Log.outError(LogFilter.Sql, $"{prefix}: quest does not exist - skipped");
+                        return false;
+                    }
+                    if (!quest.HasFlag(QuestFlags.TrackingEvent))
+                    {
+                        Log.outError(LogFilter.Sql, $"{prefix}: quest is not a tracking flag - skipped");
+                        return false;
+                    }
+                    if (!ValidateChanceAndCount())
+                        return false;
+                    break;
                 }
-                else if (chance == 0)                              // no Chance for the reference
-                {
-                    Log.outError(LogFilter.Sql,
-                        $"Table '{store.GetName()}' entry {entry} item {itemid}: " +
-                        $"zero Chance is specified for a reference, skipped");
+                default:
+                    Log.outError(LogFilter.Sql, $"{prefix}: invalid ItemType {(sbyte)type}, skipped");
                     return false;
-                }
             }
-            return true;                                            // Referenced template existence is checked at whole store level
+
+            // Currency / tracking-quest loot generation is not implemented by this core's Loot (no rows in the 1.60.1 DB);
+            // skip instead of generating them as items.
+            Log.outError(LogFilter.Sql, $"{prefix}: ItemType {type} loot is not supported by this core - skipped");
+            return false;
         }
 
         public static WorldCfg[] qualityToRate =
@@ -679,6 +713,12 @@ namespace Game.Loots
 
         public bool HaveLootFor(int loot_id) { return m_LootTemplates.LookupByKey(loot_id) != null; }
 
+        // SI quest knowledge: every item this template (and its references) can drop, with its listed chance.
+        public void ForEachDrop(int loot_id, Action<int, float, bool> visit)
+        {
+            m_LootTemplates.LookupByKey(loot_id)?.ForEachDrop(m_LootTemplates, visit);
+        }
+
         public bool HaveQuestLootFor(int loot_id)
         {
             var lootTemplate = m_LootTemplates.LookupByKey(loot_id);
@@ -730,17 +770,17 @@ namespace Game.Loots
             // Clearing store (for reloading case)
             Clear();
 
-            //                                            0     1      2        3         4             5          6        7         8
-            SQLResult result = DB.World.Query($"SELECT Entry, Item, Reference, Chance, QuestRequired, LootMode, GroupId, MinCount, MaxCount FROM {GetName()}");
+            //                                            0      1         2     3       4              5         6        7         8
+            SQLResult result = DB.World.Query($"SELECT Entry, ItemType, Item, Chance, QuestRequired, LootMode, GroupId, MinCount, MaxCount FROM {GetName()}");
             if (result.IsEmpty())
                 return 0;
 
             int count = 0;
             do
             {
-                int entry = result.Read<int>(0);
-                int item = result.Read<int>(1);
-                int reference = result.Read<int>(2);
+                int entry = (int)result.Read<uint>(0);
+                var type = (LootStoreItemType)result.Read<sbyte>(1);
+                int item = (int)result.Read<uint>(2);
                 float chance = result.Read<float>(3);
                 bool needsquest = result.Read<bool>(4);
                 var lootmode = (LootModes)result.Read<ushort>(5);
@@ -756,7 +796,7 @@ namespace Game.Loots
                     return 0;
                 }
 
-                LootStoreItem storeitem = new(item, reference, chance, needsquest, lootmode, groupid, mincount, maxcount);
+                LootStoreItem storeitem = new(item, type, chance, needsquest, lootmode, groupid, mincount, maxcount);
 
                 if (!storeitem.IsValid(this, entry))            // Validity checks
                     continue;
@@ -1166,6 +1206,23 @@ namespace Game.Loots
             return false;//not found or not reference
         }
 
+        public void ForEachDrop(LootTemplateMap store, Action<int, float, bool> visit, int depth = 0)
+        {
+            if (depth > 4)
+                return;
+
+            foreach (var item in Entries)
+            {
+                if (item.reference > 0)
+                    store.LookupByKey(item.reference)?.ForEachDrop(store, visit, depth + 1);
+                else if (item.type == LootStoreItemType.Item)
+                    visit(item.itemid, item.chance, item.needs_quest);
+            }
+
+            foreach (var group in Groups.Values)
+                group?.ForEachDrop(visit);
+        }
+
         LootStoreItemList Entries = new();                          // not grouped only
         Dictionary<int, LootGroup> Groups = new();                           // groups have own (optimised) processing, grouped entries go there
 
@@ -1177,6 +1234,18 @@ namespace Game.Loots
                     ExplicitlyChanced.Add(item);
                 else
                     EqualChanced.Add(item);
+            }
+
+            public void ForEachDrop(Action<int, float, bool> visit)
+            {
+                foreach (var i in ExplicitlyChanced)
+                    if (i.type == LootStoreItemType.Item)
+                        visit(i.itemid, i.chance, i.needs_quest);
+
+                float equal = EqualChanced.Count != 0 ? 100.0f / EqualChanced.Count : 0;
+                foreach (var i in EqualChanced)
+                    if (i.type == LootStoreItemType.Item)
+                        visit(i.itemid, equal, i.needs_quest);
             }
 
             public bool HasQuestDrop()
@@ -1307,7 +1376,7 @@ namespace Game.Loots
                         if (item.chance >= 100.0f)
                             return item;
 
-                        roll -= item.chance;
+                        roll -= Game.Systems.Legacy.LegacyEffectEngine.GatheringChance(item.itemid, item.chance);
                         if (roll < 0)
                             return item;
                     }

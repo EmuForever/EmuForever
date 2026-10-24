@@ -78,7 +78,7 @@ namespace Game.Networking.Packets
 
     public class ResetWeeklyCurrency : ServerPacket
     {
-        public ResetWeeklyCurrency() : base(ServerOpcodes.ResetWeeklyCurrency, ConnectionType.Instance) { }
+        public ResetWeeklyCurrency() : base(ServerOpcodes.ResetWeeklyCurrency) { }
 
         public override void Write() { }
     }
@@ -142,7 +142,7 @@ namespace Game.Networking.Packets
                 _worldPacket.WriteInt64(RechargeCycleStartTime.Value);
 
             if (OverflownCurrencyID.HasValue)
-                _worldPacket.WriteInt64(OverflownCurrencyID.Value);
+                _worldPacket.WriteInt32((int)OverflownCurrencyID.Value);
         }
 
         public int Type;
@@ -181,12 +181,14 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
+            // Forever layout: TC SetupCurrency::Write
             _worldPacket.WriteInt32(Data.Count);
 
             foreach (Record data in Data)
             {
                 _worldPacket.WriteInt32(data.Type);
                 _worldPacket.WriteInt32(data.Quantity);
+                _worldPacket.WriteUInt8(data.Flags);
 
                 _worldPacket.WriteBit(data.WeeklyQuantity.HasValue);
                 _worldPacket.WriteBit(data.MaxWeeklyQuantity.HasValue);
@@ -195,7 +197,6 @@ namespace Game.Networking.Packets
                 _worldPacket.WriteBit(data.TotalEarned.HasValue);
                 _worldPacket.WriteBit(data.NextRechargeTime.HasValue);
                 _worldPacket.WriteBit(data.RechargeCycleStartTime.HasValue);
-                _worldPacket.WriteBits(data.Flags, 5);
                 _worldPacket.FlushBits();
 
                 if (data.WeeklyQuantity.HasValue)
@@ -363,12 +364,19 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteInt32((int)DifficultyID);
+            // Forever layout: TC WorldServerInfo::Write
+            _worldPacket.WriteInt16((short)DifficultyID);
+            _worldPacket.WritePackedGuid(HouseGUID);
+            _worldPacket.WritePackedGuid(HouseOwnerAccountGUID);
+            _worldPacket.WritePackedGuid(HouseCosmeticOwnerGUID);
+            _worldPacket.WritePackedGuid(NeighborhoodGUID);
             _worldPacket.WriteBit(IsTournamentRealm);
             _worldPacket.WriteBit(XRealmPvpAlert);
+            _worldPacket.WriteBit(BlockExitingLoadingScreen);
             _worldPacket.WriteBit(RestrictedAccountMaxLevel.HasValue);
             _worldPacket.WriteBit(RestrictedAccountMaxMoney.HasValue);
             _worldPacket.WriteBit(InstanceGroupSize.HasValue);
+            _worldPacket.FlushBits();
 
             if (RestrictedAccountMaxLevel.HasValue)
                 _worldPacket.WriteInt32(RestrictedAccountMaxLevel.Value);
@@ -378,9 +386,13 @@ namespace Game.Networking.Packets
 
             if (InstanceGroupSize.HasValue)
                 _worldPacket.WriteInt32(InstanceGroupSize.Value);
-
-            _worldPacket.FlushBits();
         }
+
+        public ObjectGuid HouseGUID;
+        public ObjectGuid HouseOwnerAccountGUID;
+        public ObjectGuid HouseCosmeticOwnerGUID;
+        public ObjectGuid NeighborhoodGUID;
+        public bool BlockExitingLoadingScreen;
 
         public Difficulty DifficultyID;
         public bool IsTournamentRealm;
@@ -396,7 +408,8 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
-            DifficultyID = _worldPacket.ReadUInt32();
+            // Forever layout: TC SetDungeonDifficulty::Read
+            DifficultyID = (uint)_worldPacket.ReadInt16();
         }
 
         public uint DifficultyID;
@@ -408,8 +421,9 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
-            DifficultyID = _worldPacket.ReadInt32();
-            Legacy = _worldPacket.ReadUInt8();
+            // Forever layout: TC SetRaidDifficulty::Read
+            Legacy = (byte)_worldPacket.ReadInt32();
+            DifficultyID = _worldPacket.ReadInt16();
         }
 
         public int DifficultyID;
@@ -422,7 +436,8 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteInt32(DifficultyID);
+            // The 1.60.1 wire field is a 16-bit difficulty ID.
+            _worldPacket.WriteInt16((short)DifficultyID);
         }
 
         public int DifficultyID;
@@ -434,8 +449,10 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteInt32(DifficultyID);
-            _worldPacket.WriteUInt8((byte)(Legacy ? 1 : 0));
+            // Match Trinity's 1.60.1 response layout: legacy flag first,
+            // followed by the 16-bit difficulty ID.
+            _worldPacket.WriteInt32(Legacy ? 1 : 0);
+            _worldPacket.WriteInt16((short)DifficultyID);
         }
 
         public int DifficultyID;
@@ -579,7 +596,8 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
-            StandState = (UnitStandStateType)_worldPacket.ReadUInt32();
+            // Forever layout: TC StandStateChange::Read
+            StandState = (UnitStandStateType)_worldPacket.ReadUInt8();
         }
 
         public UnitStandStateType StandState;
@@ -595,8 +613,9 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteInt32(AnimKitID);
+            // Forever layout: TC StandStateUpdate::Write
             _worldPacket.WriteUInt8((byte)State);
+            _worldPacket.WriteUInt32((uint)AnimKitID);
         }
 
         int AnimKitID;
@@ -609,8 +628,9 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
+            // Forever layout: TC SetAnimTier::Write
             _worldPacket.WritePackedGuid(Unit);
-            _worldPacket.WriteBits(Tier, 3);
+            _worldPacket.WriteUInt8((byte)Tier);
             _worldPacket.FlushBits();
         }
 
@@ -632,7 +652,8 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteInt32((int)Timer);
+            // Forever layout: TC StartMirrorTimer::Write
+            _worldPacket.WriteUInt8((byte)Timer);
             _worldPacket.WriteInt32(Value);
             _worldPacket.WriteInt32(MaxValue);
             _worldPacket.WriteInt32(Scale);
@@ -659,7 +680,8 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteInt32((int)Timer);
+            // Forever layout: TC PauseMirrorTimer::Write
+            _worldPacket.WriteUInt8((byte)Timer);
             _worldPacket.WriteBit(Paused);
             _worldPacket.FlushBits();
         }
@@ -677,7 +699,8 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteInt32((int)Timer);
+            // Forever layout: TC StopMirrorTimer::Write
+            _worldPacket.WriteUInt8((byte)Timer);
         }
 
         public MirrorTimerType Timer;
@@ -707,6 +730,7 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
+            // Forever layout: TC LevelUpInfo::Write
             _worldPacket.WriteInt32(Level);
             _worldPacket.WriteInt32(HealthDelta);
 
@@ -717,6 +741,7 @@ namespace Game.Networking.Packets
                 _worldPacket.WriteInt32(stat);
 
             _worldPacket.WriteInt32(NumNewTalents);
+            _worldPacket.WriteInt32(NumNewPvpTalentSlots);
         }
 
         public int Level = 0;
@@ -724,6 +749,7 @@ namespace Game.Networking.Packets
         public int[] PowerDelta = new int[(int)PowerType.MaxPerClass];
         public int[] StatDelta = new int[(int)Stats.Max];
         public int NumNewTalents;
+        public int NumNewPvpTalentSlots;
     }
 
     public class PlayMusic : ServerPacket
@@ -785,10 +811,11 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteUInt8(CustomizationScope);
+            // Forever layout: TC EnableBarberShop::Write
+            _worldPacket.WriteUInt32(CustomizationScope); // CustomizationFeatureMask
         }
         
-        public byte CustomizationScope;
+        public uint CustomizationScope;
     }
 
     class PhaseShiftChange : ServerPacket
@@ -821,7 +848,7 @@ namespace Game.Networking.Packets
 
     public class ZoneUnderAttack : ServerPacket
     {
-        public ZoneUnderAttack() : base(ServerOpcodes.ZoneUnderAttack, ConnectionType.Instance) { }
+        public ZoneUnderAttack() : base(ServerOpcodes.ZoneUnderAttack) { }
 
         public override void Write()
         {
@@ -1171,7 +1198,7 @@ namespace Game.Networking.Packets
             _worldPacket.WriteBit(IsFullUpdate);
             _worldPacket.FlushBits();
 
-            _worldPacket.WriteInt32(Unk);
+            _worldPacket.WriteInt8((sbyte)Unk);   // ItemCollectionType (int8 in Forever/TC)
 
             // both lists have to have the same size
             _worldPacket.WriteInt32(Heirlooms.Count);
@@ -1195,6 +1222,7 @@ namespace Game.Networking.Packets
 
         public override void Read()
         {
+            // Forever layout: TC MountSpecial::Read
             SpellVisualKitIDs = new int[_worldPacket.ReadUInt32()];
             SequenceVariation = _worldPacket.ReadInt32();
             for (var i = 0; i < SpellVisualKitIDs.Length; ++i)
@@ -1357,10 +1385,18 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
+            // Forever layout: TC StartTimer::Write
             _worldPacket.WriteInt64(TotalTime.ToSeconds());
-            _worldPacket.WriteInt64(TimeLeft.ToSeconds());
             _worldPacket.WriteInt32((int)Type);
+            _worldPacket.WriteInt64(TimeLeft.ToSeconds());
+            _worldPacket.WriteBit(PlayerGuid.HasValue);
+            _worldPacket.FlushBits();
+
+            if (PlayerGuid.HasValue)
+                _worldPacket.WritePackedGuid(PlayerGuid.Value);
         }
+
+        public ObjectGuid? PlayerGuid;
 
         public TimeSpan TotalTime;
         public TimeSpan TimeLeft;
@@ -1418,9 +1454,10 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteInt64(Quantity);
-            _worldPacket.WriteUInt8((byte)DisplayToastMethod);
-            _worldPacket.WriteInt32(QuestID);
+            // Forever layout: TC DisplayToast::Write
+            _worldPacket.WriteUInt64((ulong)Quantity);
+            _worldPacket.WriteUInt32((uint)DisplayToastMethod);
+            _worldPacket.WriteUInt32((uint)QuestID);
 
             _worldPacket.WriteBit(Mailed);
             _worldPacket.WriteBits((byte)Type, 2);
@@ -1430,6 +1467,7 @@ namespace Game.Networking.Packets
             {
                 case DisplayToastType.NewItem:
                     _worldPacket.WriteBit(BonusRoll);
+                    _worldPacket.WriteBit(ForceToast);
                     Item.Write(_worldPacket);
                     _worldPacket.WriteInt32(LootSpec);
                     _worldPacket.WriteInt8((sbyte)Gender);
@@ -1452,6 +1490,7 @@ namespace Game.Networking.Packets
         public bool IsSecondaryResult;
         public ItemInstance Item;
         public bool BonusRoll;
+        public bool ForceToast;
         public int LootSpec;
         public Gender Gender = Gender.None;
         public int CurrencyID;
@@ -1459,7 +1498,7 @@ namespace Game.Networking.Packets
 
     public class SetMaxWeeklyQuantity : ServerPacket
     {
-        public SetMaxWeeklyQuantity() : base(ServerOpcodes.SetMaxWeeklyQuantity, ConnectionType.Instance) { }
+        public SetMaxWeeklyQuantity() : base(ServerOpcodes.SetMaxWeeklyQuantity) { }
 
         public override void Write()
         {
@@ -1482,7 +1521,8 @@ namespace Game.Networking.Packets
 
         public void Write(WorldPacket data)
         {
-            data.WriteUInt16((ushort)PhaseFlags);
+            // Classic 1.60.1 stores phase flags in one byte (phase ID remains uint16).
+            data.WriteUInt8((byte)PhaseFlags);
             data.WriteUInt16((ushort)Id);
         }
 

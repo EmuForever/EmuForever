@@ -464,6 +464,7 @@ namespace Game
             packet.Loc.Pos = loc;
             packet.Reason = (uint)(!_player.IsBeingTeleportedSeamlessly() ? 
                 NewWorldReason.Normal : NewWorldReason.Seamless);
+            packet.Counter = _player.GetNewWorldCounter();   // Forever/TC: client matches this to the pending transfer
 
             SendPacket(packet);
 
@@ -480,6 +481,15 @@ namespace Game
                 return;
 
             if (packet.MoverGUID != plMover.GetGUID())
+                return;
+
+            CompleteNearTeleport();
+        }
+
+        void CompleteNearTeleport()
+        {
+            Player plMover = GetPlayer().GetUnitBeingMoved().ToPlayer();
+            if (plMover == null || !plMover.IsBeingTeleportedNear())
                 return;
 
             plMover.SetSemaphoreTeleportNear(false);
@@ -807,6 +817,12 @@ namespace Game
             MovementInfo movementInfo = moveSplineDone.Status;
             _player.ValidateMovementInfo(movementInfo);
 
+            CompleteTaxiSplineMovement();
+        }
+
+        void CompleteTaxiSplineMovement()
+        {
+
             // in taxi flight packet received in 2 case:
             // 1) end taxi path in far (multi-node) flight
             // 2) switch from one map to other in case multim-map taxi path
@@ -936,8 +952,15 @@ namespace Game
         [WorldPacketHandler(ClientOpcodes.MoveInitActiveMoverComplete, Processing = PacketProcessing.ThreadSafe)]
         void HandleMoveInitActiveMoverComplete(MoveInitActiveMoverComplete moveInitActiveMoverComplete)
         {
+            CompleteActiveMoverInitialization(moveInitActiveMoverComplete.Ticks);
+        }
+
+        // Both a real client acknowledgement and a headless session complete this lifecycle step.
+        // Player.CanNeverSee deliberately rejects every nearby object until it has completed.
+        void CompleteActiveMoverInitialization(RelativeTime ticks)
+        {
             _player.SetPlayerLocalFlag(PlayerLocalFlags.OverrideTransportServerTime);
-            _player.SetTransportServerTime(LoopTime.RelativeTime - moveInitActiveMoverComplete.Ticks);
+            _player.SetTransportServerTime(LoopTime.RelativeTime - ticks);
 
             _player.UpdateObjectVisibility(false);
         }

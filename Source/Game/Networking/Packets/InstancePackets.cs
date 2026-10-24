@@ -3,6 +3,7 @@
 
 using Framework.Constants;
 using Game.Entities;
+using System;
 using System.Collections.Generic;
 
 namespace Game.Networking.Packets
@@ -139,14 +140,20 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteUInt8((byte)Type);
+            // Forever layout: TC RaidInstanceMessage::Write
+            _worldPacket.WriteInt32((int)Type);
             _worldPacket.WriteInt32(MapID);
-            _worldPacket.WriteUInt32((uint)DifficultyID);
+            _worldPacket.WriteInt16((short)DifficultyID);
+            _worldPacket.WriteInt32(TimeLeft);
+            _worldPacket.WriteBits(WarningMessage.GetByteCount(), 8);
             _worldPacket.WriteBit(Locked);
             _worldPacket.WriteBit(Extended);
             _worldPacket.FlushBits();
+            _worldPacket.WriteString(WarningMessage);
         }
 
+        public int TimeLeft;
+        public string WarningMessage = string.Empty;    // GlobalStrings tag
         public InstanceResetWarningType Type;
         public int MapID;
         public Difficulty DifficultyID;
@@ -200,7 +207,11 @@ namespace Game.Networking.Packets
 
         public InstanceEncounterTimerStart() : base(ServerOpcodes.InstanceEncounterTimerStart) { }
 
-        public override void Write() { }
+        // Forever layout: TC InstanceEncounterTimerStart::Write
+        public override void Write()
+        {
+            _worldPacket.WriteInt32(TimeRemaining);
+        }
     }
 
     class InstanceEncounterObjectiveStart : ServerPacket
@@ -209,7 +220,11 @@ namespace Game.Networking.Packets
 
         public InstanceEncounterObjectiveStart() : base(ServerOpcodes.InstanceEncounterObjectiveStart) { }
 
-        public override void Write() { }
+        // Forever layout: TC InstanceEncounterObjectiveStart::Write
+        public override void Write()
+        {
+            _worldPacket.WriteInt32(ObjectiveID);
+        }
     }
 
     class InstanceEncounterObjectiveUpdate : ServerPacket
@@ -219,7 +234,12 @@ namespace Game.Networking.Packets
 
         public InstanceEncounterObjectiveUpdate() : base(ServerOpcodes.InstanceEncounterObjectiveUpdate) { }
 
-        public override void Write() { }
+        // Forever layout: TC InstanceEncounterObjectiveUpdate::Write
+        public override void Write()
+        {
+            _worldPacket.WriteInt32(ObjectiveID);
+            _worldPacket.WriteInt32(ProgressAmount);
+        }
     }
 
     class InstanceEncounterObjectiveComplete : ServerPacket
@@ -228,7 +248,11 @@ namespace Game.Networking.Packets
 
         public InstanceEncounterObjectiveComplete() : base(ServerOpcodes.InstanceEncounterObjectiveComplete) { }
 
-        public override void Write() { }
+        // Forever layout: TC InstanceEncounterObjectiveComplete::Write
+        public override void Write()
+        {
+            _worldPacket.WriteInt32(ObjectiveID);
+        }
     }
 
     class InstanceEncounterPhaseShiftChanged : ServerPacket
@@ -302,10 +326,11 @@ namespace Game.Networking.Packets
     //Structs
     public struct InstanceLockPkt
     {
+        // Forever layout: TC InstanceLock operator<<
         public void Write(WorldPacket data)
         {
             data.WriteInt32(MapID);
-            data.WriteUInt32((uint)DifficultyID);
+            data.WriteInt16((short)DifficultyID);
             data.WriteInt64(InstanceID);
             data.WriteInt32(TimeRemaining);
             data.WriteUInt32(CompletedMask);

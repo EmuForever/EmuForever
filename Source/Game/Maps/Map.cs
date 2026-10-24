@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -262,6 +262,7 @@ namespace Game.Maps
 
             if (!IsGridObjectDataLoaded(cell.GetGridX(), cell.GetGridY()))
             {
+                long loadStarted = System.Diagnostics.Stopwatch.GetTimestamp();
                 Log.outDebug(LogFilter.Maps, 
                     $"Loading grid[{cell.GetGridX()}, {cell.GetGridY()}] " +
                     $"for map {GetId()} instance {i_InstanceId}");
@@ -271,6 +272,9 @@ namespace Game.Maps
                 LoadGridObjects(grid, cell);
 
                 Balance();
+                double loadMs = System.Diagnostics.Stopwatch.GetElapsedTime(loadStarted).TotalMilliseconds;
+                if (loadMs >= 100)
+                    Log.outWarn(LogFilter.Server, $"Map {GetId()} slow grid load: [{cell.GetGridX()}, {cell.GetGridY()}] took {loadMs:F1} ms (objects and collision tree).");
                 return true;
             }
 
@@ -485,11 +489,10 @@ namespace Game.Maps
                 // Broadcast creation to players
                 foreach (var player in GetPlayers())
                 {
-                    if (player.GetTransport() != obj && player.InSamePhase(obj))
+                    if (player.GetTransport() != obj && player.InSamePhase(obj) && player.TryTrackVisibleTransport(obj.GetGUID()))
                     {
                         var data = new UpdateData(GetId());
                         obj.BuildCreateUpdateBlockForPlayer(data, player);
-                        player.m_visibleTransports.Add(obj.GetGUID());
                         UpdateObject packet;
                         data.BuildPacket(out packet);
                         player.SendPacket(packet);
@@ -561,9 +564,80 @@ namespace Game.Maps
             ++_zonePlayerCountMap[newZone];
         }
 
+        // stall diagnostics: report map update steps that block for over a second
+        System.Diagnostics.Stopwatch _stallWatch = new();
+        readonly System.Collections.Generic.Dictionary<string, double> _phaseMs = new();
+        static readonly TimeSpan UnobservedBotUpdateInterval = TimeSpan.FromMilliseconds(250);
+        readonly List<Position> _observerPositions = new();
+        bool Observed(Player bot)
+        {
+            foreach (Position observer in _observerPositions)
+                if (bot.GetExactDist2dSq(observer) <= 150 * 150) return true;
+            return false;
+        }
+        double _playersMs, _botPlayersMs, _botAiMs, _cellsMs, _creaturesMs, _gameObjectsMs;
+        void StallCheck(string step)
+        {
+            _phaseMs[step] = _phaseMs.GetValueOrDefault(step) + _stallWatch.Elapsed.TotalMilliseconds;
+            if (_stallWatch.ElapsedMilliseconds > 1000)
+                Log.outWarn(LogFilter.Server, $"Map {GetId()} stall: {step} took {_stallWatch.ElapsedMilliseconds} ms.");
+            _stallWatch.Restart();
+        }
+
+        // Once a minute, the update times of maps with players: what a player's actions wait on.
+        long _tickStatsStarted = System.Diagnostics.Stopwatch.GetTimestamp(), _tickStatsTotal, _tickStatsMax;
+        int _tickStatsCount;
+        void TrackTickTime(long started)
+        {
+            long elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - started;
+            _tickStatsTotal += elapsed; _tickStatsMax = Math.Max(_tickStatsMax, elapsed); ++_tickStatsCount;
+            if (System.Diagnostics.Stopwatch.GetElapsedTime(_tickStatsStarted).TotalSeconds < 60) return;
+            LogProcessHealth();
+            if (m_activePlayers.Count != 0)
+            {
+                Log.outInfo(LogFilter.Server, $"Map {GetId()} ticks: {_tickStatsCount} in 60 s, average {_tickStatsTotal * 1000.0 / System.Diagnostics.Stopwatch.Frequency / _tickStatsCount:F0} ms, " +
+                    $"maximum {_tickStatsMax * 1000.0 / System.Diagnostics.Stopwatch.Frequency:F0} ms, {m_activePlayers.Count} players.");
+                // Average milliseconds per tick for each part of the update.
+                string Per(double total) => (total / _tickStatsCount).ToString("F1");
+                Log.outInfo(LogFilter.Server, $"Map {GetId()} tick parts (ms/tick): player updates {Per(_playersMs)} (bots {Per(_botPlayersMs)}, of which bot AI {Per(_botAiMs)}), " +
+                    $"nearby object updates {Per(_cellsMs)} (creatures {Per(_creaturesMs)}, gameobjects {Per(_gameObjectsMs)}); steps: " +
+                    string.Join(", ", _phaseMs.Where(p => p.Value / _tickStatsCount >= 0.5).OrderByDescending(p => p.Value).Select(p => $"{p.Key} {Per(p.Value)}")));
+            }
+            _phaseMs.Clear(); _playersMs = _botPlayersMs = _botAiMs = _cellsMs = _creaturesMs = _gameObjectsMs = 0;
+            _tickStatsStarted = System.Diagnostics.Stopwatch.GetTimestamp(); _tickStatsTotal = _tickStatsMax = 0; _tickStatsCount = 0;
+        }
+
+        // Once a minute for the whole process (whichever map gets there first): a stall on every map at
+        // once is a garbage collection, memory growth or the machine starving the process, not map work.
+        static long _processHealthAt;
+        static TimeSpan _lastGcPause;
+        static void LogProcessHealth()
+        {
+            long now = Environment.TickCount64, last = System.Threading.Interlocked.Read(ref _processHealthAt);
+            if (now - last < 55000 || System.Threading.Interlocked.CompareExchange(ref _processHealthAt, now, last) != last) return;
+            GCMemoryInfo gc = GC.GetGCMemoryInfo();
+            TimeSpan pause = GC.GetTotalPauseDuration();
+            using var process = System.Diagnostics.Process.GetCurrentProcess();
+            Log.outInfo(LogFilter.Server, $"Process: GC heap {GC.GetTotalMemory(false) >> 20} MB (committed {gc.TotalCommittedBytes >> 20} MB), " +
+                $"working set {process.WorkingSet64 >> 20} MB, private {process.PrivateMemorySize64 >> 20} MB; " +
+                $"GC pauses {(pause - _lastGcPause).TotalMilliseconds:F0} ms this minute (longest recent {gc.PauseDurations[0].TotalMilliseconds:F0} ms, " +
+                $"gen {gc.Generation}), collections gen0/1/2 {GC.CollectionCount(0)}/{GC.CollectionCount(1)}/{GC.CollectionCount(2)}; " +
+                $"machine memory load {gc.MemoryLoadBytes * 100 / Math.Max(1, gc.TotalAvailableMemoryBytes)}%, threads {process.Threads.Count}.");
+            _lastGcPause = pause;
+        }
+
         public virtual void Update(TimeSpan diff)
         {
+            long tickStarted = System.Diagnostics.Stopwatch.GetTimestamp();
+            try { UpdateCore(diff); }
+            finally { TrackTickTime(tickStarted); }
+        }
+
+        void UpdateCore(TimeSpan diff)
+        {
+            _stallWatch.Restart();
             _dynamicTree.Update(diff);
+            StallCheck("DynamicTree");
 
             // update worldsessions for existing players
             for (var i = 0; i < m_activePlayers.Count; ++i)
@@ -573,15 +647,22 @@ namespace Game.Maps
                 {
                     WorldSession session = player.GetSession();
                     var updater = new MapSessionFilter(session);
+                    long sessionStarted = System.Diagnostics.Stopwatch.GetTimestamp();
                     session.Update(diff, updater);
+                    double sessionMs = System.Diagnostics.Stopwatch.GetElapsedTime(sessionStarted).TotalMilliseconds;
+                    if (sessionMs >= 100)
+                        Log.outWarn(LogFilter.Server, $"Map {GetId()} slow session update: {player.GetName()} ({player.GetGUID().GetCounter()}) took {sessionMs:F1} ms.");
                 }
             }
+            StallCheck("Sessions");
 
             /// process any due respawns
             if (_respawnCheckTimer <= diff)
             {
                 ProcessRespawns();
+                StallCheck("ProcessRespawns");
                 UpdateSpawnGroupConditions();
+                StallCheck("UpdateSpawnGroupConditions");
                 _respawnCheckTimer = WorldConfig.Values[WorldCfg.RespawnMinCheckIntervalMs].TimeSpan;
             }
             else
@@ -595,16 +676,43 @@ namespace Game.Maps
             var grid_object_update = new Visitor(update, GridMapTypeMask.AllGrid);
             var world_object_update = new Visitor(update, GridMapTypeMask.AllWorld);
 
+            // Real players' positions: a server-controlled player nobody is near, and out of combat, is updated
+            // on an interval with the accumulated time instead of on every tick.
+            _observerPositions.Clear();
+            foreach (Player observer in m_activePlayers)
+                if (observer.IsInWorld && !observer.GetSession().IsServerControlled) _observerPositions.Add(observer.GetPosition());
+
             for (var i = 0; i < m_activePlayers.Count; ++i)
             {
                 Player player = m_activePlayers[i];
                 if (!player.IsInWorld)
                     continue;
 
-                // update players at tick
-                player.Update(diff);
+                TimeSpan playerDiff = diff + player.PendingUpdateDiff;
+                if (playerDiff < UnobservedBotUpdateInterval && player.GetSession().IsServerControlled && !player.IsInCombat() && !Observed(player))
+                    player.PendingUpdateDiff = playerDiff;
+                else
+                {
+                    player.PendingUpdateDiff = TimeSpan.Zero;
+                    // update players at tick
+                    long playerStarted = System.Diagnostics.Stopwatch.GetTimestamp();
+                    double aiBefore = MapTickProfile.BotAiMs;
+                    player.Update(playerDiff);
+                    double playerMs = System.Diagnostics.Stopwatch.GetElapsedTime(playerStarted).TotalMilliseconds;
+                    _playersMs += playerMs;
+                    if (player.GetSession().IsServerControlled) { _botPlayersMs += playerMs; _botAiMs += MapTickProfile.BotAiMs - aiBefore; }
+                    if (playerMs >= 100)
+                        Log.outWarn(LogFilter.Server, $"Map {GetId()} slow player update: {player.GetName()} ({player.GetGUID().GetCounter()}) took {playerMs:F1} ms.");
+                }
 
+                long cellsStarted = System.Diagnostics.Stopwatch.GetTimestamp();
+                double creaturesBefore = MapTickProfile.CreatureMs, objectsBefore = MapTickProfile.GameObjectMs;
                 VisitNearbyCellsOf(player, grid_object_update, world_object_update);
+                double cellsMs = System.Diagnostics.Stopwatch.GetElapsedTime(cellsStarted).TotalMilliseconds;
+                _cellsMs += cellsMs;
+                _creaturesMs += MapTickProfile.CreatureMs - creaturesBefore; _gameObjectsMs += MapTickProfile.GameObjectMs - objectsBefore;
+                if (cellsMs >= 100)
+                    Log.outWarn(LogFilter.Server, $"Map {GetId()} slow nearby cell updates: {player.GetName()} ({player.GetGUID().GetCounter()}) took {cellsMs:F1} ms.");
 
                 // If player is using far sight or mind vision, visit that object too
                 WorldObject viewPoint = player.GetViewpoint();
@@ -666,6 +774,7 @@ namespace Game.Maps
                 }
             }
 
+            StallCheck("Players");
             for (var i = 0; i < m_activeNonPlayers.Count; ++i)
             {
                 WorldObject obj = m_activeNonPlayers[i];
@@ -684,7 +793,9 @@ namespace Game.Maps
                 transport.Update(diff);
             }
 
+            StallCheck("ActiveObjects+Transports");
             SendObjectUpdates();
+            StallCheck("SendObjectUpdates");
 
             // Process necessary scripts
             if (!m_scriptSchedule.Empty())
@@ -709,14 +820,20 @@ namespace Game.Maps
             // update phase shift objects
             GetMultiPersonalPhaseTracker().Update(this, diff);
 
+            StallCheck("Scripts+Weather+Phases");
             MoveAllCreaturesInMoveList();
+            StallCheck("CreatureMoveList");
             MoveAllGameObjectsInMoveList();
+            StallCheck("GameObjectMoveList");
             MoveAllAreaTriggersInMoveList();
+            StallCheck("AreaTriggerMoveList");
 
             if (!m_activePlayers.Empty() || !m_activeNonPlayers.Empty())
                 ProcessRelocationNotifies(diff);
+            StallCheck("RelocationNotifies");
 
             Global.ScriptMgr.OnMapUpdate(this, diff);
+            StallCheck("OnMapUpdate");
         }
 
         void ProcessRelocationNotifies(TimeSpan diff)
@@ -823,6 +940,8 @@ namespace Game.Maps
             bool inWorld = player.IsInWorld;
             player.RemoveFromWorld();
             SendRemoveTransports(player);
+            // Map/layer transfer ends the old interest lifetime even when the Player survives.
+            player.m_clientGUIDs.Clear();
 
             if (!inWorld) // if was in world, RemoveFromWorld() called DestroyForNearbyPlayers()
                 player.UpdateObjectVisibilityOnDestroy();
@@ -838,6 +957,9 @@ namespace Game.Maps
 
         public void RemoveFromMap(WorldObject obj, bool remove)
         {
+            // A despawn may be requested by both spell cleanup and owner cleanup.
+            // A stale request must never run visibility callbacks after ResetMap().
+            if (obj.GetMap() != this) return;
             bool inWorld = obj.IsInWorld && obj.GetTypeId() >= TypeId.Unit && obj.GetTypeId() <= TypeId.GameObject;
             obj.RemoveFromWorld();
             if (obj.IsActiveObject())
@@ -1748,10 +1870,9 @@ namespace Game.Maps
 
             // attach to player data current transport data
             Transport transport = player.GetTransport<Transport>();
-            if (transport != null)
+            if (transport != null && player.TryTrackVisibleTransport(transport.GetGUID()))
             {
                 transport.BuildCreateUpdateBlockForPlayer(data, player);
-                player.m_visibleTransports.Add(transport.GetGUID());
             }
 
             player.BuildCreateUpdateBlockForPlayer(data, player);
@@ -1778,10 +1899,9 @@ namespace Game.Maps
 
             foreach (Transport transport in _transports)
             {
-                if (transport.IsInWorld && transport != player.GetTransport() && player.InSamePhase(transport))
+                if (transport.IsInWorld && transport != player.GetTransport() && player.InSamePhase(transport) && player.TryTrackVisibleTransport(transport.GetGUID()))
                 {
                     transport.BuildCreateUpdateBlockForPlayer(transData, player);
-                    player.m_visibleTransports.Add(transport.GetGUID());
                 }
             }
 
@@ -1819,10 +1939,9 @@ namespace Game.Maps
                 var hasTransport = player.m_visibleTransports.Contains(transport.GetGUID());
                 if (player.InSamePhase(transport))
                 {
-                    if (!hasTransport)
+                    if (!hasTransport && player.TryTrackVisibleTransport(transport.GetGUID()))
                     {
                         transport.BuildCreateUpdateBlockForPlayer(transData, player);
-                        player.m_visibleTransports.Add(transport.GetGUID());
                     }
                 }
                 else
@@ -1895,7 +2014,7 @@ namespace Game.Maps
                     var range = _creatureBySpawnIdStore[info.spawnId];
                     foreach (var creature in range)
                     {
-                        if (creature.IsAlive())
+                        if (!creature.IsAlive())
                             continue;
 
                         // escort NPCs are allowed to respawn as long as all other instances are already escorting
@@ -1963,7 +2082,10 @@ namespace Game.Maps
             if (info.respawnTime <= LoopTime.ServerTime)
                 return;
 
+            // SortedSet keys must be removed before their sort fields change.
+            _respawnTimes.Remove(info);
             info.respawnTime = LoopTime.ServerTime;
+            _respawnTimes.Add(info);
             SaveRespawnInfoDB(info, dbTrans);
         }
 
@@ -1977,20 +2099,20 @@ namespace Game.Maps
                 DeleteRespawnInfoFromDB(type, spawnId, dbTrans);
         }
 
-        int DespawnAll(SpawnObjectType type, long spawnId)
+        internal int DespawnAll(SpawnObjectType type, long spawnId)
         {
             int count = 0;
             switch (type)
             {
                 case SpawnObjectType.Creature:
-                    foreach (var creature in GetCreatureBySpawnIdStore()[spawnId])
+                    foreach (var creature in GetCreatureBySpawnIdStore()[spawnId].ToArray())
                     {
                         AddObjectToRemoveList(creature);
                         count++;
                     }
                     break;
                 case SpawnObjectType.GameObject:
-                    foreach (var obj in GetGameObjectBySpawnIdStore()[spawnId])
+                    foreach (var obj in GetGameObjectBySpawnIdStore()[spawnId].ToArray())
                     {
                         AddObjectToRemoveList(obj);
                         count++;
@@ -2170,11 +2292,14 @@ namespace Game.Maps
                 if (now < next.respawnTime) // done for this tick
                     break;
 
+                // CheckRespawn may change the time. Keep it out of the sorted set
+                // until it has either been consumed or rescheduled.
+                _respawnTimes.Remove(next);
+
                 int poolId = Global.PoolMgr.IsPartOfAPool(next.type, next.spawnId);
                 if (poolId != 0) // is this part of a pool?
                 { // if yes, respawn will be handled by (external) pooling logic, just delete the respawn time
                     // step 1: remove entry from maps to avoid it being reachable by outside logic
-                    _respawnTimes.Remove(next);
                     GetRespawnMapForType(next.type).Remove(next.spawnId);
 
                     // step 2: tell pooling logic to do its thing
@@ -2187,7 +2312,6 @@ namespace Game.Maps
                 else if (CheckRespawn(next)) // see if we're allowed to respawn
                 { // ok, respawn
                   // step 1: remove entry from maps to avoid it being reachable by outside logic
-                    _respawnTimes.Remove(next);
                     GetRespawnMapForType(next.type).Remove(next.spawnId);
 
                     // step 2: do the respawn, which involves external logic
@@ -2199,13 +2323,13 @@ namespace Game.Maps
                 }
                 else if (next.respawnTime == ServerTime.Zero)
                 { // just remove this respawn entry without rescheduling
-                    _respawnTimes.Remove(next);
                     GetRespawnMapForType(next.type).Remove(next.spawnId);
                     RemoveRespawnTime(next.type, next.spawnId, null, true);
                 }
                 else
                 { // new respawn time, update heap position
                     Cypher.Assert(now < next.respawnTime); // infinite loop guard
+                    _respawnTimes.Add(next);
                     SaveRespawnInfoDB(next);
                 }
             }
@@ -2236,13 +2360,27 @@ namespace Game.Maps
             if (data == null)
                 return;
 
-            if (!data.spawnGroupData.flags.HasFlag(SpawnGroupFlags.DynamicSpawnRate))
-                return;
-
-            if (!_zonePlayerCountMap.ContainsKey(obj.GetZoneId()))
-                return;
-
-            int playerCount = _zonePlayerCountMap[obj.GetZoneId()];
+            // Ordinary outdoor mobs and quest pickups participate without requiring
+            // thousands of spawn-group edits. Bosses/instances retain scripted timers.
+            bool ordinary=!Instanceable()&&obj is Creature creature&&
+                creature.GetCreatureTemplate().Classification==CreatureClassifications.Normal&&
+                creature.GetCreatureTemplate().Npcflag==NPCFlags1.None&&
+                creature.GetCreatureType() is not (CreatureType.Critter or CreatureType.NonCombatPet or CreatureType.Totem);
+            bool questObject=false;
+            if(!Instanceable()&&obj is GameObject go)
+            {
+                var info=go.GetGoInfo();
+                questObject=Global.ObjectMgr.GetGameObjectQuestItemList(go.GetEntry())?.Count>0||
+                    info.type==GameObjectTypes.Chest&&info.Chest.questID!=0||
+                    info.type==GameObjectTypes.Goober&&info.Goober.questID!=0||
+                    info.type==GameObjectTypes.Generic&&info.Generic.questID!=0;
+            }
+            if(!ordinary&&!questObject&&!data.spawnGroupData.flags.HasFlag(SpawnGroupFlags.DynamicSpawnRate))return;
+            int playerCount=0;
+            // Grid query at a respawn event, never a map-wide/per-tick scan. SI are
+            // native Players and intentionally count exactly like human players.
+            foreach(var player in obj.GetPlayerListInGrid(150))
+                if(player is Player nearby&&nearby.IsAlive()&&!nearby.IsGameMaster()&&obj.InSamePhase(nearby))++playerCount;
             if (playerCount == 0)
                 return;
 
@@ -2255,7 +2393,8 @@ namespace Game.Maps
             if (respawnDelay <= timeMinimum)
                 return;
 
-            respawnDelay = (Seconds)Math.Max(Math.Ceiling(respawnDelay * adjustFactor), timeMinimum);
+            respawnDelay=(Seconds)PopulationRespawnPolicy.Scale(respawnDelay,playerCount,
+                WorldConfig.Values[type==SpawnObjectType.GameObject?WorldCfg.RespawnDynamicRateGameobject:WorldCfg.RespawnDynamicRateCreature].Float,timeMinimum);
         }
 
         public bool ShouldBeSpawnedOnGridLoad<T>(long spawnId) { return ShouldBeSpawnedOnGridLoad(SpawnData.TypeFor<T>(), spawnId); }
@@ -2535,10 +2674,13 @@ namespace Game.Maps
         {
             Cypher.Assert(obj.GetMapId() == GetId() && obj.GetInstanceId() == GetInstanceId());
 
+            // Claim removal before cleanup: aura/summon cleanup can reenter this method.
+            // One pending entry per live object bounds the queue by map ownership.
+            if (obj.GetMap() != this || !i_objectsToRemove.Add(obj)) return;
+
             obj.SetDestroyedObject(true);
             obj.CleanupsBeforeDelete(false); // remove or simplify at least cross referenced links
 
-            i_objectsToRemove.Add(obj);
         }
 
         public void AddObjectToSwitchList(WorldObject obj, bool on)
@@ -2582,6 +2724,8 @@ namespace Game.Maps
             while (!i_objectsToRemove.Empty())
             {
                 WorldObject obj = i_objectsToRemove.First();
+                i_objectsToRemove.Remove(obj);
+                if (obj.GetMap() != this) continue;
 
                 switch (obj.GetTypeId())
                 {
@@ -2627,7 +2771,6 @@ namespace Game.Maps
                         break;
                 }
 
-                i_objectsToRemove.Remove(obj);
             }
         }
 
@@ -3766,16 +3909,24 @@ namespace Game.Maps
 
         public void Visit(Cell cell, Visitor visitor)
         {
-            int x = cell.GetGridX();
-            int y = cell.GetGridY();
-            int cell_x = cell.GetCellX();
-            int cell_y = cell.GetCellY();
+            VisitCell(cell.GetGridX() * MapConst.MaxCells + cell.GetCellX(),
+                cell.GetGridY() * MapConst.MaxCells + cell.GetCellY(), cell.NoCreate(), visitor);
+        }
 
-            if (!cell.NoCreate() || IsGridLoaded(new GridCoord(x, y)))
+        internal void VisitCell(int cellX, int cellY, bool noCreate, Visitor visitor)
+        {
+            if ((uint)cellX >= MapConst.TotalCellsPerMap || (uint)cellY >= MapConst.TotalCellsPerMap) return;
+            int x = cellX / MapConst.MaxCells, y = cellY / MapConst.MaxCells;
+            Grid grid = GetGrid(x, y);
+            if (grid == null || !grid.IsGridObjectDataLoaded())
             {
-                EnsureGridLoaded(cell);
-                GetGrid(x, y).VisitGrid(cell_x, cell_y, visitor);
+                if (noCreate) return;
+                // Loading is cold; preserve the existing terrain/spawn loading path.
+                // Loaded-cell traversal must not allocate Cell/CellCoord/GridCoord wrappers.
+                EnsureGridLoaded(new Cell(new CellCoord(cellX, cellY)));
+                grid = GetGrid(x, y);
             }
+            grid.VisitGrid(cellX % MapConst.MaxCells, cellY % MapConst.MaxCells, visitor);
         }
 
         public TempSummon SummonCreature(int entry, Position pos, SummonPropertiesRecord properties = null, TimeSpan duration = default, WorldObject summoner = null, int spellId = 0, int vehId = 0, ObjectGuid privateObjectOwner = default, SmoothPhasingInfo smoothPhasingInfo = null)
@@ -5003,7 +5154,7 @@ namespace Game.Maps
         List<Transport> _transports = new();
         Grid[][] i_grids = new Grid[MapConst.MaxGrids][];
         MapRecord i_mapRecord;
-        List<WorldObject> i_objectsToRemove = new();
+        HashSet<WorldObject> i_objectsToRemove = new();
         Dictionary<WorldObject, bool> i_objectsToSwitch = new();
         Difficulty i_spawnMode;
         List<WorldObject> i_worldObjects = new();
@@ -5068,7 +5219,7 @@ namespace Game.Maps
             if (i_instanceLock != null)
             {
                 i_instanceLock.SetInUse(true);
-                i_instanceExpireEvent = i_instanceLock.GetExpiryTime(); // ignore extension state for reset event (will ask players to accept extended save on expiration)
+                InitializeInstanceExpireEvent();
             }
         }
 
@@ -5184,10 +5335,26 @@ namespace Game.Maps
             if (i_scenario != null)
                 i_scenario.Update(diff);
 
+            UpdateInstanceExpireEvent();
+        }
+
+        void InitializeInstanceExpireEvent()
+        {
+            // Ignore extension state for an unexpired lock: players accept the extension at expiry.
+            i_instanceExpireEvent = i_instanceLock.GetExpiryTime();
+            // An expired extended lock lives until the next reset, just like a fresh lock.
+            if (i_instanceLock.IsExpired())
+                i_instanceExpireEvent = Global.InstanceLockMgr.GetNextResetTime(new MapDb2Entries(GetEntry(), GetMapDifficulty()));
+        }
+
+        void UpdateInstanceExpireEvent()
+        {
             if (i_instanceExpireEvent.HasValue && i_instanceExpireEvent.Value < LoopTime.ServerTime)
             {
                 Reset(InstanceResetMethod.Expire);
-                i_instanceExpireEvent = Global.InstanceLockMgr.GetNextResetTime(new MapDb2Entries(GetEntry(), GetMapDifficulty()));
+                // Difficulties without a future reset must expire once, not on every update.
+                ServerTime nextReset = Global.InstanceLockMgr.GetNextResetTime(new MapDb2Entries(GetEntry(), GetMapDifficulty()));
+                i_instanceExpireEvent = nextReset > LoopTime.ServerTime ? (DateTime)nextReset : null;
             }
         }
 
@@ -5676,3 +5843,4 @@ namespace Game.Maps
         }
     }
 }
+

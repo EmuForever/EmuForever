@@ -38,6 +38,15 @@ namespace Game.DataStorage
         //public readonly float DemonHunter;
     }
 
+    public sealed class GtXpRecord
+    {
+        public readonly float Total;
+        public readonly float PerKill;
+        public readonly float Junk;
+        public readonly float Stats;
+        public readonly float Divisor;
+    }
+
     public sealed class GtBattlePetXPRecord
     {
         public readonly float Wins;

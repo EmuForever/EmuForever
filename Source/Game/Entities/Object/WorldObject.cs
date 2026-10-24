@@ -1,7 +1,8 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
+using Framework.Collections;
 using Framework.Dynamic;
 using Game.AI;
 using Game.BattleFields;
@@ -14,6 +15,7 @@ using Game.Networking.Packets;
 using Game.Scenarios;
 using Game.Spells;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -143,6 +145,10 @@ namespace Game.Entities
             TypeId tempObjectType = ObjectTypeId;
             CreateObjectBits flags = m_updateFlag;
 
+            // C# also uses this base class for Item and Container; C++ does not.
+            flags.HasEntityPosition = (int)ObjectTypeId >= (int)TypeId.Unit;
+            flags.AreaTrigger = false;
+
             if (target == this)
             {
                 flags.ThisIsYou = true;
@@ -173,12 +179,16 @@ namespace Game.Entities
             buffer.WriteUInt8((byte)tempObjectType);
 
             BuildMovementUpdate(buffer, flags, target);
-            BuildValuesCreate(buffer, target);
+
+            WorldPacket legacyValues = new();
+            BuildValuesCreate(legacyValues, target);
+            buffer.WriteBytes(EntityFragmentSerializer.WrapCreateFields(legacyValues.GetData(), tempObjectType));
             data.AddUpdateBlock(buffer);
         }
 
         public void SendUpdateToPlayer(Player player)
         {
+            if (player.GetSession().IsServerControlled) return;
             // send create update to player
             UpdateData upd = new(player.GetMapId());
             UpdateObject packet;
@@ -200,7 +210,7 @@ namespace Game.Entities
 
             BuildValuesUpdate(buffer, target);
 
-            data.AddUpdateBlock(buffer);
+            data.AddUpdateBlock(buffer, GetUpdateFieldFlagsFor(target));
         }
 
         public void BuildValuesUpdateBlockForPlayerWithFlag(UpdateData data, UpdateFieldFlag flags, Player target)
@@ -211,7 +221,7 @@ namespace Game.Entities
 
             BuildValuesUpdateWithFlag(buffer, flags, target);
 
-            data.AddUpdateBlock(buffer);
+            data.AddUpdateBlock(buffer, flags);
         }
 
         public void BuildDestroyUpdateBlock(UpdateData data)
@@ -250,9 +260,11 @@ namespace Game.Entities
             if (go != null)
                 PauseTimes = go.GetPauseTimes();
 
+            data.WriteBit(flags.HasEntityPosition);
             data.WriteBit(flags.NoBirthAnim);
             data.WriteBit(flags.EnablePortals);
             data.WriteBit(flags.PlayHoverAnim);
+            data.WriteBit(flags.ThisIsYou);
             data.WriteBit(flags.MovementUpdate);
             data.WriteBit(flags.MovementTransport);
             data.WriteBit(flags.Stationary);
@@ -261,14 +273,17 @@ namespace Game.Entities
             data.WriteBit(flags.Vehicle);
             data.WriteBit(flags.AnimKit);
             data.WriteBit(flags.Rotation);
-            data.WriteBit(flags.AreaTrigger);
             data.WriteBit(flags.GameObject);
             data.WriteBit(flags.SmoothPhasing);
-            data.WriteBit(flags.ThisIsYou);
             data.WriteBit(flags.SceneObject);
             data.WriteBit(flags.ActivePlayer);
             data.WriteBit(flags.Conversation);
+            data.WriteBit(flags.Room);
+            data.WriteBit(flags.Decor);
+            data.WriteBit(flags.MeshObject);
             data.FlushBits();
+
+            data.WriteUInt32((uint)(PauseTimes?.Count ?? 0));
 
             if (flags.MovementUpdate)
             {
@@ -278,13 +293,29 @@ namespace Game.Entities
                 bool HasSpline = unit.IsSplineEnabled();
                 bool HasInertia = unit.m_movementInfo.inertia.HasValue;
                 bool HasAdvFlying = unit.m_movementInfo.advFlying.HasValue;
+                bool HasDriveStatus = unit.m_movementInfo.driveStatus.HasValue;
                 bool HasStandingOnGameObjectGUID = unit.m_movementInfo.standingOnGameObjectGUID.HasValue;
 
                 data.WritePackedGuid(GetGUID());                                         // MoverGUID
 
-                data.WriteUInt32((uint)unit.GetUnitMovementFlags());
-                data.WriteUInt32((uint)unit.GetUnitMovementFlags2());
-                data.WriteUInt32((uint)unit.GetExtraUnitMovementFlags2());
+                MovementFlag2 flags2 = unit.GetUnitMovementFlags2();
+                uint legacyMovementFlags = (uint)unit.GetUnitMovementFlags();
+                ulong movementFlags = legacyMovementFlags & ~(uint)MovementFlag.Hover;
+                if ((legacyMovementFlags & (uint)MovementFlag.Hover) != 0)
+                    movementFlags |= 1UL << 59; // 1.60.1 moved HOVER out of the legacy low 32-bit flags
+                movementFlags |= (ulong)((flags2 & MovementFlag2.NoStrafe) != 0 ? 1 : 0) << 32;
+                movementFlags |= (ulong)((flags2 & MovementFlag2.NoJumping) != 0 ? 1 : 0) << 33;
+                movementFlags |= (ulong)((flags2 & MovementFlag2.FullSpeedTurning) != 0 ? 1 : 0) << 34;
+                movementFlags |= (ulong)((flags2 & MovementFlag2.FullSpeedPitching) != 0 ? 1 : 0) << 35;
+                movementFlags |= (ulong)((flags2 & MovementFlag2.AlwaysAllowPitching) != 0 ? 1 : 0) << 36;
+                movementFlags |= (ulong)((flags2 & MovementFlag2.WaterwalkingFullPitch) != 0 ? 1 : 0) << 37;
+                movementFlags |= (ulong)((flags2 & MovementFlag2.CanSwimToFlyTrans) != 0 ? 1 : 0) << 38;
+                movementFlags |= (ulong)((flags2 & MovementFlag2.CanTurnWhileFalling) != 0 ? 1 : 0) << 39;
+                movementFlags |= (ulong)((flags2 & MovementFlag2.IgnoreMovementForces) != 0 ? 1 : 0) << 40;
+                movementFlags |= (ulong)((flags2 & MovementFlag2.CanDoubleJump) != 0 ? 1 : 0) << 41;
+                movementFlags |= (ulong)((flags2 & MovementFlag2.DoubleJump) != 0 ? 1 : 0) << 42;
+                movementFlags |= (ulong)(uint)unit.GetExtraUnitMovementFlags2() << 44;
+                data.WriteUInt64(movementFlags);
 
                 data.WriteUInt32(unit.m_movementInfo.Time);                     // MoveTime
                 data.WriteFloat(unit.GetPositionX());
@@ -297,6 +328,7 @@ namespace Game.Entities
 
                 data.WriteUInt32(0);                                             // RemoveForcesIDs.size()
                 data.WriteUInt32(0);                                             // MoveIndex
+                data.WriteFloat(unit.m_movementInfo.gravityModifier);            // GravityModifier
 
                 //for (public uint i = 0; i < RemoveForcesIDs.Count; ++i)
                 //    *data << ObjectGuid(RemoveForcesIDs);
@@ -308,12 +340,27 @@ namespace Game.Entities
                 data.WriteBit(false);                                          // HeightChangeFailed
                 data.WriteBit(false);                                          // RemoteTimeValid
                 data.WriteBit(HasInertia);                                     // HasInertia
+                data.WriteBit(HasAdvFlying);                                   // HasAdvFlying
+                data.WriteBit(HasDriveStatus);                                 // HasDriveStatus
+                data.FlushBits();
+
+                if (HasStandingOnGameObjectGUID)
+                    data.WritePackedGuid(unit.m_movementInfo.standingOnGameObjectGUID.Value);
 
                 if (!unit.m_movementInfo.transport.guid.IsEmpty())
                     unit.m_movementInfo.transport.Write(data);
 
-                if (HasStandingOnGameObjectGUID)
-                    data.WritePackedGuid(unit.m_movementInfo.standingOnGameObjectGUID.Value);
+                if (HasFall)
+                {
+                    data.WriteUInt32(unit.m_movementInfo.jump.fallTime);
+                    data.WriteFloat(unit.m_movementInfo.jump.zspeed);
+                    if (data.WriteBit(HasFallDirection))
+                    {
+                        data.WriteFloat(unit.m_movementInfo.jump.sinAngle);
+                        data.WriteFloat(unit.m_movementInfo.jump.cosAngle);
+                        data.WriteFloat(unit.m_movementInfo.jump.xyspeed);
+                    }
+                }
 
                 if (HasInertia)
                 {
@@ -328,17 +375,14 @@ namespace Game.Entities
                     data.WriteFloat(unit.m_movementInfo.advFlying.Value.upVelocity);
                 }
 
-                if (HasFall)
+                if (HasDriveStatus)
                 {
-                    data.WriteUInt32(unit.m_movementInfo.jump.fallTime);              // Time
-                    data.WriteFloat(unit.m_movementInfo.jump.zspeed);                 // JumpVelocity
-
-                    if (data.WriteBit(HasFallDirection))
-                    {
-                        data.WriteFloat(unit.m_movementInfo.jump.sinAngle);           // Direction
-                        data.WriteFloat(unit.m_movementInfo.jump.cosAngle);
-                        data.WriteFloat(unit.m_movementInfo.jump.xyspeed);            // Speed
-                    }
+                    var drive = unit.m_movementInfo.driveStatus.Value;
+                    data.WriteFloat(drive.speed);
+                    data.WriteFloat(drive.movementAngle);
+                    data.WriteBit(drive.accelerating);
+                    data.WriteBit(drive.drifting);
+                    data.FlushBits();
                 }
 
                 data.WriteFloat(unit.GetSpeed(UnitMoveType.Walk));
@@ -381,21 +425,25 @@ namespace Game.Entities
                 data.WriteFloat(7.0f);                                           // advFlyingOverMaxDeceleration
                 data.WriteFloat(0.4f);                                           // advFlyingLaunchSpeedCoefficient
 
-                data.WriteBit(HasSpline);
-                data.FlushBits();
-
                 if (movementForces != null)
                 {
                     foreach (MovementForce force in movementForces.GetForces())
                         force.Write(data, unit);
                 }
 
+                data.WriteBit(HasSpline);
+                data.FlushBits();
+
                 // HasMovementSpline - marks that spline data is present in packet
                 if (HasSpline)
                     unit.MoveSpline.Write(data);
             }
 
-            data.WriteInt32(PauseTimes != null ? PauseTimes.Count : 0);
+            if (flags.MovementTransport)
+            {
+                WorldObject self = this;
+                self.m_movementInfo.transport.Write(data);
+            }
 
             if (flags.Stationary)
             {
@@ -428,18 +476,6 @@ namespace Game.Entities
 
             if (flags.Rotation)
                 data.WriteInt64(ToGameObject().GetPackedLocalRotation());                 // Rotation
-
-            if (PauseTimes != null && !PauseTimes.Empty())
-            {
-                foreach (var stopFrame in PauseTimes)
-                    data.WriteInt32(stopFrame);
-            }
-
-            if (flags.MovementTransport)
-            {
-                WorldObject self = this;
-                self.m_movementInfo.transport.Write(data);
-            }
 
             if (flags.AreaTrigger)
             {
@@ -594,17 +630,34 @@ namespace Game.Entities
 
             if (flags.GameObject)
             {
-                bool bit8 = false;
-                uint Int1 = 0;
-
                 GameObject gameObject = ToGameObject();
-
                 data.WriteInt32(gameObject.GetWorldEffectID());
-
-                data.WriteBit(bit8);
+                // Only MAP_OBJ_TRANSPORT has the transport sub-block in a create.
+                // GameObject.IsTransport() also includes the regular TRANSPORT type.
+                bool isTransport = gameObject.GetGoType() == GameObjectTypes.MapObjTransport;
+                uint dynamicFlags = (uint)gameObject.GetDynamicFlags();
+                bool hasPathProgress = (dynamicFlags >> 16) != 0;
+                data.WriteBit(false);
+                data.WriteBit(isTransport);
+                data.WriteBit(hasPathProgress);
                 data.FlushBits();
-                if (bit8)
-                    data.WriteUInt32(Int1);
+
+                if (isTransport)
+                {
+                    Transport transport = gameObject.ToTransport();
+                    uint period = (uint)transport.GetTransportPeriod();
+                    long rawOffset = period == 0 ? 0 : ((long)transport.GetTimer() - (long)LoopTime.RelativeTime) % period;
+                    uint timeOffset = period == 0 ? 0 : (uint)((rawOffset + period) % period);
+                    data.WriteUInt32(timeOffset);
+                    data.WriteUInt32(0); // Next stop timestamp is not tracked by this core.
+                    data.WriteBit(false);
+                    data.WriteBit((dynamicFlags & (uint)GameObjectDynamicLowFlags.Stopped) != 0);
+                    data.WriteBit(false);
+                    data.FlushBits();
+                }
+
+                if (hasPathProgress)
+                    data.WriteFloat((dynamicFlags >> 16) / 65535.0f);
             }
 
             if (flags.SmoothPhasing)
@@ -736,11 +789,10 @@ namespace Game.Entities
 
                 bool HasSceneInstanceIDs = !player.GetSceneMgr().GetSceneTemplateByInstanceMap().Empty();
                 bool HasRuneState = ToUnit().GetPowerIndex(PowerType.RuneBlood) != (int)PowerType.Max;
-                bool HasActionButtons = true;
 
+                // Classic 1.60.1 has no action-button block here (WotLK 3.4.3 did); buttons come from SMSG_UPDATE_ACTION_BUTTONS.
                 data.WriteBit(HasSceneInstanceIDs);
                 data.WriteBit(HasRuneState);
-                data.WriteBit(HasActionButtons);
                 data.FlushBits();
 
                 if (HasSceneInstanceIDs)
@@ -754,17 +806,6 @@ namespace Game.Entities
                 {
                     player.Runes.GetRuneData(LoopTime.ServerTime).Write(data);
                 }
-
-                if (HasActionButtons)
-                {
-                    for (byte i = 0; i < PlayerConst.MaxActionButtons; ++i)
-                    {
-                        if (player.GetActionButton(i) is ActionButton button)
-                            data.WriteInt32(button.Action);
-                        else
-                            data.WriteUInt32(0);
-                    }
-                }
             }
 
             if (flags.Conversation)
@@ -774,6 +815,12 @@ namespace Game.Entities
                     data.WriteInt32(self.GetTextureKitId());
 
                 data.FlushBits();
+            }
+
+            if (PauseTimes != null && !PauseTimes.Empty())
+            {
+                foreach (var stopFrame in PauseTimes)
+                    data.WriteUInt32((uint)(int)stopFrame);
             }
         }
 
@@ -820,6 +867,7 @@ namespace Game.Entities
 
         public void BuildFieldsUpdate(Player player, Dictionary<Player, UpdateData> data_map)
         {
+            if (player.GetSession().IsServerControlled) return;
             if (!data_map.ContainsKey(player))
                 data_map.Add(player, new UpdateData(player.GetMapId()));
 
@@ -1964,6 +2012,8 @@ namespace Game.Entities
 
         public Milliseconds ModSpellDuration(SpellInfo spellInfo, WorldObject target, Milliseconds duration, bool positive, uint effectMask)
         {
+            if (spellInfo.Id == 11196 && ToPlayer() is Player bandager && bandager.GetMap()?.Instanceable() == false)
+                return (Milliseconds)Math.Max(1000, (int)duration + bandager.GetClassicLegacyPerkAmount(1225475));
             // don't mod permanent auras duration
             if (duration < 0)
                 return duration;
@@ -2024,6 +2074,20 @@ namespace Game.Entities
                 }
             }
 
+            if (positive)
+            {
+                if (unitTarget.ToPlayer() is Player eater)
+                {
+                    if (spellInfo.IconFileDataId == 136000 || spellInfo.Id == 1243969)
+                        duration = (Milliseconds)((int)duration * (1 + eater.GetClassicLegacyPerkAmount(1225499) / 100.0));
+                    int[] campBenefits = [1229451,1229513,1229519,1229718,1229741,1230098,1230124,1230164,1230172,1230552,1230587,1283701,1294877];
+                    if (campBenefits.Contains(spellInfo.Id))
+                        duration = (Milliseconds)((int)duration * (1 + eater.GetClassicLegacyPerkAmount(1225502, 1) / 100.0));
+                }
+                if (ToPlayer() is Player buffer && spellInfo.SpellFamilyName != SpellFamilyNames.Generic && duration >= (Milliseconds)600000 &&
+                    spellInfo.GetEffects().Any(effect => effect.IsAura(AuraType.ModStat) || effect.IsAura(AuraType.ModTotalStatPercentage) || effect.IsAura(AuraType.ModResistance) || effect.IsAura(AuraType.ModAttackPower) || effect.IsAura(AuraType.ModDamageDone) || effect.IsAura(AuraType.ModHealingDone)))
+                    duration = (Milliseconds)((int)duration * (1 + buffer.GetClassicLegacyPerkAmount(1225502) / 100.0));
+            }
             return Time.Max(duration, Milliseconds.Zero);
         }
 
@@ -2905,7 +2969,7 @@ namespace Game.Entities
                         if (creatureTarget != null)
                         {
                             return creatureTarget.HasFlag(CreatureStaticFlags4.TreatAsRaidUnitForHelpfulSpells)
-                                || creatureTarget.GetCreatureDifficulty().TypeFlags.HasFlag(CreatureTypeFlags.CanAssist);
+                                || creatureTarget.GetCreatureTemplateStats().TypeFlags.HasFlag(CreatureTypeFlags.CanAssist);
                         }
                     }
                 }
@@ -3093,37 +3157,72 @@ namespace Game.Entities
                 SendMessageToSet(pkt, true);
         }
 
-        public void DestroyForNearbyPlayers()
+        // Reverse edges are map-owned and bounded independently of nearby cell
+        // populations. They cover remote seers and observers at an old position.
+        public const int MaxVisibilityObservers = 16384;
+        BoundedDenseSet<Player> _visibilityObservers;
+        internal bool AddVisibilityObserver(Player player)
+        {
+            _visibilityObservers ??= new(MaxVisibilityObservers);
+            if (_visibilityObservers.Count == MaxVisibilityObservers) return _visibilityObservers.Contains(player);
+            _visibilityObservers.Add(player);
+            return true;
+        }
+        internal void RemoveVisibilityObserver(Player player) => _visibilityObservers?.Remove(player);
+
+        Player[] SnapshotVisibilityObservers(out int count)
+        {
+            count = _visibilityObservers?.Count ?? 0;
+            if (count == 0) return null;
+            var snapshot = ArrayPool<Player>.Shared.Rent(count);
+            for (int i = 0; i < count; ++i) snapshot[i] = _visibilityObservers[i];
+            return snapshot;
+        }
+
+        public void DestroyForNearbyPlayers(bool removeControlled = false)
         {
             if (!IsInWorld)
                 return;
-
-            List<Unit> targets = new();
-            var check = new AnyPlayerInObjectRangeCheck(this, GetVisibilityRange(), false);
-            var searcher = new PlayerListSearcher(this, targets, check);
-
-            Cell.VisitWorldObjects(this, searcher, GetVisibilityRange());
-            foreach (Player player in targets)
+            var snapshot = SnapshotVisibilityObservers(out int count);
+            if (snapshot == null) return;
+            try
             {
-                if (player == this)
-                    continue;
+                for (int i = 0; i < count; ++i)
+                {
+                    Player player = snapshot[i];
+                    if (player == this || !player.HaveAtClient(this)) continue;
+                    Unit unit = ToUnit();
+                    // Debug recreation retains puppet control; actual despawn removes
+                    // every observer, including a remote controller.
+                    if (!removeControlled && unit != null && unit.GetCharmerGUID() == player.GetGUID()) continue;
+                    if (!player.GetSession().IsServerControlled) DestroyForPlayer(player);
+                    player.m_clientGUIDs.Remove(GetGUID());
+                }
+            }
+            finally { ArrayPool<Player>.Shared.Return(snapshot, clearArray: true); }
+        }
 
-                if (!player.HaveAtClient(this))
-                    continue;
-
-                Unit unit = ToUnit();
-                if (unit != null && unit.GetCharmerGUID() == player.GetGUID())// @todo this is for puppet
-                    continue;
-
-                DestroyForPlayer(player);
-                player.m_clientGUIDs.Remove(GetGUID());
+        internal void RefreshVisibilityObservers()
+        {
+            // Range/phase/teleport changes can move an object outside its observers'
+            // cells. Invalidate existing edges before finding new observers locally.
+            var snapshot = SnapshotVisibilityObservers(out int count);
+            if (snapshot != null)
+            {
+                try
+                {
+                    for (int i = 0; i < count; ++i)
+                        if (snapshot[i] != this) snapshot[i].UpdateVisibilityOf(this);
+                }
+                finally { ArrayPool<Player>.Shared.Return(snapshot, clearArray: true); }
             }
         }
 
         public virtual void UpdateObjectVisibility(bool force = true)
         {
+            RefreshVisibilityObservers();
             //updates object's visibility for nearby players
-            var notifier = new VisibleChangesNotifier(new[] { this });
+            var notifier = new VisibleChangesNotifier(new[] { this }, knownAlreadyUpdated: true);
             Cell.VisitWorldObjects(this, notifier, GetVisibilityRange());
         }
 
@@ -3132,7 +3231,7 @@ namespace Game.Entities
             UpdateObjectVisibility(true);
         }
 
-        public virtual void UpdateObjectVisibilityOnDestroy() { DestroyForNearbyPlayers(); }
+        public virtual void UpdateObjectVisibilityOnDestroy() { DestroyForNearbyPlayers(true); }
 
         public virtual void BuildUpdate(Dictionary<Player, UpdateData> data)
         {
@@ -3963,6 +4062,9 @@ namespace Game.Entities
         MovementFlag flags;
         MovementFlag2 flags2;
         MovementFlags3 flags3;
+        // Preserve movement bits introduced by the client protocol but not represented
+        // by this server's named movement enums.
+        public ulong UnmappedMovementFlags { get; set; }
         public Position Pos { get; set; }
         public RelativeTime Time { get; set; }
         public TransportInfo transport;
@@ -3970,7 +4072,9 @@ namespace Game.Entities
         public Inertia? inertia;
         public JumpInfo jump;
         public float stepUpStartElevation { get; set; }
+        public float gravityModifier = 1.0f;
         public AdvFlying? advFlying;
+        public Drive? driveStatus;
         public ObjectGuid? standingOnGameObjectGUID;
 
         public MovementInfo()
@@ -4033,7 +4137,7 @@ namespace Game.Entities
             public sbyte seat;
             public uint time;
             public uint prevTime;
-            public int vehicleId;
+            public uint vehicleId;
         }
 
         public struct Inertia
@@ -4063,6 +4167,14 @@ namespace Game.Entities
             public float forwardVelocity;
             public float upVelocity;
         }
+
+        public struct Drive
+        {
+            public float speed;
+            public float movementAngle;
+            public bool accelerating;
+            public bool drifting;
+        }
     }
 
     public class MovementForce
@@ -4073,7 +4185,10 @@ namespace Game.Entities
         public int TransportID;
         public float Magnitude;
         public MovementForceType Type;
-        public int Unused910;
+        public int MovementForceID;
+        public int DurationMilliseconds;
+        public uint EndTimestamp;
+        public uint Flags;
     }
 
     public class MovementForces
@@ -4120,6 +4235,7 @@ namespace Game.Entities
 
     public struct CreateObjectBits
     {
+        public bool HasEntityPosition;
         public bool NoBirthAnim;
         public bool EnablePortals;
         public bool PlayHoverAnim;
@@ -4138,9 +4254,13 @@ namespace Game.Entities
         public bool SceneObject;
         public bool ActivePlayer;
         public bool Conversation;
+        public bool Room;
+        public bool Decor;
+        public bool MeshObject;
 
         public void Clear()
         {
+            HasEntityPosition = false;
             NoBirthAnim = false;
             EnablePortals = false;
             PlayHoverAnim = false;
@@ -4159,6 +4279,9 @@ namespace Game.Entities
             SceneObject = false;
             ActivePlayer = false;
             Conversation = false;
+            Room = false;
+            Decor = false;
+            MeshObject = false;
         }
     }
 

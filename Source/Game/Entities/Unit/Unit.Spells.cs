@@ -4463,7 +4463,7 @@ namespace Game.Entities
             return m_modAuras[type].ToList();
         }
 
-        public IReadOnlyList<AuraEffect> GetAuraEffectsByType(AuraType type)
+        public List<AuraEffect> GetAuraEffectsByType(AuraType type)
         {
             return m_modAuras[type];
         }
@@ -4475,6 +4475,9 @@ namespace Game.Entities
 
         public int GetTotalAuraModifier(AuraType auraType, Func<AuraEffect, bool> predicate)
         {
+            // Most units carry no aura of most types; skip the stacking bookkeeping for them.
+            if (GetAuraEffectsByType(auraType).Count == 0)
+                return 0;
             Dictionary<SpellGroup, int> sameEffectSpellGroup = new();
             int modifier = 0;
 
@@ -4530,6 +4533,8 @@ namespace Game.Entities
 
         public bool GetTotalAuraAggregate(AuraType auraType, Func<AuraEffect, bool> predicate, Func<AuraEffect, int> amountSearcher, Action<int> aggregator)
         {
+            if (GetAuraEffectsByType(auraType).Count == 0)
+                return false;
             Dictionary<SpellGroup, int> sameEffectSpellGroup = new();
             bool hasAura = false;
 

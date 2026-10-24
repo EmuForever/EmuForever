@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -354,6 +354,9 @@ namespace Game.Entities
 
         public bool UpdateSkillPro(SkillType skillId, int chance, int step)
         {
+            SkillLineRecord legacySkill = CliDB.SkillLineStorage.LookupByKey(skillId);
+            if (legacySkill != null && (legacySkill.CategoryID == SkillCategory.Profession || legacySkill.CategoryID == SkillCategory.Secondary || (int)skillId == 40 || (int)skillId == 633))
+                chance = Game.Systems.Legacy.LegacyEffectEngine.SkillChance(chance, GetTotalAuraModifier((AuraType)657));
             Log.outDebug(LogFilter.Player, $"UpdateSkillPro(SkillId {skillId}, Chance {chance / 10.0f:F3}%)");
             if (skillId == 0)
                 return false;
@@ -1597,78 +1600,44 @@ namespace Game.Entities
             }
         }
 
-        public void CastItemUseSpell(Item item, SpellCastTargets targets, ObjectGuid castCount, int[] misc)
+        public void CastItemUseSpell(Item item, int spellId, SpellCastTargets targets, ObjectGuid castCount, int[] misc)
         {
-            if (!item.GetTemplate().HasFlag(ItemFlags.Legacy))
+            SpellInfo spellInfo = Global.SpellMgr.GetSpellInfo(spellId, Difficulty.None);
+            if (spellInfo == null)
             {
-                // item spells casted at use
-                foreach (ItemEffectRecord effectData in item.GetEffects())
+                Log.outError(LogFilter.Player, $"Player.CastItemUseSpell: Item (Entry: {item.GetEntry()}) has wrong spell id {spellId}, ignoring");
+                return;
+            }
+
+            bool validSpell = !item.GetTemplate().HasFlag(ItemFlags.Legacy)
+                && item.GetEffects().Any(effect => effect.SpellID == spellId && effect.TriggerType == ItemSpelltriggerType.OnUse);
+            if (!validSpell)
+            {
+                for (EnchantmentSlot slot = 0; slot < EnchantmentSlot.Max && !validSpell; ++slot)
                 {
-                    // wrong triggering Type
-                    if (effectData.TriggerType != ItemSpelltriggerType.OnUse)
+                    var enchant = CliDB.SpellItemEnchantmentStorage.LookupByKey(item.GetEnchantmentId(slot));
+                    if (enchant == null)
                         continue;
-
-                    SpellInfo spellInfo = Global.SpellMgr.GetSpellInfo(effectData.SpellID, Difficulty.None);
-                    if (spellInfo == null)
-                    {
-                        Log.outError(LogFilter.Player, 
-                            $"Player.CastItemUseSpell: Item (Entry: {item.GetEntry()}) " +
-                            $"have wrong spell id {effectData.SpellID}, ignoring");
-                        continue;
-                    }
-
-                    Spell spell = new(this, spellInfo, TriggerCastFlags.None);
-
-                    SpellPrepare spellPrepare = new();
-                    spellPrepare.ClientCastID = castCount;
-                    spellPrepare.ServerCastID = spell.m_castId;
-                    SendPacket(spellPrepare);
-
-                    spell.m_fromClient = true;
-                    spell.m_CastItem = item;
-                    spell.m_misc.Data0 = misc[0];
-                    spell.m_misc.Data1 = misc[1];
-                    spell.Prepare(targets);
-                    return;
+                    for (byte effect = 0; effect < ItemConst.MaxItemEnchantmentEffects; ++effect)
+                        if (enchant.Effect(effect) == ItemEnchantmentType.UseSpell && enchant.EffectArg[effect] == spellId)
+                            validSpell = true;
                 }
             }
 
-            // Item enchantments spells casted at use
-            for (EnchantmentSlot e_slot = 0; e_slot < EnchantmentSlot.Max; ++e_slot)
+            if (!validSpell)
             {
-                int enchant_id = item.GetEnchantmentId(e_slot);
-                var pEnchant = CliDB.SpellItemEnchantmentStorage.LookupByKey(enchant_id);
-                if (pEnchant == null)
-                    continue;
-                for (byte s = 0; s < ItemConst.MaxItemEnchantmentEffects; ++s)
-                {
-                    if (pEnchant.Effect(s) != ItemEnchantmentType.UseSpell)
-                        continue;
-
-                    SpellInfo spellInfo = Global.SpellMgr.GetSpellInfo(pEnchant.EffectArg[s], Difficulty.None);
-                    if (spellInfo == null)
-                    {
-                        Log.outError(LogFilter.Player, 
-                            $"Player.CastItemUseSpell Enchant {enchant_id}, " +
-                            $"cast unknown spell {pEnchant.EffectArg[s]}");
-                        continue;
-                    }
-
-                    Spell spell = new(this, spellInfo, TriggerCastFlags.None);
-
-                    SpellPrepare spellPrepare = new();
-                    spellPrepare.ClientCastID = castCount;
-                    spellPrepare.ServerCastID = spell.m_castId;
-                    SendPacket(spellPrepare);
-
-                    spell.m_fromClient = true;
-                    spell.m_CastItem = item;
-                    spell.m_misc.Data0 = misc[0];
-                    spell.m_misc.Data1 = misc[1];
-                    spell.Prepare(targets);
-                    return;
-                }
+                Log.outError(LogFilter.Player, $"Player.CastItemUseSpell: Tried to cast spell {spellId} not found on item {item.GetEntry()}, ignoring");
+                return;
             }
+
+            Spell spell = new(this, spellInfo, TriggerCastFlags.None);
+            SpellPrepare spellPrepare = new() { ClientCastID = castCount, ServerCastID = spell.m_castId };
+            SendPacket(spellPrepare);
+            spell.m_fromClient = true;
+            spell.m_CastItem = item;
+            spell.m_misc.Data0 = misc[0];
+            spell.m_misc.Data1 = misc[1];
+            spell.Prepare(targets);
         }
 
         public int GetLastPotionId() { return m_lastPotionId; }
@@ -3164,12 +3133,14 @@ namespace Game.Entities
             Item item = GetUseableItemByPos(new(castRequest.ItemData.Slot, castRequest.ItemData.PackSlot));
             if (item == null)
             {
+                Log.outError(LogFilter.Player, $"UseItem: no usable item at bag {castRequest.ItemData.PackSlot}, slot {castRequest.ItemData.Slot} for spell {castRequest.CastRequest.SpellID}");
                 SendEquipError(InventoryResult.ItemNotFound);
                 return false;
             }
 
             if (item.GetGUID() != castRequest.ItemData.CastItem)
             {
+                Log.outError(LogFilter.Player, $"UseItem: item GUID mismatch at bag {castRequest.ItemData.PackSlot}, slot {castRequest.ItemData.Slot} for spell {castRequest.CastRequest.SpellID}");
                 SendEquipError(InventoryResult.ItemNotFound);
                 return false;
             }
@@ -3242,7 +3213,7 @@ namespace Game.Entities
             if (!Global.ScriptMgr.OnItemUse(this, item, targets, castRequest.CastRequest.CastID))
             {
                 // no script or script not process request by self
-                CastItemUseSpell(item, targets, castRequest.CastRequest.CastID, castRequest.CastRequest.Misc);
+                CastItemUseSpell(item, castRequest.CastRequest.SpellID, targets, castRequest.CastRequest.CastID, castRequest.CastRequest.Misc);
             }
 
             return true;

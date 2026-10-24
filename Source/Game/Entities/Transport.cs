@@ -725,11 +725,10 @@ namespace Game.Entities
 
                 foreach (var player in GetMap().GetPlayers())
                 {
-                    if (player.GetTransport() != this && player.InSamePhase(this))
+                    if (player.GetTransport() != this && player.InSamePhase(this) && player.TryTrackVisibleTransport(GetGUID()))
                     {
                         UpdateData data = new(GetMap().GetId());
                         BuildCreateUpdateBlockForPlayer(data, player);
-                        player.m_visibleTransports.Add(GetGUID());
                         data.BuildPacket(out UpdateObject packet);
                         player.SendPacket(packet);
                     }

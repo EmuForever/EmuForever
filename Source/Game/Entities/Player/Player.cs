@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -33,6 +33,7 @@ namespace Game.Entities
     {
         public Player(WorldSession session) : base(true)
         {
+            m_clientGUIDs = new(MaxClientInterest, onRemoved: ForgetVisibleObject);
             ObjectTypeMask |= TypeMask.Player;
             ObjectTypeId = TypeId.Player;
 
@@ -117,6 +118,8 @@ namespace Game.Entities
 
         public override void Dispose()
         {
+            m_clientGUIDs.Clear();
+            m_visibleTransports.Clear();
             // Note: buy back item already deleted from DB when player was saved
             for (byte i = 0; i < (int)PlayerSlots.Count; ++i)
             {
@@ -156,6 +159,7 @@ namespace Game.Entities
         {
             _Create(ObjectGuid.Create(HighGuid.Player, guidlow));
 
+            // Classic carries surname separately in character/name packets and the database.
             SetName(createInfo.Name);
 
             PlayerInfo info = ObjectMgr.GetPlayerInfo(createInfo.RaceId, createInfo.ClassId);
@@ -332,10 +336,15 @@ namespace Game.Entities
             return true;
         }
 
+        // Time owed to a server-controlled player whose update was deferred (see Map player loop).
+        internal TimeSpan PendingUpdateDiff;
+
         public override void Update(TimeSpan diff)
         {
             if (!IsInWorld)
                 return;
+
+            UpdateLegacyProgress();
 
             // undelivered mail
             if (m_nextMailDelivereTime != ServerTime.Zero && m_nextMailDelivereTime <= LoopTime.ServerTime)
@@ -405,7 +414,7 @@ namespace Game.Entities
                 stmt.SetInt32(0, 0); // Set the mute time to 0
                 stmt.SetString(1, "");
                 stmt.SetString(2, "");
-                stmt.SetInt32(3, GetSession().GetAccountId());
+                stmt.SetUInt32(3, unchecked((uint)GetSession().GetAccountId()));
                 DB.Login.Execute(stmt);
             }
 
@@ -885,7 +894,7 @@ namespace Game.Entities
                 if (dstPet != null)
                 {
                     CreatureTemplate creatureInfo = Global.ObjectMgr.GetCreatureTemplate(dstPet.CreatureId);
-                    if (creatureInfo == null || !creatureInfo.IsTameable(CanTameExoticPets(), creatureInfo.GetDifficulty(Difficulty.None)))
+                    if (creatureInfo == null || !creatureInfo.IsTameable(CanTameExoticPets(), creatureInfo.Stats))
                     {
                         sess.SendPetStableResult(StableResult.CantControlExotic);
                         return;
@@ -911,7 +920,7 @@ namespace Game.Entities
                 }
 
                 CreatureTemplate creatureInfo = Global.ObjectMgr.GetCreatureTemplate(srcPet.CreatureId);
-                if (creatureInfo == null || !creatureInfo.IsTameable(CanTameExoticPets(), creatureInfo.GetDifficulty(Difficulty.None)))
+                if (creatureInfo == null || !creatureInfo.IsTameable(CanTameExoticPets(), creatureInfo.Stats))
                 {
                     sess.SendPetStableResult(StableResult.CantControlExotic);
                     return;
@@ -1312,6 +1321,9 @@ namespace Game.Entities
                 if (playerCondition != null && !ConditionManager.IsPlayerMeetingCondition(this, playerCondition))
                     return;
             }
+
+            if (amount > 0 && id == 3402 && (gainSource == CurrencyGainSource.QuestReward || gainSource == CurrencyGainSource.QuestRewardIgnoreCaps) && RandomHelper.randChance(GetClassicLegacyPerkAmount(1225456)))
+                amount = (int)Math.Min(int.MaxValue, (long)amount * 2);
 
             bool isGainOnRefund = false;
 
@@ -1824,7 +1836,7 @@ namespace Game.Entities
                     LFGDungeonsRecord dungeon = DB2Mgr.GetLfgDungeon(map.GetId(), map.GetDifficultyID());
                     if (dungeon != null)
                     {
-                        if (dungeon.TargetLevel == ObjectMgr.GetMaxLevelForExpansion(Expansion.WrathOfTheLichKing))
+                        if (Global.DB2Mgr.GetContentTuningData(dungeon.ContentTuningID, 0)?.TargetLevelMax == ObjectMgr.GetMaxLevelForExpansion(Expansion.WrathOfTheLichKing))
                                 ChampioningFaction = GetChampioningFaction();
                     }
                 }
@@ -1913,6 +1925,9 @@ namespace Game.Entities
         void SetCanDelayTeleport(bool setting) { m_bCanDelayTeleport = setting; }
         bool IsHasDelayedTeleport() { return m_bHasDelayedTeleport; }
         void SetDelayedTeleportFlag(bool setting) { m_bHasDelayedTeleport = setting; }
+
+        public int GetNewWorldCounter() { return m_newWorldCounter; }
+        int m_newWorldCounter;
 
         public bool TeleportTo(WorldLocation loc, TeleportToOptions options = 0, int? instanceId = null)
         {
@@ -2157,6 +2172,8 @@ namespace Game.Entities
 
                 if (!GetSession().PlayerLogout())
                 {
+                    ++m_newWorldCounter;   // TC Player::TeleportTo: echoed in SMSG_NEW_WORLD.Counter
+
                     SuspendToken suspendToken = new();
                     suspendToken.SequenceIndex = m_movementCounter; // not incrementing
                     suspendToken.Reason = options.HasAnyFlag(TeleportToOptions.Seamless) ? 2 : 1;
@@ -2708,6 +2725,26 @@ namespace Game.Entities
                 if (canTalk)
                     menu.GetGossipMenu().AddMenuItem(gossipMenuItem, gossipMenuItem.MenuID, gossipMenuItem.OrderIndex);
             }
+
+            // Classic trainers and vendors can have service flags without a matching gossip row.
+            // Keep their services reachable, as in the Forever C++ core.
+            if (source.ToCreature() is Creature serviceNpc)
+            {
+                GossipMenu gossipMenu = menu.GetGossipMenu();
+                bool HasOption(GossipOptionNpc option) => gossipMenu.GetMenuItems().Values.Any(item => item.OptionNpc == option);
+
+                if (CanResetLegacyAt(serviceNpc) && GetLegacyConfig()?.Entries.FindIndexIf(entry => entry.Rank > 0) >= 0)
+                    gossipMenu.AddMenuItem(LegacyResetGossipOption, gossipMenu.GetMenuItemCount(), GossipOptionNpc.None, "Reset my Legacy perks.", 0,
+                        GossipOptionFlags.None, null, 0, 0, false, 0, "Reset all purchased Legacy perks?", null, null, menuId, LegacyResetGossipOption);
+
+                if (serviceNpc.HasNpcFlag(NPCFlags1.Trainer) && serviceNpc.GetTrainerId() != 0 && !HasOption(GossipOptionNpc.Trainer))
+                    gossipMenu.AddMenuItem(2146000001, gossipMenu.GetMenuItemCount(), GossipOptionNpc.Trainer, "Train me.", 0,
+                        GossipOptionFlags.None, null, 0, 0, false, 0, "", null, null, menuId, gossipMenu.GetMenuItemCount());
+
+                if (serviceNpc.HasNpcFlag(NPCFlags1.Vendor) && serviceNpc.GetVendorItems() != null && !HasOption(GossipOptionNpc.Vendor))
+                    gossipMenu.AddMenuItem(2146000002, gossipMenu.GetMenuItemCount(), GossipOptionNpc.Vendor, "Let me browse your goods.", 0,
+                        GossipOptionFlags.None, null, 0, 0, false, 0, "", null, null, menuId, gossipMenu.GetMenuItemCount());
+            }
         }
 
         public void SendPreparedGossip(WorldObject source)
@@ -2746,6 +2783,13 @@ namespace Game.Entities
             GossipMenuItem item = gossipMenu.GetItem(gossipOptionId);
             if (item == null)
                 return;
+
+            if (item.GossipOptionID == LegacyResetGossipOption)
+            {
+                if (CanResetLegacyAt(source.ToCreature())) ResetLegacyTraits();
+                PlayerTalkClass.SendCloseGossip();
+                return;
+            }
 
             GossipOptionNpc gossipOptionNpc = item.OptionNpc;
             ObjectGuid guid = source.GetGUID();
@@ -2791,7 +2835,10 @@ namespace Game.Entities
                     GetSession().SendTaxiMenu(source.ToCreature());
                     break;
                 case GossipOptionNpc.Trainer:
-                    GetSession().SendTrainerList(source.ToCreature(), ObjectMgr.GetCreatureTrainerForGossipOption(source.GetEntry(), menuId, item.OrderIndex));
+                    int trainerId = ObjectMgr.GetCreatureTrainerForGossipOption(source.GetEntry(), menuId, item.OrderIndex);
+                    if (trainerId == 0)
+                        trainerId = source.ToCreature().GetTrainerId();
+                    GetSession().SendTrainerList(source.ToCreature(), trainerId);
                     break;
                 case GossipOptionNpc.SpiritHealer:
                     source.CastSpell(source.ToCreature(), 17251, new CastSpellExtraArgs(TriggerCastFlags.FullMask).SetOriginalCaster(GetGUID()));
@@ -3433,7 +3480,7 @@ namespace Game.Entities
 
         public void UpdateTriggerVisibility()
         {
-            if (m_clientGUIDs.Empty())
+            if (m_clientGUIDs.Count == 0)
                 return;
 
             if (!IsInWorld)
@@ -3704,7 +3751,16 @@ namespace Game.Entities
             if (addValue < 0)
                 addValue = 0;
 
-            ModifyHealth((int)addValue);
+            addValue += m_healthFraction;
+            int healthGain = (int)addValue;
+            if (healthGain <= 0)
+            {
+                m_healthFraction = addValue;
+                return;
+            }
+
+            m_healthFraction = curValue + healthGain < maxValue ? addValue - healthGain : 0.0f;
+            ModifyHealth(healthGain);
         }
 
         public void ResetAllPowers()
@@ -3811,9 +3867,9 @@ namespace Game.Entities
                         $"Player::EnvironmentalDamage: Player '{GetName()}' ({GetGUID()}) fall to death, " +
                         $"losing {WorldConfig.Values[WorldCfg.RateDurabilityLossOnDeath].Float} durability");
 
-                    DurabilityLossAll(WorldConfig.Values[WorldCfg.RateDurabilityLossOnDeath].Float, false);
+                    DurabilityLossAll(WorldConfig.Values[WorldCfg.RateDurabilityLossOnDeath].Float, false, true);
                     // durability lost message
-                    SendDurabilityLoss(this, (int)(WorldConfig.Values[WorldCfg.RateDurabilityLossOnDeath].Float * 100.0f));
+                    SendDurabilityLoss(this, (int)(100 * Game.Systems.Legacy.LegacyEffectEngine.DurabilityLoss(WorldConfig.Values[WorldCfg.RateDurabilityLossOnDeath].Float, GetTotalAuraModifier(AuraType.ModDurabilityLoss))));
                 }
 
                 UpdateCriteria(CriteriaType.DieFromEnviromentalDamage, 1, (long)type);
@@ -4162,6 +4218,7 @@ namespace Game.Entities
 
         public void ResurrectPlayer(float restore_percent, bool applySickness = false)
         {
+            _legacyFreeHelpfulUntil = Environment.TickCount64 + Math.Max(0, GetClassicLegacyPerkAmount(1225500, 1));
             SetAreaSpiritHealer(null);
 
             DeathReleaseLoc packet = new();
@@ -4925,17 +4982,6 @@ namespace Game.Entities
 
                 playerChoiceResponse.RewardQuestID = playerChoiceResponseTemplate.RewardQuestID;
 
-                if (playerChoiceResponseTemplate.MawPower.HasValue)
-                {
-                    var mawPower = new Networking.Packets.PlayerChoiceResponseMawPower();
-                    mawPower.TypeArtFileID = playerChoiceResponse.MawPower.Value.TypeArtFileID;
-                    mawPower.Rarity = playerChoiceResponse.MawPower.Value.Rarity;
-                    mawPower.RarityColor = playerChoiceResponse.MawPower.Value.RarityColor;
-                    mawPower.SpellID = playerChoiceResponse.MawPower.Value.SpellID;
-                    mawPower.MaxStacks = playerChoiceResponse.MawPower.Value.MaxStacks;
-
-                    playerChoiceResponse.MawPower = mawPower;
-                }
             }
 
             SendPacket(displayPlayerChoice);
@@ -5322,6 +5368,8 @@ namespace Game.Entities
 
             PushQuests();
 
+            UpdateClassicLegacyUnlock();
+
             ScriptMgr.OnPlayerLevelChanged(this, (byte)oldLevel);
         }
 
@@ -5412,11 +5460,11 @@ namespace Game.Entities
                 return null;
 
             // Deathstate checks
-            if (!IsAlive() && !creature.GetCreatureDifficulty().TypeFlags.HasFlag(CreatureTypeFlags.VisibleToGhosts))
+            if (!IsAlive() && !creature.GetCreatureTemplateStats().TypeFlags.HasFlag(CreatureTypeFlags.VisibleToGhosts))
                 return null;
 
             // alive or spirit healer
-            if (!creature.IsAlive() && !creature.GetCreatureDifficulty().TypeFlags.HasFlag(CreatureTypeFlags.InteractWhileDead))
+            if (!creature.IsAlive() && !creature.GetCreatureTemplateStats().TypeFlags.HasFlag(CreatureTypeFlags.InteractWhileDead))
                 return null;
 
             // appropriate npc Type
@@ -5997,7 +6045,7 @@ namespace Game.Entities
         }
 
         #region Sends / Updates
-        void BeforeVisibilityDestroy(WorldObject obj, Player p)
+        internal void BeforeVisibilityDestroy(WorldObject obj, Player p)
         {
             if (!obj.IsTypeId(TypeId.Unit))
                 return;
@@ -6010,6 +6058,13 @@ namespace Game.Entities
         {
             if (targets.Empty())
                 return;
+
+            if (_session.IsServerControlled)
+            {
+                foreach (WorldObject target in targets)
+                    if (target != this) TrackServerControlledVisibility(target);
+                return;
+            }
 
             UpdateData udata = new(GetMapId());
             List<WorldObject> newVisibleObjects = new();
@@ -6062,6 +6117,7 @@ namespace Game.Entities
 
         public void UpdateVisibilityOf(WorldObject target)
         {
+            if (_session.IsServerControlled) { TrackServerControlledVisibility(target); return; }
             if (HaveAtClient(target))
             {
                 if (!CanSeeOrDetect(target, false, true))
@@ -6079,10 +6135,19 @@ namespace Game.Entities
             }
             else
             {
-                if (CanSeeOrDetect(target, false, true))
+                if (CanSeeOrDetect(target, false, true) && TryTrackVisibleObject(target.GetGUID(), target))
                 {
-                    target.SendUpdateToPlayer(this);
-                    m_clientGUIDs.Add(target.GetGUID());
+                    try
+                    {
+                        // Interest is reserved before serialization for capacity and
+                        // observer correctness. It does not mean the client has seen
+                        // a create yet: SendUpdateToPlayer would select values-only.
+                        var create = new UpdateData(GetMapId());
+                        target.BuildCreateUpdateBlockForPlayer(create, this);
+                        create.BuildPacket(out UpdateObject packet);
+                        SendPacket(packet);
+                    }
+                    catch { m_clientGUIDs.Remove(target.GetGUID()); throw; }
 
                     // target aura duration for caster show only if target exist at caster client
                     // send data at target visibility change (adding to client)
@@ -6093,6 +6158,7 @@ namespace Game.Entities
 
         public void UpdateVisibilityOf<T>(T target, UpdateData data, List<WorldObject> visibleNow) where T : WorldObject
         {
+            if (_session.IsServerControlled) { TrackServerControlledVisibility(target); return; }
             if (HaveAtClient(target))
             {
                 if (!CanSeeOrDetect(target, false, true))
@@ -6109,17 +6175,65 @@ namespace Game.Entities
             }
             else
             {
-                if (CanSeeOrDetect(target, false, true))
+                if (CanSeeOrDetect(target, false, true) && TryTrackVisibleObject(target.GetGUID(), target))
                 {
-                    target.BuildCreateUpdateBlockForPlayer(data, this);
-                    m_clientGUIDs.Add(target.GetGUID());
+                    try { target.BuildCreateUpdateBlockForPlayer(data, this); }
+                    catch { m_clientGUIDs.Remove(target.GetGUID()); throw; }
                     visibleNow.Add(target);
                 }
             }
         }
 
+        void TrackServerControlledVisibility(WorldObject target)
+        {
+            if (CanSeeOrDetect(target, false, true)) TryTrackVisibleObject(target.GetGUID(), target);
+            else if (m_clientGUIDs.Remove(target.GetGUID())) BeforeVisibilityDestroy(target, this);
+        }
+
+        void ForgetVisibleObject(ObjectGuid guid)
+        {
+            if (_interestObjects != null && _interestObjects.Remove(guid, out var target))
+                target.RemoveVisibilityObserver(this);
+        }
+
+        public bool TryTrackVisibleTransport(ObjectGuid guid)
+        {
+            if (m_visibleTransports.Contains(guid) || m_visibleTransports.Add(guid)) return true;
+            if (!_interestLimitReported)
+            {
+                _interestLimitReported = true;
+                _session.KickPlayer("Transport visibility capacity exceeded (256)");
+            }
+            return false;
+        }
+
+        public bool TryTrackVisibleObject(ObjectGuid guid, WorldObject target = null)
+        {
+            if (m_clientGUIDs.Contains(guid)) return true;
+            target ??= Global.ObjAccessor.GetWorldObject(this, guid);
+            if (target == null) return false;
+            if (m_clientGUIDs.Add(guid))
+            {
+                if (target.AddVisibilityObserver(this))
+                {
+                    (_interestObjects ??= new()).Add(guid, target);
+                    return true;
+                }
+                m_clientGUIDs.Remove(guid);
+            }
+            // A dropped create or silent eviction would leave the client with contradictory
+            // state. Fail this session explicitly, before serializing an untracked create.
+            if (!_interestLimitReported)
+            {
+                _interestLimitReported = true;
+                _session.KickPlayer($"Visibility interest/observer capacity exceeded (interest limit {MaxClientInterest})");
+            }
+            return false;
+        }
+
         public void SendInitialVisiblePackets(WorldObject target)
         {
+            if (_session.IsServerControlled) return;
             Unit targetUnit = target.ToUnit();
             if (targetUnit != null)
             {
@@ -6151,7 +6265,7 @@ namespace Game.Entities
         public void UpdateVisibilityForPlayer()
         {
             // updates visibility of all objects around point of view for current player
-            var notifier = new VisibleNotifier(this);
+            using var notifier = new VisibleNotifier(this);
             Cell.VisitAllObjects(seerView, notifier, GetSightRange());
             notifier.SendToSelf();   // send gathered data
         }
@@ -6512,6 +6626,9 @@ namespace Game.Entities
             // rest stuff shouldn't happen in case of addon message
             if (isAddonMessage)
                 return;
+
+            if (!GetSession().IsServerControlled && target is siPlayer autonomous)
+                autonomous.Controller?.ReceivedWhisper(GetGUID());
 
             data.Initialize(ChatMsg.WhisperInform, language, target, target, text);
             SendPacket(data);
@@ -7046,6 +7163,8 @@ namespace Game.Entities
             else
                 m_taxi.SetFlightMasterFactionTemplateId(0);
 
+            totalcost = (uint)ApplyClassicLegacyPriceMod(totalcost, 4);
+            firstcost = (uint)ApplyClassicLegacyPriceMod(firstcost, 4);
             if (money < totalcost)
             {
                 GetSession().SendActivateTaxiReply(ActivateTaxiReply.NotEnoughMoney);
@@ -7750,7 +7869,9 @@ namespace Game.Entities
         public override UpdateFieldFlag GetUpdateFieldFlagsFor(Player target)
         {
             UpdateFieldFlag flags = base.GetUpdateFieldFlagsFor(target);
-            if (IsInSameRaidWith(target))
+            // Classic 1.60: party member fields (quest log, quest session, quest id map) only for the player himself.
+            // Sent to other group members they crash the client (JamVectorDeltaType assert, size 0x17FFFFFF).
+            if (target == this)
                 flags |= UpdateFieldFlag.PartyMember;
 
             return flags;
@@ -7810,7 +7931,7 @@ namespace Game.Entities
             m_playerData.AppendAllowedFieldsMaskForFlag(mask2, flags);
             m_playerData.WriteUpdate(buffer, mask2, true, this, target);
 
-            data.WriteUInt32(buffer.GetSize());
+            data.WriteUInt32(buffer.GetSize() + sizeof(uint));
             data.WriteUInt32(valuesMask.GetBlock(0));
             data.WriteBytes(buffer);
         }
@@ -7854,7 +7975,7 @@ namespace Game.Entities
             buffer1.WriteUInt32(buffer.GetSize());
             buffer1.WriteBytes(buffer.GetData());
 
-            data.AddUpdateBlock(buffer1);
+            data.AddUpdateBlock(buffer1, GetUpdateFieldFlagsFor(target));
         }
 
         public override void ClearUpdateMask(bool remove)

@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 using Game.Entities;
+using System;
+using System.Linq;
 using Framework.Database;
 using Framework.Constants;
 using Game.Arenas;
@@ -7,7 +9,7 @@ using Game.Networking.Packets;
 
 namespace Game.Cache
 {
-    public class CharacterCache : Singleton<CharacterCache>
+    public partial class CharacterCache : Singleton<CharacterCache>
     {
         Dictionary<ObjectGuid, CharacterCacheEntry> _characterCacheStore = new();
         Dictionary<string, CharacterCacheEntry> _characterCacheByNameStore = new();
@@ -17,9 +19,11 @@ namespace Game.Cache
         public void LoadCharacterCacheStorage()
         {
             _characterCacheStore.Clear();
+            _characterCacheByNameStore.Clear();
+            _mailRecipientsByName.Clear();
             RelativeTime oldMSTime = Time.NowRelative;
 
-            SQLResult result = DB.Characters.Query("SELECT guid, name, account, race, gender, class, level, deleteDate FROM characters");
+            SQLResult result = DB.Characters.Query("SELECT guid, name, account, race, gender, class, level, deleteDate, surname FROM characters");
             if (result.IsEmpty())
             {
                 Log.outInfo(LogFilter.ServerLoading, "No character name data loaded, empty query");
@@ -28,7 +32,9 @@ namespace Game.Cache
 
             do
             {
-                AddCharacterCacheEntry(ObjectGuid.Create(HighGuid.Player, result.Read<long>(0)), result.Read<int>(2), result.Read<string>(1), result.Read<byte>(4), result.Read<byte>(3), result.Read<byte>(5), result.Read<byte>(6), result.Read<uint>(7) != 0);
+                ObjectGuid guid = ObjectGuid.Create(HighGuid.Player, result.Read<long>(0));
+                AddCharacterCacheEntry(guid, result.Read<int>(2), result.Read<string>(1), result.Read<byte>(4), result.Read<byte>(3), result.Read<byte>(5), result.Read<byte>(6), result.Read<uint>(7) != 0);
+                UpdateCharacterSurname(guid, result.Read<string>(8));
             } while (result.NextRow());
 
             Log.outInfo(LogFilter.ServerLoading, 
@@ -37,9 +43,12 @@ namespace Game.Cache
 
         public void AddCharacterCacheEntry(ObjectGuid guid, int accountId, string name, byte gender, byte race, byte playerClass, byte level, bool isDeleted)
         {
+            string surname = _characterCacheStore.TryGetValue(guid, out CharacterCacheEntry existing) ? existing.Surname : string.Empty;
+            if (existing != null) UpdateMailRecipientIndex(existing, add: false);
             var data = new CharacterCacheEntry();
             data.Guid = guid;
             data.Name = name;
+            data.Surname = surname;
             data.AccountId = accountId;
             data.RaceId = (Race)race;
             data.Sex = (Gender)gender;
@@ -54,10 +63,13 @@ namespace Game.Cache
             if (!isDeleted)
                 _characterCacheByNameStore[name] = data;
             _characterCacheStore[guid] = data;
+            UpdateMailRecipientIndex(data, add: true);
         }
 
         public void DeleteCharacterCacheEntry(ObjectGuid guid, string name)
         {
+            if (_characterCacheStore.TryGetValue(guid, out var entry))
+                UpdateMailRecipientIndex(entry, add: false);
             _characterCacheStore.Remove(guid);
             _characterCacheByNameStore.Remove(name);
         }
@@ -69,6 +81,7 @@ namespace Game.Cache
                 return;
 
             string oldName = characterCacheEntry.Name;
+            UpdateMailRecipientIndex(characterCacheEntry, add: false);
             characterCacheEntry.Name = name;
 
             if (gender.HasValue)
@@ -83,7 +96,9 @@ namespace Game.Cache
 
             // Correct name -> pointer storage
             _characterCacheByNameStore.Remove(oldName);
-            _characterCacheByNameStore[name] = characterCacheEntry;
+            if (!characterCacheEntry.IsDeleted)
+                _characterCacheByNameStore[name] = characterCacheEntry;
+            UpdateMailRecipientIndex(characterCacheEntry, add: true);
         }
 
         public void UpdateCharacterGender(ObjectGuid guid, byte gender)
@@ -100,6 +115,29 @@ namespace Game.Cache
                 return;
 
             _characterCacheStore[guid].Level = level;
+        }
+
+        // Resolve characters whose old SI name contains the separately stored surname, before login
+        // has corrected the name index. Exact first-name matches retain priority.
+        internal CharacterCacheEntry GetCharacterCacheByFirstName(string first)
+        {
+            return GetCharacterCacheByName(first) ?? _characterCacheStore.Values.FirstOrDefault(entry => !entry.IsDeleted &&
+                string.Equals(siPlayer.NormalizeStoredName(entry.Name, entry.Surname), first, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public void UpdateCharacterSurname(ObjectGuid guid, string surname)
+        {
+            if (_characterCacheStore.TryGetValue(guid, out CharacterCacheEntry entry))
+            {
+                UpdateMailRecipientIndex(entry, add: false);
+                entry.Surname = surname ?? string.Empty;
+                UpdateMailRecipientIndex(entry, add: true);
+            }
+        }
+
+        public string GetCharacterSurnameByGuid(ObjectGuid guid)
+        {
+            return _characterCacheStore.TryGetValue(guid, out CharacterCacheEntry entry) ? entry.Surname : string.Empty;
         }
 
         public void UpdateCharacterAccountId(ObjectGuid guid, int accountId)
@@ -131,13 +169,13 @@ namespace Game.Cache
             if (!_characterCacheStore.TryGetValue(guid, out var cacheEntry))
                 return;
 
-            if (deleted)
-                _characterCacheByNameStore.Remove(cacheEntry.Name);
-            else
+            UpdateMailRecipientIndex(cacheEntry, add: false);
+            _characterCacheByNameStore.Remove(cacheEntry.Name);
+            cacheEntry.Name = name;
+            cacheEntry.IsDeleted = deleted;
+            if (!deleted)
                 _characterCacheByNameStore[name] = cacheEntry;
-
-            _characterCacheStore[guid].Name = name;
-            _characterCacheStore[guid].IsDeleted = deleted;
+            UpdateMailRecipientIndex(cacheEntry, add: true);
         }
 
         public bool HasCharacterCacheEntry(ObjectGuid guid)
@@ -249,6 +287,7 @@ namespace Game.Cache
     {
         public ObjectGuid Guid;
         public string Name;
+        public string Surname = string.Empty;
         public int AccountId;
         public Class ClassId;
         public Race RaceId;

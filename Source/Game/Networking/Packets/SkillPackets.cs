@@ -25,7 +25,7 @@ namespace Game.Networking.Packets
 
     public class ShowTradeSkillResponse : ServerPacket
     {
-        public ShowTradeSkillResponse() : base(ServerOpcodes.ShowTradeSkillResponse, ConnectionType.Instance) { }
+        public ShowTradeSkillResponse() : base(ServerOpcodes.ShowTradeSkillResponse) { }
 
         public override void Write()
         {

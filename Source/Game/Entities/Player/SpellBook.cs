@@ -8,6 +8,7 @@ using Game.Networking.Packets;
 using Game.Spells;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Game.Entities
 {
@@ -22,8 +23,13 @@ namespace Game.Entities
 
         public SpellBook(Player player) { this.player = player; }
 
+        // Consumers cache derived spell choices until learning/activation changes.
+        // A timer-based rebuild scales with online population even for idle books.
+        public ulong Revision { get; private set; }
+
         public void Clear()
         {
+            ++Revision;
             SpellCollection.Clear();
             TradeSkillSpellCollection.Clear();
         }
@@ -42,6 +48,7 @@ namespace Game.Entities
             };
 
             SpellCollection[spellId] = newspell;
+            ++Revision;
         }
 
         public void RemoveTemporary(int spellId)
@@ -54,6 +61,7 @@ namespace Game.Entities
                 return;
 
             SpellCollection.Remove(spellId);
+            ++Revision;
         }
 
         public void SetFavorite(int spellId, bool favorite)
@@ -159,6 +167,8 @@ namespace Game.Entities
             if (pSpell.State == PlayerSpellState.Removed || (disabled && pSpell.Disabled)
                 || pSpell.State == PlayerSpellState.Temporary)
                 return;
+
+            ++Revision;
 
             // unlearn non talent higher ranks (recursive)
             int nextSpell = Global.SpellMgr.GetNextSpellInChain(spellId);
@@ -385,6 +395,8 @@ namespace Game.Entities
 
         public bool Add(int spellId, bool active, bool learning, bool dependent, bool disabled, bool loading = false, SkillType fromSkill = 0, bool favorite = false, int? traitDefinitionId = null)
         {
+            // Add also changes activation/disabled flags without changing Count.
+            ++Revision;
             SpellInfo spellInfo = Global.SpellMgr.GetSpellInfo(spellId, Difficulty.None);
             if (spellInfo == null)
             {
@@ -646,7 +658,10 @@ namespace Game.Entities
 
                 if (traitDefinitionId.HasValue)
                 {
-                    TraitConfig traitConfig = player.GetTraitConfig();
+                    int traitConfigIndex = player.m_activePlayerData.TraitConfigs.FindIndexIf(config =>
+                        ((TraitConfigType)(int)config.Type != TraitConfigType.Combat || config.ID == player.m_activePlayerData.ActiveCombatTraitConfigID) &&
+                        config.Entries.FindIndexIf(entry => CliDB.TraitNodeEntryStorage.LookupByKey(entry.TraitNodeEntryID)?.TraitDefinitionID == traitDefinitionId) >= 0);
+                    TraitConfig traitConfig = traitConfigIndex >= 0 ? player.m_activePlayerData.TraitConfigs[traitConfigIndex] : null;
                     if (traitConfig != null)
                     {
                         int traitEntryIndex = traitConfig.Entries.FindIndexIf(traitEntry =>

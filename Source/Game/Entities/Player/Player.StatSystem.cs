@@ -317,38 +317,33 @@ namespace Game.Entities
 
         float OCTRegenHPPerSpirit()
         {
-            var level = GetLevel();
-            var pclass = GetClass();
-
-            float baseRatio = Global.ObjectMgr.GetOCTRegenHP(pclass, level);
-            float moreRatio = Global.ObjectMgr.GetRegenHPPerSpt(pclass, level);
-            if (baseRatio == 0 || moreRatio == 0)
-                return 0.0f;
-
-            // Formula from PaperDollFrame script 3.3.5
-            var spirit = GetStat(Stats.Spirit);
-            var baseSpirit = spirit;
-            if (baseSpirit > 50)
-                baseSpirit = 50;
-            var moreSpirit = spirit - baseSpirit;
-            var regen = baseSpirit * baseRatio + moreSpirit * moreRatio;
-            return regen;
+            float spirit = GetStat(Stats.Spirit);
+            float regen = GetClass() switch
+            {
+                Class.Druid or Class.Mage => spirit * 0.11f + 1.0f,
+                Class.Hunter => spirit * 0.43f - 5.5f,
+                Class.Paladin => spirit * 0.25f,
+                Class.Priest => spirit * 0.15f + 1.4f,
+                Class.Rogue => spirit * 0.84f - 13.0f,
+                Class.Shaman => spirit * 0.28f - 3.6f,
+                Class.Warlock => spirit * 0.12f + 1.5f,
+                Class.Warrior => spirit * 1.26f - 22.6f,
+                _ => 0.0f
+            };
+            return Math.Max(0.0f, regen);
         }
 
         float OCTRegenMPPerSpirit()
         {
-            var level = GetLevel();
-            var pclass = GetClass();
-
-            //    GtOCTRegenMPEntry     const* baseRatio = sGtOCTRegenMPStore.LookupEntry((pclass-1)*GT_MAX_LEVEL + level-1);
-            float moreRatio = Global.ObjectMgr.GetRegenMPPerSpt(pclass, level);
-            if (moreRatio == 0)
-                return 0.0f;
-
-            // Formula get from PaperDollFrame script 3.3.5
             float spirit = GetStat(Stats.Spirit);
-            float regen = spirit * moreRatio;
-            return regen;
+            float perTick = GetClass() switch
+            {
+                Class.Mage or Class.Priest => spirit / 4.0f + 12.5f,
+                Class.Shaman => spirit / 5.0f + 17.0f,
+                Class.Druid or Class.Hunter or Class.Paladin or Class.Warlock => spirit / 5.0f + 15.0f,
+                _ => 0.0f
+            };
+            return perTick / 2.0f;
         }
 
         public void ApplyRatingMod(CombatRating combatRating, int value, bool apply)
@@ -477,26 +472,12 @@ namespace Game.Entities
                     return;
                 }
 
-                float Intellect = GetStat(Stats.Intellect);
-                // Mana regen from spirit and intellect
-                float power_regen = (float)Math.Sqrt(Intellect) * OCTRegenMPPerSpirit();
-                // Apply PCT bonus from SPELL_AURA_MOD_POWER_REGEN_PERCENT aura on spirit base regen
-                power_regen *= GetTotalAuraMultiplierByMiscValue(AuraType.ModPowerRegenPercent, (int)PowerType.Mana);
-
-                // Mana regen from SPELL_AURA_MOD_POWER_REGEN aura
-                float power_regen_mp5 = (GetTotalAuraModifierByMiscValue(AuraType.ModPowerRegen, (int)PowerType.Mana) + m_baseManaRegen) / 5.0f;
-
-                // Get bonus from SPELL_AURA_MOD_MANA_REGEN_FROM_STAT aura
-                foreach (var aura in GetAuraEffectsByType(AuraType.ModManaRegenFromStat))
-                    power_regen_mp5 += GetStat((Stats)aura.GetMiscValue()) * aura.GetAmount() / 500.0f;
-
-                // Set regen rate in cast state apply only on spirit based regen
-                int modManaRegenInterrupt = GetTotalAuraModifier(AuraType.ModManaRegenInterrupt);
-                if (modManaRegenInterrupt > 100)
-                    modManaRegenInterrupt = 100;
-
-                mod_regen = power_regen_mp5 + power_regen;
-                mod_regen_interrupted = power_regen_mp5 + MathFunctions.CalculatePct(power_regen, modManaRegenInterrupt);
+                float spiritRegen = OCTRegenMPPerSpirit() * GetTotalAuraMultiplier(AuraType.ModManaRegenPct);
+                int regenWhileCasting = Math.Min(100, GetTotalAuraModifier(AuraType.ModManaRegenInterrupt));
+                float multiplier = GetTotalAuraMultiplierByMiscValue(AuraType.ModPowerRegenPercent, (int)power);
+                float flatModifier = GetTotalAuraModifierByMiscValue(AuraType.ModPowerRegen, (int)power) / 5.0f;
+                mod_regen = spiritRegen * multiplier + flatModifier - powerInfo.RegenPeace;
+                mod_regen_interrupted = MathFunctions.CalculatePct(spiritRegen, regenWhileCasting) * multiplier + flatModifier - powerInfo.RegenCombat;
             }
             else
             {

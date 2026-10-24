@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Collections;
@@ -1034,6 +1034,13 @@ namespace Game.Entities
 
         void _LoadTraits(SQLResult configsResult, SQLResult entriesResult)
         {
+            // Restore from validated selections, never from stale saved passive auras/spell rows.
+            // SpellBook.Remove preserves the spell history, including Dedicated Study's cooldown.
+            foreach (int spellId in Game.Systems.Legacy.LegacyDefinitions.PerkSpells)
+            {
+                SpellBook.Remove(spellId);
+                RemoveAurasDueToSpell(spellId);
+            }
             MultiMap<int, TraitEntryPacket> traitEntriesByConfig = new();
             if (!entriesResult.IsEmpty())
             {
@@ -1049,6 +1056,7 @@ namespace Game.Entities
 
                     if (!TraitMgr.IsValidEntry(traitEntry))
                         continue;
+                    if (traitEntry.Rank == 0 && traitEntry.GrantedRanks == 0) continue;
 
                     traitEntriesByConfig.Add(entriesResult.Read<int>(0), traitEntry);
 
@@ -1083,14 +1091,32 @@ namespace Game.Entities
 
                     traitConfig.Name = configsResult.Read<string>(7);
 
+                    if (Game.Systems.Legacy.LegacyManager.IsLegacy(traitConfig) && GetLegacyConfig() != null)
+                    {
+                        m_traitConfigStates[traitConfig.ID] = PlayerSpellState.Removed;
+                        Log.outInfo(LogFilter.Player, $"Duplicate Legacy config {traitConfig.ID} removed for {GetGUID()}.");
+                        continue;
+                    }
+
                     foreach (var traitEntry in traitEntriesByConfig[traitConfig.ID])
                         traitConfig.Entries.Add(traitEntry);
 
-                    if (TraitMgr.ValidateConfig(traitConfig, this) != TalentLearnResult.LearnOk)
+                    bool wrongLegacyRuleset = Game.Systems.Legacy.LegacyManager.IsLegacy(traitConfig) && _legacySavedRuleset != -1 && _legacySavedRuleset != Game.Systems.Legacy.LegacyManager.RulesetId;
+                    if (wrongLegacyRuleset || TraitMgr.ValidateConfig(traitConfig, this) != TalentLearnResult.LearnOk)
                     {
+                        if (Game.Systems.Legacy.LegacyManager.IsLegacy(traitConfig))
+                        {
+                            foreach (TraitEntryPacket old in traitConfig.Entries)
+                            {
+                                int spellId = CliDB.TraitDefinitionStorage.LookupByKey(CliDB.TraitNodeEntryStorage.LookupByKey(old.TraitNodeEntryID)?.TraitDefinitionID ?? 0)?.SpellID ?? 0;
+                                if (spellId != 0) SpellBook.Remove(spellId);
+                            }
+                            Log.outInfo(LogFilter.Player, $"Legacy config {traitConfig.ID} reset on login for {GetGUID()}: invalid ranks, points, prerequisites or ruleset.");
+                        }
                         traitConfig.Entries.Clear();
                         foreach (TraitEntry grantedEntry in TraitMgr.GetGrantedTraitEntriesForConfig(traitConfig, this))
                             traitConfig.Entries.Add(new TraitEntryPacket(grantedEntry));
+                        m_traitConfigStates[traitConfig.ID] = PlayerSpellState.Changed;
                     }
 
                     AddTraitConfig(traitConfig);
@@ -2427,6 +2453,7 @@ namespace Game.Entities
             PreparedStatement stmt;
             foreach (var (traitConfigId, state) in m_traitConfigStates)
             {
+                if (_legacyCommitPending && GetLegacyConfig()?.ID == traitConfigId) continue;
                 switch (state)
                 {
                     case PlayerSpellState.Changed:
@@ -2443,6 +2470,8 @@ namespace Game.Entities
                         TraitConfig traitConfig = GetTraitConfig(traitConfigId);
                         if (traitConfig != null)
                         {
+                            if ((TraitConfigType)(int)traitConfig.Type == TraitConfigType.Generic && traitConfig.TraitSystemID == Game.Systems.Legacy.LegacyManager.TraitSystemId)
+                                AppendLegacyCharacterState(trans);
                             stmt = CharacterDatabase.GetPreparedStatement(CharStatements.INS_CHAR_TRAIT_CONFIGS);
                             stmt.SetInt64(0, GetGUID().GetCounter());
                             stmt.SetInt32(1, traitConfig.ID);
@@ -2511,7 +2540,8 @@ namespace Game.Entities
                 }
             }
 
-            m_traitConfigStates.Clear();
+            int pendingLegacyId = _legacyCommitPending && GetLegacyConfig() != null ? GetLegacyConfig().ID : 0;
+            foreach (int savedId in m_traitConfigStates.Keys.Where(id => id != pendingLegacyId).ToArray()) m_traitConfigStates.Remove(savedId);
         }
 
         public void _SaveMail(SQLTransaction trans)
@@ -2826,13 +2856,13 @@ namespace Game.Entities
                 return;
 
             PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(CharStatements.DEL_ACCOUNT_INSTANCE_LOCK_TIMES);
-            stmt.SetInt32(0, GetSession().GetAccountId());
+            stmt.SetUInt32(0, unchecked((uint)GetSession().GetAccountId()));
             trans.Append(stmt);
 
             foreach (var pair in _instanceResetTimes)
             {
                 stmt = CharacterDatabase.GetPreparedStatement(CharStatements.INS_ACCOUNT_INSTANCE_LOCK_TIMES);
-                stmt.SetInt32(0, GetSession().GetAccountId());
+                stmt.SetUInt32(0, unchecked((uint)GetSession().GetAccountId()));
                 stmt.SetInt32(1, pair.Key);
                 stmt.SetInt64(2, (UnixTime64)pair.Value);
                 trans.Append(stmt);
@@ -2863,13 +2893,19 @@ namespace Game.Entities
 
         public bool LoadFromDB(ObjectGuid guid, SQLQueryHolder<PlayerLoginQueryLoad> holder)
         {
+            bool FailLoad(string reason)
+            {
+                if (GetSession().IsServerControlled)
+                    Log.outError(LogFilter.Server, $"siPlayer {guid.GetCounter()} could not load: {reason}.");
+                return false;
+            }
             SQLResult result = holder.GetResult(PlayerLoginQueryLoad.From);
             if (result.IsEmpty())
             {
                 Global.CharacterCacheStorage.GetCharacterNameByGuid(guid, out string cacheName);
                 Log.outError(LogFilter.Player, 
                     $"Player.LoadFromDB: Player {cacheName} {guid} not found in table `characters`, can't load.");
-                return false;
+                return FailLoad("character row is missing");
             }
 
             int fieldIndex = 1;
@@ -2955,7 +2991,7 @@ namespace Game.Entities
                 Log.outError(LogFilter.Player, 
                     $"Player.LoadFromDB: Player (GUID: {guid}) loading from wrong account " +
                     $"(is: {GetSession().GetAccountId()}, should be: {accountId}).");
-                return false;
+                return FailLoad("character/account ownership mismatch");
             }
 
             SQLResult banResult = holder.GetResult(PlayerLoginQueryLoad.Banned);
@@ -2963,11 +2999,22 @@ namespace Game.Entities
             {
                 Log.outError(LogFilter.Player, 
                     $"Player.LoadFromDB: Player (GUID: {guid}) is banned, can't load.");
-                return false;
+                return FailLoad("character is banned");
             }
 
             _Create(guid);
 
+            if (GetSession().IsServerControlled)
+            {
+                string normalized = siPlayer.NormalizeStoredName(name, Global.CharacterCacheStorage.GetCharacterSurnameByGuid(guid));
+                if (normalized != name)
+                {
+                    var existing = Global.CharacterCacheStorage.GetCharacterCacheByName(normalized);
+                    if (existing != null && existing.Guid != guid) return FailLoad("Normalized SI first name is already in use.");
+                    name = normalized;
+                    Global.CharacterCacheStorage.UpdateCharacterData(guid, name);
+                }
+            }
             SetName(name);
 
             // check name limitations
@@ -2978,7 +3025,7 @@ namespace Game.Entities
                 stmt.SetUInt16(0, (ushort)AtLoginFlags.Rename);
                 stmt.SetInt64(1, guid.GetCounter());
                 DB.Characters.Execute(stmt);
-                return false;
+                return FailLoad("character name requires a rename");
             }
 
             SetUpdateFieldValue(m_values.ModifyValue(m_playerData).ModifyValue(m_playerData.WowAccount), GetSession().GetAccountGUID());
@@ -2988,7 +3035,7 @@ namespace Game.Entities
             {
                 Log.outError(LogFilter.Player, 
                     $"Player.LoadFromDB: layer {guid} has wrong gender ({gender}), can't be loaded.");
-                return false;
+                return FailLoad("invalid saved gender");
             }
 
             SetRace(race);
@@ -3001,7 +3048,7 @@ namespace Game.Entities
             {
                 Log.outError(LogFilter.Player, 
                     $"Player.LoadFromDB: Player {guid} has wrong race/class ({GetRace()}/{GetClass()}), can't be loaded.");
-                return false;
+                return FailLoad("race/class is not supported by the loaded world data");
             }
 
             SetLevel(level);
@@ -3022,6 +3069,7 @@ namespace Game.Entities
 
             // load achievements before anything else to prevent multiple gains for the same achievement/criteria on every loading (as loading does call UpdateAchievementCriteria)
             m_achievementSys.LoadFromDB(holder.GetResult(PlayerLoginQueryLoad.Achievements), holder.GetResult(PlayerLoginQueryLoad.CriteriaProgress));
+            LoadLegacyProgress(); // account challenges must be available before trait validation
             m_questObjectiveCriteriaMgr.LoadFromDB(holder.GetResult(PlayerLoginQueryLoad.QuestStatusObjectivesCriteria), holder.GetResult(PlayerLoginQueryLoad.QuestStatusObjectivesCriteriaProgress));
 
             SetMoney(Math.Min(money, PlayerConst.MaxMoneyAmount));
@@ -3051,9 +3099,14 @@ namespace Game.Entities
 
             if (!GetSession().ValidateAppearance(GetRace(), GetClass(), gender, customizations))
             {
-                Log.outError(LogFilter.Player, 
-                    $"Player.LoadFromDB: Player {guid} has wrong Appearance values (Hair/Skin/Color), can't be loaded.");
-                return false;
+                if (!GetSession().IsServerControlled || !GetSession().TrySelectSIAppearance(GetRace(), GetClass(), gender, customizations, out var repairedAppearance))
+                {
+                    Log.outError(LogFilter.Player,
+                        $"Player.LoadFromDB: Player {guid} has wrong Appearance values (Hair/Skin/Color), can't be loaded.");
+                    return FailLoad("saved appearance is not valid for the loaded client data and no valid SI defaults are available");
+                }
+                SetCustomizations(repairedAppearance);
+                Log.outInfo(LogFilter.Server, $"siPlayer {guid.GetCounter()}: repaired unsupported saved customization choices using validated client data.");
             }
 
             // set which actionbars the client has active - DO NOT REMOVE EVER AGAIN (can be changed though, if it does change fieldwise)
@@ -3069,7 +3122,7 @@ namespace Game.Entities
 
             // load home bind and check in same time class/race pair, it used later for restore broken positions
             if (!_LoadHomeBind(holder.GetResult(PlayerLoginQueryLoad.HomeBind)))
-                return false;
+                return FailLoad("homebind could not be loaded");
 
             InitializeSkillFields();
             InitPrimaryProfessions();                               // to max set before any spell loaded
@@ -3361,7 +3414,7 @@ namespace Game.Entities
                         $"Player.LoadFromDB: Player {GetName()} {guid} Map: {mapId}, {GetPosition()}. " +
                         $"Invalid default map coordinates or instance couldn't be created.");
 
-                    return false;
+                    return FailLoad("saved and fallback maps could not be created");
                 }
             }
 
@@ -3477,11 +3530,11 @@ namespace Game.Entities
             _LoadRandomBGStatus(holder.GetResult(PlayerLoginQueryLoad.RandomBg));
 
             // after spell and quest load
-            InitTalentForLevel();
             LearnDefaultSkills();
             LearnCustomSpells();
 
             _LoadTraits(holder.GetResult(PlayerLoginQueryLoad.TraitConfigs), holder.GetResult(PlayerLoginQueryLoad.TraitEntries)); // must be after loading spells
+            InitTalentForLevel(); // Talented changes the budget and starting level; validate after applying its selected rank.
 
             // must be before inventory (some items required reputation check)
             reputationMgr.LoadFromDB(holder.GetResult(PlayerLoginQueryLoad.Reputation));
@@ -3665,8 +3718,13 @@ namespace Game.Entities
 
         public void SaveToDB(SQLTransaction loginTransaction, SQLTransaction characterTransaction, bool create = false)
         {
+            Game.Systems.Legacy.LegacyRewardManager.AppendState(loginTransaction, this);
             // delay auto save at any saves (manual, in code, or autosave)
             m_nextSave = WorldConfig.Values[WorldCfg.IntervalSave].Milliseconds;
+
+            // Pure SI history must survive logout during a pending far transfer,
+            // even when location serialization is deliberately deferred below.
+            if(this is siPlayer autonomous)autonomous.AppendQuestHistory(characterTransaction);
 
             //lets allow only players in world to be saved
             if (IsBeingTeleportedFar())
@@ -3699,7 +3757,7 @@ namespace Game.Entities
                 /// @todo: Filter out more redundant fields that can take their default value at player create
                 stmt = CharacterDatabase.GetPreparedStatement(CharStatements.INS_CHARACTER);
                 stmt.SetInt64(index++, GetGUID().GetCounter());
-                stmt.SetInt32(index++, GetSession().GetAccountId());
+                stmt.SetUInt32(index++, unchecked((uint)GetSession().GetAccountId()));
                 stmt.SetString(index++, GetName());
                 stmt.SetUInt8(index++, (byte)GetRace());
                 stmt.SetUInt8(index++, (byte)GetClass());
@@ -4010,13 +4068,13 @@ namespace Game.Entities
             GetSession().GetCollectionMgr().SaveAccountItemAppearances(loginTransaction);
 
             stmt = LoginDatabase.GetPreparedStatement(LoginStatements.DEL_BNET_LAST_PLAYER_CHARACTERS);
-            stmt.SetInt32(0, GetSession().GetAccountId());
+            stmt.SetUInt32(0, unchecked((uint)GetSession().GetAccountId()));
             stmt.SetUInt8(1, Global.WorldMgr.GetRealmId().Region);
             stmt.SetUInt8(2, Global.WorldMgr.GetRealmId().Site);
             loginTransaction.Append(stmt);
 
             stmt = LoginDatabase.GetPreparedStatement(LoginStatements.INS_BNET_LAST_PLAYER_CHARACTERS);
-            stmt.SetInt32(0, GetSession().GetAccountId());
+            stmt.SetUInt32(0, unchecked((uint)GetSession().GetAccountId()));
             stmt.SetUInt8(1, Global.WorldMgr.GetRealmId().Region);
             stmt.SetUInt8(2, Global.WorldMgr.GetRealmId().Site);
             stmt.SetInt32(3, Global.WorldMgr.GetRealmId().Index);
@@ -4489,6 +4547,10 @@ namespace Game.Entities
                     trans.Append(stmt);
 
                     stmt = CharacterDatabase.GetPreparedStatement(CharStatements.DEL_CHAR_TRAIT_CONFIGS_BY_CHAR);
+                    stmt.SetInt64(0, guid);
+                    trans.Append(stmt);
+
+                    stmt = CharacterDatabase.GetPreparedStatement(CharStatements.DEL_LEGACY_CHARACTER_STATE);
                     stmt.SetInt64(0, guid);
                     trans.Append(stmt);
 

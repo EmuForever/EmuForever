@@ -14,7 +14,7 @@ namespace Game.DataStorage
         public ushort LocaleMask;
         private byte _createCharsetMask;
         private byte _existingCharsetMask;
-        private byte _flags;
+        private int _flags;
         public sbyte Order;
 
         #region Properties
@@ -40,6 +40,7 @@ namespace Game.DataStorage
     {
         public int Id;
         public string Tag;
+        public LocalizedString Name;
         public ushort RegionID;
         /// <summary>
         /// Date of first raid reset, all other resets are calculated as this date plus interval
@@ -47,6 +48,7 @@ namespace Game.DataStorage
         private int _raidorigin;
         public byte RegionGroupMask;
         private int _challengeOrigin;
+        public int TimeEventRegionGroupID;
 
         #region Properties
         public UnixTime Raidorigin => (UnixTime)_raidorigin;
@@ -60,19 +62,20 @@ namespace Game.DataStorage
         public LocalizedString Name;
         public LocalizedString Name1;
         public ushort MaskID;
-        public sbyte Flags;
+        public int Flags;
     }
 
     public sealed class CharacterLoadoutRecord
     {
-        private long _raceMask;
         public int Id;
         private sbyte _chrClassID;
         public int Purpose;
         private sbyte _itemContext;
+        public int Field_1_60_1_69876_003;
+        private int[] _raceMask = new int[2];
 
         #region Properties
-        public RaceMask RaceMask => (RaceMask)_raceMask;
+        public RaceMask RaceMask => (RaceMask)_raceMask[0];
         public Class ChrClassID => (Class)_chrClassID;
         public ItemContext ItemContext => (ItemContext)_itemContext;
         #endregion
@@ -121,6 +124,7 @@ namespace Game.DataStorage
         public int Id;
         private byte _raceID;
         private byte _classID;
+        public sbyte OtherFactionRaceID;
 
         #region Properties
         public Race RaceID => (Race)_raceID;
@@ -147,16 +151,31 @@ namespace Game.DataStorage
         public LocalizedString NameMale;
         public LocalizedString NameFemale;
         public string PetNameToken;
-        public int Id;
+        public LocalizedString Description;
+        public LocalizedString RoleInfoString;
+        public LocalizedString DisabledString;
+        public LocalizedString HyphenatedNameMale;
+        public LocalizedString HyphenatedNameFemale;
         public int CreateScreenFileDataID;
         public int SelectScreenFileDataID;
         public int IconFileDataID;
         public int LowResScreenFileDataID;
         public int Flags;
         public int StartingLevel;
+        public int SpellTextureBlobFileDataID;
         public uint ArmorTypeMask;
+        public int CharStartKitUnknown901;
+        public int MaleCharacterCreationVisualFallback;
+        public int MaleCharacterCreationIdleVisualFallback;
+        public int FemaleCharacterCreationVisualFallback;
+        public int FemaleCharacterCreationIdleVisualFallback;
+        public int CharacterCreationIdleGroundVisualFallback;
+        public int CharacterCreationGroundVisualFallback;
+        public int AlteredFormCharacterCreationIdleVisualFallback;
+        public int CharacterCreationAnimLoopWaitTimeMsFallback;
         public ushort CinematicSequenceID;
         public ushort DefaultSpec;
+        public sbyte Id;
         public byte HasStrengthAttackBonus;
         public byte PrimaryStatPriority;
         private byte _displayPower;
@@ -164,6 +183,9 @@ namespace Game.DataStorage
         public byte AttackPowerPerAgility;
         public byte AttackPowerPerStrength;
         private byte _spellClassSet;
+        public byte ClassColorR;
+        public byte ClassColorG;
+        public byte ClassColorB;
         public byte RolesMask;
         public byte DamageBonusStat;
         public byte HasRelicSlot;
@@ -219,6 +241,7 @@ namespace Game.DataStorage
         public int DisplayID;
         public float BarberShopMinCameraDistance;
         public float BarberShopHeightOffset;
+        public float BarberShopCameraZoomOffset;
 
         #region Properties
         public ShapeShiftForm ShapeshiftFormID => (ShapeShiftForm)_shapeshiftFormID;
@@ -240,6 +263,7 @@ namespace Game.DataStorage
         public int ChrCustomizationVoiceID;
         public int AnimKitID;
         public int ParticleColorID;
+        public int ChrCustGeoComponentLinkID;
     }
 
     public sealed class ChrCustomizationOptionRecord
@@ -256,15 +280,16 @@ namespace Game.DataStorage
         public int ChrCustomizationID;
         public int ChrCustomizationReqID;
         public int UiOrderIndex;
+        public int AddedInPatch;
     }
 
     public sealed class ChrCustomizationReqRecord
     {
-        private long _raceMask;
-        public LocalizedString ReqSource;
         public int Id;
+        public LocalizedString ReqSource;
         private int _flags;
         private int _classMask;
+        public int RegionGroupMask;
         public int AchievementID;
         public int QuestID;
         /// <summary>
@@ -272,9 +297,10 @@ namespace Game.DataStorage
         /// </summary>
         public int OverrideArchive;
         public int ItemModifiedAppearanceID;
+        private int[] _raceMask = new int[2];
 
         #region Properties
-        public RaceMask RaceMask => (RaceMask)_raceMask;
+        public RaceMask RaceMask => (RaceMask)_raceMask[0];
         public ClassMask ClassMask => (ClassMask)_classMask;
         public ChrCustomizationReqFlag Flags => (ChrCustomizationReqFlag)_flags;
         #endregion
@@ -326,9 +352,9 @@ namespace Game.DataStorage
     public sealed class ChrRaceXChrModelRecord
     {
         public int Id;
-        private int _chrRacesID;
+        private sbyte _chrRacesID;
         public int ChrModelID;
-        private int _sex;
+        private sbyte _sex;
         public int AllowedTransmogSlots;
 
         #region Properties
@@ -356,10 +382,8 @@ namespace Game.DataStorage
         public LocalizedString ShortNameLower;
         public LocalizedString ShortNameLowerFemale;
         private int _flags;
-        public uint MaleDisplayID;
-        public uint FemaleDisplayID;
-        public uint HighResMaleDisplayID;
-        public uint HighResFemaleDisplayID;
+        public int FactionID;
+        public int CinematicSequenceID;
         public int ResSicknessSpellID;
         public int SplashSoundID;
         public int CreateScreenFileDataID;
@@ -371,16 +395,11 @@ namespace Game.DataStorage
         public int StartingLevel;
         public int UiDisplayOrder;
         public int PlayableRaceBit;
-        public int FemaleSkeletonFileDataID;
-        public int MaleSkeletonFileDataID;
-        public int HelmetAnimScalingRaceID;
         public int TransmogrifyDisabledSlotMask;
         public float[] AlteredFormCustomizeOffsetFallback = new float[3];
         public float AlteredFormCustomizeRotationFallback;
         public float[] Unknown910_1 = new float[3];
         public float[] Unknown910_2 = new float[3];
-        public short FactionID;
-        public short CinematicSequenceID;
         public sbyte BaseLanguage;
         public sbyte CreatureType;
         public sbyte Alliance;
@@ -396,6 +415,7 @@ namespace Game.DataStorage
         public sbyte MaleTextureFallbackSex;
         public sbyte FemaleTextureFallbackRaceID;
         public sbyte FemaleTextureFallbackSex;
+        public sbyte HelmetAnimScalingRaceID;
         public sbyte UnalteredVisualCustomizationRaceID;
 
         #region Properties
@@ -431,7 +451,7 @@ namespace Game.DataStorage
         public int SpellIconFileID;
         public sbyte PrimaryStatPriority;
         public int AnimReplacements;
-        public int[] MasterySpellID = new int[PlayerConst.MaxMasterySpells];
+        public int[] MasterySpellID = new int[2];
 
         #region Properties
         public ChrSpecialization Id => (ChrSpecialization)_id;
@@ -474,6 +494,7 @@ namespace Game.DataStorage
         /// Model
         /// </summary>
         public uint FileDataID;
+        public int ConversationID;
     }
 
     public sealed class CinematicSequencesRecord
@@ -499,17 +520,31 @@ namespace Game.DataStorage
         public int OrderIndex;
         public int RedirectContentTuningID;
         public int RedirectFlag;
+        public int RedirectEnum;
         public int ParentContentTuningID;
     }
 
     public sealed class ContentTuningRecord
     {
         public int Id;
+        private int _flags;
+        public int ExpansionID;
+        public int HealthItemLevelCurveID;
+        public int DamageItemLevelCurveID;
+        public int HealthPrimaryStatCurveID;
+        public int DamagePrimaryStatCurveID;
+        public int PrimaryStatScalingModPlayerDataElementCharacterID;
+        public float PrimaryStatScalingModPlayerDataElementCharacterMultiplier;
         public int MinLevel;
         public int MaxLevel;
-        private int _flags;
-        public int ExpectedStatModID;
-        public int DifficultyESMID;
+        public int MinLevelType;
+        public int MaxLevelType;
+        public int TargetLevelDelta;
+        public int TargetLevelMaxDelta;
+        public int TargetLevelMin;
+        public int TargetLevelMax;
+        public int MinItemLevel;
+        public float QuestXpMultiplier;
 
         #region Properties
         public ContentTuningFlag Flags => (ContentTuningFlag)_flags;
@@ -545,8 +580,9 @@ namespace Game.DataStorage
     {
         public int Id;
         public int BroadcastTextID;
+        public int Unused1020;
         public int SpellVisualKitID;
-        public Milliseconds AdditionalDuration;
+        public int AdditionalDuration;
         public ushort NextConversationLineID;
         public ushort AnimKitID;
         public byte SpeechType;
@@ -570,7 +606,7 @@ namespace Game.DataStorage
         public int PortraitTextureFileDataID;
         public ushort ObjectEffectPackageID;
         public ushort AnimReplacementSetID;
-        public byte Flags;
+        public int Flags;
         public int StateSpellVisualKitID;
         public float PlayerOverrideScale;
         /// <summary>
@@ -583,6 +619,9 @@ namespace Game.DataStorage
         public sbyte Gender;
         public int DissolveOutEffectID;
         public sbyte CreatureModelMinLod;
+        public ushort ConditionalCreatureModelID;
+        public float Unknown_1100_1;
+        public ushort Unknown_1100_2;
         public int[] TextureVariationFileDataID = new int[4];
     }
 
@@ -592,15 +631,9 @@ namespace Game.DataStorage
         public sbyte DisplayRaceID;
         public sbyte DisplaySexID;
         public sbyte DisplayClassID;
-        public sbyte SkinID;
-        public sbyte FaceID;
-        public sbyte HairStyleID;
-        public sbyte HairColorID;
-        public sbyte FacialHairID;
-        public sbyte Flags;
+        public int Flags;
         public int BakeMaterialResourcesID;
         public int HDBakeMaterialResourcesID;
-        public byte[] CustomDisplayOption = new byte[3];
     }
 
     public sealed class CreatureFamilyRecord
@@ -629,6 +662,8 @@ namespace Game.DataStorage
         public float[] GeoBox = new float[6];
         private uint _flags;
         public uint FileDataID;
+        public float WalkSpeed;
+        public float RunSpeed;
         public uint BloodID;
         public uint FootprintTextureID;
         public float FootprintTextureLength;
@@ -638,7 +673,7 @@ namespace Game.DataStorage
         public uint FootstepCameraEffectID;
         public uint DeathThudCameraEffectID;
         public uint SoundID;
-        public uint SizeClass;
+        public byte SizeClass;
         public float CollisionWidth;
         public float CollisionHeight;
         public float WorldEffectScale;
@@ -654,6 +689,10 @@ namespace Game.DataStorage
         public float OverrideNameScale;
         public float OverrideSelectionRadius;
         public float TamedPetBaseScale;
+        public sbyte MountScaleOtherIndex;
+        public float MountScaleSelf;
+        public ushort Unknown1100;
+        public float[] MountScaleOther = new float[2];
 
         #region Properties
         public CreatureModelDataFlags Flags => (CreatureModelDataFlags)_flags;
@@ -676,7 +715,7 @@ namespace Game.DataStorage
     {
         public int Id;
         public LocalizedString Name;
-        public byte Flags;
+        public int Flags;
     }
 
     public sealed class CriteriaRecord
@@ -687,12 +726,12 @@ namespace Game.DataStorage
         public int ModifierTreeId;
         public int StartEvent;
         public int StartAsset;
-        private ushort _startTimer;
+        private int _startTimer;
         public int FailEvent;
         public int FailAsset;
         private int _flags;
-        private short _eligibilityWorldStateID;
-        private sbyte _eligibilityWorldStateValue;
+        private int _eligibilityWorldStateID;
+        private int _eligibilityWorldStateValue;
 
         #region Properties
         public CriteriaType Type => (CriteriaType)_type;
@@ -751,7 +790,7 @@ namespace Game.DataStorage
         public int MinAmount;
         public int MaxAmount;
         public int ContainerIconID;
-        public int ContainerQuality;
+        public sbyte ContainerQuality;
         public int OnLootSpellVisualKitID;
         public int CurrencyTypesID;
     }
@@ -761,7 +800,7 @@ namespace Game.DataStorage
         public int Id;
         public LocalizedString Name;
         public LocalizedString Description;
-        public byte CategoryID;
+        public int CategoryID;
         public int InventoryIconFileID;
         public int SpellWeight;
         public byte SpellCategory;
@@ -769,7 +808,18 @@ namespace Game.DataStorage
         public int MaxEarnablePerWeek;
         public sbyte Quality;
         public int FactionID;
+        public int ItemGroupSoundsID;
+        public int XpQuestDifficulty;
         public int AwardConditionID;
+        public int MaxQtyWorldStateID;
+        public int RechargingAmountPerCycle;
+        public int RechargingCycleDurationMS;
+        public float AccountTransferPercentage;
+        public int MaxQtyCurveID;
+        public byte OrderIndex;
+        public float RecraftReagentCountPercentage;
+        public byte OrderSource;
+        public int MCRCurrencyID;
         private int[] _flags = new int[2];
 
         #region Properties
@@ -834,7 +884,7 @@ namespace Game.DataStorage
     {
         public int Id;
         public byte Type;
-        public byte Flags;
+        public int Flags;
 
         #region Properties
         //public ??? Type => (???)_type;
@@ -847,6 +897,6 @@ namespace Game.DataStorage
         public Vector2 PreSLSquishPos;
         public int Id;
         public int CurveID;
-        public byte OrderIndex;
+        public int OrderIndex;
     }
 }

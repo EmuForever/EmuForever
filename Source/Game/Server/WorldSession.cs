@@ -20,13 +20,19 @@ using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
 using System.Text;
+using System.Threading;
+using System.Threading.Channels;
 
 namespace Game
 {
     public partial class WorldSession : IDisposable
     {
-        public WorldSession(int id, string name, int battlenetAccountId, WorldSocket sock, AccountTypes sec, Expansion expansion, ServerTime mute_time, string os, TimeSpan timezoneOffset, Locale locale, int recruiter, bool isARecruiter)
+        // serverControlled: a bot session (siPlayer) with no client socket; the AI drives the player.
+        public WorldSession(int id, string name, int battlenetAccountId, WorldSocket sock, AccountTypes sec, Expansion expansion, ServerTime mute_time, string os, TimeSpan timezoneOffset, Locale locale, int recruiter, bool isARecruiter, bool serverControlled = false)
         {
+            if (sock == null && !serverControlled)
+                throw new ArgumentNullException(nameof(sock));
+            IsServerControlled = serverControlled;
             m_mutedUntilTime = mute_time;
             AntiDOS = new DosProtection(this);
             m_Socket[(int)ConnectionType.Realm] = sock;
@@ -46,13 +52,17 @@ namespace Game
             _battlePetMgr = new BattlePetMgr(this);
             _collectionMgr = new CollectionMgr(this);
 
-            m_Address = sock.GetRemoteIpAddress().Address.ToString();
+            m_Address = sock != null ? sock.GetRemoteIpAddress().Address.ToString() : "127.0.0.1";
             ResetTimeOutTime(false);
-            DB.Login.Execute($"UPDATE account SET online = 1 WHERE id = {GetAccountId()};");     // One-time query
+            if (!IsServerControlled)
+                DB.Login.Execute($"UPDATE account SET online = 1 WHERE id = {unchecked((uint)GetAccountId())};");     // One-time query
         }
 
         public void Dispose()
         {
+            DisposeClassicServices();
+            if (_siCreateCompleted != null)
+                CompleteSICreation(ResponseCodes.CharCreateError, ObjectGuid.Empty);
             // unload player if not unloaded
             if (_player != null)
                 LogoutPlayer(true);
@@ -68,9 +78,11 @@ namespace Game
             }
 
             // empty incoming packet queue
-            _recvQueue.Clear();
+            _recvQueue.Writer.TryComplete();
+            while (_recvQueue.Reader.TryRead(out _)) { }
 
-            DB.Login.Execute($"UPDATE account SET online = 0 WHERE id = {GetAccountId()};");     // One-time query
+            if (!IsServerControlled || _siRegistered)
+                DB.Login.Execute($"UPDATE account SET online = 0 WHERE id = {unchecked((uint)GetAccountId())};");     // One-time query
         }
 
         public void LogoutPlayer(bool save)
@@ -218,7 +230,7 @@ namespace Game
                 //! Since each account can only have one online character at any given time,
                 //ensure all characters for active account are marked as offline
                 PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(CharStatements.UPD_ACCOUNT_ONLINE);
-                stmt.SetInt32(0, GetAccountId());
+                stmt.SetUInt32(0, unchecked((uint)GetAccountId()));
                 DB.Characters.Execute(stmt);
             }
 
@@ -231,11 +243,31 @@ namespace Game
             m_playerLogout = false;
             m_playerSave = false;
             m_playerRecentlyLogout = true;
+            _logoutRooted = false;
             SetLogoutStartTime(ServerTime.Zero);
         }
 
         public bool Update(TimeSpan diff, PacketFilter updater)
         {
+            if (IsServerControlled)
+            {
+                // Database completion and transfers belong to the world update, never a worker.
+                if (updater.ProcessUnsafe())
+                {
+                    ProcessQueryCallbacks();
+                    if (!forceExit && _player != null)
+                    {
+                        if (_player.IsBeingTeleportedFar())
+                            HandleMoveWorldportAck();
+                        else if (_player.IsBeingTeleportedNear())
+                            CompleteNearTeleport();
+                        // Far transfers clear the visibility-ready flag, just as login does.
+                        // A headless player must not wait for an acknowledgement it cannot send.
+                        CompleteSIActiveMoverInitialization();
+                    }
+                }
+                return !forceExit;
+            }
             // Before we process anything:
             /// If necessary, kick the player because the client didn't send anything for too long
             /// (or they've been idling in character select)
@@ -248,7 +280,9 @@ namespace Game
 
             WorldPacket packet;
             //Check for any packets they was not recived yet.
-            while (m_Socket[(int)ConnectionType.Realm] != null && !_recvQueue.IsEmpty && (_recvQueue.TryPeek(out packet, updater) && packet != firstDelayedPacket) && _recvQueue.TryDequeue(out packet))
+            while (m_Socket[(int)ConnectionType.Realm] != null &&
+                _recvQueue.Reader.TryPeek(out packet) && packet != firstDelayedPacket &&
+                updater.Process(packet) && _recvQueue.Reader.TryRead(out packet))
             {
                 try
                 {
@@ -340,7 +374,7 @@ namespace Game
                 }
             }
 
-            ProcessQueryCallbacks();
+            ProcessQueryCallbacks(updater.ProcessUnsafe());
 
             if (updater.ProcessUnsafe())
             {
@@ -349,7 +383,10 @@ namespace Game
 
                 // If necessary, log the player out
                 if (ShouldLogOut(currentTime) && m_playerLoading.IsEmpty())
+                {
+                    Log.outInfo(LogFilter.Network, $"Logout timer finished for {GetPlayerInfo()}, logging out");
                     LogoutPlayer(true);
+                }
 
                 //- Cleanup socket if need
                 if ((m_Socket[(int)ConnectionType.Realm] != null && !m_Socket[(int)ConnectionType.Realm].IsOpen()) ||
@@ -384,7 +421,11 @@ namespace Game
 
         public void QueuePacket(WorldPacket packet)
         {
-            _recvQueue.Enqueue(packet);
+            // Socket producers must not block behind a slow map, and dropping an
+            // arbitrary gameplay packet corrupts ordering. Reject the whole session
+            // explicitly on overload; preserve FIFO for all accepted packets.
+            if (!_recvQueue.Writer.TryWrite(packet) && Interlocked.Exchange(ref _packetQueueRejected, 1) == 0)
+                KickPlayer($"Incoming packet queue exceeded {MaxQueuedPackets} packets or session closed");
         }
 
         void LogUnexpectedOpcode(WorldPacket packet, SessionStatus status, string reason)
@@ -396,6 +437,9 @@ namespace Game
 
         public void SendPacket(ServerPacket packet)
         {
+            // Observer broadcasts still use the ordinary map visibility system.
+            if (IsServerControlled)
+                return;
             if (packet == null)
                 return;
 
@@ -428,6 +472,7 @@ namespace Game
 
         public void KickPlayer(string reason)
         {
+            forceExit = true;
             Log.outInfo(LogFilter.Network, $"Account: {GetAccountId()} Character: '{(_player != null ? _player.GetName() : "<none>")}' {(_player != null ? _player.GetGUID() : "")} kicked with reason: {reason}");
 
             for (byte i = 0; i < 2; ++i)
@@ -489,7 +534,7 @@ namespace Game
             for (var i = 0; i < SharedConst.MaxAccountTutorialValues; ++i)
                 stmt.SetUInt32(i, tutorials[i]);
 
-            stmt.SetInt32(SharedConst.MaxAccountTutorialValues, GetAccountId());
+            stmt.SetUInt32(SharedConst.MaxAccountTutorialValues, unchecked((uint)GetAccountId()));
             trans.Append(stmt);
 
             // now has, set flag so next save uses update query
@@ -509,6 +554,7 @@ namespace Game
 
             ConnectTo connectTo = new();
             connectTo.Key = _instanceConnectKey.Raw;
+            connectTo.NativeRealmAddress = Global.WorldMgr.GetVirtualRealmAddress();
             connectTo.Serial = serial;
             connectTo.Payload.Port = (ushort)WorldConfig.Values[WorldCfg.PortInstance].Int32;
             connectTo.Con = (byte)ConnectionType.Instance;
@@ -570,7 +616,7 @@ namespace Game
             if (AccountDataTypeMask.GlobalCacheMask.HasType(type))
             {
                 PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(CharStatements.REP_ACCOUNT_DATA);
-                stmt.SetInt32(0, GetAccountId());
+                stmt.SetUInt32(0, unchecked((uint)GetAccountId()));
                 stmt.SetUInt8(1, (byte)type);
                 stmt.SetInt64(2, time);
                 stmt.SetString(3, data);
@@ -684,20 +730,22 @@ namespace Game
             _warden.HandleData(packet.Data);
         }
 
-        public bool PlayerLoading() { return !m_playerLoading.IsEmpty(); }
+        public bool PlayerLoading() { return _siCreateInfo != null || !m_playerLoading.IsEmpty(); }
         public bool PlayerLogout() { return m_playerLogout; }
         public bool PlayerLogoutWithSave() { return m_playerLogout && m_playerSave; }
         public bool PlayerRecentlyLoggedOut() { return m_playerRecentlyLogout; }
         
         public bool PlayerDisconnected()
         {
+            if (IsServerControlled)
+                return forceExit;
             return !(m_Socket[(int)ConnectionType.Realm] != null && m_Socket[(int)ConnectionType.Realm].IsOpen() &&
                 m_Socket[(int)ConnectionType.Instance] != null && m_Socket[(int)ConnectionType.Instance].IsOpen());
         }
 
         public AccountTypes GetSecurity() { return _security; }
         public int GetAccountId() { return _accountId; }
-        public ObjectGuid GetAccountGUID() { return ObjectGuid.Create(HighGuid.WowAccount, GetAccountId()); }
+        public ObjectGuid GetAccountGUID() { return ObjectGuid.Create(HighGuid.WowAccount, unchecked((uint)GetAccountId())); }
         public string GetAccountName() { return _accountName; }
         public int GetBattlenetAccountId() { return _battlenetAccountId; }
         public ObjectGuid GetBattlenetAccountGUID() { return ObjectGuid.Create(HighGuid.BNetAccount, GetBattlenetAccountId()); }
@@ -729,8 +777,10 @@ namespace Game
             return _logoutTime > ServerTime.Zero && currTime >= _logoutTime + (Seconds)20;
         }
 
-        void ProcessQueryCallbacks()
+        void ProcessQueryCallbacks(bool processClassicServices = true)
         {
+            if (processClassicServices)
+                ProcessClassicServices();
             _queryProcessor.ProcessReadyCallbacks();
             _transactionCallbacks.ProcessReadyCallbacks();
             _queryHolderProcessor.ProcessReadyCallbacks();
@@ -843,6 +893,7 @@ namespace Game
             SendAvailableHotfixes();
             SendAccountDataTimes(ObjectGuid.Empty, AccountDataTypeMask.GlobalCacheMask);
             SendTutorialsData();
+            InitializeBnetServices();
 
             SQLResult result = holder.GetResult(AccountInfoQueryLoad.GlobalRealmCharacterCounts);
             if (!result.IsEmpty())
@@ -859,6 +910,8 @@ namespace Game
             SendPacket(bnetConnected);
 
             _battlePetMgr.LoadFromDB(holder.GetResult(AccountInfoQueryLoad.BattlePets), holder.GetResult(AccountInfoQueryLoad.BattlePetSlot));
+            if (IsServerControlled && !forceExit)
+                StartSICharacter();
         }
 
         public RBACData GetRBACData()
@@ -992,6 +1045,7 @@ namespace Game
         Warden _warden;                                    // Remains NULL if Warden system is not enabled by config
 
         ServerTime _logoutTime;
+        bool _logoutRooted;                                       // the logout request rooted the player; undo it on cancel
         bool m_inQueue;
         ObjectGuid m_playerLoading;                               // code processed in LoginPlayer
         bool m_playerLogout;                                // code processed in LogoutPlayer
@@ -1018,7 +1072,13 @@ namespace Game
         public ServerTime m_mutedUntilTime;
         ServerTime m_timeOutTime;
 
-        ConcurrentQueue<WorldPacket> _recvQueue = new();
+        public const int MaxQueuedPackets = 1024;
+        int _packetQueueRejected;
+        // Wait mode makes TryWrite report saturation; DropWrite would report success
+        // after silently discarding an opcode. World/map readers run in separate phases.
+        readonly Channel<WorldPacket> _recvQueue = System.Threading.Channels.Channel.CreateBounded<WorldPacket>(
+            new BoundedChannelOptions(MaxQueuedPackets) { FullMode = BoundedChannelFullMode.Wait,
+                SingleReader = false, SingleWriter = false, AllowSynchronousContinuations = false });
         RBACData _RBACData;
 
         CircularBuffer<(Milliseconds clockDelta, Milliseconds latency)> _timeSyncClockDeltaQueue = new(6); // first member: clockDelta. Second member: latency of the packet exchange that was used to compute that clockDelta.
@@ -1158,11 +1218,11 @@ namespace Game
         public void Initialize(int accountId, int battlenetAccountId)
         {
             PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_ACCOUNT_DATA);
-            stmt.SetInt32(0, accountId);
+            stmt.SetUInt32(0, unchecked((uint)accountId));
             SetQuery(AccountInfoQueryLoad.GlobalAccountDataIndexPerRealm, stmt);
 
             stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_TUTORIALS);
-            stmt.SetInt32(0, accountId);
+            stmt.SetUInt32(0, unchecked((uint)accountId));
             SetQuery(AccountInfoQueryLoad.TutorialsIndexPerRealm, stmt);
         }
     }
@@ -1193,7 +1253,7 @@ namespace Game
             SetQuery(AccountInfoQueryLoad.Mounts, stmt);
 
             stmt = LoginDatabase.GetPreparedStatement(LoginStatements.SEL_BNET_CHARACTER_COUNTS_BY_ACCOUNT_ID);
-            stmt.SetInt32(0, accountId);
+            stmt.SetUInt32(0, unchecked((uint)accountId));
             SetQuery(AccountInfoQueryLoad.GlobalRealmCharacterCounts, stmt);
 
             stmt = LoginDatabase.GetPreparedStatement(LoginStatements.SEL_BNET_ITEM_APPEARANCES);

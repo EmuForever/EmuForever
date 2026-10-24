@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -135,6 +135,7 @@ namespace Game.Entities
             return m_formation.CanLeaderStartMoving();
         }
 
+        bool _populationScaledRespawn;
         public void RemoveCorpse(bool setSpawnTime = true, bool destroyForNearbyPlayers = true)
         {
             if (GetDeathState() != DeathState.Corpse)
@@ -156,7 +157,7 @@ namespace Game.Entities
                     UpdateObjectVisibilityOnDestroy();
 
                 // Should get removed later, just keep "compatibility" with scripts
-                if (setSpawnTime)
+                if (setSpawnTime&&!_populationScaledRespawn)
                     m_respawnTime = (ServerTime)Time.Max(LoopTime.ServerTime + respawnDelay, m_respawnTime);
 
                 // if corpse was removed during falling, the falling will continue and override relocation to respawn position
@@ -193,7 +194,7 @@ namespace Game.Entities
                 // In case this is called directly and normal respawn timer not set
                 // Since this timer will be longer than the already present time it
                 // will be ignored if the correct place added a respawn timer
-                if (setSpawnTime)
+                if (setSpawnTime&&!_populationScaledRespawn)
                 {
                     TimeSpan respawnDelay = m_respawnDelay;
                     m_respawnTime = (ServerTime)Time.Max(LoopTime.ServerTime + respawnDelay, m_respawnTime);
@@ -221,7 +222,7 @@ namespace Game.Entities
 
             m_creatureInfo = creatureInfo;
             SetEntry(entry);
-            m_creatureDifficulty = creatureInfo.GetDifficulty(!IsPet() ? GetMap().GetDifficultyID() : Difficulty.None);
+            m_creatureStats = creatureInfo.Stats;
 
             // equal to player Race field, but creature does not have race
             SetRace(Race.None);
@@ -285,15 +286,15 @@ namespace Game.Entities
             for (byte i = 0; i < SharedConst.MaxCreatureSpells; ++i)
                 m_spells[i] = GetCreatureTemplate().Spells[i];
 
-            ApplyAllStaticFlags(m_creatureDifficulty.StaticFlags);
+            ApplyAllStaticFlags(m_creatureStats.StaticFlags);
 
             _staticFlags.ApplyFlag(CreatureStaticFlags.NoXp, creatureInfo.CreatureType == CreatureType.Critter || IsPet() || IsTotem() || creatureInfo.FlagsExtra.HasFlag(CreatureFlagsExtra.NoXP));
 
             // TODO: migrate these in DB
-            _staticFlags.ApplyFlag(CreatureStaticFlags2.AllowMountedCombat, GetCreatureDifficulty().TypeFlags.HasFlag(CreatureTypeFlags.AllowMountedCombat));
+            _staticFlags.ApplyFlag(CreatureStaticFlags2.AllowMountedCombat, GetCreatureTemplateStats().TypeFlags.HasFlag(CreatureTypeFlags.AllowMountedCombat));
             SetIgnoreFeignDeath(creatureInfo.FlagsExtra.HasAnyFlag(CreatureFlagsExtra.IgnoreFeighDeath));
-            SetInteractionAllowedInCombat(GetCreatureDifficulty().TypeFlags.HasAnyFlag(CreatureTypeFlags.AllowInteractionWhileInCombat));
-            _staticFlags.ApplyFlag(CreatureStaticFlags4.TreatAsRaidUnitForHelpfulSpells, GetCreatureDifficulty().TypeFlags.HasFlag(CreatureTypeFlags.TreatAsRaidUnit));
+            SetInteractionAllowedInCombat(GetCreatureTemplateStats().TypeFlags.HasAnyFlag(CreatureTypeFlags.AllowInteractionWhileInCombat));
+            _staticFlags.ApplyFlag(CreatureStaticFlags4.TreatAsRaidUnitForHelpfulSpells, GetCreatureTemplateStats().TypeFlags.HasFlag(CreatureTypeFlags.TreatAsRaidUnit));
 
             return true;
         }
@@ -423,6 +424,18 @@ namespace Game.Entities
             SetTemplateRooted(flags.HasFlag(CreatureStaticFlags.Sessile));
             m_updateFlag.NoBirthAnim = flags.HasFlag(CreatureStaticFlags4.NoBirthAnim);
         }
+
+        // Creatures out of combat (no target or cast, not player-owned) are updated on an interval with the
+        // accumulated time instead of on every map tick. Timers, regeneration, respawn and AI events see the
+        // same total time; only their granularity changes. A wandering creature's server position advances in
+        // 300 ms steps, which clients never see (they animate the spline). Aggro is detected separately, by
+        // relocation notifies, so a player walking up is still noticed at once.
+        public static readonly TimeSpan IdleUpdateInterval = TimeSpan.FromMilliseconds(300);
+        internal TimeSpan PendingUpdateDiff;
+        internal bool CanDeferIdleUpdate() => IsInWorld && !IsInCombat() && GetVictim() == null &&
+            !HasUnitState(UnitState.Evade | UnitState.Fleeing | UnitState.Confused | UnitState.Casting) &&
+            GetCharmerOrOwnerGUID().IsEmpty() && !IsPet() && GetVehicleKit() == null && GetVehicle() == null &&
+            !IsNonMeleeSpellCast(false);
 
         public override void Update(TimeSpan diff)
         {
@@ -840,7 +853,7 @@ namespace Game.Entities
                 return false;
             }
 
-            CreatureDifficulty creatureDifficulty = cinfo.GetDifficulty(GetMap().GetDifficultyID());
+            CreatureTemplateStats creatureDifficulty = cinfo.Stats;
 
             //! Relocate before CreateFromProto, to initialize coords and allow
             //! returning correct zone id for selecting OutdoorPvP/Battlefield script
@@ -1255,7 +1268,7 @@ namespace Game.Entities
             if (_lootId.HasValue)
                 return _lootId.Value;
 
-            return GetCreatureDifficulty().LootID;
+            return GetCreatureTemplateStats().LootID;
         }
 
         public void SetLootId(int? lootId)
@@ -1450,8 +1463,7 @@ namespace Game.Entities
             // prevent add data integrity problems
             data.WanderDistance = GetDefaultMovementType() == MovementGeneratorType.Idle ? 0.0f : m_wanderDistance;
             data.currentwaypoint = 0;
-            data.curhealth = (int)GetHealth();
-            data.curmana = GetPower(PowerType.Mana);
+            data.curHealthPct = (uint)GetHealthPct();
             // prevent add data integrity problems
             data.movementType = (m_wanderDistance == 0 && GetDefaultMovementType() == MovementGeneratorType.Random
                 ? MovementGeneratorType.Idle : GetDefaultMovementType());
@@ -1478,10 +1490,12 @@ namespace Game.Entities
             stmt = WorldDatabase.GetPreparedStatement(WorldStatements.INS_CREATURE);
             stmt.SetInt64(index++, m_spawnId);
             stmt.SetInt32(index++, GetEntry());
-            stmt.SetInt32(index++, mapid);
-            stmt.SetString(index++, data.SpawnDifficulties.Empty() ? "" : string.Join(',', data.SpawnDifficulties));
+            stmt.SetUInt16(index++, (ushort)mapid);
+            stmt.SetString(index++, data.SpawnDifficulties.Empty() ? "" : string.Join(',', data.SpawnDifficulties.Select(d => (int)d)));
+            stmt.SetUInt8(index++, (byte)data.PhaseUseFlags);
             stmt.SetInt32(index++, data.PhaseId);
             stmt.SetInt32(index++, data.PhaseGroup);
+            stmt.SetInt32(index++, data.terrainSwapMap);
             stmt.SetInt32(index++, displayId);
             stmt.SetUInt8(index++, GetCurrentEquipmentId());
             stmt.SetFloat(index++, GetPositionX());
@@ -1491,8 +1505,7 @@ namespace Game.Entities
             stmt.SetInt32(index++, m_respawnDelay);
             stmt.SetFloat(index++, m_wanderDistance);
             stmt.SetInt32(index++, 0);
-            stmt.SetInt64(index++, GetHealth());
-            stmt.SetInt32(index++, GetPower(PowerType.Mana));
+            stmt.SetUInt32(index++, (uint)GetHealthPct());
             stmt.SetUInt8(index++, (byte)GetDefaultMovementType());
             if (npcflag.HasValue || npcflag2.HasValue)
                 stmt.SetUInt64(index++, ((ulong)npcflag2 << 32) | (ulong)npcflag);
@@ -1513,6 +1526,12 @@ namespace Game.Entities
                 stmt.SetUInt32(index++, (uint)unitFlags3.Value);
             else
                 stmt.SetNull(index++);
+
+            stmt.SetString(index++, Global.ObjectMgr.GetScriptName(data.ScriptId));
+            if (!data.StringId.IsEmpty())
+                stmt.SetString(index++, data.StringId);
+            else
+                stmt.SetNull(index++);
             trans.Append(stmt);
 
             DB.World.CommitTransaction(trans);
@@ -1521,7 +1540,7 @@ namespace Game.Entities
         public void SelectLevel()
         {
             // Level
-            CreatureDifficulty difficulty = GetCreatureDifficulty();
+            CreatureTemplateStats difficulty = GetCreatureTemplateStats();
             if (difficulty.MinLevel != difficulty.MaxLevel)
                 SetLevel(RandomHelper.IRand(difficulty.MinLevel, difficulty.MaxLevel));
             else
@@ -1537,7 +1556,7 @@ namespace Game.Entities
             // health
             float healthmod = GetHealthMod(classification);
 
-            int basehp = stats.GenerateHealth(GetCreatureDifficulty());
+            int basehp = stats.GenerateHealth(GetCreatureTemplateStats());
             int health = (int)(basehp * healthmod);
 
             SetCreateHealth(health);
@@ -1550,7 +1569,7 @@ namespace Game.Entities
             // mana
             PowerType powerType = CalculateDisplayPowerType();
             SetCreateMana(stats.BaseMana);
-            StatMods.SetMult(UnitMods.PowerStart + (int)powerType, GetCreatureDifficulty().ManaModifier, UnitModType.BasePermanent);
+            StatMods.SetMult(UnitMods.PowerStart + (int)powerType, GetCreatureTemplateStats().ManaModifier, UnitModType.BasePermanent);
             SetPowerType(powerType);
 
             PowerTypeRecord powerTypeEntry = Global.DB2Mgr.GetPowerTypeEntry(powerType);
@@ -1563,7 +1582,7 @@ namespace Game.Entities
             }
 
             //Damage
-            float basedamage = stats.GenerateBaseDamage(GetCreatureDifficulty());
+            float basedamage = stats.GenerateBaseDamage(GetCreatureTemplateStats());
             float weaponBaseMinDamage = basedamage;
             float weaponBaseMaxDamage = basedamage * 1.5f;
 
@@ -1579,7 +1598,7 @@ namespace Game.Entities
             StatMods.SetFlat(UnitMods.AttackPowerMelee, stats.AttackPower, UnitModType.BasePermanent);
             StatMods.SetFlat(UnitMods.AttackPowerRanged, stats.RangedAttackPower, UnitModType.BasePermanent);
 
-            int armor = stats.GenerateArmor(GetCreatureDifficulty());  // @todo Why is this treated as int32 when it's a float?
+            int armor = stats.GenerateArmor(GetCreatureTemplateStats());  // @todo Why is this treated as int32 when it's a float?
             StatMods.SetFlat(UnitMods.Armor, armor, UnitModType.BasePermanent);
         }
 
@@ -1815,17 +1834,10 @@ namespace Game.Entities
                 return;
 
             long curhealth;
-            if (m_creatureData != null && !_regenerateHealth)
+            if (m_creatureData != null && !_regenerateHealth && m_creatureData.curHealthPct.HasValue)
             {
-                curhealth = m_creatureData.curhealth;
-                if (curhealth != 0)
-                {
-                    curhealth = (uint)(curhealth * GetHealthMod(GetCreatureTemplate().Classification));
-                    if (curhealth < 1)
-                        curhealth = 1;
-                }
-
-                SetPower(PowerType.Mana, m_creatureData.curmana);
+                curhealth = CountPctFromMaxHealth((int)m_creatureData.curHealthPct.Value);
+                SetFullPower(PowerType.Mana);
             }
             else
             {
@@ -1870,8 +1882,7 @@ namespace Game.Entities
             Global.MapMgr.DoForAllMapsWithMapId(data.MapId, map =>
             {
                 // despawn all active creatures, and remove their respawns
-                foreach (var creature in map.GetCreatureBySpawnIdStore()[spawnId])
-                    map.AddObjectToRemoveList(creature);
+                map.DespawnAll(SpawnObjectType.Creature, spawnId);
 
                 map.RemoveRespawnTime(SpawnObjectType.Creature, spawnId, trans);
             });
@@ -2036,13 +2047,15 @@ namespace Game.Entities
                 if (scalingMode > 0)
                     GetMap().ApplyDynamicModeRespawnScaling(this, m_spawnId, ref respawnDelay, scalingMode);
 
+                _populationScaledRespawn=respawnDelay<m_respawnDelay;
+                if(_populationScaledRespawn&&m_corpseRemoveTime>LoopTime.ServerTime+respawnDelay)m_corpseRemoveTime=LoopTime.ServerTime+respawnDelay;
                 // @todo remove the boss respawn time hack in a dynspawn follow-up once we have creature groups in instances
                 if (m_respawnCompatibilityMode)
                 {
                     if (IsDungeonBoss() && m_respawnDelay == TimeSpan.Zero)
                         m_respawnTime = ServerTime.Infinity; // never respawn in this instance
                     else
-                        m_respawnTime = LoopTime.ServerTime + respawnDelay + m_corpseDelay;
+                        m_respawnTime = LoopTime.ServerTime + respawnDelay + (_populationScaledRespawn?Seconds.Zero:m_corpseDelay);
                 }
                 else
                 {
@@ -2308,7 +2321,7 @@ namespace Game.Entities
             if (IsPet())
                 return false;
 
-            return GetCreatureDifficulty().TypeFlags.HasFlag(CreatureTypeFlags.BossMob);
+            return GetCreatureTemplateStats().TypeFlags.HasFlag(CreatureTypeFlags.BossMob);
         }
 
         // select nearest hostile unit within the given distance (regardless of threat list).
@@ -2862,12 +2875,19 @@ namespace Game.Entities
                 return hasSkinningLoot;
             }
 
+            var previousRemoveTime=m_corpseRemoveTime;
             if (isFullySkinned())
                 m_corpseRemoveTime = now;
             else
                 m_corpseRemoveTime = now + (Seconds)(m_corpseDelay * decayRate);
 
-            m_respawnTime = (ServerTime)Time.Max(m_corpseRemoveTime + m_respawnDelay, m_respawnTime);
+            if(_populationScaledRespawn)
+            {
+                // Looting/compatibility corpse cleanup must not restore the unscaled
+                // base delay after death already scheduled a population-based respawn.
+                if(m_corpseRemoveTime>previousRemoveTime)m_corpseRemoveTime=previousRemoveTime;
+            }
+            else m_respawnTime = (ServerTime)Time.Max(m_corpseRemoveTime + m_respawnDelay, m_respawnTime);
         }        
 
         public override void SetInteractionAllowedWhileHostile(bool interactionAllowed)
@@ -2897,66 +2917,12 @@ namespace Game.Entities
             }
         }
 
-        public bool HasScalableLevels()
-        {
-            return m_unitData.ContentTuningID != 0;
-        }
-
-        long GetMaxHealthByLevel(int level)
-        {
-            CreatureTemplate cInfo = GetCreatureTemplate();
-            CreatureDifficulty creatureDifficulty = GetCreatureDifficulty();
-            float baseHealth = Global.DB2Mgr.EvaluateExpectedStat(ExpectedStatType.CreatureHealth, level, creatureDifficulty.GetHealthScalingExpansion(), 0, cInfo.UnitClass);
-
-            return (long)Math.Max(baseHealth * creatureDifficulty.HealthModifier, 1.0f);
-        }
-
-        public override float GetHealthMultiplierForTarget(WorldObject target)
-        {
-            if (!HasScalableLevels())
-                return 1.0f;
-
-            int levelForTarget = GetLevelForTarget(target);
-            if (GetLevel() < levelForTarget)
-                return 1.0f;
-
-            return (float)GetMaxHealthByLevel(levelForTarget) / GetCreateHealth();
-        }
-
-        public float GetBaseDamageForLevel(int level)
-        {
-            CreatureTemplate cInfo = GetCreatureTemplate();
-            CreatureDifficulty creatureDifficulty = GetCreatureDifficulty();
-            return Global.DB2Mgr.EvaluateExpectedStat(ExpectedStatType.CreatureAutoAttackDps, level, creatureDifficulty.GetHealthScalingExpansion(), 0, cInfo.UnitClass);
-        }
-
-        public override float GetDamageMultiplierForTarget(WorldObject target)
-        {
-            if (!HasScalableLevels())
-                return 1.0f;
-
-            int levelForTarget = GetLevelForTarget(target);
-
-            return GetBaseDamageForLevel(levelForTarget) / GetBaseDamageForLevel(GetLevel());
-        }
-
-        float GetBaseArmorForLevel(int level)
-        {
-            CreatureTemplate cInfo = GetCreatureTemplate();
-            CreatureDifficulty creatureDifficulty = GetCreatureDifficulty();
-            float baseArmor = Global.DB2Mgr.EvaluateExpectedStat(ExpectedStatType.CreatureArmor, level, creatureDifficulty.GetHealthScalingExpansion(), 0, cInfo.UnitClass);
-            return baseArmor * creatureDifficulty.ArmorModifier;
-        }
-
-        public override float GetArmorMultiplierForTarget(WorldObject target)
-        {
-            if (!HasScalableLevels())
-                return 1.0f;
-
-            int levelForTarget = GetLevelForTarget(target);
-
-            return GetBaseArmorForLevel(levelForTarget) / GetBaseArmorForLevel(GetLevel());
-        }
+        public bool HasScalableLevels() => false;
+        public override float GetHealthMultiplierForTarget(WorldObject target) => 1.0f;
+        public override float GetDamageMultiplierForTarget(WorldObject target) => 1.0f;
+        public override float GetArmorMultiplierForTarget(WorldObject target) => 1.0f;
+        public float GetBaseDamageForLevel(int level) =>
+            Global.ObjectMgr.GetCreatureBaseStats(level, GetCreatureTemplate().UnitClass).GenerateBaseDamage(GetCreatureTemplateStats());
 
         public override int GetLevelForTarget(WorldObject target)
         {
@@ -3516,7 +3482,7 @@ namespace Game.Entities
 
         public CreatureTemplate GetCreatureTemplate() { return m_creatureInfo; }
         public CreatureData GetCreatureData() { return m_creatureData; }
-        public CreatureDifficulty GetCreatureDifficulty() { return m_creatureDifficulty; }
+        public CreatureTemplateStats GetCreatureTemplateStats() { return m_creatureStats; }
         
         public override bool LoadFromDB(long spawnId, Map map, bool addToMap, bool allowDuplicate)
         {

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework;
@@ -199,6 +199,14 @@ namespace Game
         {
             Cypher.Assert(s != null);
 
+            // A queued SI spawn must never evict an account that connected meanwhile.
+            if (s.IsServerControlled && FindSession(s.GetAccountId()) != null)
+            {
+                s.KickPlayer("siPlayer account already has a session");
+                s.Dispose();
+                return;
+            }
+
             //NOTE - Still there is race condition in WorldSession* being used in the Sockets
 
             // kick already loaded player with same account (if any) and remove session
@@ -228,6 +236,8 @@ namespace Game
             }
 
             m_sessions[s.GetAccountId()] = s;
+            if (s.IsServerControlled)
+                s.RegisterSIAccount();
             m_sessionsByBnetGuid.Add(s.GetBattlenetAccountGUID(), s);
 
             int Sessions = GetActiveAndQueuedSessionCount();
@@ -384,7 +394,14 @@ namespace Game
 
         public void SetInitialWorldSettings()
         {
-            _realm = Global.RealmMgr.GetRealms().First();
+            // Use the realm whose id is set as RealmID in WorldServer.conf (realmlist can hold several realms)
+            int configuredRealmId = _realm.Id.Index;
+            _realm = Global.RealmMgr.GetRealms().FirstOrDefault(r => r.Id.Index == configuredRealmId);
+            if (_realm == null)
+            {
+                Log.outFatal(LogFilter.ServerLoading, $"RealmID {configuredRealmId} from WorldServer.conf is not in the auth `realmlist` table.");
+                Environment.Exit(1);
+            }
             Log.SetRealmId(_realm.Id.Index);
 
             LoadConfigSettings();
@@ -394,10 +411,18 @@ namespace Game
 
             Global.ObjectMgr.SetHighestGuids();
 
+            // Forever 1.60.1 map extracts are Classic-only: only require Outland start zones when map 530 was extracted
+            bool checkOutland = WorldConfig.Values[WorldCfg.Expansion].Int32 != 0;
+            if (checkOutland && !System.IO.File.Exists($"{GetDataPath()}/maps/0530.tilelist"))
+            {
+                Log.outWarn(LogFilter.ServerLoading, "Expansion is set but map 530 (Outland) was not extracted - skipping Blood Elf/Draenei start zone check.");
+                checkOutland = false;
+            }
+
             if (!TerrainManager.ExistMapAndVMap(0, -6240.32f, 331.033f) || !TerrainManager.ExistMapAndVMap(0, -8949.95f, -132.493f)
                 || !TerrainManager.ExistMapAndVMap(1, -618.518f, -4251.67f) || !TerrainManager.ExistMapAndVMap(0, 1676.35f, 1677.45f)
                 || !TerrainManager.ExistMapAndVMap(1, 10311.3f, 832.463f) || !TerrainManager.ExistMapAndVMap(1, -2917.58f, -257.98f)
-                || (WorldConfig.Values[WorldCfg.Expansion].Int32 != 0 && (!TerrainManager.ExistMapAndVMap(530, 10349.6f, -6357.29f) || !TerrainManager.ExistMapAndVMap(530, -3961.64f, -13931.2f))))
+                || (checkOutland && (!TerrainManager.ExistMapAndVMap(530, 10349.6f, -6357.29f) || !TerrainManager.ExistMapAndVMap(530, -3961.64f, -13931.2f))))
             {
                 Log.outError(LogFilter.ServerLoading, "Unable to load map and vmap data for starting zones - server shutting down!");
                 Environment.Exit(1);
@@ -492,6 +517,7 @@ namespace Game
 
             Log.outInfo(LogFilter.ServerLoading, "Loading SpellInfo corrections...");
             Global.SpellMgr.LoadSpellInfoCorrections();
+            Global.SpellMgr.LoadClassicSpellEffects();
 
             Log.outInfo(LogFilter.ServerLoading, "Loading SkillLineAbility Data...");
             Global.SpellMgr.LoadSkillLineAbilityMap();
@@ -513,6 +539,8 @@ namespace Game
 
             Log.outInfo(LogFilter.ServerLoading, "Loading Traits...");
             TraitMgr.Load();
+            Game.Systems.Legacy.LegacyManager.Load();
+            Game.Systems.Legacy.LegacyManager.ValidatePersistence();
 
             Log.outInfo(LogFilter.ServerLoading, "Loading languages...");
             Global.LanguageMgr.LoadLanguages();
@@ -624,8 +652,8 @@ namespace Game
             Log.outInfo(LogFilter.ServerLoading, "Loading Creature template addons...");
             Global.ObjectMgr.LoadCreatureTemplateAddons();
 
-            Log.outInfo(LogFilter.ServerLoading, "Loading Creature template difficulty...");
-            Global.ObjectMgr.LoadCreatureTemplateDifficulty();
+            Log.outInfo(LogFilter.ServerLoading, "Loading fixed Classic creature template stats...");
+            Global.ObjectMgr.LoadCreatureTemplateStats();
 
             Log.outInfo(LogFilter.ServerLoading, "Loading Creature template sparring...");
             Global.ObjectMgr.LoadCreatureTemplateSparring();
@@ -1161,7 +1189,7 @@ namespace Game
             _worldUpdateTime.LoadFromConfig();
 
             SetPlayerAmountLimit(ConfigMgr.GetDefaultValue("PlayerLimit", 100));
-            SetMotd(ConfigMgr.GetDefaultValue("Motd", "Welcome to a Cypher Core Server."));
+            SetMotd(ConfigMgr.GetDefaultValue("Motd", "World Of Warcraft Forever 1.60.1 Beta Test Server."));
 
             if (reload)
             {
@@ -1478,6 +1506,7 @@ namespace Game
             //Handle session updates when the timer has passed
             _worldUpdateTime.RecordUpdateTimeReset();
             UpdateSessions(diff);
+            Game.Chat.Commands.SICommands.Update();
             _worldUpdateTime.RecordUpdateTimeDuration("UpdateSessions");
 
             // <li> Update uptime table
@@ -2522,7 +2551,12 @@ namespace Game
 
         public int GetExitCode() { return (int)m_ExitCode; }
 
-        public void StopNow(ShutdownExitCode exitcode = ShutdownExitCode.Error) { IsStopped = true; m_ExitCode = exitcode; }
+        public void StopNow(ShutdownExitCode exitcode = ShutdownExitCode.Error)
+        {
+            Log.outInfo(LogFilter.Server, $"World stop requested ({exitcode}) by:{Environment.NewLine}{Environment.StackTrace}");
+            IsStopped = true;
+            m_ExitCode = exitcode;
+        }
 
         public bool IsPvPRealm()
         {
@@ -2540,6 +2574,33 @@ namespace Game
         public Locale GetDefaultDbcLocale() { return m_defaultDbcLocale; }        
 
         public Realm GetRealm() { return _realm; }
+
+        // Classic 1.60 game rules the official server sends in SMSG_FEATURE_SYSTEM_STATUS (reference World.cpp): they switch Classic
+        // behaviour on in the client. 177 makes the ammo slot valid, 93 = 2 loads the "Vanilla style" group finder, and 251/252/253
+        // are required by the group finder (without them the client fails ASSERTSAFE(isRuleActive) in PremadeGroupFinderStyleUtils).
+        public IReadOnlyList<Game.Networking.Packets.GameRuleValuePair> GetGameRules()
+        {
+            if (_gameRules != null) return _gameRules;
+            var rules = new List<Game.Networking.Packets.GameRuleValuePair>();
+            (int Rule, int Value)[] values =
+            {
+                (213, 1), (216, 2), (174, 1), (206, 1), (109, 1), (114, 1), (211, 1), (112, 1), (173, 1), (154, 0),
+                (180, 0), (181, 1), (182, 1), (195, 1), (23, 1), (98, 0), (93, 2), (102, 1), (42, 1), (40, 0),
+                (157, 1), (190, 0), (162, 1), (209, 1), (89, 1), (177, 1), (197, 1), (199, -5), (63, 1), (90, 1),
+                (244, 1), (33, 20), (129, 0), (228, 1), (241, 1), (243, 1), (101, 1), (237, 0),
+                (70, 1), (242, 1), (247, 1),
+                (251, 1), (252, 1), (253, 0)
+            };
+            foreach (var (rule, value) in values) rules.Add(new() { Rule = rule, Value = value });
+            rules.Add(new() { Rule = 200, ValueF = 0.5f });
+            // Hardcore ruleset realm: C_GameRules.IsHardcoreActive() drives the client's Hardcore UI
+            if (Framework.Configuration.ConfigMgr.GetDefaultValue("Classic.Hardcore", false))
+                rules.Add(new() { Rule = 10, Value = 1 });
+            _gameRules = rules;
+            return _gameRules;
+        }
+
+        List<Game.Networking.Packets.GameRuleValuePair> _gameRules;
         public RealmId GetRealmId() { return _realm.Id; }
 
         public void RemoveOldCorpses()

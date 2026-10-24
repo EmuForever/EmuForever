@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -12,7 +12,7 @@ namespace Game.Entities
     {
         CreatureTemplate m_creatureInfo;
         CreatureData m_creatureData;
-        CreatureDifficulty m_creatureDifficulty;
+        CreatureTemplateStats m_creatureStats;
 
         string[] m_stringIds = new string[3];
         string m_scriptStringId;

@@ -20,7 +20,16 @@ namespace Framework.Database
         {
             get
             {
-                return $"Server={Host};Port={PortOrSocket};User Id={Username};Password={Password};Database={Database};Allow User Variables=True;Pooling=true;ConnectionIdleTimeout=1800;Command Timeout=0";
+                return new MySqlConnectionStringBuilder
+                {
+                    Server = Host, Port = string.IsNullOrEmpty(PortOrSocket) ? 3306u : uint.Parse(PortOrSocket),
+                    UserID = Username, Password = Password, Database = Database,
+                    SslMode = UseSSL ? MySqlSslMode.Required : MySqlSslMode.Disabled,
+                    AllowUserVariables = true, Pooling = true, MinimumPoolSize = 0,
+                    MaximumPoolSize = (uint)Math.Clamp(Poolsize, 1, 128),
+                    ConnectionIdleTimeout = 60, ConnectionTimeout = ConnectionTimeout,
+                    DefaultCommandTimeout = CommandTimeout
+                }.ConnectionString;
             }
         }
 
@@ -30,7 +39,9 @@ namespace Framework.Database
         public string Username;
         public string Password;
         public string Database;
-        public int Poolsize;
+        public int Poolsize = 16;
+        public uint ConnectionTimeout = 15;
+        public uint CommandTimeout = 60;
     }
 
     public struct DBVersion
@@ -87,14 +98,12 @@ namespace Framework.Database
 
         ProducerConsumerQueue<ISqlOperation> _queue = new();
         MySqlConnectionInfo _connectionInfo;
-        DatabaseUpdater<T> _updater;
         DatabaseWorker<T> _worker;
         DBVersion version;
 
         public MySqlErrorCode Initialize(MySqlConnectionInfo connectionInfo)
         {
             _connectionInfo = connectionInfo;
-            _updater = new DatabaseUpdater<T>(this);
             _worker = new DatabaseWorker<T>(_queue, this);            
 
             try
@@ -117,13 +126,24 @@ namespace Framework.Database
             return DirectExecute(new PreparedStatement(string.Format(sql, args)));
         }
 
-        public bool DirectExecute(PreparedStatement stmt)
+        public bool DirectExecute(PreparedStatement stmt) => DirectExecute(stmt, null);
+
+        public bool DirectExecute(PreparedStatement stmt, string serializingLock) => ExecuteStatement(stmt,serializingLock,false,"account","account_id_allocator");
+        public bool DirectExecuteWithAccountId(PreparedStatement stmt, string accounts = "account", string sequence = "account_id_allocator", string lockName = "game-account-create") =>
+            ExecuteStatement(stmt,lockName,true,accounts,sequence);
+        bool ExecuteStatement(PreparedStatement stmt,string serializingLock,bool allocateAccount,string accounts,string sequence)
         {            
             try
             {
 
                 using var connection = new MySqlConnection(_connectionInfo.ConnectionString); 
                 connection.Open();
+                using var guard = serializingLock == null ? null : MySqlNamedLock.Acquire(connection, serializingLock);
+                if (allocateAccount)
+                {
+                    AccountIdAllocator.Ensure(connection,accounts,sequence);
+                    stmt.SetUInt32(7,AccountIdAllocator.Reserve(connection,accounts,sequence));
+                }
 
                 using MySqlCommand cmd = connection.CreateCommand();
 
@@ -131,8 +151,8 @@ namespace Framework.Database
                 foreach (var parameter in stmt.Parameters)
                     cmd.Parameters.AddWithValue("@" + parameter.Key, parameter.Value);
 
-                cmd.ExecuteNonQuery();
-                return true;
+                int affected = cmd.ExecuteNonQuery();
+                return serializingLock == null || affected > 0;
 
             }
             catch (MySqlException ex)
@@ -170,7 +190,7 @@ namespace Framework.Database
         {
             try
             {
-                var connection = new MySqlConnection(_connectionInfo.ConnectionString); 
+                using var connection = new MySqlConnection(_connectionInfo.ConnectionString); 
                 connection.Open();
 
                 using MySqlCommand cmd = connection.CreateCommand();
@@ -179,7 +199,8 @@ namespace Framework.Database
                 foreach (var parameter in stmt.Parameters)
                     cmd.Parameters.AddWithValue("@" + parameter.Key, parameter.Value);
 
-                return new SQLResult(cmd.ExecuteReader(System.Data.CommandBehavior.CloseConnection));
+                using var reader = cmd.ExecuteReader();
+                return new SQLResult(reader);
             }
             catch (MySqlException ex)
             {
@@ -231,90 +252,6 @@ namespace Framework.Database
             return new PreparedStatement(_preparedQueries[statement]);
         }
 
-        public void ApplyFile(string path, bool useDatabase = true)
-        {
-            // CLI Client connection info
-            string args = $"-h{_connectionInfo.Host} ";
-            args += $"-u{_connectionInfo.Username} ";
-
-            if (!_connectionInfo.Password.IsEmpty())
-                args += $"-p{_connectionInfo.Password} ";
-
-            // Check if we want to connect through ip or socket (Unix only)
-            if (OperatingSystem.IsWindows())
-            {
-                if (_connectionInfo.Host == ".")
-                    args += "--protocol=PIPE ";
-                else
-                    args += $"-P{_connectionInfo.PortOrSocket} ";
-            }
-            else
-            {
-                if (!char.IsDigit(_connectionInfo.PortOrSocket[0]))
-                {
-                    // We can't check if host == "." here, because it is named localhost if socket option is enabled
-                    args += "-P0 ";
-                    args += "--protocol=SOCKET ";
-                    args += $"-S{_connectionInfo.PortOrSocket} ";
-                }
-                else
-                    // generic case
-                    args += $"-P{_connectionInfo.PortOrSocket} ";
-            }
-
-            // Set the default charset to utf8
-            args += "--default-character-set=utf8 ";
-
-            // Set max allowed packet to 1 GB
-            args += "--max-allowed-packet=1GB ";
-
-            if (!version.IsMariaDB && version.IsAtLeast(8, 0, 0))
-            {
-                if (_connectionInfo.UseSSL)
-                    args += "--ssl-mode=REQUIRED ";
-            }
-            else
-            {
-                if (_connectionInfo.UseSSL)
-                    args += "--ssl ";
-            }
-
-            // Execute sql file
-            args += "-e ";
-            args += "\"BEGIN; SOURCE \"" + path + "\"; COMMIT;\" ";
-
-            // Database
-            if (useDatabase && !_connectionInfo.Database.IsEmpty())
-                args += _connectionInfo.Database;
-
-            // Invokes a mysql process which doesn't leak credentials to logs
-            Process process = new();
-            process.StartInfo = new(DBExecutableUtil.GetMySQLExecutable());
-            process.StartInfo.UseShellExecute = false;
-            process.StartInfo.RedirectStandardOutput = true;
-            process.StartInfo.RedirectStandardError = true;
-            process.StartInfo.CreateNoWindow = true;
-            process.StartInfo.Arguments = args;
-
-            process.Start();
-
-            process.WaitForExit();
-
-            Log.outInfo(LogFilter.SqlUpdates, process.StandardOutput.ReadToEnd());
-            Log.outError(LogFilter.SqlUpdates, process.StandardError.ReadToEnd());
-
-            if (process.ExitCode != 0)
-            {
-                Log.outFatal(LogFilter.SqlUpdates, $"Applying of file \'{path}\' to database \'{GetDatabaseName()}\' failed!" +
-                    " If you are a user, please pull the latest revision from the repository. " +
-                    "Also make sure you have not applied any of the databases with your sql client. " +
-                    "You cannot use auto-update system and import sql files from CypherCore repository with your sql client. " +
-                    "If you are a developer, please fix your sql query.");
-
-                throw new Exception("update failed");
-            }
-        }
-
         public static void EscapeString(ref string str)
         {
             str = MySqlHelper.EscapeString(str);
@@ -339,29 +276,27 @@ namespace Framework.Database
 
             string query = "";
 
-            connection.Open();
-            using var trans = connection.BeginTransaction();
-
             try
             {
-                using var scope = new TransactionScope();
+                // Open/Begin failures must be returned to the worker, not escape
+                // its thread and terminate the world process.
+                connection.Open();
+                using var trans = connection.BeginTransaction();
 
                 foreach (var cmd in transaction.commands)
                 {
                     cmd.Transaction = trans;
                     cmd.Connection = connection;
-                    cmd.ExecuteNonQuery();
                     query = cmd.CommandText;
+                    cmd.ExecuteNonQuery();
                 }
 
                 trans.Commit();
-                scope.Complete();
 
                 return MySqlErrorCode.None;
             }
             catch (MySqlException ex) //error occurred
             {
-                trans.Rollback();
                 return HandleMySQLException(ex, query);
             }
         }
@@ -396,56 +331,14 @@ namespace Framework.Database
             return code;
         }
 
-        public DatabaseUpdater<T> GetUpdater()
-        {
-            return _updater;
-        }
-
-        public bool IsAutoUpdateEnabled(DatabaseTypeFlags updateMask)
-        {
-            switch (GetType().Name)
-            {
-                case "LoginDatabase":
-                    return updateMask.HasAnyFlag(DatabaseTypeFlags.Login);
-                case "CharacterDatabase":
-                    return updateMask.HasAnyFlag(DatabaseTypeFlags.Character);
-                case "WorldDatabase":
-                    return updateMask.HasAnyFlag(DatabaseTypeFlags.World);
-                case "HotfixDatabase":
-                    return updateMask.HasAnyFlag(DatabaseTypeFlags.Hotfix);
-            }
-            return false;
-        }
-
         public string GetDatabaseName()
         {
             return _connectionInfo.Database;
         }
 
+        // Independent pooled connections for services whose work spans an asynchronous request.
+        public MySqlConnection CreateConnection() => new(_connectionInfo.ConnectionString);
+
         public abstract void PreparedStatements();
-    }
-
-    public static class DBExecutableUtil
-    {
-        static string mysqlExecutablePath;
-
-        public static string GetMySQLExecutable()
-        {
-            return mysqlExecutablePath;
-        }
-
-        public static bool CheckExecutable()
-        {
-            string mysqlExePath = ConfigMgr.GetDefaultValue("MySQLExecutable", "");
-            if (mysqlExePath.IsEmpty() || !File.Exists(mysqlExePath))
-            {
-                Log.outFatal(LogFilter.SqlUpdates, $"Didn't find any executable MySQL binary at \'{mysqlExePath}\' or in path, correct the path in the *.conf (\"MySQLExecutable\").");
-                return false;
-            }
-
-            // Correct the path to the cli
-            mysqlExecutablePath = mysqlExePath;
-            return true;
-        }
     }
 }

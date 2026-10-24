@@ -54,9 +54,10 @@ namespace Framework.Constants
         public const uint MapLiquidMagic = 0x51494C4D; //"MLIQ";
 
         public const uint mmapMagic = 0x4D4D4150; // 'MMAP'
-        public const int mmapVersion = 15;
+        public const int mmapVersion = 16;       // TrinityCore mmaps_generator MMAP_VERSION
+        public const int mmapLegacyVersion = 15;
 
-        public const string VMapMagic = "VMAP_4.B";
+        public const string VMapMagic = "VMAP_4.E";
         public const float VMAPInvalidHeightValue = -200000.0f;
 
         public const uint MaxDungeonEncountersPerBoss = 4;

@@ -41,6 +41,7 @@ namespace Game.Chat
             }
 
             PreparedStatement stmt = WorldDatabase.GetPreparedStatement(WorldStatements.SEL_COMMANDS);
+            Dictionary<string, string> helpByName = new(StringComparer.OrdinalIgnoreCase);
             SQLResult result = DB.World.Query(stmt);
             if (!result.IsEmpty())
             {
@@ -48,10 +49,11 @@ namespace Game.Chat
                 {
                     string name = result.Read<string>(0);
                     string help = result.Read<string>(1);
+                    helpByName[name] = help;
 
                     ChatCommandNode cmd = null;
                     var map = _commands;
-                    foreach (var key in name.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                    foreach (var key in (_commands.ContainsKey(name) ? new[] { name } : name.Split(' ', StringSplitOptions.RemoveEmptyEntries)))
                     {
                         var it = map.LookupByKey(key);
                         if (it != null)
@@ -82,7 +84,7 @@ namespace Game.Chat
             }
 
             foreach (var (name, cmd) in _commands)
-                cmd.ResolveNames(name);
+                cmd.ResolveNames(name, helpByName);
         }
 
         static void BuildSubCommandsForCommand(ChatCommandNode command, Type type)
@@ -302,14 +304,16 @@ namespace Game.Chat
             return false;
         }
 
-        public void ResolveNames(string name)
+        public void ResolveNames(string name, IReadOnlyDictionary<string, string> helpByName = null)
         {
+            if (_helpString == 0 && helpByName != null && helpByName.TryGetValue(name, out string help))
+                _helpText = help;
             if (_methodInfo != null && (_helpText.IsEmpty() && _helpString == 0))
                 Log.outWarn(LogFilter.Sql, $"Table `command` is missing help text for command '{name}'.");
 
             _name = name;
             foreach (var (subToken, cmd) in _subCommands)
-                cmd.ResolveNames($"{name} {subToken}");
+                cmd.ResolveNames($"{name} {subToken}", helpByName);
         }
 
         static void LogCommandUsage(WorldSession session, RBACPermissions permission, string cmdStr)
@@ -397,6 +401,19 @@ namespace Game.Chat
         }
 
         public bool Invoke(CommandHandler handler, string args)
+        {
+            try { return InvokeUnchecked(handler, args); }
+            catch (TargetInvocationException error) when (error.InnerException is not OutOfMemoryException &&
+                error.InnerException is not AccessViolationException)
+            {
+                Log.outError(LogFilter.Commands, $"Command '{_name}' failed: {error.InnerException ?? error}");
+                handler.SendSysMessage("Command failed. Details were written to the server log.", false);
+                handler.SetSentErrorMessage(true);
+                return false;
+            }
+        }
+
+        bool InvokeUnchecked(CommandHandler handler, string args)
         {
             if (parameters.Any(p => p.ParameterType == typeof(StringArguments)))//Old system, can remove once all commands are changed.
                 return (bool)_methodInfo.Invoke(null, [handler, new StringArguments(args)]);

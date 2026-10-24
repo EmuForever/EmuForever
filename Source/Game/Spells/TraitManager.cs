@@ -1,4 +1,4 @@
-﻿using Framework.Constants;
+using Framework.Constants;
 using Game.DataStorage;
 using Game.Entities;
 using Game.Networking.Packets;
@@ -208,6 +208,7 @@ namespace Game
 
             foreach (var (traitSystemId, traitTreeId) in traitTreesIdsByTraitSystem)
             {
+                if (traitSystemId == Game.Systems.Legacy.LegacyManager.TraitSystemId && !Game.Systems.Legacy.LegacyDefinitions.IsTree(traitTreeId)) continue;
                 Tree tree = _traitTrees.LookupByKey(traitTreeId);
                 if (tree != null)
                     _traitTreesByTraitSystem.Add(traitSystemId, tree);
@@ -338,6 +339,9 @@ namespace Game
         {
             var trees = GetTreesForConfig(traitConfig);
 
+            if (trees == null) return;
+            HashSet<int> countedCurrencies = new();
+
             bool hasTraitNodeEntry(int traitNodeEntryId)
             {
                 return traitConfig.Entries.Any(traitEntry => traitEntry.TraitNodeEntryID == traitNodeEntryId && (traitEntry.Rank > 0 || traitEntry.GrantedRanks > 0));
@@ -347,6 +351,12 @@ namespace Game
             {
                 foreach (TraitCurrencyRecord currency in tree.Currencies)
                 {
+                    if (!countedCurrencies.Add(currency.Id)) continue;
+                    if (currency.Id == Game.Systems.Legacy.LegacyManager.PointsCurrencyId)
+                    {
+                        currencies[currency.Id] = Math.Min(currency.SourcedMax, player.GetLegacyPoints());
+                        continue;
+                    }
                     switch (currency.CurrencyType)
                     {
                         case TraitCurrencyType.Gold:
@@ -359,6 +369,7 @@ namespace Game
                                 amount = int.MaxValue;
                             else
                                 amount += (int)player.GetMoney();
+                            currencies[currency.Id] = amount;
                             break;
                         }
                         case TraitCurrencyType.CurrencyTypesBased:
@@ -389,6 +400,9 @@ namespace Game
 
                                 currencies[currencySource.TraitCurrencyID] += currencySource.Amount;
                             }
+
+                            if (currency.Id == 3820)
+                                currencies[currency.Id] = Game.Systems.Legacy.LegacyEffectEngine.TalentPoints(player.GetLevel(), currencies.LookupByKey(currency.Id), player.GetClassicLegacyPerkAmount(1225474), currency.SourcedMax > 0 ? currency.SourcedMax : int.MaxValue);
 
                             break;
                         default:
@@ -556,7 +570,7 @@ namespace Game
             if (entryItr == null)
                 return false;
 
-            if (entryItr.Data.MaxRanks < traitEntry.Rank + traitEntry.GrantedRanks)
+            if (traitEntry.Rank < 0 || traitEntry.GrantedRanks < 0 || entryItr.Data.MaxRanks < (long)traitEntry.Rank + traitEntry.GrantedRanks)
                 return false;
 
             return true;
@@ -564,6 +578,12 @@ namespace Game
 
         public static TalentLearnResult ValidateConfig(TraitConfigPacket traitConfig, Player player, bool requireSpendingAllCurrencies = false)
         {
+            if (!Game.Systems.Legacy.LegacyValidation.EntriesBelongToConfig(traitConfig)) return TalentLearnResult.FailedUnknown;
+            foreach (TraitEntryPacket entry in traitConfig.Entries)
+                if (!IsValidEntry(entry)) return TalentLearnResult.FailedUnknown;
+            var configTrees = GetTreesForConfig(traitConfig);
+            if (configTrees == null || traitConfig.Entries.Any(entry => !configTrees.Any(tree => tree.Data.Id == _traitNodes[entry.TraitNodeID].Data.TraitTreeID)))
+                return TalentLearnResult.FailedUnknown;
             int getNodeEntryCount(int traitNodeId)
             {
                 return traitConfig.Entries.Count(traitEntry => traitEntry.TraitNodeID == traitNodeId);

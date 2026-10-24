@@ -562,6 +562,8 @@ namespace Game.Entities
             }
 
             // now we ready for speed calculation
+            if (mtype == UnitMoveType.Run && ToPlayer() is Player ghost && !ghost.IsAlive())
+                main_speed_mod += ghost.GetClassicLegacyPerkAmount(1225500);
             float speed = Math.Max(non_stack_bonus, stack_bonus);
             if (main_speed_mod != 0)
                 MathFunctions.AddPct(ref speed, main_speed_mod);
@@ -1281,7 +1283,9 @@ namespace Game.Entities
                 if (HasUnitState(state))
                     return;
 
-                if (state.HasFlag(UnitState.Controlled))
+                // Controlled is a mask of separate states. A single fear or
+                // polymorph must interrupt the cast already in progress.
+                if (state.HasAnyFlag(UnitState.Controlled))
                     CastStop();
 
                 AddUnitState(state);

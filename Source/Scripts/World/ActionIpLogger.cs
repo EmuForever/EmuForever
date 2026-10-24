@@ -124,7 +124,7 @@ namespace Scripts.World.Achievements
                 // For those, we need last_ip...
                 PreparedStatement stmt = LoginDatabase.GetPreparedStatement(LoginStatements.INS_ALDL_IP_LOGGING);
 
-                stmt.SetInt32(0, playerGuid);
+                stmt.SetUInt32(0, unchecked((uint)playerGuid));
                 stmt.SetUInt64(1, 0ul);
                 stmt.SetInt32(2, realmId);
                 stmt.SetUInt8(3, (byte)aType);
@@ -136,7 +136,7 @@ namespace Scripts.World.Achievements
             {
                 PreparedStatement stmt = LoginDatabase.GetPreparedStatement(LoginStatements.INS_FACL_IP_LOGGING);
 
-                stmt.SetInt32(0, playerGuid);
+                stmt.SetUInt32(0, unchecked((uint)playerGuid));
                 stmt.SetUInt64(1, 0ul);
                 stmt.SetInt32(2, realmId);
                 stmt.SetUInt8(3, (byte)aType);
@@ -219,7 +219,7 @@ namespace Scripts.World.Achievements
             // Once we have done everything, we can Add the new log.
             PreparedStatement stmt = LoginDatabase.GetPreparedStatement(LoginStatements.INS_CHAR_IP_LOGGING);
 
-            stmt.SetInt32(0, playerGuid);
+            stmt.SetUInt32(0, unchecked((uint)playerGuid));
             stmt.SetInt64(1, player.GetGUID().GetCounter());
             stmt.SetInt32(2, realmId);
             stmt.SetUInt8(3, (byte)aType);
@@ -279,7 +279,7 @@ namespace Scripts.World.Achievements
             // Once we have done everything, we can Add the new log.
             PreparedStatement stmt = LoginDatabase.GetPreparedStatement(LoginStatements.INS_ALDL_IP_LOGGING);
 
-            stmt.SetInt32(0, playerGuid);
+            stmt.SetUInt32(0, unchecked((uint)playerGuid));
             stmt.SetInt64(1, guid.GetCounter());
             stmt.SetInt32(2, realmId);
             stmt.SetUInt8(3, (byte)aType);

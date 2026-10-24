@@ -16,6 +16,29 @@ namespace Game
 {
     public partial class WorldSession
     {
+        [WorldPacketHandler(ClientOpcodes.QuestPoiQuery, Processing = PacketProcessing.Inplace)]
+        void HandleQuestPOIQuery(QuestPOIQuery query)
+        {
+            if (query.MissingQuestCount > SharedConst.MaxQuestLogSize)
+                return;
+
+            QuestPOIQueryResponse response = new();
+            HashSet<int> requestedQuestIds = new();
+            for (int i = 0; i < query.MissingQuestCount; ++i)
+            {
+                int questId = query.MissingQuestPOIs[i];
+                if (questId <= 0 || !requestedQuestIds.Add(questId) ||
+                    GetPlayer().FindQuestSlot(questId) == SharedConst.MaxQuestLogSize)
+                    continue;
+
+                QuestPOIData poiData = Global.ObjectMgr.GetQuestPOIData(questId);
+                if (poiData != null)
+                    response.QuestPOIDataStats.Add(poiData);
+            }
+
+            SendPacket(response);
+        }
+
         [WorldPacketHandler(ClientOpcodes.QueryPlayerNames, Processing = PacketProcessing.Inplace)]
         void HandleQueryPlayerNames(QueryPlayerNames queryPlayerName)
         {
@@ -98,14 +121,21 @@ namespace Game
         [WorldPacketHandler(ClientOpcodes.QueryCreature, Processing = PacketProcessing.Inplace)]
         void HandleCreatureQuery(QueryCreature packet)
         {
-            CreatureTemplate ci = Global.ObjectMgr.GetCreatureTemplate(packet.CreatureID);
+            // Forever client batches several entries per query; TC answers each with its own response.
+            foreach (uint creatureId in packet.CreatureIDs)
+                HandleCreatureQuery((int)creatureId);
+        }
+
+        void HandleCreatureQuery(int creatureId)
+        {
+            CreatureTemplate ci = Global.ObjectMgr.GetCreatureTemplate(creatureId);
             if (ci != null)
             {
                 Difficulty difficulty = _player.GetMap().GetDifficultyID();
 
                 // Cache only exists for difficulty base
-                if (!WorldConfig.Values[WorldCfg.CacheDataQueries].Bool && difficulty == Difficulty.None)
-                    SendPacket(ci.QueryData[(int)GetSessionDbLocaleIndex()]);
+                if (WorldConfig.Values[WorldCfg.CacheDataQueries].Bool && difficulty == Difficulty.None)
+                    SendPacket(ci.GetQueryData(GetSessionDbLocaleIndex()));
                 else
                 {
                     var response = ci.BuildQueryData(GetSessionDbLocaleIndex(), difficulty);
@@ -116,10 +146,10 @@ namespace Game
             {
                 Log.outDebug(LogFilter.Network, 
                     $"WORLD: CMSG_QUERY_CREATURE - " +
-                    $"NO CREATURE INFO! (ENTRY: {packet.CreatureID})");
+                    $"NO CREATURE INFO! (ENTRY: {creatureId})");
 
                 QueryCreatureResponse response = new();
-                response.CreatureID = packet.CreatureID;
+                response.CreatureID = creatureId;
                 SendPacket(response);
             }
         }

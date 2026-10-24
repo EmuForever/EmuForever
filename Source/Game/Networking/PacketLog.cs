@@ -20,7 +20,7 @@ public class PacketLog
         if (!string.IsNullOrEmpty(logname))
         {
             FullPath = logsDir + @"\" + logname;
-            using var writer = new BinaryWriter(File.Open(FullPath, FileMode.Create));
+            using var writer = new BinaryWriter(new FileStream(FullPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite));
             writer.Write(Encoding.ASCII.GetBytes("PKT"));
             writer.Write((ushort)769);
             writer.Write(Encoding.ASCII.GetBytes("T"));
@@ -40,7 +40,7 @@ public class PacketLog
 
         lock (syncObj)
         {
-            using var writer = new BinaryWriter(File.Open(FullPath, FileMode.Append), Encoding.ASCII);
+            using var writer = new BinaryWriter(new FileStream(FullPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite), Encoding.ASCII);
             writer.Write(isClientPacket ? 0x47534d43 : 0x47534d53);
             writer.Write((uint)connectionType);
             writer.Write(Time.NowRelative);
