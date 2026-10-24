@@ -2,6 +2,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Framework.Configuration;
 
 namespace BattleNot;
 
@@ -53,15 +54,13 @@ static class Text
 
 sealed class LoginRest
 {
-    readonly AppConfig _config;
     readonly BnotDb _db;
     readonly RealmCatalog _realms;
     readonly bool _http;
     string _announcedVersion = "";
 
-    public LoginRest(AppConfig config, BnotDb db, RealmCatalog realms, bool devWildcard)
+    public LoginRest(BnotDb db, RealmCatalog realms, bool devWildcard)
     {
-        _config = config;
         _db = db;
         _realms = realms;
         _http = devWildcard;
@@ -82,14 +81,16 @@ sealed class LoginRest
         app.MapPost("/bnetserver/refreshLoginTicket/", (Delegate)Refresh);
     }
 
-    string HostFor(IPAddress remote) => IPAddress.IsLoopback(remote) ? _config.LocalAddress : _config.ExternalAddress;
+    string HostFor(IPAddress remote) => ConfigMgr.GetDefaultValue(
+        IPAddress.IsLoopback(remote) ? "LoginREST.LocalAddress" : "LoginREST.ExternalAddress", "trinity.actual.battle.net");
     string Scheme => _http ? "http" : "https";
 
     IResult Form(HttpContext ctx)
     {
         SessionId(ctx);
         string host = HostFor(ctx.Connection.RemoteIpAddress ?? IPAddress.Loopback);
-        string url = $"{Scheme}://{host}:{_config.RestPort}/bnetserver/login/srp/";
+        int port = ConfigMgr.GetDefaultValue("LoginREST.Port", 8081);
+        string url = $"{Scheme}://{host}:{port}/bnetserver/login/srp/";
         string json =
             "{\"type\":\"LOGIN_FORM\",\"inputs\":[" +
             "{\"input_id\":\"account_name\",\"type\":\"text\",\"label\":\"E-mail\",\"max_length\":320}," +
@@ -188,7 +189,8 @@ sealed class LoginRest
     IResult Portal(HttpContext ctx)
     {
         string host = HostFor(ctx.Connection.RemoteIpAddress ?? IPAddress.Loopback);
-        return Results.Text($"{host}:{_config.BattlenetPort}", "text/plain");
+        int port = ConfigMgr.GetDefaultValue("BattlenetPort", 1119);
+        return Results.Text($"{host}:{port}", "text/plain");
     }
 
     async Task<IResult> GameAccounts(HttpContext ctx)
@@ -270,13 +272,14 @@ sealed class LoginRest
         LoginState state = States[SessionId(ctx)];
         if (!ok)
         {
-            if (!row.Banned && _config.WrongPassMaxCount > 0)
+            int maxCount = ConfigMgr.GetDefaultValue("WrongPass.MaxCount", 0);
+            if (!row.Banned && maxCount > 0)
             {
                 await _db.Auth.NoteFailedLogin(row.Id);
-                if (row.FailedLogins + 1 >= _config.WrongPassMaxCount)
+                if (row.FailedLogins + 1 >= maxCount)
                 {
                     string ip = (ctx.Connection.RemoteIpAddress ?? IPAddress.Loopback).ToString();
-                    await _db.Auth.BanIp(ip, _config.WrongPassBanTime);
+                    await _db.Auth.BanIp(ip, ConfigMgr.GetDefaultValue("WrongPass.BanTime", 600));
                     await _db.Auth.ResetFailedLogins(row.Id);
                 }
             }
@@ -301,7 +304,7 @@ sealed class LoginRest
         uint now = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         if (ticket.Length == 0 || row.TicketExpiry < now)
             ticket = Text.Ticket();
-        uint expiry = now + (uint)_config.TicketDuration;
+        uint expiry = now + (uint)ConfigMgr.GetDefaultValue("LoginREST.TicketDuration", 3600);
         await _db.Auth.SetTicket(row.Id, ticket, expiry);
         string json = "{\"authentication_state\":\"DONE\",\"login_ticket\":" + JsonText.Quote(ticket);
         if (m2 != null)
@@ -341,7 +344,7 @@ sealed class LoginRest
         state.AuthSecret = "";
         state.AuthM2 = "";
         string ticket = Text.Ticket();
-        uint expiry = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds() + (uint)_config.TicketDuration;
+        uint expiry = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds() + (uint)ConfigMgr.GetDefaultValue("LoginREST.TicketDuration", 3600);
         await _db.Auth.SetTicket(id, ticket, expiry);
         string json = "{\"authentication_state\":\"DONE\",\"login_ticket\":" + JsonText.Quote(ticket);
         if (m2.Length > 0)
@@ -388,7 +391,7 @@ sealed class LoginRest
         uint now = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         if (expiry == null || expiry <= now)
             return Json("{\"is_expired\":true}");
-        uint next = now + (uint)_config.TicketDuration;
+        uint next = now + (uint)ConfigMgr.GetDefaultValue("LoginREST.TicketDuration", 3600);
         await _db.Auth.RefreshTicket(ticket, next);
         return Json("{\"login_ticket_expiry\":" + next + "}");
     }

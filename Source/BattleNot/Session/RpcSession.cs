@@ -8,13 +8,13 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
+using Framework.Configuration;
 
 namespace BattleNot;
 
 sealed class PlayerSession
 {
     const int MaxRpcPayload = 1_048_576;
-    readonly AppConfig _config;
     readonly BnotDb _db;
     readonly RealmCatalog _realms;
     readonly string _ip;
@@ -49,9 +49,8 @@ sealed class PlayerSession
 
     public bool ReceivedPacket => _receivedPacket;
 
-    public PlayerSession(AppConfig config, BnotDb db, RealmCatalog realms, string ip, bool devCert)
+    public PlayerSession(BnotDb db, RealmCatalog realms, string ip, bool devCert)
     {
-        _config = config;
         _db = db;
         _realms = realms;
         _ip = ip;
@@ -461,8 +460,10 @@ sealed class PlayerSession
 
     async Task SendWebChallenge(SslStream stream, bool v2)
     {
-        string host = IPAddress.IsLoopback(IPAddress.Parse(_ip)) ? _config.LocalAddress : _config.ExternalAddress;
-        string url = $"{(_devCert ? "http" : "https")}://{host}:{_config.RestPort}/bnetserver/login/";
+        string host = ConfigMgr.GetDefaultValue(
+            IPAddress.IsLoopback(IPAddress.Parse(_ip)) ? "LoginREST.LocalAddress" : "LoginREST.ExternalAddress", "trinity.actual.battle.net");
+        int port = ConfigMgr.GetDefaultValue("LoginREST.Port", 8081);
+        string url = $"{(_devCert ? "http" : "https")}://{host}:{port}/bnetserver/login/";
         var challenge = new ProtoWriter();
         challenge.String(2, "web_auth_url");
         challenge.String(3, url);
@@ -1183,18 +1184,16 @@ static class Messages
 
 sealed class BnetHost
 {
-    readonly AppConfig _config;
     readonly BnotDb _db;
     readonly RealmCatalog _realms;
     readonly X509Certificate2 _certificate;
     readonly bool _devCert;
 
-    public BnetHost(AppConfig config, BnotDb db, RealmCatalog realms)
+    public BnetHost(BnotDb db, RealmCatalog realms, string certificateFile, string privateKeyFile)
     {
-        _config = config;
         _db = db;
         _realms = realms;
-        X509Certificate2 pem = X509Certificate2.CreateFromPemFile(config.CertificateFile, config.PrivateKeyFile);
+        X509Certificate2 pem = X509Certificate2.CreateFromPemFile(certificateFile, privateKeyFile);
         _certificate = new X509Certificate2(pem.Export(X509ContentType.Pkcs12));
         _devCert = _certificate.GetNameInfo(X509NameType.SimpleName, false) == "*.*";
     }
@@ -1204,9 +1203,11 @@ sealed class BnetHost
 
     public async Task Listen(CancellationToken cancel)
     {
-        var listener = new TcpListener(_config.BindIP, _config.BattlenetPort);
+        IPAddress bindIP = IPAddress.Parse(ConfigMgr.GetDefaultValue("BindIP", "127.0.0.1"));
+        int port = ConfigMgr.GetDefaultValue("BattlenetPort", 1119);
+        var listener = new TcpListener(bindIP, port);
         listener.Start();
-        Log.outInfo(LogFilter.Network, $"Battle.not RPC {_config.BindIP}:{_config.BattlenetPort}");
+        Log.outInfo(LogFilter.Network, $"Battle.not RPC {bindIP}:{port}");
         try
         {
             while (!cancel.IsCancellationRequested)
@@ -1224,7 +1225,7 @@ sealed class BnetHost
     async Task Accept(TcpClient client)
     {
         string ip = ((IPEndPoint?)client.Client.RemoteEndPoint)?.Address.ToString() ?? "0.0.0.0";
-        var session = new PlayerSession(_config, _db, _realms, ip, _devCert);
+        var session = new PlayerSession(_db, _realms, ip, _devCert);
         using (client)
         {
             try

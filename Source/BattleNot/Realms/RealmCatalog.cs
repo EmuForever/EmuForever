@@ -1,17 +1,15 @@
 using System.Net;
 using System.Net.Sockets;
+using Framework.Configuration;
 
 namespace BattleNot;
 
 sealed class RealmCatalog
 {
-    readonly AppConfig _config;
     readonly object _gate = new();
     List<RealmEntry> _realms = [];
     Dictionary<uint, BuildInfo> _builds = [];
     string _reachability = "";
-
-    public RealmCatalog(AppConfig config) => _config = config;
 
     public async Task Refresh(RealmDb db)
     {
@@ -228,7 +226,7 @@ sealed class RealmCatalog
             flags |= 0x01;
         byte population = security >= realm.AllowedSecurity || realm.PopulationState == 0 ? realm.PopulationState : (byte)7;
         uint config = realm.Type < 14 ? (uint)realm.Type + 1 : 1;
-        uint content = realm.ContentSetId != 0 ? realm.ContentSetId : _config.CfgContentSetID;
+        uint content = realm.ContentSetId != 0 ? realm.ContentSetId : ConfigMgr.GetDefaultValue("ContentSetID", 137u);
         string json =
             "{\"wowRealmAddress\":" + realm.Address +
             ",\"cfgTimezonesID\":1,\"populationState\":" + population +
@@ -258,7 +256,7 @@ sealed class RealmCatalog
             uint content = uint.TryParse(json.AsSpan(start, end - start), out uint parsed) ? parsed : 0;
             uint district = SuperDistrictFor(content);
             if (district == 0)
-                district = _config.SuperDistrictID;
+                district = ConfigMgr.GetDefaultValue("SuperDistrictID", 2u);
             string insert = ",\"superDistrictID\":" + district;
             json = json.Insert(end, insert);
             pos = end + insert.Length;

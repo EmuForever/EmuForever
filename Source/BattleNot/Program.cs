@@ -2,6 +2,8 @@ using BattleNot;
 using Framework.Configuration;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
+using MySqlConnector;
+using System.Net;
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 Console.Title = "Battle.not Server";
@@ -13,8 +15,6 @@ if (!ConfigMgr.Load("Configs/BattleNot.conf"))
     return;
 }
 
-AppConfig config = AppConfig.Load();
-
 Log.outHeader(LogFilter.Server, " ");
 Log.outHeader(LogFilter.Server, @"╔╗  ╔═╗ ╔╦╗ ╔╦╗ ╦   ╔═╗   ╔╗╔ ╔═╗ ╔╦╗   ╔═╗ ╔═╗ ╦═╗ ╦  ╦ ╔═╗ ╦═╗");
 Log.outHeader(LogFilter.Server, @"╠╩╗ ╠═╣  ║   ║  ║   ║╣    ║║║ ║ ║  ║    ╚═╗ ║╣  ╠╦╝ ╚╗╔╝ ║╣  ╠╦╝");
@@ -23,8 +23,23 @@ Log.outHeader(LogFilter.Server, " ");
 
 try
 {
-    var db = new BnotDb(config.ConnectionString, config.ShopWorldDatabase);
-    var realms = new RealmCatalog(config);
+    string connectionString = new MySqlConnectionStringBuilder
+    {
+        Server = ConfigMgr.GetDefaultValue("LoginDatabaseInfo.Host", "127.0.0.1"),
+        Port = ConfigMgr.GetDefaultValue("LoginDatabaseInfo.Port", 3306u),
+        UserID = ConfigMgr.GetDefaultValue("LoginDatabaseInfo.Username", "root"),
+        Password = ConfigMgr.GetDefaultValue("LoginDatabaseInfo.Password", ""),
+        Database = ConfigMgr.GetDefaultValue("LoginDatabaseInfo.Database", "auth"),
+        SslMode = ConfigMgr.GetDefaultValue("LoginDatabaseInfo.SSL", false) ? MySqlSslMode.Preferred : MySqlSslMode.None,
+        AllowPublicKeyRetrieval = true,
+        MaximumPoolSize = (uint)Math.Clamp(ConfigMgr.GetDefaultValue("LoginDatabaseInfo.MaxPoolSize", 16), 1, 128),
+        MinimumPoolSize = 0,
+        ConnectionIdleTimeout = 60,
+        ConnectionTimeout = ConfigMgr.GetDefaultValue("LoginDatabaseInfo.ConnectionTimeout", 15u),
+        DefaultCommandTimeout = ConfigMgr.GetDefaultValue("LoginDatabaseInfo.CommandTimeout", 60u)
+    }.ConnectionString;
+    var db = new BnotDb(connectionString, ConfigMgr.GetDefaultValue("Shop.WorldDatabase", "world"));
+    var realms = new RealmCatalog();
     
     if (args.Contains("--friends-check"))
     {
@@ -65,14 +80,22 @@ try
         cancel.Cancel();
     };
     
-    var host = new BnetHost(config, db, realms);
-    var rest = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args });
+    IPAddress bindIP = IPAddress.Parse(ConfigMgr.GetDefaultValue("BindIP", "127.0.0.1"));
+    int restPort = ConfigMgr.GetDefaultValue("LoginREST.Port", 8081);
+    int realmsStateUpdateDelay = ConfigMgr.GetDefaultValue("RealmsStateUpdateDelay", 10);
+    string certificateFile = ResolvePath(ConfigMgr.GetDefaultValue("CertificateFile", ""));
+    string privateKeyFile = ResolvePath(ConfigMgr.GetDefaultValue("PrivateKeyFile", ""));
+    var host = new BnetHost(db, realms, certificateFile, privateKeyFile);
+    // All server settings come from BattleNot.conf; do not load ASP.NET's appsettings JSON files.
+    var rest = WebApplication.CreateEmptyBuilder(new WebApplicationOptions { Args = args });
+    rest.Host.UseConsoleLifetime();
+    rest.Services.AddRouting();
     rest.Logging.ClearProviders();
     rest.Logging.AddProvider(new FrameworkLogProvider());
-    rest.Logging.SetMinimumLevel(config.AspNetLogLevel);
-    rest.WebHost.ConfigureKestrel(options =>
+    rest.Logging.SetMinimumLevel((Microsoft.Extensions.Logging.LogLevel)ConfigMgr.GetDefaultValue("Logging.AspNetLevel", 3));
+    rest.WebHost.UseKestrel(options =>
     {
-        options.Listen(config.BindIP, config.RestPort, listen =>
+        options.Listen(bindIP, restPort, listen =>
         {
             if (!host.DevCertificate)
                 listen.UseHttps(host.Certificate);
@@ -90,10 +113,10 @@ try
             Log.outDebug(LogFilter.Server, $"Support HTTP {ctx.Response.StatusCode} {ctx.Request.Method} {ctx.Request.Host}{ctx.Request.Path}");
         else if (ctx.Response.StatusCode == StatusCodes.Status403Forbidden)
             Log.outWarn(LogFilter.Server, $"REST HTTP 403 {ctx.Request.Method} {ctx.Request.Host}{ctx.Request.Path}{ctx.Request.QueryString}");
-        if (ctx.Response.StatusCode == 404 && ctx.Connection.LocalPort == config.RestPort)
+        if (ctx.Response.StatusCode == 404 && ctx.Connection.LocalPort == restPort)
             Log.outDebug(LogFilter.Server, $"REST unmatched {ctx.Request.Method} {ctx.Request.Path}{ctx.Request.QueryString}");
     });
-    new LoginRest(config, db, realms, host.DevCertificate).Map(app);
+    new LoginRest(db, realms, host.DevCertificate).Map(app);
     new SupportRest(db).Map(app);
     new SocialRest(db).Map(app);
     new ShopRest().Map(app);
@@ -104,7 +127,7 @@ try
         {
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(Math.Max(1, config.RealmsStateUpdateDelay)), cancel.Token);
+                await Task.Delay(TimeSpan.FromSeconds(Math.Max(1, realmsStateUpdateDelay)), cancel.Token);
                 await realms.Refresh(db.Realms);
                 await db.Auth.ExpireBans();
             }
@@ -119,15 +142,15 @@ try
         }
     }, cancel.Token);
     
-    Log.outInfo(LogFilter.Server, $"Login REST {config.BindIP}:{config.RestPort} ({(host.DevCertificate ? "http" : "https")} login form)");
-    string crlFile = Path.Combine(Path.GetDirectoryName(config.CertificateFile) ?? "", "forever.crl");
-    Log.outInfo(LogFilter.Server, $"Shop {config.BindIP}:8443 ({(host.DevCertificate ? "http" : "https")} storefront)");
-    Log.outInfo(LogFilter.Server, $"CRL {config.BindIP}:8082/forever.crl");
+    Log.outInfo(LogFilter.Server, $"Login REST {bindIP}:{restPort} ({(host.DevCertificate ? "http" : "https")} login form)");
+    string crlFile = Path.Combine(Path.GetDirectoryName(certificateFile) ?? "", "forever.crl");
+    Log.outInfo(LogFilter.Server, $"Shop {bindIP}:8443 ({(host.DevCertificate ? "http" : "https")} storefront)");
+    Log.outInfo(LogFilter.Server, $"CRL {bindIP}:8082/forever.crl");
     await Task.WhenAll(
         host.Listen(cancel.Token),
         app.RunAsync(cancel.Token),
-        ShopRest.Listen(config.BindIP, 8443, host.Certificate, host.DevCertificate, cancel.Token),
-        ShopRest.ListenCrl(config.BindIP, 8082, crlFile, cancel.Token));
+        ShopRest.Listen(bindIP, 8443, host.Certificate, host.DevCertificate, cancel.Token),
+        ShopRest.ListenCrl(bindIP, 8082, crlFile, cancel.Token));
 
 }
 catch (OperationCanceledException)
@@ -138,4 +161,11 @@ catch (Exception exception)
 {
     Log.outFatal(LogFilter.Server, $"Battle.not server stopped unexpectedly: {exception}");
     Environment.ExitCode = 1;
+}
+
+static string ResolvePath(string path)
+{
+    if (string.IsNullOrEmpty(path) || Path.IsPathRooted(path))
+        return path;
+    return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, path));
 }
