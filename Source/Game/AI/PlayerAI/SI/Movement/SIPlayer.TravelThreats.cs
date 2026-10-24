@@ -8,7 +8,6 @@ using System.Numerics;
 namespace Game.AI;
 public sealed partial class SIPlayer
 {
-    long _nextObstacleRouteCheck;
     long _nextTravelAggroCheck;
     bool GrindingTravel => _goal=="grind"||_goal=="quest"&&_task?.Kind==SITaskKind.Grind;
     // A long commute ends before the final work neighborhood. Grinding never

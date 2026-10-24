@@ -29,8 +29,8 @@ namespace Game.DataStorage
         public LocalizedString PvpLongDescription;
         public float[] Corpse = new float[2];
         public byte MapType;
-        private sbyte _instanceType;
-        private byte _expansionID;
+        private sbyte _instanceType = default;
+        private byte _expansionID = default;
         public ushort AreaTableID;
         public short LoadingScreenID;
         public short TimeOfDayOverride;
@@ -161,13 +161,13 @@ namespace Game.DataStorage
         /// </summary>
         public LocalizedString Message;
         public int Id;
-        private ushort _difficultyID;
+        private ushort _difficultyID = default;
         public int LockID;
-        private byte _resetInterval;
+        private byte _resetInterval = default;
         public int MaxPlayers;
         public byte ItemContext;
         public int ItemContextPickerID;
-        private int _flags;
+        private int _flags = default;
         public int ContentTuningID;
         public int WorldStateExpressionID;
         public int MapID;
@@ -214,7 +214,7 @@ namespace Game.DataStorage
         public LocalizedString FailureDescription;
         public int PlayerConditionID;
         public int OrderIndex;
-        private uint _mapDifficultyID;
+        private uint _mapDifficultyID = default;
 
         #region Properties
         public Difficulty MapDifficultyID => (Difficulty)_mapDifficultyID;
@@ -227,7 +227,7 @@ namespace Game.DataStorage
         public int Parent;
         public sbyte Operator;
         public sbyte Amount;
-        private int _type;
+        private int _type = default;
         public int Asset;
         public int SecondaryAsset;
         public int TertiaryAsset;
@@ -244,7 +244,7 @@ namespace Game.DataStorage
         public LocalizedString Description;
         public int Id;
         public ushort MountTypeID;
-        private int _flags;
+        private int _flags = default;
         public sbyte SourceTypeEnum;
         public int SourceSpellID;
         public int PlayerConditionID;
@@ -275,7 +275,7 @@ namespace Game.DataStorage
     public sealed class MountCapabilityRecord
     {
         public int Id;
-        private int _flags;
+        private int _flags = default;
         public ushort ReqRidingSkill;
         public ushort ReqAreaID;
         public int ReqSpellAuraID;
@@ -306,7 +306,7 @@ namespace Game.DataStorage
     public sealed class MountTypeXCapabilityRecord
     {
         public int Id;
-        private ushort _mountTypeID;
+        private ushort _mountTypeID = default;
         public ushort MountCapabilityID;
         public byte OrderIndex;
 

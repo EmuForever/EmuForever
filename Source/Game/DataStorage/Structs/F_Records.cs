@@ -51,7 +51,7 @@ namespace Game.DataStorage
     {
         public int Id;
         public ushort Faction;
-        private int _flags;
+        private int _flags = default;
         public byte FactionGroup;
         public byte FriendGroup;
         public byte EnemyGroup;

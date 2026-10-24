@@ -24,11 +24,11 @@ namespace Game.DataStorage
     {
         public int Id;
         public ushort Region;
-        private byte _looping;
+        private byte _looping = default;
         public uint HolidayNameID;
         public uint HolidayDescriptionID;
         public byte Priority;
-        private sbyte _calendarFilterType;
+        private sbyte _calendarFilterType = default;
         public int Flags;
         private ushort[] _duration = new ushort[10];
         /// <summary>Wow packed time</summary>

@@ -45,6 +45,15 @@ namespace Game.Networking.Packets
 
         struct AuctionableTokenInfo
         {
+            public AuctionableTokenInfo(ulong id, long lastUpdate, uint owner, ulong buyoutPrice, uint durationLeft)
+            {
+                UnkInt1 = id;
+                UnkInt2 = lastUpdate;
+                Owner = owner;
+                BuyoutPrice = buyoutPrice;
+                DurationLeft = durationLeft;
+            }
+
             public ulong UnkInt1;
             public long UnkInt2;
             public uint Owner;

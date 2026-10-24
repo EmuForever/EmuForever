@@ -539,7 +539,7 @@ namespace Game.Entities
         public int CalculateAOEAvoidance(int damage, SpellSchoolMask schoolMask, bool npcCaster)
         {
             damage = (int)(damage * GetTotalAuraMultiplierByMiscMask(AuraType.ModAoeDamageAvoidance, (uint)schoolMask));
-            if (npcCaster != null)
+            if (npcCaster)
                 damage = (int)(damage * GetTotalAuraMultiplierByMiscMask(AuraType.ModCreatureAoeDamageAvoidance, (uint)schoolMask));
 
             return damage;

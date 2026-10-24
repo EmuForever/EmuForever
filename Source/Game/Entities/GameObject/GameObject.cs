@@ -4026,16 +4026,16 @@ namespace Game.Entities
 
     public struct GameObjectValue
     {
-        public transport Transport;
+        public TransportData Transport;
 
-        public fishinghole FishingHole;
+        public FishingHoleData FishingHole;
 
-        public building Building;
+        public BuildingData Building;
 
         public capturePoint CapturePoint;
 
         //11 GAMEOBJECT_TYPE_TRANSPORT
-        public struct transport
+        public struct TransportData
         {
             public uint PathProgress;
             public TransportAnimation AnimationInfo;
@@ -4045,13 +4045,13 @@ namespace Game.Entities
         }
 
         //25 GAMEOBJECT_TYPE_FISHINGHOLE
-        public struct fishinghole
+        public struct FishingHoleData
         {
             public int MaxOpens;
         }
 
         //33 GAMEOBJECT_TYPE_DESTRUCTIBLE_BUILDING
-        public struct building
+        public struct BuildingData
         {
             public int Health;
             public int MaxHealth;

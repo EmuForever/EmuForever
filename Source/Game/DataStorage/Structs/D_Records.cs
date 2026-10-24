@@ -35,15 +35,15 @@ namespace Game.DataStorage
 
     public sealed class DifficultyRecord
     {
-        private int _id;
+        private int _id = default;
         public LocalizedString Name;
-        private byte _instanceType;
+        private byte _instanceType = default;
         public byte OrderIndex;
         public sbyte OldEnumValue;
-        private ushort _fallbackDifficultyID;
+        private ushort _fallbackDifficultyID = default;
         public byte MinPlayers;
         public byte MaxPlayers;
-        private int _flags;
+        private int _flags = default;
         public byte ItemContext;
         public ushort ToggleDifficultyID;
         public int GroupSizeHealthCurveID;
@@ -75,8 +75,8 @@ namespace Game.DataStorage
     {
         public LocalizedString Name;
         public int Id;
-        private short _mapID;
-        private short _difficultyID;
+        private short _mapID = default;
+        private short _difficultyID = default;
         public int OrderIndex;
         public int CompleteWorldStateID;
         public sbyte Bit;

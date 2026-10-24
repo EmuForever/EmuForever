@@ -361,7 +361,7 @@ namespace Framework.IO
 		// the desired pack level (0..9). The values given below have been tuned to
 		// exclude worst case performance for pathological files. Better values may be
 		// found for specific files.
-		struct config
+		struct CompressionConfig
 		{
 			public ushort good_length;	// reduce lazy search above this match length
 			public ushort max_lazy;		// do not perform lazy search above this match length
@@ -369,7 +369,7 @@ namespace Framework.IO
 			public ushort max_chain;
 			public compress_func func;
 
-			public config(ushort good_length, ushort max_lazy, ushort nice_length, ushort max_chain, compress_func func)
+			public CompressionConfig(ushort good_length, ushort max_lazy, ushort nice_length, ushort max_chain, compress_func func)
 			{
 				this.good_length=good_length;
 				this.max_lazy=max_lazy;
@@ -379,18 +379,18 @@ namespace Framework.IO
 			}
 		}
 
-		static readonly config[] configuration_table=
+		static readonly CompressionConfig[] configuration_table=
         [ // good lazy nice chain
-			new config( 0,   0,   0,    0, deflate_stored),	// store only
-			new config( 4,   4,   8,    4, deflate_fast),	// max speed, no lazy matches
-			new config( 4,   5,  16,    8, deflate_fast),
-			new config( 4,   6,  32,   32, deflate_fast),
-			new config( 4,   4,  16,   16, deflate_slow),	// lazy matches
-			new config( 8,  16,  32,   32, deflate_slow),
-			new config( 8,  16, 128,  128, deflate_slow),
-			new config( 8,  32, 128,  256, deflate_slow),
-			new config(32, 128, 258, 1024, deflate_slow),
-			new config(32, 258, 258, 4096, deflate_slow)	// max compression
+			new CompressionConfig( 0,   0,   0,    0, deflate_stored),	// store only
+			new CompressionConfig( 4,   4,   8,    4, deflate_fast),	// max speed, no lazy matches
+			new CompressionConfig( 4,   5,  16,    8, deflate_fast),
+			new CompressionConfig( 4,   6,  32,   32, deflate_fast),
+			new CompressionConfig( 4,   4,  16,   16, deflate_slow),	// lazy matches
+			new CompressionConfig( 8,  16,  32,   32, deflate_slow),
+			new CompressionConfig( 8,  16, 128,  128, deflate_slow),
+			new CompressionConfig( 8,  32, 128,  256, deflate_slow),
+			new CompressionConfig(32, 128, 258, 1024, deflate_slow),
+			new CompressionConfig(32, 258, 258, 4096, deflate_slow)	// max compression
 		];
 
 		// Note: the deflate() code requires max_lazy >= MIN_MATCH and max_chain >= 4

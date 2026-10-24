@@ -51,7 +51,7 @@ namespace Game.DataStorage
         public int DisplayID;
         public int Flags;
         public float Scale;
-        private int _typeID;
+        private int _typeID = default;
         public int PhaseUseFlags;
         public int PhaseID;
         public int PhaseGroupID;
@@ -72,7 +72,7 @@ namespace Game.DataStorage
         public byte GarrFollowerTypeID;
         public int IconFileDataID;
         public ushort FactionChangeGarrAbilityID;
-        private int _flags;
+        private int _flags = default;
 
         #region Properties
         public GarrisonAbilityFlags Flags => (GarrisonAbilityFlags)_flags;
@@ -117,7 +117,7 @@ namespace Game.DataStorage
         public ushort GarrAbilityID;
         public ushort BonusGarrAbilityID;
         public ushort GoldCost;
-        private int _flags;
+        private int _flags = default;
 
         #region Properties
         public GarrisonBuildingFlags Flags => (GarrisonBuildingFlags)_flags;
@@ -309,7 +309,7 @@ namespace Game.DataStorage
     {
         public int Id;
         public ushort EnchantId;
-        private int _typeMask;
+        private int _typeMask = default;
 
         #region Properties
         public SocketColor Color => (SocketColor)_typeMask;

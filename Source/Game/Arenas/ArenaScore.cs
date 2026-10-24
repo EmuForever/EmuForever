@@ -39,10 +39,10 @@ namespace Game.Arenas
                 $"PreMatchMMR: {PreMatchMMR} PostMatchRating: {PostMatchRating} PostMatchMMR: {PostMatchMMR}";
         }
 
-        int PreMatchRating;
-        int PreMatchMMR;
-        int PostMatchRating;
-        int PostMatchMMR;
+        int PreMatchRating = default;
+        int PreMatchMMR = default;
+        int PostMatchRating = default;
+        int PostMatchMMR = default;
     }
 
     public class ArenaTeamScore

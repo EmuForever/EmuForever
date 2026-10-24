@@ -13234,82 +13234,82 @@ namespace Game
         public ScriptCommands command;
 
         [FieldOffset(16)]
-        public raw Raw;
+        public RawData Raw;
 
         [FieldOffset(16)]
-        public talk Talk;
+        public TalkData Talk;
 
         [FieldOffset(16)]
-        public emote Emote;
+        public EmoteData Emote;
 
         [FieldOffset(16)]
-        public fieldset FieldSet;
+        public FieldSetData FieldSet;
 
         [FieldOffset(16)]
-        public moveto MoveTo;
+        public MoveToData MoveTo;
 
         [FieldOffset(16)]
-        public flagtoggle FlagToggle;
+        public FlagToggleData FlagToggle;
 
         [FieldOffset(16)]
-        public teleportto TeleportTo;
+        public TeleportToData TeleportTo;
 
         [FieldOffset(16)]
-        public questexplored QuestExplored;
+        public QuestExploredData QuestExplored;
 
         [FieldOffset(16)]
-        public killcredit KillCredit;
+        public KillCreditData KillCredit;
 
         [FieldOffset(16)]
-        public respawngameobject RespawnGameObject;
+        public RespawnGameObjectData RespawnGameObject;
 
         [FieldOffset(16)]
-        public tempsummoncreature TempSummonCreature;
+        public TempSummonCreatureData TempSummonCreature;
 
         [FieldOffset(16)]
-        public toggledoor ToggleDoor;
+        public ToggleDoorData ToggleDoor;
 
         [FieldOffset(16)]
-        public removeaura RemoveAura;
+        public RemoveAuraData RemoveAura;
 
         [FieldOffset(16)]
-        public castspell CastSpell;
+        public CastSpellData CastSpell;
 
         [FieldOffset(16)]
-        public playsound PlaySound;
+        public PlaySoundData PlaySound;
 
         [FieldOffset(16)]
-        public createitem CreateItem;
+        public CreateItemData CreateItem;
 
         [FieldOffset(16)]
-        public despawnself DespawnSelf;
+        public DespawnSelfData DespawnSelf;
 
         [FieldOffset(16)]
-        public loadpath LoadPath;
+        public LoadPathData LoadPath;
 
         [FieldOffset(16)]
-        public callscript CallScript;
+        public CallScriptData CallScript;
 
         [FieldOffset(16)]
-        public kill Kill;
+        public KillData Kill;
 
         [FieldOffset(16)]
-        public orientation Orientation;
+        public OrientationData Orientation;
 
         [FieldOffset(16)]
-        public equip Equip;
+        public EquipData Equip;
 
         [FieldOffset(16)]
-        public model Model;
+        public ModelData Model;
 
         [FieldOffset(16)]
-        public playmovie PlayMovie;
+        public PlayMovieData PlayMovie;
 
         [FieldOffset(16)]
-        public movement Movement;
+        public MovementData Movement;
 
         [FieldOffset(16)]
-        public playanimkit PlayAnimKit;
+        public PlayAnimKitData PlayAnimKit;
 
         public string GetDebugInfo()
         {
@@ -13317,32 +13317,32 @@ namespace Game
         }
 
         #region Structs
-        public unsafe struct raw
+        public unsafe struct RawData
         {
             public fixed uint nData[3];
             public fixed float fData[4];
         }
 
-        public struct talk                   // TALK (0)
+        public struct TalkData                   // TALK (0)
         {
             public ChatMsg ChatType;        // datalong
             public eScriptFlags Flags;           // datalong2
             public int TextID;          // dataint
         }
 
-        public struct emote                   // EMOTE (1)
+        public struct EmoteData                   // EMOTE (1)
         {
             public int EmoteID;         // datalong
             public eScriptFlags Flags;           // datalong2
         }
 
-        public struct fieldset                    // FIELDSET (2)
+        public struct FieldSetData                    // FIELDSET (2)
         {
             public uint FieldID;         // datalong
             public uint FieldValue;      // datalong2
         }
 
-        public struct moveto                   // MOVETO (3)
+        public struct MoveToData                   // MOVETO (3)
         {
             public uint Unused1;         // datalong
             public Milliseconds TravelTime;      // datalong2
@@ -13353,14 +13353,14 @@ namespace Game
             public float DestZ;
         }
 
-        public struct flagtoggle                   // FLAGSET (4)
+        public struct FlagToggleData                   // FLAGSET (4)
         // FLAGREMOVE (5)
         {
             public uint FieldID;         // datalong
             public uint FieldValue;      // datalong2
         }
 
-        public struct teleportto                 // TELEPORTTO (6)
+        public struct TeleportToData                 // TELEPORTTO (6)
         {
             public int MapID;           // datalong
             public eScriptFlags Flags;           // datalong2
@@ -13372,25 +13372,25 @@ namespace Game
             public float Orientation;
         }
 
-        public struct questexplored                  // QUESTEXPLORED (7)
+        public struct QuestExploredData                  // QUESTEXPLORED (7)
         {
             public int QuestID;         // datalong
             public uint Distance;        // datalong2
         }
 
-        public struct killcredit                    // KILLCREDIT (8)
+        public struct KillCreditData                    // KILLCREDIT (8)
         {
             public int CreatureEntry;   // datalong
             public eScriptFlags Flags;           // datalong2
         }
 
-        public struct respawngameobject                 // RESPAWNGAMEOBJECT (9)
+        public struct RespawnGameObjectData                 // RESPAWNGAMEOBJECT (9)
         {
             public uint GOGuid;          // datalong
             public TimeSpan DespawnDelay;    // datalong2
         }
 
-        public struct tempsummoncreature                // TEMPSUMMONCREATURE (10)
+        public struct TempSummonCreatureData                // TEMPSUMMONCREATURE (10)
         {
             public int CreatureEntry;   // datalong
             public Milliseconds DespawnDelay;    // datalong2
@@ -13402,7 +13402,7 @@ namespace Game
             public float Orientation;
         }
 
-        public struct toggledoor                  // CLOSEDOOR (12)
+        public struct ToggleDoorData                  // CLOSEDOOR (12)
         // OPENDOOR (11)
         {
             public uint GOGuid;          // datalong
@@ -13411,13 +13411,13 @@ namespace Game
 
         // ACTIVATEOBJECT (13)
 
-        public struct removeaura                   // REMOVEAURA (14)
+        public struct RemoveAuraData                   // REMOVEAURA (14)
         {
             public int SpellID;         // datalong
             public eScriptFlags Flags;           // datalong2
         }
 
-        public struct castspell                  // CASTSPELL (15)
+        public struct CastSpellData                  // CASTSPELL (15)
         {
             public int SpellID;         // datalong
             public eScriptFlags Flags;           // datalong2
@@ -13426,44 +13426,44 @@ namespace Game
             public float SearchRadius;
         }
 
-        public struct playsound                     // PLAYSOUND (16)
+        public struct PlaySoundData                     // PLAYSOUND (16)
         {
             public int SoundID;         // datalong
             public eScriptFlags Flags;           // datalong2
         }
 
-        public struct createitem                   // CREATEITEM (17)
+        public struct CreateItemData                   // CREATEITEM (17)
         {
             public int ItemEntry;       // datalong
             public int Amount;          // datalong2
         }
 
-        public struct despawnself                 // DESPAWNSELF (18)
+        public struct DespawnSelfData                 // DESPAWNSELF (18)
         {
             public Milliseconds DespawnDelay;    // datalong
         }
 
-        public struct loadpath                    // LOADPATH (20)
+        public struct LoadPathData                    // LOADPATH (20)
         {
             public int PathID;          // datalong
             public int IsRepeatable;    // datalong2
         }
 
-        public struct callscript                   // CALLSCRIPTTOUNIT (21)
+        public struct CallScriptData                   // CALLSCRIPTTOUNIT (21)
         {
             public int CreatureEntry;   // datalong
             public int ScriptID;        // datalong2
             public int ScriptType;      // dataint
         }
 
-        public struct kill                    // KILL (22)
+        public struct KillData                    // KILL (22)
         {
             public uint Unused1;         // datalong
             public uint Unused2;         // datalong2
             public int RemoveCorpse;    // dataint
         }
 
-        public struct orientation                    // ORIENTATION (30)
+        public struct OrientationData                    // ORIENTATION (30)
         {
             public eScriptFlags Flags;           // datalong
             public uint Unused1;         // datalong2
@@ -13475,31 +13475,31 @@ namespace Game
             public float _Orientation;
         }
 
-        public struct equip                  // EQUIP (31)
+        public struct EquipData                  // EQUIP (31)
         {
             public int EquipmentID;     // datalong
         }
 
-        public struct model                    // MODEL (32)
+        public struct ModelData                    // MODEL (32)
         {
             public int ModelID;         // datalong
         }
 
         // CLOSEGOSSIP (33)
 
-        public struct playmovie                    // PLAYMOVIE (34)
+        public struct PlayMovieData                    // PLAYMOVIE (34)
         {
             public int MovieID;         // datalong
         }
 
-        public struct movement                      // SCRIPT_COMMAND_MOVEMENT (35)
+        public struct MovementData                      // SCRIPT_COMMAND_MOVEMENT (35)
         {
             public int MovementType;     // datalong
             public int MovementDistance; // datalong2
             public int Path;             // dataint
         }
 
-        public struct playanimkit                  // SCRIPT_COMMAND_PLAY_ANIMKIT (36)
+        public struct PlayAnimKitData                  // SCRIPT_COMMAND_PLAY_ANIMKIT (36)
         {
             public int AnimKitID;       // datalong
         }

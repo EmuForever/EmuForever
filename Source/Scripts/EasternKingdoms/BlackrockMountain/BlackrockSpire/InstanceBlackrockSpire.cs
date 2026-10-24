@@ -616,7 +616,6 @@ namespace Scripts.EasternKingdoms.BlackrockMountain.BlackrockSpire
             ObjectGuid go_emberseerin;
             ObjectGuid go_doors;
             ObjectGuid go_emberseerout;
-            ObjectGuid go_blackrockaltar;
             ObjectGuid[] go_roomrunes = new ObjectGuid[7];
             ObjectGuid[] go_emberseerrunes = new ObjectGuid[7];
             List<ObjectGuid>[] runecreaturelist = new List<ObjectGuid>[7];

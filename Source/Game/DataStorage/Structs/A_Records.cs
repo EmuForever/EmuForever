@@ -15,7 +15,7 @@ namespace Game.DataStorage
         public int Id;
         /// <summary> -1 = none </summary>
         public short InstanceID;
-        private sbyte _faction;
+        private sbyte _faction = default;
         /// <summary> it's Achievement parent (can`t start while parent uncomplete,
         /// use its Criteria if don`t have own, use its progress on begin) </summary>
         public int Supercedes;
@@ -25,7 +25,7 @@ namespace Game.DataStorage
         /// </summary>
         public byte MinimumCriteria;
         public byte Points;
-        private int _flags;
+        private int _flags = default;
         public short UiOrder;
         public int IconFileID;
         public int RewardItemID;
@@ -149,7 +149,7 @@ namespace Game.DataStorage
         public uint UwIntroSound;
         public byte FactionGroupMask;
         public float AmbientMultiplier;
-        private int _mountFlags;
+        private int _mountFlags = default;
         public int PvpCombatWorldStateID;
         public byte WildBattlePetLevelMin;
         public byte WildBattlePetLevelMax;
@@ -361,7 +361,7 @@ namespace Game.DataStorage
 
     public sealed class AuctionHouseRecord
     {
-        private int _id;
+        private int _id = default;
         public LocalizedString Name;
         /// <summary>
         /// id of faction.dbc for player factions associated with city

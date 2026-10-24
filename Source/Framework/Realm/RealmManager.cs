@@ -90,8 +90,8 @@ public class RealmManager : Singleton<RealmManager>
                 var realm = new Realm();
                 int realmId = result.Read<int>(0);
                 realm.SetName(result.Read<string>(1));
-                realm.Addresses.Add(IPAddress.Parse(result.Read<string>(2)));
-                realm.Addresses.Add(IPAddress.Parse(result.Read<string>(3)));
+                realm.Addresses.Add(ResolveAddress(result.Read<string>(2)));
+                realm.Addresses.Add(ResolveAddress(result.Read<string>(3)));
                 realm.Port = result.Read<ushort>(4);
                 RealmType realmType = (RealmType)result.Read<byte>(5);
                 if (realmType == RealmType.FFAPVP)
@@ -129,6 +129,23 @@ public class RealmManager : Singleton<RealmManager>
 
         foreach (var pair in existingRealms)
             Log.outInfo(LogFilter.Realmlist, $"Removed realm \"{pair.Value}\".");
+    }
+    private static IPAddress ResolveAddress(string address)
+    {
+        if (string.IsNullOrWhiteSpace(address))
+            throw new ArgumentException("Realm address cannot be empty.");
+
+        address = address.Trim();
+
+        if (IPAddress.TryParse(address, out IPAddress ip))
+            return ip;
+
+        IPAddress[] addresses = Dns.GetHostAddresses(address);
+
+        return addresses.FirstOrDefault(
+            a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+            ?? throw new Exception(
+                $"No IPv4 address found for hostname: {address}");
     }
 
     public Realm GetRealm(RealmId id)

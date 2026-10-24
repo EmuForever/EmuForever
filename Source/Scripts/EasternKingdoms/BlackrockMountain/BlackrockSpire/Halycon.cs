@@ -26,7 +26,6 @@ namespace Scripts.EasternKingdoms.BlackrockMountain.BlackrockSpire.Halycon
     {
         static Position SummonLocation = new Position(-167.9561f, -411.7844f, 76.23057f, 1.53589f);
 
-        bool Summoned;
 
         public boss_halycon(Creature creature) : base(creature, DataTypes.Halycon)
         {
@@ -35,7 +34,6 @@ namespace Scripts.EasternKingdoms.BlackrockMountain.BlackrockSpire.Halycon
 
         void Initialize()
         {
-            Summoned = false;
         }
 
         public override void Reset()
@@ -64,7 +62,6 @@ namespace Scripts.EasternKingdoms.BlackrockMountain.BlackrockSpire.Halycon
             me.SummonCreature(CreaturesIds.GizrulTheSlavener, SummonLocation, TempSummonType.TimedDespawn, (Minutes)5);
             Talk(TextIds.EmoteDeath);
 
-            Summoned = true;
         }
 
         public override void UpdateAI(TimeSpan diff)

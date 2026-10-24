@@ -184,7 +184,7 @@ namespace Game.Entities
         Dictionary<Creature, FormationInfo> _members = new();
 
         long _leaderSpawnId;
-        bool _formed;
+        bool _formed = default;
         bool _engaging;
 
         public CreatureGroup(long leaderSpawnId)

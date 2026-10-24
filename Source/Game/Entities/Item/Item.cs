@@ -2320,11 +2320,6 @@ namespace Game.Entities
             CanDisenchant = !proto.HasFlag(ItemFlags.NoDisenchant);
             CanScrap = proto.HasFlag(ItemFlags4.Scrapable);
 
-            _state.SuffixPriority = int.MaxValue;
-            _state.AppearanceModPriority = int.MaxValue;
-            _state.ScalingStatDistributionPriority = int.MaxValue;
-            _state.RequiredLevelCurvePriority = int.MaxValue;
-            _state.HasQualityBonus = false;
         }
 
         public BonusData(ItemInstance itemInstance) : this(Global.ObjectMgr.GetItemTemplate(itemInstance.ItemID)) { }
@@ -2348,16 +2343,6 @@ namespace Game.Entities
         public bool CanDisenchant;
         public bool CanScrap;
         public bool HasFixedLevel;
-        State _state;
-
-        struct State
-        {
-            public int SuffixPriority;
-            public int AppearanceModPriority;
-            public int ScalingStatDistributionPriority;
-            public int RequiredLevelCurvePriority;
-            public bool HasQualityBonus;
-        }
     }
 
     [StructLayout(LayoutKind.Sequential)]

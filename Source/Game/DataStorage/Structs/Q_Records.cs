@@ -42,7 +42,7 @@ namespace Game.DataStorage
         public ushort PackageID;
         public int ItemID;
         public int ItemQuantity;
-        private byte _displayType;
+        private byte _displayType = default;
 
         #region Helpers
         public QuestPackageFilter DisplayType => (QuestPackageFilter)_displayType;

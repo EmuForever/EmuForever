@@ -37,10 +37,10 @@ namespace Game.DataStorage
     public sealed class ItemRecord
     {
         public int Id;
-        private int _classID;
-        private byte _subclassID;
+        private int _classID = default;
+        private byte _subclassID = default;
         public byte Material;
-        private sbyte _inventoryType;
+        private sbyte _inventoryType = default;
         public byte SheatheType;
         public int ItemPetFoodID;
         public sbyte SoundOverrideSubclassID;
@@ -191,13 +191,13 @@ namespace Game.DataStorage
     public sealed class ItemDisenchantLootRecord
     {
         public int Id;
-        private sbyte _subclass;
-        private byte _quality;
+        private sbyte _subclass = default;
+        private byte _quality = default;
         public ushort MinLevel;
         public ushort MaxLevel;
         public ushort SkillRequired;
-        private sbyte _expansionID;
-        private uint _class;
+        private sbyte _expansionID = default;
+        private uint _class = default;
 
         #region Properties
         public ItemSubClass Subclass => (ItemSubClass)_subclass;
@@ -211,11 +211,11 @@ namespace Game.DataStorage
     {
         public int Id;
         public byte LegacySlotIndex;
-        private sbyte _triggerType;
+        private sbyte _triggerType = default;
         public short Charges;
-        private int _coolDownMSec;
-        private int _categoryCoolDownMSec;
-        private ushort _spellCategoryID;
+        private int _coolDownMSec = default;
+        private int _categoryCoolDownMSec = default;
+        private ushort _spellCategoryID = default;
         public int SpellID;
         public ushort ChrSpecializationID;
         public int PlayerConditionID;   // Forever/TC layout; items link to effects through ItemXItemEffect
@@ -239,7 +239,7 @@ namespace Game.DataStorage
         public byte ArenaBracket;
         public int Flags;
         public byte MinFactionID;
-        private int _minReputation;
+        private int _minReputation = default;
         /// <summary>
         /// required personal arena rating
         /// </summary>
@@ -278,7 +278,7 @@ namespace Game.DataStorage
     {
         public int Id;
         public int QualityItemBonusListID;
-        private sbyte _quality;
+        private sbyte _quality = default;
         public int ParentILSQualitySetID;
 
         #region Properties
@@ -331,7 +331,7 @@ namespace Game.DataStorage
         public int IconFileDataID;
         public int UnequippedIconFileDataID;
         public byte SheatheType;
-        private sbyte _displayWeaponSubclassID;
+        private sbyte _displayWeaponSubclassID = default;
         public sbyte DisplayInventoryType;
 
         #region Properties
@@ -395,7 +395,7 @@ namespace Game.DataStorage
     {
         public int Id;
         public LocalizedString Name;
-        private uint _setFlags;
+        private uint _setFlags = default;
         public uint RequiredSkill;
         public ushort RequiredSkillRank;
         public uint[] ItemID = new uint[17];
@@ -435,10 +435,10 @@ namespace Game.DataStorage
         public LocalizedString Display2;
         public LocalizedString Display1;
         public LocalizedString Display;
-        private int _expansionID;
+        private int _expansionID = default;
         public float DmgVariance;
         public int LimitCategory;
-        private int _durationInInventory;
+        private int _durationInInventory = default;
         public float QualityModifier;
         public uint BagFamily;
         public int StartQuestID;
@@ -449,7 +449,7 @@ namespace Game.DataStorage
         private int[] _statModifierBonusStat = new int[10];
         public int Stackable;
         public int MaxCount;
-        private int _minReputation;
+        private int _minReputation = default;
         public int RequiredAbility;
         private int[] _allowableRace = new int[2];
         public uint SellPrice;
@@ -476,12 +476,12 @@ namespace Game.DataStorage
         public ushort ItemSet;
         public ushort LockID;
         public ushort PageID;
-        private ushort _itemDelay;
+        private ushort _itemDelay = default;
         public ushort MinFactionID;
         public ushort RequiredSkillRank;
         public ushort RequiredSkill;
         public ushort ItemLevel;
-        private short _allowableClass;
+        private short _allowableClass = default;
         public byte ArtifactID;
         public byte SpellWeight;
         public byte SpellWeightCategory;
@@ -490,13 +490,13 @@ namespace Game.DataStorage
         public byte Material;
         public byte PageMaterialID;
         public byte Bonding;
-        private byte _damageType;
+        private byte _damageType = default;
         public byte ContainerSlots;
         public byte RequiredPVPMedal;
         public byte RequiredPVPRank;
         public sbyte RequiredLevel;
-        private sbyte _inventoryType;
-        private sbyte _overallQualityID;
+        private sbyte _inventoryType = default;
+        private sbyte _overallQualityID = default;
         public byte AmmunitionType;
 
         #region Properties
@@ -519,8 +519,8 @@ namespace Game.DataStorage
         public byte MinLevel;
         public byte MaxLevel;
         public byte ItemType;
-        private byte _primaryStat;
-        private byte _secondaryStat;
+        private byte _primaryStat = default;
+        private byte _secondaryStat = default;
         public ushort SpecializationID;
 
         #region Properties

@@ -15,7 +15,7 @@ namespace Framework.Networking.Http
 
         public SslSocket(Socket socket) : base(socket)
         {
-            _certificate = new X509Certificate2(ConfigMgr.GetDefaultValue("CertificatesFile", "./BNetServer.pfx"));
+            _certificate = X509CertificateLoader.LoadPkcs12FromFile(ConfigMgr.GetDefaultValue("CertificatesFile", "./BNetServer.pfx"), null);
         }
 
         public async override void Start()

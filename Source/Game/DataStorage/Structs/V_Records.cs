@@ -10,8 +10,8 @@ namespace Game.DataStorage
     public sealed class VehicleRecord
     {
         public int Id;
-        private int _flags;
-        private int _flagsB;
+        private int _flags = default;
+        private int _flagsB = default;
         public float TurnSpeed;
         public float PitchSpeed;
         public float PitchMin;
@@ -62,9 +62,9 @@ namespace Game.DataStorage
         public int Id;
         public Vector3 AttachmentOffset;
         public Vector3 CameraOffset;
-        private int _flags;
-        private int _flagsB;
-        private int _flagsC;
+        private int _flags = default;
+        private int _flagsB = default;
+        private int _flagsC = default;
         public int AttachmentID;
         public float EnterPreDelay;
         public float EnterSpeed;
@@ -124,7 +124,8 @@ namespace Game.DataStorage
 
         #region Properties
         public VehicleSeatFlags Flags => (VehicleSeatFlags)_flags;
-        public VehicleSeatFlagsB FlagsB => (VehicleSeatFlagsB)_flagsB;        
+        public VehicleSeatFlagsB FlagsB => (VehicleSeatFlagsB)_flagsB;
+        public int FlagsC => _flagsC;
         #endregion
 
         #region Helpers

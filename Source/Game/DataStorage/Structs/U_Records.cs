@@ -12,9 +12,9 @@ namespace Game.DataStorage
         public LocalizedString Name;
         public int Id;
         public int ParentUiMapID;
-        private int _flags;
-        private sbyte _system;
-        private byte _type;
+        private int _flags = default;
+        private sbyte _system = default;
+        private byte _type = default;
         public int BountySetID;
         public int BountyDisplayLocation;
         public int VisibilityPlayerConditionID;  // if not met then client checks other maps with the same AlternateUiMapGroup, not re-evaluating UiMapAssignment for them
@@ -85,7 +85,7 @@ namespace Game.DataStorage
     public sealed class UnitConditionRecord
     {
         public int Id;
-        private int _flags;
+        private int _flags = default;
         public byte[] Variable = new byte[8];
         public sbyte[] Op = new sbyte[8];
         public int[] Value = new int[8];

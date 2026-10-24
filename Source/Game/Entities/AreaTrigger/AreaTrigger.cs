@@ -1476,8 +1476,8 @@ namespace Game.Entities
         float _verticesUpdatePreviousOrientation;
         bool _isRemoved;
 
-        Vector3 _rollPitchYaw;
-        Vector3 _targetRollPitchYaw;
+        Vector3 _rollPitchYaw = default;
+        Vector3 _targetRollPitchYaw = default;
         List<Vector2> _polygonVertices;
         Spline<int> _spline;
 

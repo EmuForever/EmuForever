@@ -88,7 +88,6 @@ namespace Scripts.EasternKingdoms.Karazhan.Moroes
         public ObjectGuid[] AddGUID = new ObjectGuid[4];
         int[] AddId = new int[4];
 
-        bool InVanish;
         bool Enrage;
 
         public boss_moroes(Creature creature) : base(creature, DataTypes.Moroes)
@@ -99,7 +98,6 @@ namespace Scripts.EasternKingdoms.Karazhan.Moroes
         void Initialize()
         {
             Enrage = false;
-            InVanish = false;
         }
 
         public override void Reset()
@@ -138,7 +136,6 @@ namespace Scripts.EasternKingdoms.Karazhan.Moroes
             {
                 DoCast(me, SpellIds.Vanish);
                 me.SetCanMelee(false);
-                InVanish = true;
 
                 task.Schedule(Time.SpanFromSeconds(5), garroteTask =>
                 {
@@ -148,7 +145,6 @@ namespace Scripts.EasternKingdoms.Karazhan.Moroes
                     if (target != null)
                         target.CastSpell(target, SpellIds.Garrote, true);
 
-                    InVanish = false;
                     me.SetCanMelee(true);
                 });
 

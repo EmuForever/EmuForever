@@ -9,8 +9,8 @@ namespace Game.DataStorage
     {
         public int Id;
         public string Name;
-        private byte _raceID;
-        private byte _sex;
+        private byte _raceID = default;
+        private byte _sex = default;
         public byte NameType;
 
         #region Properties
@@ -23,7 +23,7 @@ namespace Game.DataStorage
     {
         public int Id;
         public string Name;
-        private sbyte _language;
+        private sbyte _language = default;
 
         #region Properties
         public Locale Language => (Locale)_language;
@@ -40,7 +40,7 @@ namespace Game.DataStorage
     {
         public int Id;
         public string Name;
-        private byte _localeMask;
+        private byte _localeMask = default;
 
         #region Properties
         public LocaleMask LocaleMask => (LocaleMask)_localeMask;

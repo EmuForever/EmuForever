@@ -746,7 +746,7 @@ namespace Game.Networking.Packets
 
         public ObjectGuid Victim;
         public byte MissReason;
-        SpellLogMissDebug? Debug;
+        SpellLogMissDebug? Debug = default;
     }
 
     struct SpellDispellData

@@ -15,19 +15,19 @@ namespace Game.Entities
     public unsafe class AreaTriggerData
     {
         [FieldOffset(0)]
-        public defaultdatas DefaultDatas;
+        public DefaultData DefaultDatas;
 
         [FieldOffset(0)]
-        public spheredatas SphereDatas;
+        public SphereData SphereDatas;
 
         [FieldOffset(0)]
-        public boxdatas BoxDatas;
+        public BoxData BoxDatas;
 
         [FieldOffset(0)]
-        public polygondatas PolygonDatas;
+        public PolygonData PolygonDatas;
 
         [FieldOffset(0)]
-        public cylinderdatas CylinderDatas;
+        public CylinderData CylinderDatas;
 
         [FieldOffset(0)]
         public diskDatas DiskDatas;
@@ -35,34 +35,34 @@ namespace Game.Entities
         [FieldOffset(0)]
         public boundedPlaneDatas BoundedPlaneDatas;
 
-        public struct defaultdatas
+        public struct DefaultData
         {
             public fixed float Data[SharedConst.MaxAreatriggerEntityData];
         }
 
         // AREATRIGGER_TYPE_SPHERE
-        public struct spheredatas
+        public struct SphereData
         {
             public float Radius;
             public float RadiusTarget;
         }
 
         // AREATRIGGER_TYPE_BOX
-        public struct boxdatas
+        public struct BoxData
         {
             public fixed float Extents[3];
             public fixed float ExtentsTarget[3];
         }
 
         // AREATRIGGER_TYPE_POLYGON
-        public struct polygondatas
+        public struct PolygonData
         {
             public float Height;
             public float HeightTarget;
         }
 
         // AREATRIGGER_TYPE_CYLINDER
-        public struct cylinderdatas
+        public struct CylinderData
         {
             public float Radius;
             public float RadiusTarget;
@@ -291,7 +291,7 @@ namespace Game.Entities
 
     public class AreaTriggerSpawn : SpawnData
     {
-        public AreaTriggerId Id;
+        public new AreaTriggerId Id;
         public int? SpellForVisuals;
 
         public AreaTriggerSpawn() : base(SpawnObjectType.AreaTrigger) { }

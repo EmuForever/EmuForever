@@ -9,7 +9,7 @@ namespace Game.DataStorage
     {
         public int Id;
         public string EmoteSlashCommand;
-        private short _animId;
+        private short _animId = default;
         public uint EmoteFlags;
         public int EmoteSpecProc;
         public uint EmoteSpecProcParam;
@@ -28,7 +28,7 @@ namespace Game.DataStorage
     {
         public int Id;
         public string Name;
-        private ushort _emoteId;
+        private ushort _emoteId = default;
 
         #region Properties
         public Emote EmoteId => (Emote)_emoteId;
@@ -38,9 +38,9 @@ namespace Game.DataStorage
     public sealed class EmotesTextSoundRecord
     {
         public int Id;
-        private byte _raceId;
-        private byte _classId;
-        private byte _sexId;
+        private byte _raceId = default;
+        private byte _classId = default;
+        private byte _sexId = default;
         public int SoundId;
         public int EmotesTextId;
 
@@ -54,7 +54,7 @@ namespace Game.DataStorage
     public sealed class ExpectedStatRecord
     {
         public int Id;
-        private int _expansionID;
+        private int _expansionID = default;
         public float CreatureHealth;
         public float PlayerHealth;
         public float CreatureAutoAttackDps;

@@ -29,15 +29,15 @@ namespace Game.DataStorage
         public int Id;
         public LocalizedString Name;
         public LocalizedString Description;
-        private byte _typeID;
+        private byte _typeID = default;
         public byte Subtype;
         public sbyte Faction;
         public int IconTextureFileID;
         public int RewardsBgTextureFileID;
         public int PopupBgTextureFileID;
-        private byte _expansionLevel;
+        private byte _expansionLevel = default;
         public short MapID;
-        private ushort _difficultyID;
+        private ushort _difficultyID = default;
         public float MinGear;
         public byte GroupID;
         public byte OrderIndex;

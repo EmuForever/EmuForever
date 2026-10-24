@@ -52,82 +52,82 @@ namespace Game.Entities
         public string StringId;
 
         [FieldOffset(80)]
-        public door Door;
+        public DoorData Door;
 
         [FieldOffset(80)]
-        public button Button;
+        public ButtonData Button;
 
         [FieldOffset(80)]
-        public questgiver QuestGiver;
+        public QuestGiverData QuestGiver;
 
         [FieldOffset(80)]
-        public chest Chest;
+        public ChestData Chest;
 
         [FieldOffset(80)]
-        public binder Binder;
+        public BinderData Binder;
 
         [FieldOffset(80)]
-        public generic Generic;
+        public GenericData Generic;
 
         [FieldOffset(80)]
-        public trap Trap;
+        public TrapData Trap;
 
         [FieldOffset(80)]
-        public chair Chair;
+        public ChairData Chair;
 
         [FieldOffset(80)]
         public spellFocus SpellFocus;
 
         [FieldOffset(80)]
-        public text Text;
+        public TextData Text;
 
         [FieldOffset(80)]
-        public goober Goober;
+        public GooberData Goober;
 
         [FieldOffset(80)]
-        public transport Transport;
+        public TransportData Transport;
 
         [FieldOffset(80)]
-        public areadamage AreaDamage;
+        public AreaDamageData AreaDamage;
 
         [FieldOffset(80)]
-        public camera Camera;
+        public CameraData Camera;
 
         [FieldOffset(80)]
         public moTransport MoTransport;
 
         [FieldOffset(80)]
-        public duelflag DuelFlag;
+        public DuelFlagData DuelFlag;
 
         [FieldOffset(80)]
-        public fishingnode FishingNode;
+        public FishingNodeData FishingNode;
 
         [FieldOffset(80)]
-        public ritual Ritual;
+        public RitualData Ritual;
 
         [FieldOffset(80)]
-        public mailbox MailBox;
+        public MailBoxData MailBox;
 
         [FieldOffset(80)]
-        public guardpost GuardPost;
+        public GuardPostData GuardPost;
 
         [FieldOffset(80)]
-        public spellcaster SpellCaster;
+        public SpellCasterData SpellCaster;
 
         [FieldOffset(80)]
-        public meetingstone MeetingStone;
+        public MeetingStoneData MeetingStone;
 
         [FieldOffset(80)]
-        public flagstand FlagStand;
+        public FlagStandData FlagStand;
 
         [FieldOffset(80)]
-        public fishinghole FishingHole;
+        public FishingHoleData FishingHole;
 
         [FieldOffset(80)]
-        public flagdrop FlagDrop;
+        public FlagDropData FlagDrop;
 
         [FieldOffset(80)]
-        public controlzone ControlZone;
+        public ControlZoneData ControlZone;
 
         [FieldOffset(80)]
         public auraGenerator AuraGenerator;
@@ -139,64 +139,64 @@ namespace Game.Entities
         public barberChair BarberChair;
 
         [FieldOffset(80)]
-        public destructiblebuilding DestructibleBuilding;
+        public DestructibleBuildingData DestructibleBuilding;
 
         [FieldOffset(80)]
-        public guildbank GuildBank;
+        public GuildBankData GuildBank;
 
         [FieldOffset(80)]
         public trapDoor TrapDoor;
 
         [FieldOffset(80)]
-        public newflag NewFlag;
+        public NewFlagData NewFlag;
 
         [FieldOffset(80)]
-        public newflagdrop NewFlagDrop;
+        public NewFlagDropData NewFlagDrop;
 
         [FieldOffset(80)]
-        public garrisonbuilding GarrisonBuilding;
+        public GarrisonBuildingData GarrisonBuilding;
 
         [FieldOffset(80)]
-        public garrisonplot GarrisonPlot;
+        public GarrisonPlotData GarrisonPlot;
 
         [FieldOffset(80)]
-        public clientcreature ClientCreature;
+        public ClientCreatureData ClientCreature;
 
         [FieldOffset(80)]
-        public clientitem ClientItem;
+        public ClientItemData ClientItem;
 
         [FieldOffset(80)]
-        public capturepoint CapturePoint;
+        public CapturePointData CapturePoint;
 
         [FieldOffset(80)]
-        public phaseablemo PhaseableMO;
+        public PhaseableMOData PhaseableMO;
 
         [FieldOffset(80)]
-        public garrisonmonument GarrisonMonument;
+        public GarrisonMonumentData GarrisonMonument;
 
         [FieldOffset(80)]
-        public garrisonshipment GarrisonShipment;
+        public GarrisonShipmentData GarrisonShipment;
 
         [FieldOffset(80)]
-        public garrisonmonumentplaque GarrisonMonumentPlaque;
+        public GarrisonMonumentPlaqueData GarrisonMonumentPlaque;
 
         [FieldOffset(80)]
-        public itemforge ItemForge;
+        public ItemForgeData ItemForge;
 
         [FieldOffset(80)]
-        public uilink UILink;
+        public UILinkData UILink;
 
         [FieldOffset(80)]
-        public keystonereceptacle KeystoneReceptacle;
+        public KeystoneReceptacleData KeystoneReceptacle;
 
         [FieldOffset(80)]
-        public gatheringnode GatheringNode;
+        public GatheringNodeData GatheringNode;
 
         [FieldOffset(80)]
-        public challengemodereward ChallengeModeReward;
+        public ChallengeModeRewardData ChallengeModeReward;
 
         [FieldOffset(80)]
-        public multi Multi;
+        public MultiData Multi;
 
         [FieldOffset(80)]
         public siegeableMulti SiegeableMulti;
@@ -208,25 +208,25 @@ namespace Game.Entities
         public pvpReward PvpReward;
 
         [FieldOffset(80)]
-        public playerchoicechest PlayerChoiceChest;
+        public PlayerChoiceChestData PlayerChoiceChest;
 
         [FieldOffset(80)]
-        public legendaryforge LegendaryForge;
+        public LegendaryForgeData LegendaryForge;
 
         [FieldOffset(80)]
-        public garrtalenttree GarrTalentTree;
+        public GarrTalentTreeData GarrTalentTree;
 
         [FieldOffset(80)]
-        public weeklyrewardchest WeeklyRewardChest;
+        public WeeklyRewardChestData WeeklyRewardChest;
 
         [FieldOffset(80)]
-        public clientmodel ClientModel;
+        public ClientModelData ClientModel;
 
         [FieldOffset(80)]
         public craftingTable CraftingTable;
 
         [FieldOffset(80)]
-        public raw Raw;
+        public RawData Raw;
 
         [FieldOffset(224)]
         public QueryGameObjectResponse QueryData;
@@ -839,12 +839,12 @@ namespace Game.Entities
         }
 
         #region TypeStructs
-        public unsafe struct raw
+        public unsafe struct RawData
         {
             public fixed int data[SharedConst.MaxGOData];
         }
 
-        public struct door
+        public struct DoorData
         {
             public int startOpen;                               // 0 startOpen, enum { false, true, }; Default: false
             public int open;                                    // 1 open, References: Lock_, NoValue = 0
@@ -862,7 +862,7 @@ namespace Game.Entities
             public uint Collisionupdatedelayafteropen;           // 13 Collision update delay(ms) after open, int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct button
+        public struct ButtonData
         {
             public int startOpen;                               // 0 startOpen, enum { false, true, }; Default: false
             public int open;                                    // 1 open, References: Lock_, NoValue = 0
@@ -877,7 +877,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 10 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct questgiver
+        public struct QuestGiverData
         {
             public int open;                                    // 0 open, References: Lock_, NoValue = 0
             public int questGiver;                              // 1 questGiver, References: QuestGiver, NoValue = 0
@@ -894,7 +894,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 12 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct chest
+        public struct ChestData
         {
             public int open;                                    // 0 open, References: Lock_, NoValue = 0
             public int chestLoot;                               // 1 chestLoot (legacy/classic), References: Treasure, NoValue = 0
@@ -933,12 +933,12 @@ namespace Game.Entities
             public int ForceSingleLooter;                       // 34 Force Single Looter, enum { false, true, }; Default: false
         }
 
-        public struct binder
+        public struct BinderData
         {
             public int InteractRadiusOverride;                  // 0 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct generic
+        public struct GenericData
         {
             public int floatingTooltip;                         // 0 floatingTooltip, enum { false, true, }; Default: false
             public int highlight;                               // 1 highlight, enum { false, true, }; Default: true
@@ -953,7 +953,7 @@ namespace Game.Entities
             public int Allowunfriendlycrossfactionpartymemberstocollaborateonaritual;// 10 Allow unfriendly cross faction party members to collaborate on a ritual, enum { false, true, }; Default: false
         }
 
-        public struct trap
+        public struct TrapData
         {
             public int open;                                    // 0 open, References: Lock_, NoValue = 0
             public int Unused;                                  // 1 Unused, int, Min value: 0, Max value: 65535, Default value: 0
@@ -979,7 +979,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 21 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct chair
+        public struct ChairData
         {
             public int chairslots;                              // 0 chairslots, int, Min value: 1, Max value: 5, Default value: 1
             public int chairheight;                             // 1 chairheight, int, Min value: 0, Max value: 2, Default value: 1
@@ -1010,7 +1010,7 @@ namespace Game.Entities
             public uint Profession3;                             // 16 Profession 3, enum { First Aid, Blacksmithing, Leatherworking, Alchemy, Herbalism, Cooking, Mining, Tailoring, Engineering, Enchanting, Fishing, Skinning, Jewelcrafting, Inscription, Archaeology, }; Default: Blacksmithing
         }
 
-        public struct text
+        public struct TextData
         {
             public int pageID;                                  // 0 pageID, References: PageText, NoValue = 0
             public int language;                                // 1 language, References: Languages, NoValue = 0
@@ -1021,7 +1021,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 6 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct goober
+        public struct GooberData
         {
             public int open;                                    // 0 open, References: Lock_, NoValue = 0
             public int questID;                                 // 1 questID, References: QuestV2, NoValue = 0
@@ -1059,7 +1059,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 33 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct transport
+        public struct TransportData
         {
             public Milliseconds Timeto2ndfloor;                 // 0 Time to 2nd floor (ms), int, Min value: 0, Max value: 2147483647, Default value: 0
             public uint startOpen;                              // 1 startOpen, enum { false, true, }; Default: false
@@ -1088,7 +1088,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 24 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct areadamage
+        public struct AreaDamageData
         {
             public int open;                                    // 0 open, References: Lock_, NoValue = 0
             public uint radius;                                 // 1 radius, int, Min value: 0, Max value: 50, Default value: 3
@@ -1101,7 +1101,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 8 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct camera
+        public struct CameraData
         {
             public int open;                                    // 0 open, References: Lock_, NoValue = 0
             public int _camera;                                 // 1 camera, References: CinematicSequences, NoValue = 0
@@ -1128,18 +1128,18 @@ namespace Game.Entities
             public uint Allowareaexplorationwhileonthistransport;// 12 Allow area exploration while on this transport, enum { false, true, }; Default: false
         }
 
-        public struct duelflag
+        public struct DuelFlagData
         {
             public int InteractRadiusOverride;                  // 0 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
             public int Willthisduelgountilaplayerdies;          // 1 Will this duel go until a player dies?, enum { false, true, }; Default: false
         }
 
-        public struct fishingnode
+        public struct FishingNodeData
         {
             public int InteractRadiusOverride;                  // 0 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct ritual
+        public struct RitualData
         {
             public int casters;                                 // 0 casters, int, Min value: 1, Max value: 10, Default value: 1
             public int spell;                                   // 1 spell, References: Spell, NoValue = 0
@@ -1153,13 +1153,13 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 9 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct mailbox
+        public struct MailBoxData
         {
             public int conditionID1;                            // 0 conditionID1, References: PlayerCondition, NoValue = 0
             public int InteractRadiusOverride;                  // 1 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct guardpost
+        public struct GuardPostData
         {
             public int creatureID;                              // 0 creatureID, References: Creature, NoValue = 0
             public int charges;                                 // 1 charges, int, Min value: 0, Max value: 65535, Default value: 1
@@ -1167,7 +1167,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 3 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct spellcaster
+        public struct SpellCasterData
         {
             public int spell;                                   // 0 spell, References: Spell, NoValue = 0
             public int charges;                                  // 1 charges, int, Min value: -1, Max value: 65535, Default value: 1
@@ -1180,7 +1180,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 8 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct meetingstone
+        public struct MeetingStoneData
         {
             public uint Unused;                                  // 0 Unused, int, Min value: 0, Max value: 65535, Default value: 1
             public uint Unused2;                                 // 1 Unused, int, Min value: 1, Max value: 65535, Default value: 60
@@ -1189,7 +1189,7 @@ namespace Game.Entities
             public int Preventmeetingstonefromtargetinganunfriendlypartymemberoutsideofinstances;// 4 Prevent meeting stone from targeting an unfriendly party member outside of instances, enum { false, true, }; Default: false
         }
 
-        public struct flagstand
+        public struct FlagStandData
         {
             public int open;                                    // 0 open, References: Lock_, NoValue = 0
             public int pickupSpell;                             // 1 pickupSpell, References: Spell, NoValue = 0
@@ -1207,7 +1207,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 13 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct fishinghole
+        public struct FishingHoleData
         {
             public int radius;                                  // 0 radius, int, Min value: 0, Max value: 50, Default value: 0
             public int chestLoot;                               // 1 chestLoot (legacy/classic), References: Treasure, NoValue = 0
@@ -1217,7 +1217,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 5 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct flagdrop
+        public struct FlagDropData
         {
             public int open;                                    // 0 open, References: Lock_, NoValue = 0
             public int eventID;                                 // 1 eventID, References: GameEvents, NoValue = 0
@@ -1232,7 +1232,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 10 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct controlzone
+        public struct ControlZoneData
         {
             public int radius;                                  // 0 radius, int, Min value: 0, Max value: 100, Default value: 10
             public int spell;                                   // 1 spell, References: Spell, NoValue = 0
@@ -1303,7 +1303,7 @@ namespace Game.Entities
             public uint Preventteleportingtheplayeroutofthebarbershopchair;// 5 Prevent teleporting the player out of the barbershop chair, enum { false, true, }; Default: false
         }
 
-        public struct destructiblebuilding
+        public struct DestructibleBuildingData
         {
             public int Unused;                                   // 0 Unused, int, Min value: -2147483648, Max value: 2147483647, Default value: 0
             public uint CreditProxyCreature;                     // 1 Credit Proxy Creature, References: Creature, NoValue = 0
@@ -1335,7 +1335,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 27 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct guildbank
+        public struct GuildBankData
         {
             public int conditionID1;                            // 0 conditionID1, References: PlayerCondition, NoValue = 0
             public int InteractRadiusOverride;                  // 1 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
@@ -1354,7 +1354,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                   // 8 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct newflag
+        public struct NewFlagData
         {
             public int open;                                    // 0 open, References: Lock_, NoValue = 0
             public int pickupSpell;                             // 1 pickupSpell, References: Spell, NoValue = 0
@@ -1373,39 +1373,39 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 14 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct newflagdrop
+        public struct NewFlagDropData
         {
             public int open;                                    // 0 open, References: Lock_, NoValue = 0
             public int SpawnVignette;                           // 1 Spawn Vignette, References: vignette, NoValue = 0
             public int InteractRadiusOverride;                  // 2 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct garrisonbuilding
+        public struct GarrisonBuildingData
         {
             public int SpawnMap;                                 // 0 Spawn Map, References: Map, NoValue = -1
             public int InteractRadiusOverride;                  // 1 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct garrisonplot
+        public struct GarrisonPlotData
         {
             public int PlotInstance;                            // 0 Plot Instance, References: GarrPlotInstance, NoValue = 0
             public int SpawnMap;                                 // 1 Spawn Map, References: Map, NoValue = -1
             public int InteractRadiusOverride;                  // 2 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct clientcreature
+        public struct ClientCreatureData
         {
             public int CreatureDisplayInfo;                     // 0 Creature Display Info, References: CreatureDisplayInfo, NoValue = 0
             public int AnimKit;                                 // 1 Anim Kit, References: AnimKit, NoValue = 0
             public int creatureID;                              // 2 creatureID, References: Creature, NoValue = 0
         }
 
-        public struct clientitem
+        public struct ClientItemData
         {
             public uint Item;                                    // 0 Item, References: Item, NoValue = 0
         }
 
-        public struct capturepoint
+        public struct CapturePointData
         {
             public Milliseconds CaptureTime;                    // 0 Capture Time (ms), int, Min value: 0, Max value: 2147483647, Default value: 60000
             public int GiganticAOI;                             // 1 Gigantic AOI, enum { false, true, }; Default: false
@@ -1433,7 +1433,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 23 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct phaseablemo
+        public struct PhaseableMOData
         {
             public int SpawnMap;                                 // 0 Spawn Map, References: Map, NoValue = -1
             public int AreaNameSet;                              // 1 Area Name Set (Index), int, Min value: -2147483648, Max value: 2147483647, Default value: 0
@@ -1442,14 +1442,14 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 4 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct garrisonmonument
+        public struct GarrisonMonumentData
         {
             public uint TrophyTypeID;                            // 0 Trophy Type ID, References: TrophyType, NoValue = 0
             public uint TrophyInstanceID;                        // 1 Trophy Instance ID, References: TrophyInstance, NoValue = 0
             public int InteractRadiusOverride;                  // 2 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct garrisonshipment
+        public struct GarrisonShipmentData
         {
             public uint ShipmentContainer;                       // 0 Shipment Container, References: CharShipmentContainer, NoValue = 0
             public uint GiganticAOI;                             // 1 Gigantic AOI, enum { false, true, }; Default: false
@@ -1457,13 +1457,13 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 3 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct garrisonmonumentplaque
+        public struct GarrisonMonumentPlaqueData
         {
             public uint TrophyInstanceID;                        // 0 Trophy Instance ID, References: TrophyInstance, NoValue = 0
             public int InteractRadiusOverride;                  // 1 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct itemforge
+        public struct ItemForgeData
         {
             public int conditionID1;                            // 0 conditionID1, References: PlayerCondition, NoValue = 0
             public int LargeAOI;                                // 1 Large AOI, enum { false, true, }; Default: false
@@ -1475,7 +1475,7 @@ namespace Game.Entities
             public int GarrTalentTreeID;                        // 7 GarrTalentTree ID, References: GarrTalentTree, NoValue = 0
         }
 
-        public struct uilink
+        public struct UILinkData
         {
             public uint UILinkType;                              // 0 UI Link Type, enum { Adventure Journal, Obliterum Forge, Scrapping Machine, Item Interaction }; Default: Adventure Journal
             public uint allowMounted;                            // 1 allowMounted, enum { false, true, }; Default: false
@@ -1486,12 +1486,12 @@ namespace Game.Entities
             public uint ItemInteractionID;                       // 6 Item Interaction ID, References: UiItemInteraction, NoValue = 0
         }
 
-        public struct keystonereceptacle
+        public struct KeystoneReceptacleData
         {
             public int InteractRadiusOverride;                  // 0 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct gatheringnode
+        public struct GatheringNodeData
         {
             public int open;                                    // 0 open, References: Lock_, NoValue = 0
             public int chestLoot;                               // 1 chestLoot (legacy/classic), References: Treasure, NoValue = 0
@@ -1521,7 +1521,7 @@ namespace Game.Entities
             public int Overrideminimaptrackingicon;             // 25 Override minimap tracking icon, References: UiTextureAtlasMember, NoValue = 0
         }
 
-        public struct challengemodereward
+        public struct ChallengeModeRewardData
         {
             public int Unused;                                   // 0 Unused, int, Min value: -2147483648, Max value: 2147483647, Default value: 0
             public uint WhenAvailable;                           // 1 When Available, References: GameObjectDisplayInfo, NoValue = 0
@@ -1530,7 +1530,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 4 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct multi
+        public struct MultiData
         {
             public uint MultiProperties;                         // 0 Multi Properties, References: MultiProperties, NoValue = 0
         }
@@ -1561,7 +1561,7 @@ namespace Game.Entities
             public int InteractRadiusOverride;                  // 4 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct playerchoicechest
+        public struct PlayerChoiceChestData
         {
             public uint spell;                                   // 0 spell, References: Spell, NoValue = 0
             public uint WhenAvailable;                           // 1 When Available, References: GameObjectDisplayInfo, NoValue = 0
@@ -1574,21 +1574,21 @@ namespace Game.Entities
             public uint Dontupdateplayerinteractability;         // 8 Don't update player interactability, enum { false, true, }; Default: false
         }
 
-        public struct legendaryforge
+        public struct LegendaryForgeData
         {
             public uint PlayerChoice;                            // 0 Player Choice, References: PlayerChoice, NoValue = 0
             public uint CustomItemBonusFilter;                   // 1 Custom Item Bonus Filter, References: CustomItemBonusFilter, NoValue = 0
             public int InteractRadiusOverride;                  // 2 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct garrtalenttree
+        public struct GarrTalentTreeData
         {
             public uint UiMapID;                                 // 0 Ui Map ID, References: UiMap, NoValue = 0
             public uint GarrTalentTreeID;                        // 1 GarrTalentTree ID, References: GarrTalentTree, NoValue = 0
             public int InteractRadiusOverride;                  // 2 Interact Radius Override (in hundredths), int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct weeklyrewardchest
+        public struct WeeklyRewardChestData
         {
             public uint WhenAvailable;                           // 0 When Available, References: GameObjectDisplayInfo, NoValue = 0
             public uint open;                                    // 1 open, References: Lock_, NoValue = 0
@@ -1596,7 +1596,7 @@ namespace Game.Entities
             public uint ExpansionLevel;                          // 3 Expansion Level, int, Min value: 0, Max value: 2147483647, Default value: 0
         }
 
-        public struct clientmodel
+        public struct ClientModelData
         {
             public uint LargeAOI;                                // 0 Large AOI, enum { false, true, }; Default: false
             public uint GiganticAOI;                             // 1 Gigantic AOI, enum { false, true, }; Default: false

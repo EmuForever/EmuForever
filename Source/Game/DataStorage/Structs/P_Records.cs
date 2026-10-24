@@ -17,7 +17,7 @@ namespace Game.DataStorage
     public sealed class PhaseRecord
     {
         public int Id;
-        private int _flags;
+        private int _flags = default;
 
         #region Properties
         public PhaseEntryFlags Flags => (PhaseEntryFlags)_flags;
@@ -49,7 +49,7 @@ namespace Game.DataStorage
         public LocalizedString FailureDescription;
         public ushort MinLevel;
         public ushort MaxLevel;
-        private int _classMask;
+        private int _classMask = default;
         public uint SkillLogic;
         public int LanguageID;
         public byte MinLanguage;
@@ -71,8 +71,8 @@ namespace Game.DataStorage
         public byte PartyStatus;
         public byte LifetimeMaxPVPRank;
         public uint AchievementLogic;
-        private sbyte _gender;
-        private sbyte _nativeGender;
+        private sbyte _gender = default;
+        private sbyte _nativeGender = default;
         public uint AreaLogic;
         public uint LfgLogic;
         public uint CurrencyLogic;
@@ -89,13 +89,13 @@ namespace Game.DataStorage
         public int PhaseGroupID;
         public int Flags;
         public sbyte ChrSpecializationIndex;
-        private sbyte _chrSpecializationRole;
+        private sbyte _chrSpecializationRole = default;
         public int ModifierTreeID;
-        private sbyte _powerType;
+        private sbyte _powerType = default;
         public byte PowerTypeComp;
         public byte PowerTypeValue;
         public int MovementFlags;
-        private int _weaponSubclassMask;
+        private int _weaponSubclassMask = default;
         public byte MaxGuildLevel;
         public byte MinGuildLevel;
         public sbyte MaxExpansionTier;
@@ -160,7 +160,7 @@ namespace Game.DataStorage
         public string NameGlobalStringTag;
         public string CostGlobalStringTag;        
         public int Id;
-        private sbyte _powerTypeEnum;
+        private sbyte _powerTypeEnum = default;
         public int MinPower;
         public int MaxBasePower;
         public int CenterPower;
@@ -169,7 +169,7 @@ namespace Game.DataStorage
         public int _regenInterruptTimeMS;
         public float RegenPeace;
         public float RegenCombat;
-        private int _flags;
+        private int _flags = default;
 
         #region Properties
         public PowerTypeFlags Flags => (PowerTypeFlags)_flags;
@@ -196,7 +196,7 @@ namespace Game.DataStorage
         public LocalizedString Name;
         public int PrestigeLevel;
         public int BadgeTextureFileDataID;
-        private byte _flags;
+        private byte _flags = default;
         public int AwardedAchievementID;
 
         #region Properties
@@ -221,7 +221,7 @@ namespace Game.DataStorage
     public sealed class PvpDifficultyRecord
     {
         public int Id;
-        private byte RangeIndex;
+        private byte RangeIndex = default;
         public byte MinLevel;
         public byte MaxLevel;
         public int MapID;

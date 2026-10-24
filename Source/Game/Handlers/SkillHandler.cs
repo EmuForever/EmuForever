@@ -137,7 +137,6 @@ namespace Game
                 int skillMaxValue = 0;
 
                 PreparedStatement stmt;
-                SQLResult result;
 
                 Log.outDebug(LogFilter.Sql, $"Loading current and max values for player's [GUID: {mastersLowGuid}] {packet.SkillId} ...");
                 stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_CHARACTER_SKILL_VALUES);

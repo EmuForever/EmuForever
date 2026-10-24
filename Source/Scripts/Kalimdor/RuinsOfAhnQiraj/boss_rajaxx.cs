@@ -62,7 +62,6 @@ namespace Scripts.Kalimdor.RuinsOfAhnQiraj
 
         void Initialize()
         {
-            enraged = false;
         }
 
         public override void Reset()
@@ -105,7 +104,6 @@ namespace Scripts.Kalimdor.RuinsOfAhnQiraj
             }
         }
 
-        bool enraged;
 
     }
 }

@@ -12,9 +12,9 @@ namespace Game.DataStorage
         public int Id;
         public LocalizedString Name;
         public ushort LocaleMask;
-        private byte _createCharsetMask;
-        private byte _existingCharsetMask;
-        private int _flags;
+        private byte _createCharsetMask = default;
+        private byte _existingCharsetMask = default;
+        private int _flags = default;
         public sbyte Order;
 
         #region Properties
@@ -45,9 +45,9 @@ namespace Game.DataStorage
         /// <summary>
         /// Date of first raid reset, all other resets are calculated as this date plus interval
         /// </summary>
-        private int _raidorigin;
+        private int _raidorigin = default;
         public byte RegionGroupMask;
-        private int _challengeOrigin;
+        private int _challengeOrigin = default;
         public int TimeEventRegionGroupID;
 
         #region Properties
@@ -68,9 +68,9 @@ namespace Game.DataStorage
     public sealed class CharacterLoadoutRecord
     {
         public int Id;
-        private sbyte _chrClassID;
+        private sbyte _chrClassID = default;
         public int Purpose;
-        private sbyte _itemContext;
+        private sbyte _itemContext = default;
         public int Field_1_60_1_69876_003;
         private int[] _raceMask = new int[2];
 
@@ -97,9 +97,9 @@ namespace Game.DataStorage
         public LocalizedString Name;
         public LocalizedString Shortcut;
         public int Id;
-        private int _flags;
+        private int _flags = default;
         public sbyte FactionGroup;
-        private int _ruleset;
+        private int _ruleset = default;
 
         #region Properties
         public ChatChannelFlags Flags => (ChatChannelFlags)_flags;
@@ -122,8 +122,8 @@ namespace Game.DataStorage
     public sealed class CharBaseInfoRecord
     {
         public int Id;
-        private byte _raceID;
-        private byte _classID;
+        private byte _raceID = default;
+        private byte _classID = default;
         public sbyte OtherFactionRaceID;
 
         #region Properties
@@ -135,7 +135,7 @@ namespace Game.DataStorage
     public sealed class ChrClassUIDisplayRecord
     {
         public int Id;
-        private byte _chrClassesID;
+        private byte _chrClassesID = default;
         public int AdvGuidePlayerConditionID;
         public int SplashPlayerConditionID;
 
@@ -178,11 +178,11 @@ namespace Game.DataStorage
         public sbyte Id;
         public byte HasStrengthAttackBonus;
         public byte PrimaryStatPriority;
-        private byte _displayPower;
+        private byte _displayPower = default;
         public byte RangedAttackPowerPerAgility;
         public byte AttackPowerPerAgility;
         public byte AttackPowerPerStrength;
-        private byte _spellClassSet;
+        private byte _spellClassSet = default;
         public byte ClassColorR;
         public byte ClassColorG;
         public byte ClassColorB;
@@ -237,7 +237,7 @@ namespace Game.DataStorage
     public sealed class ChrCustomizationDisplayInfoRecord
     {
         public int Id;
-        private int _shapeshiftFormID;
+        private int _shapeshiftFormID = default;
         public int DisplayID;
         public float BarberShopMinCameraDistance;
         public float BarberShopHeightOffset;
@@ -287,8 +287,8 @@ namespace Game.DataStorage
     {
         public int Id;
         public LocalizedString ReqSource;
-        private int _flags;
-        private int _classMask;
+        private int _flags = default;
+        private int _classMask = default;
         public int RegionGroupMask;
         public int AchievementID;
         public int QuestID;
@@ -352,9 +352,9 @@ namespace Game.DataStorage
     public sealed class ChrRaceXChrModelRecord
     {
         public int Id;
-        private sbyte _chrRacesID;
+        private sbyte _chrRacesID = default;
         public int ChrModelID;
-        private sbyte _sex;
+        private sbyte _sex = default;
         public int AllowedTransmogSlots;
 
         #region Properties
@@ -365,7 +365,7 @@ namespace Game.DataStorage
 
     public sealed class ChrRacesRecord
     {
-        private int _id;
+        private int _id = default;
         public string ClientPrefix;
         public string ClientFileString;
         public LocalizedString Name;
@@ -381,7 +381,7 @@ namespace Game.DataStorage
         public LocalizedString ShortNameFemale;
         public LocalizedString ShortNameLower;
         public LocalizedString ShortNameLowerFemale;
-        private int _flags;
+        private int _flags = default;
         public int FactionID;
         public int CinematicSequenceID;
         public int ResSicknessSpellID;
@@ -404,7 +404,7 @@ namespace Game.DataStorage
         public sbyte CreatureType;
         public sbyte Alliance;
         public sbyte Race_related;
-        private sbyte _unalteredVisualRaceID;
+        private sbyte _unalteredVisualRaceID = default;
         public sbyte DefaultClassID;
         public sbyte NeutralRaceID;
         public sbyte MaleModelFallbackRaceID;
@@ -442,12 +442,12 @@ namespace Game.DataStorage
         public LocalizedString Name;
         public LocalizedString FemaleName;
         public LocalizedString Description;
-        private int _id;
-        private byte _classID;
+        private int _id = default;
+        private byte _classID = default;
         public sbyte OrderIndex;
         public sbyte PetTalentType;
-        private sbyte _role;
-        private uint _flags;
+        private sbyte _role = default;
+        private uint _flags = default;
         public int SpellIconFileID;
         public sbyte PrimaryStatPriority;
         public int AnimReplacements;
@@ -527,7 +527,7 @@ namespace Game.DataStorage
     public sealed class ContentTuningRecord
     {
         public int Id;
-        private int _flags;
+        private int _flags = default;
         public int ExpansionID;
         public int HealthItemLevelCurveID;
         public int DamageItemLevelCurveID;
@@ -638,7 +638,7 @@ namespace Game.DataStorage
 
     public sealed class CreatureFamilyRecord
     {
-        private int _id;
+        private int _id = default;
         public LocalizedString Name;
         public float MinScale;
         public sbyte MinScaleLevel;
@@ -660,7 +660,7 @@ namespace Game.DataStorage
     {
         public int Id;
         public float[] GeoBox = new float[6];
-        private uint _flags;
+        private uint _flags = default;
         public uint FileDataID;
         public float WalkSpeed;
         public float RunSpeed;
@@ -721,17 +721,17 @@ namespace Game.DataStorage
     public sealed class CriteriaRecord
     {
         public int Id;
-        private short _type;
+        private short _type = default;
         public int Asset;
         public int ModifierTreeId;
         public int StartEvent;
         public int StartAsset;
-        private int _startTimer;
+        private int _startTimer = default;
         public int FailEvent;
         public int FailAsset;
-        private int _flags;
-        private int _eligibilityWorldStateID;
-        private int _eligibilityWorldStateValue;
+        private int _flags = default;
+        private int _eligibilityWorldStateID = default;
+        private int _eligibilityWorldStateValue = default;
 
         #region Properties
         public CriteriaType Type => (CriteriaType)_type;
@@ -763,7 +763,7 @@ namespace Game.DataStorage
         public int Operator;
         public int CriteriaID;
         public int OrderIndex;
-        private int _flags;
+        private int _flags = default;
 
         #region Properties
         public CriteriaTreeFlags Flags => (CriteriaTreeFlags)_flags;

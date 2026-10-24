@@ -75,7 +75,7 @@ namespace Game.DataStorage
         public int SummonSpellID;
         public int IconFileDataID;
         public byte PetTypeEnum;
-        private int _flags;
+        private int _flags = default;
         public sbyte SourceTypeEnum;
         public int CardUIModelSceneID;
         public int LoadoutUIModelSceneID;
@@ -123,7 +123,7 @@ namespace Game.DataStorage
         public sbyte GroupsAllowed;
         public sbyte MaxGroupSize;
         public short HolidayWorldState;
-        private int _flags;
+        private int _flags = default;
         public int IconFileDataID;
         public int RequiredPlayerConditionID;
 
@@ -170,7 +170,6 @@ namespace Game.DataStorage
         public ushort[] EmoteID = new ushort[3];
         public ushort[] EmoteDelay = new ushort[3];
 
-        static int MAX_BROADCAST_TEXT_EMOTES = 3;
 
     }
 }

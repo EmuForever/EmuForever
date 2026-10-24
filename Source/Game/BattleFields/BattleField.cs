@@ -698,12 +698,12 @@ namespace Game.BattleFields
         public bool IsEnabled() { return m_IsEnabled; }
 
         // All-purpose data storage 64 bit
-        public virtual long GetData64(int dataId) { return m_Data64[dataId]; }
-        public virtual void SetData64(int dataId, long value) { m_Data64[dataId] = value; }
+        public override long GetData64(int dataId) { return m_Data64[dataId]; }
+        public override void SetData64(int dataId, long value) { m_Data64[dataId] = value; }
 
         // All-purpose data storage 32 bit
-        public virtual int GetData(int dataId) { return m_Data32[dataId]; }
-        public virtual void SetData(int dataId, int value) { m_Data32[dataId] = value; }
+        public override int GetData(int dataId) { return m_Data32[dataId]; }
+        public override void SetData(int dataId, int value) { m_Data32[dataId] = value; }
         public virtual void UpdateData(int index, int pad)
         {
             if (pad < 0)

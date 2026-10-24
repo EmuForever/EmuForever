@@ -24,7 +24,7 @@ namespace Game.DataStorage
         public int Flags;
         public byte ColumnIndex;
         public ushort TabID;
-        private byte _classID;
+        private byte _classID = default;
         public ushort SpecID;
         public int SpellID;
         public int OverridesSpellID;
@@ -45,8 +45,8 @@ namespace Game.DataStorage
         public LocalizedString Name;
         public string BackgroundFile;
         public int OrderIndex;
-        private int _raceMask;
-        private int _classMask;
+        private int _raceMask = default;
+        private int _classMask = default;
         public uint PetTalentMask;
         public int SpellIconID;
 
@@ -66,7 +66,7 @@ namespace Game.DataStorage
         public short ContinentID;
         public int ConditionID;
         public ushort CharacterBitNumber;
-        private int _flags;
+        private int _flags = default;
         public int UiTextureKitID;
         public int MinimapAtlasMemberID;
         public float Facing;
@@ -137,8 +137,8 @@ namespace Game.DataStorage
         public int PathID;
         public int NodeIndex;
         public ushort ContinentID;
-        private int _flags;
-        private int _delay;
+        private int _flags = default;
+        private int _delay = default;
         public int ArrivalEventID;
         public int DepartureEventID;
 
@@ -190,7 +190,7 @@ namespace Game.DataStorage
     public sealed class TraitCondRecord
     {
         public int Id;
-        private int _condType;
+        private int _condType = default;
         public int TraitTreeID;
         public int GrantedRanks;
         public int QuestID;
@@ -224,7 +224,7 @@ namespace Game.DataStorage
     public sealed class TraitCurrencyRecord
     {
         public int Id;
-        private int _type;
+        private int _type = default;
         public int CurrencyTypesID;
         public int Flags;
         public int Icon;
@@ -268,7 +268,7 @@ namespace Game.DataStorage
         public int Id;
         public int TraitDefinitionID;
         public int EffectIndex;
-        private int _operationType;
+        private int _operationType = default;
         public int CurveID;
 
         #region Properties
@@ -291,7 +291,7 @@ namespace Game.DataStorage
         public int TraitTreeID;
         public int PosX;
         public int PosY;
-        private byte _type;
+        private byte _type = default;
         public uint Flags;
         public int TraitSubTreeID;
 
@@ -305,7 +305,7 @@ namespace Game.DataStorage
         public int Id;
         public int TraitDefinitionID;
         public int MaxRanks;
-        private byte _nodeEntryType;
+        private byte _nodeEntryType = default;
         public int TraitSubTreeID;
 
         #region Properties
@@ -386,7 +386,7 @@ namespace Game.DataStorage
         public int BaseNodeGroup;
         public int FirstTraitNodeID;
         public int PlayerConditionID;
-        private int _flags;
+        private int _flags = default;
         public float MinZoom;
         public float MaxZoom;
         public int UiTextureKitID;
@@ -476,7 +476,7 @@ namespace Game.DataStorage
         public int Id;
         public Vector3 Pos;
         public byte SequenceID;
-        private uint _timeIndex;
+        private uint _timeIndex = default;
         public int TransportID;
 
         #region Properties
@@ -488,7 +488,7 @@ namespace Game.DataStorage
     {
         public int Id;
         public float[] Rot = new float[4];
-        private uint _timeIndex;
+        private uint _timeIndex = default;
         public int GameObjectsID;
 
         #region Properties

@@ -279,6 +279,7 @@ namespace Game.Networking
 
             PacketLog.Write(packet.GetData(), packet.GetOpcode(), GetRemoteIpAddress(), _connectType, true);
 
+            packet.SetOpcode(ClassicOpcodeMap.ToCore(packet.GetOpcode()));
             ClientOpcodes opcode = (ClientOpcodes)packet.GetOpcode();
 
             if (opcode != ClientOpcodes.HotfixRequest && !header.IsValidSize())
@@ -391,7 +392,7 @@ namespace Game.Networking
             packet.WritePacketData();
 
             var data = packet.GetData();
-            ServerOpcodes opcode = packet.GetOpcode();
+            ServerOpcodes opcode = (ServerOpcodes)ClassicOpcodeMap.ToClient((uint)packet.GetOpcode());
             PacketLog.Write(data, (uint)opcode, GetRemoteIpAddress(), _connectType, false);
 
             ByteBuffer buffer = new();
@@ -408,7 +409,7 @@ namespace Game.Networking
                 buffer.WriteBytes(compressedData, (int)compressedSize);
 
                 packetSize = (int)(compressedSize + 12);
-                opcode = ServerOpcodes.CompressedPacket;
+                opcode = (ServerOpcodes)ClassicOpcodeMap.ToClient((uint)ServerOpcodes.CompressedPacket);
 
                 data = buffer.GetData();
             }

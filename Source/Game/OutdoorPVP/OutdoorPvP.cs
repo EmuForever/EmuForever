@@ -255,7 +255,6 @@ namespace Game.PvP
 
     public class OPvPCapturePoint
     {
-        uint m_team;
 
         // objective states
         public ObjectiveStates OldState { get; set; }
@@ -266,7 +265,6 @@ namespace Game.PvP
 
         public OPvPCapturePoint(OutdoorPvP pvp)
         {
-            m_team = BattleGroundTeamId.Neutral;
             OldState = ObjectiveStates.Neutral;
             State = ObjectiveStates.Neutral;
             PvP = pvp;

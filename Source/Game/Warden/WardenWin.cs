@@ -376,9 +376,6 @@ namespace Game
                 Log.outDebug(LogFilter.Warden, $"Ticks diff {ourTicks - newClientTicks}");
             }
 
-            BigInteger rs;
-            WardenCheck rd;
-            WardenCheckType type;
             ushort checkFailed = 0;
 
             foreach (var id in _currentChecks)

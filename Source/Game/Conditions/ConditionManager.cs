@@ -1017,7 +1017,7 @@ namespace Game
                         return false;
                     }
 
-                    if ((cond.SourceGroup > SpellConst.MaxEffectMask) || cond.SourceGroup == 0)
+                    if (cond.SourceGroup == 0)
                     {
                         Log.outError(LogFilter.Sql,
                             $"{cond} in `condition` table, has incorrect SourceGroup (spell effectMask) set, ignoring.");

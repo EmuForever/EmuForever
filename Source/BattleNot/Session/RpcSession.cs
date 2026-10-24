@@ -1193,8 +1193,8 @@ sealed class BnetHost
     {
         _db = db;
         _realms = realms;
-        X509Certificate2 pem = X509Certificate2.CreateFromPemFile(certificateFile, privateKeyFile);
-        _certificate = new X509Certificate2(pem.Export(X509ContentType.Pkcs12));
+        using X509Certificate2 pem = X509Certificate2.CreateFromPemFile(certificateFile, privateKeyFile);
+        _certificate = X509CertificateLoader.LoadPkcs12(pem.Export(X509ContentType.Pkcs12), null);
         _devCert = _certificate.GetNameInfo(X509NameType.SimpleName, false) == "*.*";
     }
 

@@ -634,15 +634,6 @@ namespace Game
 
                 Values[WorldCfg.StartPlayerMoney] = 0;
             }
-            else if (Values[WorldCfg.StartPlayerMoney].Int32 > PlayerConst.MaxMoneyAmount)
-            {
-                Log.outError(LogFilter.ServerLoading,
-                    $"StartPlayerMoney ({Values[WorldCfg.StartPlayerMoney]}) " +
-                    $"must be in range {0}..{PlayerConst.MaxMoneyAmount}. " +
-                    $"Set to {PlayerConst.MaxMoneyAmount}.");
-
-                Values[WorldCfg.StartPlayerMoney] = PlayerConst.MaxMoneyAmount;
-            }
 
             Values[WorldCfg.CurrencyResetHour] = GetDefaultValue("Currency.ResetHour", 3);
             if ((uint)Values[WorldCfg.CurrencyResetHour].Int32 > 23)
@@ -1364,22 +1355,6 @@ namespace Game
 
         private Dictionary<WorldCfg, WorldConfigValue> _values = new();
 
-        private class WorldConfigSet
-        {
-            public delegate void OverridedCheckLogic(WorldConfigSet self);
-
-            public WorldCfgType ConfigValueType;
-            public dynamic MinValue = null;
-            public bool ExcludingMinValue;
-            public dynamic MaxValue = null;
-            public bool ExcludingMaxValue;
-            public dynamic[] Variety = null;
-            public bool ExcludingVariety;
-            public dynamic DefaultValue = null;
-            public dynamic Value = null;
-            public string ConfigName;
-            public OverridedCheckLogic OverridedLogic;
-        }
     }
 
     public enum WorldCfgType : byte

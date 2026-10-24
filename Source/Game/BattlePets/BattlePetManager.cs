@@ -859,7 +859,7 @@ namespace Game.BattlePets
 
         WorldSession _owner;
         bool _hasJournalLock;
-        ushort _trapLevel;
+        ushort _trapLevel = default;
         Dictionary<long, BattlePet> _pets = new();
         List<BattlePetSlot> _slots = new();
 

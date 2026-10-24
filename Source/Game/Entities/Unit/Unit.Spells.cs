@@ -1613,7 +1613,7 @@ namespace Game.Entities
             else if (healInfo != null)
                 spellInfo = healInfo.GetSpellInfo();
 
-            if (typeMaskActor != null && actor != null && !(spellInfo != null && spellInfo.HasAttribute(SpellAttr3.SuppressCasterProcs)))
+            if (typeMaskActor != ProcFlagsInit.None && actor != null && !(spellInfo != null && spellInfo.HasAttribute(SpellAttr3.SuppressCasterProcs)))
                 actor.ProcSkillsAndReactives(false, actionTarget, typeMaskActor, hitMask, attType);
 
             if (typeMaskActionTarget != ProcFlagsInit.None && actionTarget != null

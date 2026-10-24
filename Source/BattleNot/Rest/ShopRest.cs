@@ -117,7 +117,9 @@ sealed class ShopRest
             {
                 NetworkStream stream = client.GetStream();
                 var buffer = new byte[1024];
-                await stream.ReadAsync(buffer);
+                int bytesRead = await stream.ReadAsync(buffer);
+                if (bytesRead == 0)
+                    return;
                 byte[] body = File.Exists(crlFile) ? await File.ReadAllBytesAsync(crlFile) : Array.Empty<byte>();
                 int status = body.Length == 0 ? 404 : 200;
                 string head = $"HTTP/1.1 {status} {(status == 200 ? "OK" : "Not Found")}\r\nContent-Type: application/pkix-crl\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n";

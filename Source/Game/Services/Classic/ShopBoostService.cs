@@ -78,7 +78,9 @@ static class ShopBoostService
         if (request.Choice != 0 && CliDB.ChrSpecializationStorage.LookupByKey((int)request.Choice)?.ClassID != (Class)playerClass)
             return false;
         var stats = Global.ObjectMgr.GetPlayerLevelInfo((Race)race, (Class)playerClass, 60);
-        long health = stats == null ? 0 : stats.baseHealth + Math.Min(20, stats.stats[(int)Stats.Stamina]) + Math.Max(0, stats.stats[(int)Stats.Stamina] - 20) * 10;
+        if (stats == null)
+            throw new InvalidDataException("Missing boost health data");
+        long health = stats.baseHealth + Math.Min(20, stats.stats[(int)Stats.Stamina]) + Math.Max(0, stats.stats[(int)Stats.Stamina] - 20) * 10;
         if (health <= 0)
             throw new InvalidDataException("Missing boost health data");
         int mana = stats.baseMana;

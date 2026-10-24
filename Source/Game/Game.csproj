@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Framework\Framework.csproj" />
+    <EmbeddedResource Include="..\Framework\Constants\Network\opcode-map.json" LogicalName="opcode-map.json" />
   </ItemGroup> 
   
 </Project>
