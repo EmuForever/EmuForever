@@ -12,10 +12,6 @@
   </ItemGroup>
 
   <!-- Prebuilt native Detour runtime (x64); consumed by the managed P/Invoke wrapper. -->
-  <ItemGroup>
-    <None Include="..\Native\bin\DetourNative.dll" Link="DetourNative.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="..\Native\bin\DetourNative.LICENSE.txt" Link="DetourNative.LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-  </ItemGroup>
 
   
 </Project>
