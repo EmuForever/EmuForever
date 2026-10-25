@@ -149,32 +149,31 @@ namespace Game
             player.SwapItem(src, dst);
         }
 
-        [WorldPacketHandler(ClientOpcodes.SetAmmo, Processing = PacketProcessing.Inplace)]
+        [WorldPacketHandler(ClientOpcodes.SetAmmo)]
         void HandleSetAmmo(SetAmmoPacket ammoPacket)
-        {{
-                if (!_player.IsAlive())
+        {
+            if (!_player.IsAlive())
+            {
+                _player.SendEquipError(InventoryResult.PlayerDead);
+                return;
+            }
+
+            Log.outDebug(LogFilter.Network, "CMSG_SET_AMMO");
+
+            int ammoId = ammoPacket.Ammo;
+
+            if (ammoId != 0)
+            {
+                if (_player.GetItemCount(ammoId) == 0)
                 {
-                    _player.SendEquipError(InventoryResult.PlayerDead);
+                    _player.SendEquipError(InventoryResult.ItemNotFound, null, null, ammoId);
                     return;
                 }
 
-                Log.outDebug(LogFilter.Network, "CMSG_SET_AMMO");
-
-                int ammoId = ammoPacket.Ammo;
-
-                if (ammoId != 0)
-                {
-                    if (_player.GetItemCount(ammoId) == 0)
-                    {
-                        _player.SendEquipError(InventoryResult.ItemNotFound, null, null, ammoId);
-                        return;
-                    }
-
-                    _player.SetAmmo(ammoId);
-                }
-                else
-                    _player.RemoveAmmo();
+                _player.SetAmmo(ammoId);
             }
+            else
+                _player.RemoveAmmo();
         }
 
         [WorldPacketHandler(ClientOpcodes.AutoEquipItem, Processing = PacketProcessing.Inplace)]

@@ -944,12 +944,7 @@ namespace Game.Entities
             {
                 var newItem = StoreNewItem(Dest, itemId, true, ItemEnchantmentManager.GenerateRandomProperties(itemId), null, itemContext);
 
-                // if this is ammo then use it
-                msg = CanUseAmmo(newItem.GetEntry());
-                if (msg == InventoryResult.Ok && GetUsedAmmoId() == 0)
-                    SetAmmo(newItem.GetEntry());
-
-                return true;                                        // stored
+                return newItem != null;                              // stored
             }
 
             // item can't be added
@@ -1007,6 +1002,9 @@ namespace Game.Entities
 
                 if (item.GetTemplate().GetInventoryType() != InventoryType.NonEquip)
                     UpdateAverageItemLevelTotal();
+
+                if (item.GetTemplate().GetClass() == ItemClass.Projectile && GetUsedAmmoId() == 0)
+                    AutoSelectAmmo();
             }
             return item;
         }
@@ -1346,6 +1344,9 @@ namespace Game.Entities
             }
 
             // only for full equip instead adding to stack
+            if (!pos.IsContainerPos && pos.Slot == EquipmentSlot.Ranged)
+                AutoSelectAmmo();
+
             UpdateCriteria(CriteriaType.EquipItem, pItem.GetEntry());
             UpdateCriteria(CriteriaType.EquipItemInSlot, pos.Slot, pItem.GetEntry());
 
@@ -4812,12 +4813,59 @@ namespace Game.Entities
 
         public int GetUsedAmmoId()
         {
-            return m_activePlayerData.AmmoID;
+            // The Classic client interprets the reference PvpMedals field as AmmoID.
+            return unchecked((int)(uint)m_activePlayerData.PvpMedals);
         }
 
         public void SetUsedAmmoId(int ammoId)
         {
-            SetUpdateFieldValue(m_values.ModifyValue(m_activePlayerData).ModifyValue(m_activePlayerData.AmmoID), ammoId);   
+            SetUpdateFieldValue(m_values.ModifyValue(m_activePlayerData).ModifyValue(m_activePlayerData.PvpMedals), unchecked((uint)ammoId));
+        }
+
+        bool IsAmmoUsableWithRangedWeapon(ItemTemplate ammo)
+        {
+            if (ammo == null || ammo.GetClass() != ItemClass.Projectile)
+                return false;
+
+            var weapon = GetWeaponForAttack(WeaponAttackType.RangedAttack)?.GetTemplate();
+            if (weapon == null)
+                return true;
+
+            return weapon.GetSubClass().Weapon switch
+            {
+                ItemSubClassWeapon.Bow or ItemSubClassWeapon.Crossbow => ammo.GetSubClass().Projectile == ItemSubClassProjectile.Arrow,
+                ItemSubClassWeapon.Gun => ammo.GetSubClass().Projectile == ItemSubClassProjectile.Bullet,
+                _ => true
+            };
+        }
+
+        public void AutoSelectAmmo()
+        {
+            int current = GetUsedAmmoId();
+            if (current != 0 && GetItemCount(current) != 0
+                && IsAmmoUsableWithRangedWeapon(Global.ObjectMgr.GetItemTemplate(current)))
+            {
+                _ApplyAmmoBonuses();
+                return;
+            }
+
+            int found = 0;
+            ForEachItem(ItemSearchLocation.Inventory, item =>
+            {
+                var template = item.GetTemplate();
+                if (item.GetCount() == 0 || !IsAmmoUsableWithRangedWeapon(template) || CanUseItem(template) != InventoryResult.Ok)
+                    return true;
+                found = item.GetEntry();
+                return false;
+            });
+
+            if (found == 0)
+                RemoveAmmo();
+            else
+            {
+                SetUsedAmmoId(found);
+                _ApplyAmmoBonuses();
+            }
         }
 
         public void SetAmmo(int ammoId)

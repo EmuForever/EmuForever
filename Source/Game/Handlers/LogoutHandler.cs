@@ -73,6 +73,14 @@ namespace Game
             if (GetPlayer() == null)
                 return;
 
+            // The client can send CANCEL as its countdown reaches zero. Finish an
+            // already expired logout before clearing its timer in this packet handler.
+            if (ShouldLogOut(LoopTime.ServerTime) && m_playerLoading.IsEmpty())
+            {
+                LogoutPlayer(true);
+                return;
+            }
+
             SetLogoutStartTime(ServerTime.Zero);
 
             SendPacket(new LogoutCancelAck());

@@ -723,7 +723,7 @@ namespace Game.Chat
                 return false;
             }
 
-            uint val = 1u << (area.AreaBit % ActivePlayerData.ExploredZonesBits);
+            ulong val = 1ul << (area.AreaBit % ActivePlayerData.ExploredZonesBits);
             playerTarget.RemoveExploredZones(offset, val);
 
             handler.SendSysMessage(CypherStrings.UnexploreArea);

@@ -26,7 +26,8 @@ namespace Framework.Constants
         public const int MaxMasterySpells = 2;
 
         public const int ReqPrimaryTreeTalents = 31;
-        public const int ExploredZonesSize = 192;
+        // Classic 1.60.1 carries 240 64-bit exploration words, including Zephras Isle.
+        public const int ExploredZonesSize = 240;
         public const long MaxMoneyAmount = 9999999999;
         public const int MaxActionButtons = 180;
         public const int MaxActionButtonActionValue = 0x00FFFFFF + 1;

@@ -12,6 +12,8 @@
   </ItemGroup>
 
   <!-- Prebuilt native Detour runtime (x64); consumed by the managed P/Invoke wrapper. -->
-
+  <ItemGroup>
+    <None Include="DetourNative.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
   
 </Project>

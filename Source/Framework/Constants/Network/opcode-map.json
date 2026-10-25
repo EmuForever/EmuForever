@@ -6193,6 +6193,11 @@
       "retail70391": "0x3D0310",
       "score": 3.0
     },
+    "SetAmmo": {
+      "message": "CMSG_SET_AMMO",
+      "opcode": "0x3F0105",
+      "source": "confirmed-client-log-and-local-trinitycore_new-reference"
+    },
     "SetAssistantLeader": {
       "message": "CMSG_SET_ASSISTANT_LEADER",
       "opcode": "0x44007B",
@@ -17095,7 +17100,6 @@
     "RequestHonorStats",
     "RpeResetCharacter",
     "SetAchievementsHidden",
-    "SetAmmo",
     "ShowingCloak",
     "ShowingHelm",
     "SortReagentBankBags",
@@ -17174,7 +17178,6 @@
     "0x3B000F",
     "0x3E006D",
     "0x3E031D",
-    "0x3F0105",
     "0x440140",
     "0x44017D",
     "0x44017E",

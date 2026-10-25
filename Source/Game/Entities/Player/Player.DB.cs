@@ -23,6 +23,22 @@ namespace Game.Entities
 {
     public partial class Player
     {
+        void LoadExploredZones(string saved)
+        {
+            StringArray words = new(saved, ' ');
+            for (int i = 0; i < words.Length && i / 2 < PlayerConst.ExploredZonesSize; ++i)
+                SetUpdateFieldFlagValue(ref m_values.ModifyValue(m_activePlayerData).ModifyValue(m_activePlayerData.ExploredZones, i / 2),
+                    (ulong)(long.Parse(words[i]) << (32 * (i % 2))));
+        }
+
+        string GetExploredZonesForSave()
+        {
+            StringBuilder saved = new();
+            for (int i = 0; i < PlayerConst.ExploredZonesSize; ++i)
+                saved.Append($"{(uint)m_activePlayerData.ExploredZones[i]} {(uint)(m_activePlayerData.ExploredZones[i] >> 32)} ");
+            return saved.ToString();
+        }
+
         void _LoadInventory(SQLResult result, Seconds timeDiff)
         {
             // Saved bonus slots must remain available while their items are loaded.
@@ -3075,9 +3091,7 @@ namespace Game.Entities
             SetLevel(level);
             SetXP(xp);
 
-            StringArray exploredZonesStrings = new(exploredZones, ' ');
-            for (int i = 0; i < exploredZonesStrings.Length && i / 2 < ActivePlayerData.ExploredZonesSize; ++i)
-                SetUpdateFieldFlagValue(ref m_values.ModifyValue(m_activePlayerData).ModifyValue(m_activePlayerData.ExploredZones, i / 2), (ulong)((long.Parse(exploredZonesStrings[i])) << (32 * (i % 2))));
+            LoadExploredZones(exploredZones);
 
             StringArray knownTitlesStrings = new(knownTitles, ' ');
             if ((knownTitlesStrings.Length % 2) == 0)
@@ -3622,6 +3636,7 @@ namespace Game.Entities
                 SetUpdateFieldValue(ref m_values.ModifyValue(m_unitData).ModifyValue(m_unitData.Power, loadedPowers), 0);
 
             SetUsedAmmoId(usedAmmoID);
+            AutoSelectAmmo();
 
             Log.outDebug(LogFilter.Player, 
                 $"Player.LoadFromDB: The value of player {GetName()} after load item and aura is: ");            
@@ -3854,11 +3869,7 @@ namespace Game.Entities
                 stmt.SetUInt32(index++, GetSession().GetLatency());
                 stmt.SetInt32(index++, (int)GetLootSpecId());
 
-                ss.Clear();
-                for (int i = 0; i < PlayerConst.ExploredZonesSize; ++i)
-                    ss.Append($"{(uint)(m_activePlayerData.ExploredZones[i] & 0xFFFFFFFF)} {(uint)((m_activePlayerData.ExploredZones[i] >> 32) & 0xFFFFFFFF)} ");
-
-                stmt.SetString(index++, ss.ToString());
+                stmt.SetString(index++, GetExploredZonesForSave());
 
                 ss.Clear();
                 // cache equipment...
@@ -3990,11 +4001,7 @@ namespace Game.Entities
                 stmt.SetUInt32(index++, GetSession().GetLatency());
                 stmt.SetUInt32(index++, (uint)GetLootSpecId());
 
-                ss.Clear();
-                for (int i = 0; i < PlayerConst.ExploredZonesSize; ++i)
-                    ss.Append($"{(uint)(m_activePlayerData.ExploredZones[i] & 0xFFFFFFFF)} {(uint)((m_activePlayerData.ExploredZones[i] >> 32) & 0xFFFFFFFF)} ");
-
-                stmt.SetString(index++, ss.ToString());
+                stmt.SetString(index++, GetExploredZonesForSave());
 
                 ss.Clear();
                 // cache equipment...

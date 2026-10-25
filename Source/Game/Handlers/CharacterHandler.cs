@@ -1093,6 +1093,9 @@ namespace Game
                 foreach (var spellId in info.castSpells[(int)pCurrChar.GetCreateMode()])
                     pCurrChar.CastSpell(pCurrChar, spellId, new CastSpellExtraArgs(true));
 
+                if (pCurrChar.GetClass() == Class.Warrior)
+                    pCurrChar.InitializeStartingActionButtons(info);
+
                 // start with every map explored
                 if (WorldConfig.Values[WorldCfg.StartAllExplored].Bool)
                 {

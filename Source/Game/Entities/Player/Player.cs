@@ -331,6 +331,7 @@ namespace Game.Entities
             }
 
             // all item positions
+            AutoSelectAmmo();
             SetActiveTalentGroup(0);
 
             GetThreatManager().Initialize();
@@ -1718,6 +1719,16 @@ namespace Game.Entities
         }
 
         void SendInitialActionButtons() { SendActionButtons(0); }
+
+        public void InitializeStartingActionButtons(PlayerInfo info)
+        {
+            // First-login spells/stances can change the visible action page after
+            // the initial packet. Retain saved buttons and fill only missing defaults.
+            foreach (var action in info.action)
+                if (GetActionButton(action.button) == null)
+                    AddActionButton(action.button, action.action, (ActionButtonType)action.type);
+            SendInitialActionButtons();
+        }
 
         void SendActionButtons(ActionsButtonsUpdateReason state)
         {
@@ -6410,6 +6421,20 @@ namespace Game.Entities
             SendPacket(new ResetWeeklyCurrency());
         }        
 
+        bool TryMarkAreaExplored(int areaBit)
+        {
+            if (areaBit < 0 || areaBit >= PlayerConst.ExploredZonesSize * 64)
+                return false;
+
+            int offset = areaBit / 64;
+            ulong mask = 1ul << (areaBit % 64);
+            if ((m_activePlayerData.ExploredZones[offset] & mask) != 0)
+                return false;
+
+            AddExploredZones(offset, mask);
+            return true;
+        }
+
         void CheckAreaExploreAndOutdoor()
         {
             if (!IsAlive())
@@ -6434,6 +6459,9 @@ namespace Game.Entities
                 return;
             }
 
+            if (areaEntry.AreaBit < 0)
+                return;
+
             int offset = areaEntry.AreaBit / ActivePlayerData.ExploredZonesBits;
             if (offset >= PlayerConst.ExploredZonesSize)
             {
@@ -6443,13 +6471,8 @@ namespace Game.Entities
                 return;
             }
 
-            ulong val = 1ul << (areaEntry.AreaBit % ActivePlayerData.ExploredZonesBits);
-            ulong currFields = m_activePlayerData.ExploredZones[offset];
-
-            if (!currFields.HasAnyFlag(val))
+            if (TryMarkAreaExplored(areaEntry.AreaBit))
             {
-                SetUpdateFieldFlagValue(ref m_values.ModifyValue(m_activePlayerData).ModifyValue(m_activePlayerData.ExploredZones, offset), val);
-
                 UpdateCriteria(CriteriaType.RevealWorldMapOverlay, GetAreaId());
 
                 if (areaEntry.ExplorationLevel > 0)
