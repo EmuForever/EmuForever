@@ -328,7 +328,7 @@ namespace Game.Networking.Packets
             _worldPacket.WriteInt32(0);
             _worldPacket.WriteInt32(Framework.Configuration.ConfigMgr.GetDefaultValue("Realm.CfgContentSetID", 137));
             _worldPacket.WriteUInt32(0);
-            _worldPacket.WriteUInt32(0); // GameRules: sent in-game with SMSG_FEATURE_SYSTEM_STATUS (reference)
+            _worldPacket.WriteUInt32((uint)GameRuleValues.Count);
             _worldPacket.WriteUInt32(0);
             _worldPacket.WriteInt32(0);
             _worldPacket.WriteInt32(0);
@@ -340,6 +340,9 @@ namespace Game.Networking.Packets
             _worldPacket.WriteUInt32(0);
             _worldPacket.WriteInt32(0);
             _worldPacket.WriteUInt32(0);
+            // Vector bodies follow the complete fixed header, including the name-query throttle.
+            foreach (GameRuleValuePair rule in GameRuleValues)
+                rule.Write(_worldPacket);
         }
 
 

@@ -748,6 +748,7 @@ namespace Game
         public ObjectGuid GetAccountGUID() { return ObjectGuid.Create(HighGuid.WowAccount, unchecked((uint)GetAccountId())); }
         public string GetAccountName() { return _accountName; }
         public int GetBattlenetAccountId() { return _battlenetAccountId; }
+        public bool HasSecuredBackpack() => WorldConfig.Values[WorldCfg.ClassicSecuredBagSlotsForAll].Bool || _hasAuthenticator;
         public ObjectGuid GetBattlenetAccountGUID() { return ObjectGuid.Create(HighGuid.BNetAccount, GetBattlenetAccountId()); }
 
         public Player GetPlayer() { return _player; }
@@ -872,6 +873,8 @@ namespace Game
 
         void InitializeSessionCallback(SQLQueryHolder<AccountInfoQueryLoad> holder, SQLQueryHolder<AccountInfoQueryLoad> realmHolder)
         {
+            SQLResult secured = holder.GetResult(AccountInfoQueryLoad.AccountSecured);
+            _hasAuthenticator = !secured.IsEmpty() && secured.Read<ulong>(0) != 0;
             LoadAccountData(realmHolder.GetResult(AccountInfoQueryLoad.GlobalAccountDataIndexPerRealm), AccountDataTypeMask.GlobalCacheMask);
             LoadTutorialsData(realmHolder.GetResult(AccountInfoQueryLoad.TutorialsIndexPerRealm));
             _collectionMgr.LoadAccountToys(holder.GetResult(AccountInfoQueryLoad.GlobalAccountToys));
@@ -1096,6 +1099,7 @@ namespace Game
         ServerTime _calendarEventCreationCooldown;
 
         BattlePetMgr _battlePetMgr;
+        bool _hasAuthenticator;
 
         AsyncCallbackProcessor<QueryCallback> _queryProcessor = new();
         AsyncCallbackProcessor<TransactionCallback> _transactionCallbacks = new();
@@ -1231,7 +1235,11 @@ namespace Game
     {
         public void Initialize(int accountId, int battlenetAccountId)
         {
-            PreparedStatement stmt = LoginDatabase.GetPreparedStatement(LoginStatements.SEL_ACCOUNT_TOYS);
+            PreparedStatement stmt = LoginDatabase.GetPreparedStatement(LoginStatements.SEL_BNET_ACCOUNT_SECURED);
+            stmt.SetInt32(0, battlenetAccountId);
+            SetQuery(AccountInfoQueryLoad.AccountSecured, stmt);
+
+            stmt = LoginDatabase.GetPreparedStatement(LoginStatements.SEL_ACCOUNT_TOYS);
             stmt.SetInt32(0, battlenetAccountId);
             SetQuery(AccountInfoQueryLoad.GlobalAccountToys, stmt);
 
@@ -1283,5 +1291,6 @@ namespace Game
         GlobalAccountDataIndexPerRealm,
         TutorialsIndexPerRealm,
         TransmogIllusions,
+        AccountSecured,
     }
 }

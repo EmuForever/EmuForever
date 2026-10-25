@@ -11,9 +11,10 @@
     <PackageReference Include="MySqlConnector" Version="2.5.0" />
   </ItemGroup>
 
-  <!-- Native recastnavigation Detour (x64), built by Source\Native\DetourNative\build.cmd. -->
+  <!-- Prebuilt native Detour runtime (x64); consumed by the managed P/Invoke wrapper. -->
   <ItemGroup>
-    <None Include="..\Native\bin\DetourNative.dll" Link="DetourNative.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Native\bin\DetourNative.dll" Link="DetourNative.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\Native\bin\DetourNative.LICENSE.txt" Link="DetourNative.LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   

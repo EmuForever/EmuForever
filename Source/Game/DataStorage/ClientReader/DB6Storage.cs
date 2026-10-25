@@ -12,6 +12,8 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Game.DataStorage
 {
@@ -32,6 +34,7 @@ namespace Game.DataStorage
         WDCHeader _header;
         public uint LayoutHash => _header.LayoutHash;
         string _tableName = typeof(TRecord).Name;
+        static readonly FieldInfo[] RecordFields = typeof(TRecord).GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
         static bool KeyFits(long id)
         {
@@ -149,8 +152,7 @@ namespace Game.DataStorage
                 var obj = new TRecord();
 
                 int dbIndex = 0;
-                var fields = typeof(TRecord).GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                foreach (var f in fields)
+                foreach (var f in RecordFields)
                 {
                     Type type = f.FieldType;
 
@@ -283,7 +285,7 @@ namespace Game.DataStorage
                     }
                 }
 
-                var id = fields[_header.IdIndex == -1 ? 0 : _header.IdIndex].GetValue(obj);                
+                var id = RecordFields[_header.IdIndex == -1 ? 0 : _header.IdIndex].GetValue(obj);
                 TKey key = ConvertKey(id);
                 if (mergeHotfix != null && TryGetValue(key, out TRecord original))
                     mergeHotfix(original, obj);
@@ -308,7 +310,7 @@ namespace Game.DataStorage
                 if (obj == null)
                     continue;
 
-                foreach (var f in typeof(TRecord).GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+                foreach (var f in RecordFields)
                 {
                     if (f.FieldType != typeof(LocalizedString))
                         continue;
@@ -504,11 +506,9 @@ namespace Game.DataStorage
 
         public void ReadDB2(DB2LoadData data, string fileName, HotfixStatements preparedStatement = HotfixStatements.None, HotfixStatements preparedStatementLocale = HotfixStatements.None, Action<TRecord, TRecord> mergeHotfix = null)
         {
-            // WotLK-only stores that the Forever 1.60.1 client does not ship: keep them empty
-            if (DB2LoadData.OptionalFiles.Contains(fileName) && !File.Exists($"{data.path}/{fileName}"))
+            if (data.PendingLoads != null)
             {
-                Log.outWarn(LogFilter.ServerLoading, $"{fileName} not present in client data, store left empty.");
-                data.counter++;
+                data.PendingLoads.Add(() => ReadDB2(data, fileName, preparedStatement, preparedStatementLocale, mergeHotfix));
                 return;
             }
 
@@ -522,19 +522,23 @@ namespace Game.DataStorage
             LoadHotfixData(data.availableLocales, preparedStatement, preparedStatementLocale, mergeHotfix);
 
             Global.DB2Mgr.AddDB2(GetTableHash(), this);
-            data.counter++;
+            Interlocked.Increment(ref data.counter);
         }        
     }
 
     public class DB2LoadData
     {
-        public static readonly HashSet<string> OptionalFiles = new()
-        {
-            "GlyphSlot.db2", "ItemRandomProperties.db2", "ItemRandomSuffix.db2", "PVPItem.db2", "ScalingStatDistribution.db2", "ScalingStatValues.db2"
-        };
-
         public string path = string.Empty;
         public BitSet availableLocales;
         public int counter;
+        internal List<Action> PendingLoads;
+
+        internal void LoadQueuedStores()
+        {
+            List<Action> loads = PendingLoads;
+            PendingLoads = null;
+            // Each store owns its reader and hotfix overlays. Finish all stores before building cross-table indexes.
+            Parallel.ForEach(loads, new ParallelOptions { MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount, 1, 4) }, load => load());
+        }
     }
 }

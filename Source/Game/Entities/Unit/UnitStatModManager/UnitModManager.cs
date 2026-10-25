@@ -15,13 +15,14 @@ namespace Game.Entities
         StatIntellect,
         StatSpirit,
         Health,
-        Mana, // UNIT_MOD_MANA..UNIT_MOD_PAIN must be listed in existing order, it is accessed by index values of Powers enum.
+        Mana, // Map protocol power IDs through GetPowerUnitMod before accessing these slots.
         Rage,
         Focus,
         Energy,
         Happiness,
         Runes,
         RunicPower,
+        ComboPoints,
         Armor, // ARMOR..RESISTANCE_ARCANE must be in existed order, it's accessed by index values of SpellSchools enum.
         ResistanceHoly,
         ResistanceFire,
@@ -49,7 +50,7 @@ namespace Game.Entities
         ResistanceStart = Armor,
         ResistanceEnd = ResistanceArcane + 1,
         PowerStart = Mana,
-        PowerEnd = RunicPower + 1,
+        PowerEnd = ComboPoints + 1,
         SpellDamageStart = DamagePhysical,
         SpellDamageEnd = DamageArcane + 1,
     }
@@ -195,6 +196,14 @@ namespace Game.Entities
 
     public class UnitModManager
     {
+        // Forever moved happiness to power 27 and uses power 4 for combo points.
+        public static UnitMods GetPowerUnitMod(PowerType power) => power switch
+        {
+            PowerType.Happiness => UnitMods.Happiness,
+            PowerType.ComboPoints => UnitMods.ComboPoints,
+            _ => UnitMods.PowerStart + (int)power
+        };
+
         public UnitModManager(Unit owner)
         {
             _owner = owner;
@@ -538,6 +547,12 @@ namespace Game.Entities
                 case UnitMods.RunicPower:
                     _owner.UpdateMaxPower((PowerType)(unitModName - UnitMods.PowerStart));
                     break;
+                case UnitMods.Happiness:
+                    _owner.UpdateMaxPower(PowerType.Happiness);
+                    break;
+                case UnitMods.ComboPoints:
+                    _owner.UpdateMaxPower(PowerType.ComboPoints);
+                    break;
                 case UnitMods.ResistanceHoly:
                 case UnitMods.ResistanceFire:
                 case UnitMods.ResistanceNature:
@@ -644,6 +659,7 @@ namespace Game.Entities
                 case UnitMods.Happiness:
                 case UnitMods.Runes:
                 case UnitMods.RunicPower:
+                case UnitMods.ComboPoints:
                     return UnitModFamily.Power;
                 case UnitMods.Armor:
                 case UnitMods.ResistanceHoly:

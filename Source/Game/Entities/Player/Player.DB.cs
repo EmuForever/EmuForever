@@ -25,6 +25,11 @@ namespace Game.Entities
     {
         void _LoadInventory(SQLResult result, Seconds timeDiff)
         {
+            // Saved bonus slots must remain available while their items are loaded.
+            // Reconcile current entitlement after LoadFromDB, once auras and inventory are ready.
+            if (GetInventorySlotCount() < InventorySlots.DefaultSize)
+                UpdateInventorySlotCount();
+
             if (!result.IsEmpty())
             {
                 var zoneId = GetZoneId();
@@ -578,9 +583,18 @@ namespace Game.Entities
                 var map = CliDB.MapStorage.LookupByKey(homebind.GetMapId());
 
                 // accept saved data only for valid position (and non instanceable), and accessable
-                if (GridDefines.IsValidMapCoord(homebind) &&
+                if (map != null && GridDefines.IsValidMapCoord(homebind) &&
                     !map.Instanceable && GetSession().GetExpansion() >= map.Expansion)
+                {
                     ok = true;
+                    // Older characters could have a valid bind position with an uninitialized area.
+                    if (!CliDB.AreaTableStorage.ContainsKey(homebindAreaId))
+                    {
+                        int areaId = Global.TerrainMgr.GetAreaId(PhasingHandler.EmptyPhaseShift, homebind);
+                        if (CliDB.AreaTableStorage.ContainsKey(areaId))
+                            SetHomebind(homebind, areaId);
+                    }
+                }
                 else
                 {
                     PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(CharStatements.DEL_PLAYER_HOMEBIND);
@@ -588,19 +602,6 @@ namespace Game.Entities
                     DB.Characters.Execute(stmt);
                 }
             }
-
-            void saveHomebindToDb()
-            {
-                PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(CharStatements.INS_PLAYER_HOMEBIND);
-                stmt.SetInt64(0, GetGUID().GetCounter());
-                stmt.SetInt32(1, homebind.GetMapId());
-                stmt.SetInt32(2, homebindAreaId);
-                stmt.SetFloat(3, homebind.GetPositionX());
-                stmt.SetFloat(4, homebind.GetPositionY());
-                stmt.SetFloat(5, homebind.GetPositionZ());
-                stmt.SetFloat(6, homebind.GetOrientation());
-                DB.Characters.Execute(stmt);
-            };
 
             if (!ok && HasAtLoginFlag(AtLoginFlags.FirstLogin))
             {
@@ -611,7 +612,7 @@ namespace Game.Entities
                     homebind.WorldRelocate(createPosition.Loc);
                     homebindAreaId = Global.TerrainMgr.GetAreaId(PhasingHandler.EmptyPhaseShift, homebind);
 
-                    saveHomebindToDb();
+                    _SaveHomeBind();
                     ok = true;
                 }
             }
@@ -628,13 +629,29 @@ namespace Game.Entities
                 homebind.WorldRelocate(loc.Loc);
                 homebindAreaId = Global.TerrainMgr.GetAreaId(PhasingHandler.EmptyPhaseShift, loc.Loc);
 
-                saveHomebindToDb();
+                _SaveHomeBind();
             }
 
             Log.outDebug(LogFilter.Player,
                 $"Setting player home position - mapid: {homebind.GetMapId()}, areaid: {homebindAreaId}, {homebind}");
 
             return true;
+        }
+
+        void _SaveHomeBind(SQLTransaction transaction = null)
+        {
+            PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(CharStatements.INS_PLAYER_HOMEBIND);
+            stmt.SetInt64(0, GetGUID().GetCounter());
+            stmt.SetInt32(1, homebind.GetMapId());
+            stmt.SetInt32(2, homebindAreaId);
+            stmt.SetFloat(3, homebind.GetPositionX());
+            stmt.SetFloat(4, homebind.GetPositionY());
+            stmt.SetFloat(5, homebind.GetPositionZ());
+            stmt.SetFloat(6, homebind.GetOrientation());
+            if (transaction != null)
+                transaction.Append(stmt);
+            else
+                DB.Characters.Execute(stmt);
         }
 
         void _LoadCurrency(SQLResult result)
@@ -670,13 +687,17 @@ namespace Game.Entities
             SendActionButtons(ActionsButtonsUpdateReason.AfterSpecSwap);
         }
 
-        void _LoadActions(SQLResult result)
+        void _LoadActions(SQLResult result, bool allConfigurations = false)
         {
             m_actionButtons.Clear();
+            uint traitConfigId = allConfigurations ? GetActionBarTraitConfigId() : 0;
             if (!result.IsEmpty())
             {
                 do
                 {
+                    if (allConfigurations && (result.Read<byte>(3) != GetActiveTalentGroup() || result.Read<uint>(4) != traitConfigId))
+                        continue;
+
                     byte button = result.Read<byte>(0);
                     int action = result.Read<int>(1);
                     ActionButtonType type = (ActionButtonType)result.Read<byte>(2);
@@ -2666,7 +2687,7 @@ namespace Game.Entities
             stmt.SetInt32(index++, m_unitData.AttackPower);
             stmt.SetInt32(index++, m_unitData.RangedAttackPower);
             stmt.SetInt32(index++, GetBaseSpellPowerBonus());
-            stmt.SetInt32(index, 0); // m_activePlayerData.CombatRatings[(int)CombatRating.ResiliencePlayerDamage]);
+            stmt.SetInt32(index++, 0); // m_activePlayerData.CombatRatings[(int)CombatRating.ResiliencePlayerDamage]);
             stmt.SetFloat(index++, m_activePlayerData.Mastery);
             stmt.SetInt32(index++, m_activePlayerData.Versatility);
 
@@ -2929,7 +2950,7 @@ namespace Game.Entities
             var orientation = result.Read<float>(fieldIndex++);
             var taximask = result.Read<string>(fieldIndex++);
             var createTime = (UnixTime64)result.Read<long>(fieldIndex++);
-            var createMode = (PlayerCreateMode)result.Read<byte>(fieldIndex++);
+            m_createMode = (PlayerCreateMode)result.Read<byte>(fieldIndex++);
             var cinematic = result.Read<byte>(fieldIndex++);
             var totaltime = (Seconds)result.Read<int>(fieldIndex++);
             var leveltime = (Seconds)result.Read<int>(fieldIndex++);
@@ -2947,7 +2968,7 @@ namespace Game.Entities
             var transguid = result.Read<long>(fieldIndex++);
             var extra_flags = (PlayerExtraFlags)result.Read<ushort>(fieldIndex++);
             var summonedPetNumber = result.Read<int>(fieldIndex++);
-            var atLoginFlags = (AtLoginFlags)result.Read<ushort>(fieldIndex++);
+            atLoginFlags = (AtLoginFlags)result.Read<ushort>(fieldIndex++);
             var zone = result.Read<ushort>(fieldIndex++);
             var online = result.Read<byte>(fieldIndex++);
             var death_expire_time = (UnixTime64)result.Read<long>(fieldIndex++);
@@ -3450,7 +3471,6 @@ namespace Game.Entities
                 SetDrunkValue(0);
 
             m_createTime = (ServerTime)createTime;
-            m_createMode = createMode;
             m_cinematic = cinematic;
             m_PlayedTimeTotal = totaltime;
             m_PlayedTimeLevel = leveltime;
@@ -3547,7 +3567,9 @@ namespace Game.Entities
             // update items with duration and realtime
             UpdateItemDuration(time_diff, true);
 
-            StartLoadingActionButtons();
+            // Populate the initialization packet before sending any login packets. A later spec-swap
+            // callback otherwise sends an empty initial bar and can discard unfamiliar starting spells.
+            _LoadActions(holder.GetResult(PlayerLoginQueryLoad.Actions), true);
 
             // unread mails and next delivery time, actual mails not loaded
             _LoadMail(holder.GetResult(PlayerLoginQueryLoad.Mails), holder.GetResult(PlayerLoginQueryLoad.MailItems));
@@ -4043,6 +4065,8 @@ namespace Game.Entities
             _SaveSpells(characterTransaction);
             GetSpellHistory().SaveToDB<Player>(characterTransaction);
             _SaveActions(characterTransaction);
+            if (create)
+                _SaveHomeBind(characterTransaction);
             _SaveAuras(characterTransaction);
             _SaveSkills(characterTransaction);
             _SaveStoredAuraTeleportLocations(characterTransaction);

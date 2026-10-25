@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 
 namespace Framework.Database
 {
-    // Legacy SI IDs poisoned account.AUTO_INCREMENT at UINT_MAX. Keep a durable
+    // Legacy SI IDs poisoned account AUTO_INCREMENT counters at UINT_MAX. Keep a durable
     // positive-range high-water mark so deleting the newest account cannot cause
-    // an old identity to be reused. Callers hold the shared game-account lock.
+    // an old identity to be reused. Callers hold the shared lock for their account table.
     public static class AccountIdAllocator
     {
         static string Identifier(string value)
@@ -22,11 +22,12 @@ namespace Framework.Database
             using var seed = new MySqlCommand($"INSERT IGNORE INTO {Identifier(sequence)} (id,next_id) SELECT 1,COALESCE(MAX(id),0)+1 FROM {Identifier(accounts)} WHERE id<=2147483647",connection);
             seed.ExecuteNonQuery();
         }
-        public static async Task EnsureAsync(MySqlConnection connection)
+        public static Task EnsureAsync(MySqlConnection connection) => EnsureAsync(connection, "account", "account_id_allocator");
+        public static async Task EnsureAsync(MySqlConnection connection, string accounts, string sequence)
         {
-            await using var create = new MySqlCommand("CREATE TABLE IF NOT EXISTS account_id_allocator (id TINYINT UNSIGNED NOT NULL PRIMARY KEY, next_id BIGINT UNSIGNED NOT NULL) ENGINE=InnoDB",connection);
+            await using var create = new MySqlCommand($"CREATE TABLE IF NOT EXISTS {Identifier(sequence)} (id TINYINT UNSIGNED NOT NULL PRIMARY KEY, next_id BIGINT UNSIGNED NOT NULL) ENGINE=InnoDB",connection);
             await create.ExecuteNonQueryAsync();
-            await using var seed = new MySqlCommand("INSERT IGNORE INTO account_id_allocator (id,next_id) SELECT 1,COALESCE(MAX(id),0)+1 FROM account WHERE id<=2147483647",connection);
+            await using var seed = new MySqlCommand($"INSERT IGNORE INTO {Identifier(sequence)} (id,next_id) SELECT 1,COALESCE(MAX(id),0)+1 FROM {Identifier(accounts)} WHERE id<=2147483647",connection);
             await seed.ExecuteNonQueryAsync();
         }
         static string NextSql(string accounts, string sequence) => $"SELECT GREATEST(next_id,COALESCE((SELECT MAX(id)+1 FROM {Identifier(accounts)} WHERE id<=2147483647),1)) FROM {Identifier(sequence)} WHERE id=1";
@@ -43,11 +44,12 @@ namespace Framework.Database
             using var advance = new MySqlCommand($"UPDATE {Identifier(sequence)} SET next_id=@next WHERE id=1",connection);
             advance.Parameters.AddWithValue("@next",(ulong)id+1); advance.ExecuteNonQuery(); return id;
         }
-        public static async Task<uint> ReserveAsync(MySqlConnection connection, MySqlTransaction transaction)
+        public static Task<uint> ReserveAsync(MySqlConnection connection, MySqlTransaction transaction) => ReserveAsync(connection, transaction, "account", "account_id_allocator");
+        public static async Task<uint> ReserveAsync(MySqlConnection connection, MySqlTransaction transaction, string accounts, string sequence)
         {
-            await using var read = new MySqlCommand(NextSql("account","account_id_allocator"),connection,transaction);
+            await using var read = new MySqlCommand(NextSql(accounts,sequence),connection,transaction);
             uint id = Valid(await read.ExecuteScalarAsync());
-            await using var advance = new MySqlCommand("UPDATE account_id_allocator SET next_id=@next WHERE id=1",connection,transaction);
+            await using var advance = new MySqlCommand($"UPDATE {Identifier(sequence)} SET next_id=@next WHERE id=1",connection,transaction);
             advance.Parameters.AddWithValue("@next",(ulong)id+1); await advance.ExecuteNonQueryAsync(); return id;
         }
     }

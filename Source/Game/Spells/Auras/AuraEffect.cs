@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -3444,7 +3444,7 @@ namespace Game.Spells
             Unit target = aurApp.GetTarget();
 
             PowerType power = (PowerType)GetMiscValue();
-            UnitMods unitMod = UnitMods.PowerStart + (int)power;
+            UnitMods unitMod = UnitModManager.GetPowerUnitMod(power);
 
             target.StatMods.ModifyFlat(unitMod, GetAmount(), apply, UnitModType.TotalPermanent);
         }
@@ -3531,7 +3531,7 @@ namespace Game.Spells
 
             Unit target = aurApp.GetTarget();
             PowerType powerType = (PowerType)GetMiscValue();
-            target.StatMods.ModifyFlat(UnitMods.PowerStart + (int)powerType, GetAmount(), apply, UnitModType.TotalPermanent);
+            target.StatMods.ModifyFlat(UnitModManager.GetPowerUnitMod(powerType), GetAmount(), apply, UnitModType.TotalPermanent);
         }
 
         [AuraEffectHandler(AuraType.ModIncreaseEnergyPercent)]
@@ -3542,7 +3542,7 @@ namespace Game.Spells
 
             Unit target = aurApp.GetTarget();
             PowerType powerType = (PowerType)GetMiscValue();
-            target.StatMods.ModifyMult(UnitMods.PowerStart + (int)powerType, GetAmount(), apply, UnitModType.TotalPermanent);
+            target.StatMods.ModifyMult(UnitModManager.GetPowerUnitMod(powerType), GetAmount(), apply, UnitModType.TotalPermanent);
         }
 
         [AuraEffectHandler(AuraType.ModIncreaseHealthPercent)]
@@ -3624,7 +3624,7 @@ namespace Game.Spells
                 return;
 
             PowerType powerType = (PowerType)GetMiscValue();
-            target.StatMods.ModifyMult(UnitMods.PowerStart + (int)powerType, GetAmount(), apply, UnitModType.TotalPermanent);
+            target.StatMods.ModifyMult(UnitModManager.GetPowerUnitMod(powerType), GetAmount(), apply, UnitModType.TotalPermanent);
         }
 
         [AuraEffectHandler(AuraType.TriggerSpellOnHealthPct)]

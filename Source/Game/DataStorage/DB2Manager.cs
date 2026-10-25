@@ -382,7 +382,7 @@ namespace Game.DataStorage
 
             foreach (PowerTypeRecord powerType in PowerTypeStorage.Values)
             {
-                // 1.60.1 ships extra power types (e.g. HAPPINESS = 27); skip unknown ones like TrinityCore does
+                // Reject malformed or duplicate definitions; Forever happiness is power 27.
                 if (powerType.PowerTypeEnum < 0 || powerType.PowerTypeEnum >= PowerType.Max || _powerTypes.ContainsKey(powerType.PowerTypeEnum))
                 {
                     Log.outError(LogFilter.ServerLoading, $"PowerType {powerType.Id} has invalid or duplicate PowerTypeEnum {(int)powerType.PowerTypeEnum} ({powerType.NameGlobalStringTag}), skipped.");
@@ -662,19 +662,20 @@ namespace Game.DataStorage
                 uint tableHash = result.Read<uint>(2);
                 int recordId = result.Read<int>(3);
                 HotfixRecord.Status status = (HotfixRecord.Status)result.Read<byte>(4);
+                BitSet recordLocales = new(availableDb2Locales);
                 if (status == HotfixRecord.Status.Valid && !_storage.ContainsKey(tableHash))
                 {
                     var key = (tableHash, recordId);
                     for (int locale = 0; locale < (int)Locale.Total; ++locale)
                     {
-                        if (!availableDb2Locales[locale])
+                        if (!recordLocales[locale])
                             continue;
 
                         if (!_hotfixBlob[locale].ContainsKey(key))
-                            availableDb2Locales[locale] = false;
+                            recordLocales[locale] = false;
                     }
 
-                    if (!availableDb2Locales.Any())
+                    if (!recordLocales.Any())
                     {
                         Log.outError(LogFilter.Sql, 
                             $"Table `hotfix_data` references unknown DB2 store " +
@@ -690,7 +691,7 @@ namespace Game.DataStorage
                 hotfixRecord.ID.PushID = id;
                 hotfixRecord.ID.UniqueID = uniqueId;
                 hotfixRecord.HotfixStatus = status;
-                hotfixRecord.AvailableLocalesMask = (uint)availableDb2Locales.ToBlockRange()[0];//Ulgy i know
+                hotfixRecord.AvailableLocalesMask = (uint)recordLocales.ToBlockRange()[0];
 
                 if (!_hotfixData.ContainsKey(id))
                     _hotfixData[id] = new();
@@ -2171,7 +2172,8 @@ namespace Game.DataStorage
 
         public void AddDB2<TKey, TRecord>(uint tableHash, DB6Storage<TKey, TRecord> store) where TRecord : new() where TKey : struct
         {
-            _storage[tableHash] = store;
+            lock (_storage)
+                _storage[tableHash] = store;
         }
 
         delegate bool AllowedHotfixOptionalData(byte[] data);

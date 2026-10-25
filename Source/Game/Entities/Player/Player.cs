@@ -214,7 +214,9 @@ namespace Game.Entities
             }
 
             // set initial homebind position
-            SetHomebind(this, GetAreaId());
+            // The player is not in the world yet, so its cached area has not been populated.
+            homebind.WorldRelocate(this);
+            homebindAreaId = Global.TerrainMgr.GetAreaId(PhasingHandler.EmptyPhaseShift, homebind);
 
             PowerType powertype = cEntry.DisplayPower;
 
@@ -251,7 +253,7 @@ namespace Game.Entities
             SetRestState(RestTypes.XP, ((GetSession().IsARecruiter() || GetSession().GetRecruiterId() != 0) ? PlayerRestState.RAFLinked : PlayerRestState.Normal));
             SetRestState(RestTypes.Honor, PlayerRestState.Normal);
             SetNativeGender(createInfo.Sex);
-            SetInventorySlotCount(InventorySlots.DefaultSize);
+            SetAccountSecured(GetSession().HasSecuredBackpack());
 
             // set starting level
             SetLevel(GetStartLevel(createInfo.RaceId, createInfo.ClassId, createInfo.TemplateSet));
@@ -2734,15 +2736,15 @@ namespace Game.Entities
                 bool HasOption(GossipOptionNpc option) => gossipMenu.GetMenuItems().Values.Any(item => item.OptionNpc == option);
 
                 if (CanResetLegacyAt(serviceNpc) && GetLegacyConfig()?.Entries.FindIndexIf(entry => entry.Rank > 0) >= 0)
-                    gossipMenu.AddMenuItem(LegacyResetGossipOption, gossipMenu.GetMenuItemCount(), GossipOptionNpc.None, "Reset my Legacy perks.", 0,
+                    gossipMenu.AddMenuItem(LegacyResetGossipOption, -1, GossipOptionNpc.None, "Reset my Legacy perks.", 0,
                         GossipOptionFlags.None, null, 0, 0, false, 0, "Reset all purchased Legacy perks?", null, null, menuId, LegacyResetGossipOption);
 
                 if (serviceNpc.HasNpcFlag(NPCFlags1.Trainer) && serviceNpc.GetTrainerId() != 0 && !HasOption(GossipOptionNpc.Trainer))
-                    gossipMenu.AddMenuItem(2146000001, gossipMenu.GetMenuItemCount(), GossipOptionNpc.Trainer, "Train me.", 0,
+                    gossipMenu.AddMenuItem(2146000001, -1, GossipOptionNpc.Trainer, "Train me.", 0,
                         GossipOptionFlags.None, null, 0, 0, false, 0, "", null, null, menuId, gossipMenu.GetMenuItemCount());
 
                 if (serviceNpc.HasNpcFlag(NPCFlags1.Vendor) && serviceNpc.GetVendorItems() != null && !HasOption(GossipOptionNpc.Vendor))
-                    gossipMenu.AddMenuItem(2146000002, gossipMenu.GetMenuItemCount(), GossipOptionNpc.Vendor, "Let me browse your goods.", 0,
+                    gossipMenu.AddMenuItem(2146000002, -1, GossipOptionNpc.Vendor, "Let me browse your goods.", 0,
                         GossipOptionFlags.None, null, 0, 0, false, 0, "", null, null, menuId, gossipMenu.GetMenuItemCount());
             }
         }
@@ -4291,16 +4293,19 @@ namespace Game.Entities
                 // set resurrection sickness
                 CastSpell(this, raceEntry.ResSicknessSpellID, true);
 
-                // not full duration
-                if (GetLevel() < startLevel + 9)
-                {
-                    Seconds delta = (Seconds)(GetLevel() - startLevel + 1) * Time.Minute;
-                    Aura aur = GetAura(raceEntry.ResSicknessSpellID, GetGUID());
-                    if (aur != null)
-                        aur.SetDuration(delta);
-
-                }
+                SetResurrectionSicknessDuration(GetAura(raceEntry.ResSicknessSpellID, GetGUID()), GetLevel(), startLevel);
             }
+        }
+
+        internal static void SetResurrectionSicknessDuration(Aura aura, int level, int startLevel)
+        {
+            if (aura == null)
+                return;
+
+            // Apply the Classic level-based rule to both the timer and the duration sent to the client.
+            Seconds duration = (Seconds)Math.Clamp(level - startLevel + 1, 0, 10) * Time.Minute;
+            aura.SetMaxDuration(duration);
+            aura.SetDuration(duration);
         }
 
         ObjectGuid GetSpiritHealerGUID() { return _areaSpiritHealerGUID; }

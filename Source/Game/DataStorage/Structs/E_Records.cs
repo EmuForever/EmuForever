@@ -2,6 +2,7 @@
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
+using System;
 
 namespace Game.DataStorage
 {
@@ -19,7 +20,7 @@ namespace Game.DataStorage
         private int[] _raceMask = new int[2];
 
         #region Properties
-        public RaceMask RaceMask => (RaceMask)_raceMask[0];
+        public RaceMask RaceMask => _raceMask.ToRaceMask();
         public Anim AnimId => (Anim)_animId;
         #endregion
     }

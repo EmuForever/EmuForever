@@ -11,6 +11,7 @@ using System;
 using System.Linq;
 using System.Net.Sockets;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
 
 namespace Game.Networking
 {
@@ -685,10 +686,12 @@ namespace Game.Networking
             AsyncRead();
         }
 
-        void LoadSessionPermissionsCallback(SQLResult result)
+        async void LoadSessionPermissionsCallback(SQLResult result)
         {
             // RBAC must be loaded before adding session to check for skip queue permission
             _worldSession.GetRBACData().LoadFromDBCallback(result);
+
+            await Task.Delay(2500); // I assume everything happens faster than trinitycore so we move up to 2.5sec to allow launcher to finish.
 
             SendPacket(new EnterEncryptedMode(_encryptKey, true));
         }

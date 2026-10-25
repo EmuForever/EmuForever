@@ -204,7 +204,7 @@ namespace Game.DungeonFinding
                 if (!LfgDungeonStore.ContainsKey(dungeonId))
                 {
                     Log.outError(LogFilter.Sql, 
-                        $"table `lfg_entrances` contains coordinates for wrong dungeon {dungeonId}");
+                        $"Table `lfg_dungeon_template` contains coordinates for unknown dungeon {dungeonId}");
                     continue;
                 }
 

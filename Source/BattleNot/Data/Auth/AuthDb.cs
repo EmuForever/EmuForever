@@ -296,7 +296,9 @@ sealed class AuthDb
         await using MySqlConnection conn = _db.Connect();
         await conn.OpenAsync();
         await using var accountLock = await Framework.Database.MySqlNamedLock.AcquireAsync(conn, "game-account-create");
+        await using var bnetAccountLock = await Framework.Database.MySqlNamedLock.AcquireAsync(conn, "bnet-account-create");
         await Framework.Database.AccountIdAllocator.EnsureAsync(conn);
+        await Framework.Database.AccountIdAllocator.EnsureAsync(conn, "bnot_accounts", "bnot_account_id_allocator");
         await using MySqlTransaction tx = await conn.BeginTransactionAsync();
         try
         {
@@ -311,15 +313,16 @@ sealed class AuthDb
                 return "username_exists";
             }
 
+            uint bnetId = await Framework.Database.AccountIdAllocator.ReserveAsync(conn, tx, "bnot_accounts", "bnot_account_id_allocator");
             await using (var insert = new MySqlCommand(
-                "INSERT INTO bnot_accounts (email, srp_version, salt, verifier) VALUES (@email, 2, @salt, @verifier)", conn, tx))
+                "INSERT INTO bnot_accounts (id, email, srp_version, salt, verifier) VALUES (@id, @email, 2, @salt, @verifier)", conn, tx))
             {
+                insert.Parameters.AddWithValue("@id", bnetId);
                 insert.Parameters.AddWithValue("@email", email);
                 insert.Parameters.AddWithValue("@salt", bnetSalt);
                 insert.Parameters.AddWithValue("@verifier", bnetVerifier);
                 await insert.ExecuteNonQueryAsync();
             }
-            uint bnetId = Convert.ToUInt32(await Scalar(conn, tx, "SELECT LAST_INSERT_ID()", null));
 
             uint accountId = await Framework.Database.AccountIdAllocator.ReserveAsync(conn,tx);
             await using (var insert = new MySqlCommand(

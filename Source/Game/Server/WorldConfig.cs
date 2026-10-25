@@ -492,6 +492,7 @@ namespace Game
                 GetDefaultValue("CharacterCreating.DisableAlliedRaceAchievementRequirement", false);
 
             Values[WorldCfg.SkipCinematics] = GetDefaultValue("SkipCinematics", 0);
+            Values[WorldCfg.ClassicSecuredBagSlotsForAll] = GetDefaultValue("Classic.SecuredBagSlotsForAll", true);
             if (Values[WorldCfg.SkipCinematics].Int32 < 0 || Values[WorldCfg.SkipCinematics].Int32 > 2)
             {
                 Log.outError(LogFilter.ServerLoading,

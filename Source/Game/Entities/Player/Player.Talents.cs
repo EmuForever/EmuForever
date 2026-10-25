@@ -416,7 +416,7 @@ namespace Game.Entities
             }
         }
 
-        void StartLoadingActionButtons(Action callback = null)
+        uint GetActionBarTraitConfigId()
         {
             uint traitConfigId = 0;
 
@@ -435,11 +435,16 @@ namespace Game.Entities
                     traitConfigId = (uint)(int)m_activePlayerData.TraitConfigs[usedSavedTraitConfigIndex].ID;
             }
 
-            // load them asynchronously
+            return traitConfigId;
+        }
+
+        void StartLoadingActionButtons(Action callback = null)
+        {
+            // Spec changes can load asynchronously; initial login loads its buttons with the login holder.
             PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_CHARACTER_ACTIONS_SPEC);
             stmt.SetInt64(0, GetGUID().GetCounter());
             stmt.SetUInt8(1, GetActiveTalentGroup());
-            stmt.SetUInt32(2, traitConfigId);
+            stmt.SetUInt32(2, GetActionBarTraitConfigId());
 
             var myGuid = GetGUID();
 

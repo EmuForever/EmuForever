@@ -1569,7 +1569,7 @@ namespace Game.Entities
             // mana
             PowerType powerType = CalculateDisplayPowerType();
             SetCreateMana(stats.BaseMana);
-            StatMods.SetMult(UnitMods.PowerStart + (int)powerType, GetCreatureTemplateStats().ManaModifier, UnitModType.BasePermanent);
+            StatMods.SetMult(UnitModManager.GetPowerUnitMod(powerType), GetCreatureTemplateStats().ManaModifier, UnitModType.BasePermanent);
             SetPowerType(powerType);
 
             PowerTypeRecord powerTypeEntry = Global.DB2Mgr.GetPowerTypeEntry(powerType);

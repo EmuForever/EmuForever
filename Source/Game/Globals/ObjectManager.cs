@@ -2185,6 +2185,11 @@ namespace Game
 
             Log.outInfo(LogFilter.ServerLoading, 
                 $"Loaded {count} creature template gossip menus in {Time.Diff(oldMSTime)} ms.");
+
+            // Creature templates are checked before these associations load. Check the menu flag only after assignment.
+            foreach (var creatureTemplate in creatureTemplateStorage.Values)
+                if (!creatureTemplate.GossipMenuIds.Empty() && !creatureTemplate.Npcflag.HasFlag(NPCFlags1.Gossip))
+                    Log.outInfo(LogFilter.Sql, $"Creature (Entry: {creatureTemplate.Entry}) has assigned gossip menu, but npcflag does not include UNIT_NPC_FLAG_GOSSIP.");
         }
 
         void LoadCreatureTemplateResistances()
@@ -3409,18 +3414,6 @@ namespace Game
                 cInfo.UnitFlags3 &= UnitFlags3.Allowed;
             }
 
-            if (!cInfo.GossipMenuIds.Empty() && !cInfo.Npcflag.HasFlag(NPCFlags1.Gossip))
-            {
-                Log.outInfo(LogFilter.Sql,
-                    $"Creature (Entry: {cInfo.Entry}) has assigned gossip menu, " +
-                    $"but npcflag does not include UNIT_NPC_FLAG_GOSSIP.");
-            }
-            else if (cInfo.GossipMenuIds.Empty() && cInfo.Npcflag.HasFlag(NPCFlags1.Gossip))
-            {
-                Log.outInfo(LogFilter.Sql, 
-                    $"Creature (Entry: {cInfo.Entry}) has npcflag UNIT_NPC_FLAG_GOSSIP, " +
-                    $"but gossip menu is unassigned.");
-            }
         }
 
         void CheckCreatureMovement(string table, long id, CreatureMovementData creatureMovement)
@@ -7193,7 +7186,7 @@ namespace Game
                             Log.outError(LogFilter.Sql,
                                 $"Item id {itemid} (race {currentRace} class {currentClass}) " +
                                 $"in `playercreateinfo_item` table " +
-                                $"but not listed in `itemtemplate`, ignoring.");
+                                $"has no item template loaded from Item.db2/ItemSparse.db2, ignoring.");
                             continue;
                         }
 
@@ -11026,7 +11019,7 @@ namespace Game
                     if (factionEntry1 == null)
                     {
                         Log.outError(LogFilter.Sql, 
-                            $"Faction (faction.dbc) {repOnKill.RepFaction1} " +
+                            $"Faction.db2 record {repOnKill.RepFaction1} " +
                             $"does not exist but is used in `creature_onkill_reputation`.");
                         continue;
                     }
@@ -11038,7 +11031,7 @@ namespace Game
                     if (factionEntry2 == null)
                     {
                         Log.outError(LogFilter.Sql, 
-                            $"Faction (faction.dbc) {repOnKill.RepFaction2} " +
+                            $"Faction.db2 record {repOnKill.RepFaction2} " +
                             $"does not exist but is used in `creature_onkill_reputation`.");
                         continue;
                     }

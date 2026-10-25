@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -1372,7 +1372,7 @@ namespace Game.Entities
             if (powerIndex == (int)PowerType.Max || powerIndex >= (int)PowerType.MaxPerClass)
                 return;
 
-            UnitMods unitMod = UnitMods.PowerStart + (int)power;
+            UnitMods unitMod = UnitModManager.GetPowerUnitMod(power);
             UnitModResult value = new(GetCreatePowerValue(power));
             UnitMod? powerFromIntellect = default;
 

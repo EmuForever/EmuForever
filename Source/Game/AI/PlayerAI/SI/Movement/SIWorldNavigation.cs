@@ -18,7 +18,7 @@ public sealed class SINavFilter : Detour.dtQueryFilter
     public Vector3 Origin{get;private set;}
     const float ThreatCost=150;
     float[] _threatData=[];
-    // The cost itself is applied inside native Detour (DetourNative.cpp, ThreatFilter), with the same
+    // The cost itself is applied by the prebuilt native Detour threat filter, with the same
     // geometry as SITravelThreat.Blocks; per-edge callbacks into managed code would cost more than the search.
     public void Use(ImmutableArray<SITravelThreat> threats,Vector3 origin)
     {

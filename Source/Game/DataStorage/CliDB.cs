@@ -22,6 +22,7 @@ namespace Game.DataStorage
             data.path = $"{db2Path}/{defaultLocale}";
             data.availableLocales = new((int)Locale.Total);
             data.counter = 0;
+            data.PendingLoads = new();
 
             foreach (var dir in Directory.GetDirectories(db2Path))
             {
@@ -33,46 +34,48 @@ namespace Game.DataStorage
             if (!data.availableLocales[(int)defaultLocale])
                 return null;
 
+            // WoW Forever 1.60.1.70532 DB2 catalog (617 tables).
+            // Loads absent from that catalog are commented out; their storage declarations remain available.
             AchievementStorage.ReadDB2(data, "Achievement.db2", HotfixStatements.SEL_ACHIEVEMENT, HotfixStatements.SEL_ACHIEVEMENT_LOCALE);
             AchievementCategoryStorage.ReadDB2(data, "Achievement_Category.db2", HotfixStatements.SEL_ACHIEVEMENT_CATEGORY, HotfixStatements.SEL_ACHIEVEMENT_CATEGORY_LOCALE);
-            AdventureJournalStorage.ReadDB2(data, "AdventureJournal.db2", HotfixStatements.SEL_ADVENTURE_JOURNAL, HotfixStatements.SEL_ADVENTURE_JOURNAL_LOCALE);
-            AdventureMapPOIStorage.ReadDB2(data, "AdventureMapPOI.db2", HotfixStatements.SEL_ADVENTURE_MAP_POI, HotfixStatements.SEL_ADVENTURE_MAP_POI_LOCALE);
+            // AdventureJournalStorage.ReadDB2(data, "AdventureJournal.db2", HotfixStatements.SEL_ADVENTURE_JOURNAL, HotfixStatements.SEL_ADVENTURE_JOURNAL_LOCALE);
+            // AdventureMapPOIStorage.ReadDB2(data, "AdventureMapPOI.db2", HotfixStatements.SEL_ADVENTURE_MAP_POI, HotfixStatements.SEL_ADVENTURE_MAP_POI_LOCALE);
             AnimationDataStorage.ReadDB2(data, "AnimationData.db2", HotfixStatements.SEL_ANIMATION_DATA);
             AnimKitStorage.ReadDB2(data, "AnimKit.db2", HotfixStatements.SEL_ANIM_KIT);
             AreaGroupMemberStorage.ReadDB2(data, "AreaGroupMember.db2", HotfixStatements.SEL_AREA_GROUP_MEMBER);
             AreaTableStorage.ReadDB2(data, "AreaTable.db2", HotfixStatements.SEL_AREA_TABLE, HotfixStatements.SEL_AREA_TABLE_LOCALE);
             AreaTriggerStorage.ReadDB2(data, "AreaTrigger.db2", HotfixStatements.SEL_AREA_TRIGGER);
             ArmorLocationStorage.ReadDB2(data, "ArmorLocation.db2", HotfixStatements.SEL_ARMOR_LOCATION);
-            ArtifactStorage.ReadDB2(data, "Artifact.db2", HotfixStatements.SEL_ARTIFACT, HotfixStatements.SEL_ARTIFACT_LOCALE);
-            ArtifactAppearanceStorage.ReadDB2(data, "ArtifactAppearance.db2", HotfixStatements.SEL_ARTIFACT_APPEARANCE, HotfixStatements.SEL_ARTIFACT_APPEARANCE_LOCALE);
-            ArtifactAppearanceSetStorage.ReadDB2(data, "ArtifactAppearanceSet.db2", HotfixStatements.SEL_ARTIFACT_APPEARANCE_SET, HotfixStatements.SEL_ARTIFACT_APPEARANCE_SET_LOCALE);
-            ArtifactCategoryStorage.ReadDB2(data, "ArtifactCategory.db2", HotfixStatements.SEL_ARTIFACT_CATEGORY);
-            ArtifactPowerStorage.ReadDB2(data, "ArtifactPower.db2", HotfixStatements.SEL_ARTIFACT_POWER);
-            ArtifactPowerLinkStorage.ReadDB2(data, "ArtifactPowerLink.db2", HotfixStatements.SEL_ARTIFACT_POWER_LINK);
-            ArtifactPowerPickerStorage.ReadDB2(data, "ArtifactPowerPicker.db2", HotfixStatements.SEL_ARTIFACT_POWER_PICKER);
-            ArtifactPowerRankStorage.ReadDB2(data, "ArtifactPowerRank.db2", HotfixStatements.SEL_ARTIFACT_POWER_RANK);
-            ArtifactQuestXPStorage.ReadDB2(data, "ArtifactQuestXP.db2", HotfixStatements.SEL_ARTIFACT_QUEST_XP);
-            ArtifactTierStorage.ReadDB2(data, "ArtifactTier.db2", HotfixStatements.SEL_ARTIFACT_TIER);
-            ArtifactUnlockStorage.ReadDB2(data, "ArtifactUnlock.db2", HotfixStatements.SEL_ARTIFACT_UNLOCK);
+            // ArtifactStorage.ReadDB2(data, "Artifact.db2", HotfixStatements.SEL_ARTIFACT, HotfixStatements.SEL_ARTIFACT_LOCALE);
+            // ArtifactAppearanceStorage.ReadDB2(data, "ArtifactAppearance.db2", HotfixStatements.SEL_ARTIFACT_APPEARANCE, HotfixStatements.SEL_ARTIFACT_APPEARANCE_LOCALE);
+            // ArtifactAppearanceSetStorage.ReadDB2(data, "ArtifactAppearanceSet.db2", HotfixStatements.SEL_ARTIFACT_APPEARANCE_SET, HotfixStatements.SEL_ARTIFACT_APPEARANCE_SET_LOCALE);
+            // ArtifactCategoryStorage.ReadDB2(data, "ArtifactCategory.db2", HotfixStatements.SEL_ARTIFACT_CATEGORY);
+            // ArtifactPowerStorage.ReadDB2(data, "ArtifactPower.db2", HotfixStatements.SEL_ARTIFACT_POWER);
+            // ArtifactPowerLinkStorage.ReadDB2(data, "ArtifactPowerLink.db2", HotfixStatements.SEL_ARTIFACT_POWER_LINK);
+            // ArtifactPowerPickerStorage.ReadDB2(data, "ArtifactPowerPicker.db2", HotfixStatements.SEL_ARTIFACT_POWER_PICKER);
+            // ArtifactPowerRankStorage.ReadDB2(data, "ArtifactPowerRank.db2", HotfixStatements.SEL_ARTIFACT_POWER_RANK);
+            // ArtifactQuestXPStorage.ReadDB2(data, "ArtifactQuestXP.db2", HotfixStatements.SEL_ARTIFACT_QUEST_XP);
+            // ArtifactTierStorage.ReadDB2(data, "ArtifactTier.db2", HotfixStatements.SEL_ARTIFACT_TIER);
+            // ArtifactUnlockStorage.ReadDB2(data, "ArtifactUnlock.db2", HotfixStatements.SEL_ARTIFACT_UNLOCK);
             AuctionHouseStorage.ReadDB2(data, "AuctionHouse.db2", HotfixStatements.SEL_AUCTION_HOUSE, HotfixStatements.SEL_AUCTION_HOUSE_LOCALE);
-            AzeriteEmpoweredItemStorage.ReadDB2(data, "AzeriteEmpoweredItem.db2", HotfixStatements.SEL_AZERITE_EMPOWERED_ITEM);
-            AzeriteEssenceStorage.ReadDB2(data, "AzeriteEssence.db2", HotfixStatements.SEL_AZERITE_ESSENCE, HotfixStatements.SEL_AZERITE_ESSENCE_LOCALE);
-            AzeriteEssencePowerStorage.ReadDB2(data, "AzeriteEssencePower.db2", HotfixStatements.SEL_AZERITE_ESSENCE_POWER, HotfixStatements.SEL_AZERITE_ESSENCE_POWER_LOCALE);
-            AzeriteItemStorage.ReadDB2(data, "AzeriteItem.db2", HotfixStatements.SEL_AZERITE_ITEM);
-            AzeriteItemMilestonePowerStorage.ReadDB2(data, "AzeriteItemMilestonePower.db2", HotfixStatements.SEL_AZERITE_ITEM_MILESTONE_POWER);
-            AzeriteKnowledgeMultiplierStorage.ReadDB2(data, "AzeriteKnowledgeMultiplier.db2", HotfixStatements.SEL_AZERITE_KNOWLEDGE_MULTIPLIER);
-            AzeriteLevelInfoStorage.ReadDB2(data, "AzeriteLevelInfo.db2", HotfixStatements.SEL_AZERITE_LEVEL_INFO);
-            AzeritePowerStorage.ReadDB2(data, "AzeritePower.db2", HotfixStatements.SEL_AZERITE_POWER);
-            AzeritePowerSetMemberStorage.ReadDB2(data, "AzeritePowerSetMember.db2", HotfixStatements.SEL_AZERITE_POWER_SET_MEMBER);
-            AzeriteTierUnlockStorage.ReadDB2(data, "AzeriteTierUnlock.db2", HotfixStatements.SEL_AZERITE_TIER_UNLOCK);
-            AzeriteTierUnlockSetStorage.ReadDB2(data, "AzeriteTierUnlockSet.db2", HotfixStatements.SEL_AZERITE_TIER_UNLOCK_SET);
+            // AzeriteEmpoweredItemStorage.ReadDB2(data, "AzeriteEmpoweredItem.db2", HotfixStatements.SEL_AZERITE_EMPOWERED_ITEM);
+            // AzeriteEssenceStorage.ReadDB2(data, "AzeriteEssence.db2", HotfixStatements.SEL_AZERITE_ESSENCE, HotfixStatements.SEL_AZERITE_ESSENCE_LOCALE);
+            // AzeriteEssencePowerStorage.ReadDB2(data, "AzeriteEssencePower.db2", HotfixStatements.SEL_AZERITE_ESSENCE_POWER, HotfixStatements.SEL_AZERITE_ESSENCE_POWER_LOCALE);
+            // AzeriteItemStorage.ReadDB2(data, "AzeriteItem.db2", HotfixStatements.SEL_AZERITE_ITEM);
+            // AzeriteItemMilestonePowerStorage.ReadDB2(data, "AzeriteItemMilestonePower.db2", HotfixStatements.SEL_AZERITE_ITEM_MILESTONE_POWER);
+            // AzeriteKnowledgeMultiplierStorage.ReadDB2(data, "AzeriteKnowledgeMultiplier.db2", HotfixStatements.SEL_AZERITE_KNOWLEDGE_MULTIPLIER);
+            // AzeriteLevelInfoStorage.ReadDB2(data, "AzeriteLevelInfo.db2", HotfixStatements.SEL_AZERITE_LEVEL_INFO);
+            // AzeritePowerStorage.ReadDB2(data, "AzeritePower.db2", HotfixStatements.SEL_AZERITE_POWER);
+            // AzeritePowerSetMemberStorage.ReadDB2(data, "AzeritePowerSetMember.db2", HotfixStatements.SEL_AZERITE_POWER_SET_MEMBER);
+            // AzeriteTierUnlockStorage.ReadDB2(data, "AzeriteTierUnlock.db2", HotfixStatements.SEL_AZERITE_TIER_UNLOCK);
+            // AzeriteTierUnlockSetStorage.ReadDB2(data, "AzeriteTierUnlockSet.db2", HotfixStatements.SEL_AZERITE_TIER_UNLOCK_SET);
             BankBagSlotPricesStorage.ReadDB2(data, "BankBagSlotPrices.db2"); // not in 1.60.1 hotfixes
             BannedAddOnsStorage.ReadDB2(data, "BannedAddons.db2", HotfixStatements.SEL_BANNED_ADDONS);
             BarberShopStyleStorage.ReadDB2(data, "BarberShopStyle.db2", HotfixStatements.SEL_BARBER_SHOP_STYLE, HotfixStatements.SEL_BARBER_SHOP_STYLE_LOCALE);
-            BattlePetBreedQualityStorage.ReadDB2(data, "BattlePetBreedQuality.db2", HotfixStatements.SEL_BATTLE_PET_BREED_QUALITY);
-            BattlePetBreedStateStorage.ReadDB2(data, "BattlePetBreedState.db2", HotfixStatements.SEL_BATTLE_PET_BREED_STATE);
+            // BattlePetBreedQualityStorage.ReadDB2(data, "BattlePetBreedQuality.db2", HotfixStatements.SEL_BATTLE_PET_BREED_QUALITY);
+            // BattlePetBreedStateStorage.ReadDB2(data, "BattlePetBreedState.db2", HotfixStatements.SEL_BATTLE_PET_BREED_STATE);
             BattlePetSpeciesStorage.ReadDB2(data, "BattlePetSpecies.db2", HotfixStatements.SEL_BATTLE_PET_SPECIES, HotfixStatements.SEL_BATTLE_PET_SPECIES_LOCALE);
-            BattlePetSpeciesStateStorage.ReadDB2(data, "BattlePetSpeciesState.db2", HotfixStatements.SEL_BATTLE_PET_SPECIES_STATE);
+            // BattlePetSpeciesStateStorage.ReadDB2(data, "BattlePetSpeciesState.db2", HotfixStatements.SEL_BATTLE_PET_SPECIES_STATE);
             BattlemasterListStorage.ReadDB2(data, "BattlemasterList.db2", HotfixStatements.SEL_BATTLEMASTER_LIST, HotfixStatements.SEL_BATTLEMASTER_LIST_LOCALE);
             BattlemasterListXMapStorage.ReadDB2(data, "BattlemasterListXMap.db2", HotfixStatements.SEL_BATTLEMASTER_LIST_X_MAP);
             BroadcastTextStorage.ReadDB2(data, "BroadcastText.db2", HotfixStatements.SEL_BROADCAST_TEXT, HotfixStatements.SEL_BROADCAST_TEXT_LOCALE);
@@ -83,7 +86,7 @@ namespace Game.DataStorage
             CharacterLoadoutItemStorage.ReadDB2(data, "CharacterLoadoutItem.db2", HotfixStatements.SEL_CHARACTER_LOADOUT_ITEM);
             ChatChannelsStorage.ReadDB2(data, "ChatChannels.db2", HotfixStatements.SEL_CHAT_CHANNELS, HotfixStatements.SEL_CHAT_CHANNELS_LOCALE);
             CharBaseInfoStorage.ReadDB2(data, "CharBaseInfo.db2"); // todo: attach to hotfixes
-            ChrClassUIDisplayStorage.ReadDB2(data, "ChrClassUIDisplay.db2", HotfixStatements.SEL_CHR_CLASS_UI_DISPLAY);
+            // ChrClassUIDisplayStorage.ReadDB2(data, "ChrClassUIDisplay.db2", HotfixStatements.SEL_CHR_CLASS_UI_DISPLAY);
             ChrClassesStorage.ReadDB2(data, "ChrClasses.db2", HotfixStatements.SEL_CHR_CLASSES, HotfixStatements.SEL_CHR_CLASSES_LOCALE);
             ChrClassesXPowerTypesStorage.ReadDB2(data, "ChrClassesXPowerTypes.db2", HotfixStatements.SEL_CHR_CLASSES_X_POWER_TYPES);
             ChrCustomizationChoiceStorage.ReadDB2(data, "ChrCustomizationChoice.db2", HotfixStatements.SEL_CHR_CUSTOMIZATION_CHOICE, HotfixStatements.SEL_CHR_CUSTOMIZATION_CHOICE_LOCALE);
@@ -99,7 +102,7 @@ namespace Game.DataStorage
             CinematicCameraStorage.ReadDB2(data, "CinematicCamera.db2", HotfixStatements.SEL_CINEMATIC_CAMERA);
             CinematicSequencesStorage.ReadDB2(data, "CinematicSequences.db2", HotfixStatements.SEL_CINEMATIC_SEQUENCES);
             ConditionalChrModelStorage.ReadDB2(data, "ConditionalChrModel.db2", HotfixStatements.SEL_CONDITIONAL_CHR_MODEL);
-            ConditionalContentTuningStorage.ReadDB2(data, "ConditionalContentTuning.db2", HotfixStatements.SEL_CONDITIONAL_CONTENT_TUNING);
+            // ConditionalContentTuningStorage.ReadDB2(data, "ConditionalContentTuning.db2", HotfixStatements.SEL_CONDITIONAL_CONTENT_TUNING);
             ContentTuningStorage.ReadDB2(data, "ContentTuning.db2", HotfixStatements.SEL_CONTENT_TUNING);
             ConversationLineStorage.ReadDB2(data, "ConversationLine.db2", HotfixStatements.SEL_CONVERSATION_LINE);
             CreatureDisplayInfoStorage.ReadDB2(data, "CreatureDisplayInfo.db2", HotfixStatements.SEL_CREATURE_DISPLAY_INFO);
@@ -109,7 +112,7 @@ namespace Game.DataStorage
             CreatureTypeStorage.ReadDB2(data, "CreatureType.db2", HotfixStatements.SEL_CREATURE_TYPE, HotfixStatements.SEL_CREATURE_TYPE_LOCALE);
             CriteriaStorage.ReadDB2(data, "Criteria.db2", HotfixStatements.SEL_CRITERIA);
             CriteriaTreeStorage.ReadDB2(data, "CriteriaTree.db2", HotfixStatements.SEL_CRITERIA_TREE, HotfixStatements.SEL_CRITERIA_TREE_LOCALE);
-            CurrencyContainerStorage.ReadDB2(data, "CurrencyContainer.db2", HotfixStatements.SEL_CURRENCY_CONTAINER, HotfixStatements.SEL_CURRENCY_CONTAINER_LOCALE);
+            // CurrencyContainerStorage.ReadDB2(data, "CurrencyContainer.db2", HotfixStatements.SEL_CURRENCY_CONTAINER, HotfixStatements.SEL_CURRENCY_CONTAINER_LOCALE);
             CurrencyTypesStorage.ReadDB2(data, "CurrencyTypes.db2", HotfixStatements.SEL_CURRENCY_TYPES, HotfixStatements.SEL_CURRENCY_TYPES_LOCALE);
             CurveStorage.ReadDB2(data, "Curve.db2", HotfixStatements.SEL_CURVE);
             CurvePointStorage.ReadDB2(data, "CurvePoint.db2", HotfixStatements.SEL_CURVE_POINT);
@@ -125,35 +128,35 @@ namespace Game.DataStorage
             ExpectedStatModStorage.ReadDB2(data, "ExpectedStatMod.db2", HotfixStatements.SEL_EXPECTED_STAT_MOD);
             FactionStorage.ReadDB2(data, "Faction.db2", HotfixStatements.SEL_FACTION, HotfixStatements.SEL_FACTION_LOCALE);
             FactionTemplateStorage.ReadDB2(data, "FactionTemplate.db2", HotfixStatements.SEL_FACTION_TEMPLATE);
-            FriendshipRepReactionStorage.ReadDB2(data, "FriendshipRepReaction.db2", HotfixStatements.SEL_FRIENDSHIP_REP_REACTION, HotfixStatements.SEL_FRIENDSHIP_REP_REACTION_LOCALE);
+            // FriendshipRepReactionStorage.ReadDB2(data, "FriendshipRepReaction.db2", HotfixStatements.SEL_FRIENDSHIP_REP_REACTION, HotfixStatements.SEL_FRIENDSHIP_REP_REACTION_LOCALE);
             FriendshipReputationStorage.ReadDB2(data, "FriendshipReputation.db2", HotfixStatements.SEL_FRIENDSHIP_REPUTATION, HotfixStatements.SEL_FRIENDSHIP_REPUTATION_LOCALE);
             GameObjectArtKitStorage.ReadDB2(data, "GameObjectArtKit.db2", HotfixStatements.SEL_GAMEOBJECT_ART_KIT);
             GameObjectDisplayInfoStorage.ReadDB2(data, "GameObjectDisplayInfo.db2", HotfixStatements.SEL_GAMEOBJECT_DISPLAY_INFO);
             GameObjectsStorage.ReadDB2(data, "GameObjects.db2", HotfixStatements.SEL_GAMEOBJECTS, HotfixStatements.SEL_GAMEOBJECTS_LOCALE);
-            GarrAbilityStorage.ReadDB2(data, "GarrAbility.db2", HotfixStatements.SEL_GARR_ABILITY, HotfixStatements.SEL_GARR_ABILITY_LOCALE);
-            GarrBuildingStorage.ReadDB2(data, "GarrBuilding.db2", HotfixStatements.SEL_GARR_BUILDING, HotfixStatements.SEL_GARR_BUILDING_LOCALE);
-            GarrBuildingPlotInstStorage.ReadDB2(data, "GarrBuildingPlotInst.db2", HotfixStatements.SEL_GARR_BUILDING_PLOT_INST);
-            GarrClassSpecStorage.ReadDB2(data, "GarrClassSpec.db2", HotfixStatements.SEL_GARR_CLASS_SPEC, HotfixStatements.SEL_GARR_CLASS_SPEC_LOCALE);
-            GarrFollowerStorage.ReadDB2(data, "GarrFollower.db2", HotfixStatements.SEL_GARR_FOLLOWER, HotfixStatements.SEL_GARR_FOLLOWER_LOCALE);
-            GarrFollowerXAbilityStorage.ReadDB2(data, "GarrFollowerXAbility.db2", HotfixStatements.SEL_GARR_FOLLOWER_X_ABILITY);
-            GarrMissionStorage.ReadDB2(data, "GarrMission.db2", HotfixStatements.SEL_GARR_MISSION, HotfixStatements.SEL_GARR_MISSION_LOCALE);
-            GarrPlotStorage.ReadDB2(data, "GarrPlot.db2", HotfixStatements.SEL_GARR_PLOT);
-            GarrPlotBuildingStorage.ReadDB2(data, "GarrPlotBuilding.db2", HotfixStatements.SEL_GARR_PLOT_BUILDING);
-            GarrPlotInstanceStorage.ReadDB2(data, "GarrPlotInstance.db2", HotfixStatements.SEL_GARR_PLOT_INSTANCE);
-            GarrSiteLevelStorage.ReadDB2(data, "GarrSiteLevel.db2", HotfixStatements.SEL_GARR_SITE_LEVEL);
-            GarrSiteLevelPlotInstStorage.ReadDB2(data, "GarrSiteLevelPlotInst.db2", HotfixStatements.SEL_GARR_SITE_LEVEL_PLOT_INST);
-            GarrTalentTreeStorage.ReadDB2(data, "GarrTalentTree.db2", HotfixStatements.SEL_GARR_TALENT_TREE, HotfixStatements.SEL_GARR_TALENT_TREE_LOCALE);
-            GemPropertiesStorage.ReadDB2(data, "GemProperties.db2", HotfixStatements.SEL_GEM_PROPERTIES);
-            GlyphBindableSpellStorage.ReadDB2(data, "GlyphBindableSpell.db2", HotfixStatements.SEL_GLYPH_BINDABLE_SPELL);
-            GlyphPropertiesStorage.ReadDB2(data, "GlyphProperties.db2", HotfixStatements.SEL_GLYPH_PROPERTIES);
-            GlyphRequiredSpecStorage.ReadDB2(data, "GlyphRequiredSpec.db2", HotfixStatements.SEL_GLYPH_REQUIRED_SPEC);
-            GlyphSlotStorage.ReadDB2(data, "GlyphSlot.db2"); // not in 1.60.1 hotfixes
+            // GarrAbilityStorage.ReadDB2(data, "GarrAbility.db2", HotfixStatements.SEL_GARR_ABILITY, HotfixStatements.SEL_GARR_ABILITY_LOCALE);
+            // GarrBuildingStorage.ReadDB2(data, "GarrBuilding.db2", HotfixStatements.SEL_GARR_BUILDING, HotfixStatements.SEL_GARR_BUILDING_LOCALE);
+            // GarrBuildingPlotInstStorage.ReadDB2(data, "GarrBuildingPlotInst.db2", HotfixStatements.SEL_GARR_BUILDING_PLOT_INST);
+            // GarrClassSpecStorage.ReadDB2(data, "GarrClassSpec.db2", HotfixStatements.SEL_GARR_CLASS_SPEC, HotfixStatements.SEL_GARR_CLASS_SPEC_LOCALE);
+            // GarrFollowerStorage.ReadDB2(data, "GarrFollower.db2", HotfixStatements.SEL_GARR_FOLLOWER, HotfixStatements.SEL_GARR_FOLLOWER_LOCALE);
+            // GarrFollowerXAbilityStorage.ReadDB2(data, "GarrFollowerXAbility.db2", HotfixStatements.SEL_GARR_FOLLOWER_X_ABILITY);
+            // GarrMissionStorage.ReadDB2(data, "GarrMission.db2", HotfixStatements.SEL_GARR_MISSION, HotfixStatements.SEL_GARR_MISSION_LOCALE);
+            // GarrPlotStorage.ReadDB2(data, "GarrPlot.db2", HotfixStatements.SEL_GARR_PLOT);
+            // GarrPlotBuildingStorage.ReadDB2(data, "GarrPlotBuilding.db2", HotfixStatements.SEL_GARR_PLOT_BUILDING);
+            // GarrPlotInstanceStorage.ReadDB2(data, "GarrPlotInstance.db2", HotfixStatements.SEL_GARR_PLOT_INSTANCE);
+            // GarrSiteLevelStorage.ReadDB2(data, "GarrSiteLevel.db2", HotfixStatements.SEL_GARR_SITE_LEVEL);
+            // GarrSiteLevelPlotInstStorage.ReadDB2(data, "GarrSiteLevelPlotInst.db2", HotfixStatements.SEL_GARR_SITE_LEVEL_PLOT_INST);
+            // GarrTalentTreeStorage.ReadDB2(data, "GarrTalentTree.db2", HotfixStatements.SEL_GARR_TALENT_TREE, HotfixStatements.SEL_GARR_TALENT_TREE_LOCALE);
+            // GemPropertiesStorage.ReadDB2(data, "GemProperties.db2", HotfixStatements.SEL_GEM_PROPERTIES);
+            // GlyphBindableSpellStorage.ReadDB2(data, "GlyphBindableSpell.db2", HotfixStatements.SEL_GLYPH_BINDABLE_SPELL);
+            // GlyphPropertiesStorage.ReadDB2(data, "GlyphProperties.db2", HotfixStatements.SEL_GLYPH_PROPERTIES);
+            // GlyphRequiredSpecStorage.ReadDB2(data, "GlyphRequiredSpec.db2", HotfixStatements.SEL_GLYPH_REQUIRED_SPEC);
+            // GlyphSlotStorage.ReadDB2(data, "GlyphSlot.db2"); // not in 1.60.1 hotfixes
             GossipNPCOptionStorage.ReadDB2(data, "GossipNPCOption.db2", HotfixStatements.SEL_GOSSIP_NPC_OPTION);
             GuildColorBackgroundStorage.ReadDB2(data, "GuildColorBackground.db2", HotfixStatements.SEL_GUILD_COLOR_BACKGROUND);
             GuildColorBorderStorage.ReadDB2(data, "GuildColorBorder.db2", HotfixStatements.SEL_GUILD_COLOR_BORDER);
             GuildColorEmblemStorage.ReadDB2(data, "GuildColorEmblem.db2", HotfixStatements.SEL_GUILD_COLOR_EMBLEM);
-            GuildPerkSpellsStorage.ReadDB2(data, "GuildPerkSpells.db2", HotfixStatements.SEL_GUILD_PERK_SPELLS);
-            HeirloomStorage.ReadDB2(data, "Heirloom.db2", HotfixStatements.SEL_HEIRLOOM, HotfixStatements.SEL_HEIRLOOM_LOCALE);
+            // GuildPerkSpellsStorage.ReadDB2(data, "GuildPerkSpells.db2", HotfixStatements.SEL_GUILD_PERK_SPELLS);
+            // HeirloomStorage.ReadDB2(data, "Heirloom.db2", HotfixStatements.SEL_HEIRLOOM, HotfixStatements.SEL_HEIRLOOM_LOCALE);
             HolidaysStorage.ReadDB2(data, "Holidays.db2", HotfixStatements.SEL_HOLIDAYS);
             ImportPriceArmorStorage.ReadDB2(data, "ImportPriceArmor.db2", HotfixStatements.SEL_IMPORT_PRICE_ARMOR);
             ImportPriceQualityStorage.ReadDB2(data, "ImportPriceQuality.db2", HotfixStatements.SEL_IMPORT_PRICE_QUALITY);
@@ -165,12 +168,12 @@ namespace Game.DataStorage
             ItemArmorTotalStorage.ReadDB2(data, "ItemArmorTotal.db2", HotfixStatements.SEL_ITEM_ARMOR_TOTAL);
             ItemBagFamilyStorage.ReadDB2(data, "ItemBagFamily.db2", HotfixStatements.SEL_ITEM_BAG_FAMILY, HotfixStatements.SEL_ITEM_BAG_FAMILY_LOCALE);
             ItemBonusStorage.ReadDB2(data, "ItemBonus.db2", HotfixStatements.SEL_ITEM_BONUS);
-            ItemBonusListLevelDeltaStorage.ReadDB2(data, "ItemBonusListLevelDelta.db2", HotfixStatements.SEL_ITEM_BONUS_LIST_LEVEL_DELTA);
+            // ItemBonusListLevelDeltaStorage.ReadDB2(data, "ItemBonusListLevelDelta.db2", HotfixStatements.SEL_ITEM_BONUS_LIST_LEVEL_DELTA);
             ItemBonusTreeNodeStorage.ReadDB2(data, "ItemBonusTreeNode.db2", HotfixStatements.SEL_ITEM_BONUS_TREE_NODE);
-            ItemChildEquipmentStorage.ReadDB2(data, "ItemChildEquipment.db2", HotfixStatements.SEL_ITEM_CHILD_EQUIPMENT);
+            // ItemChildEquipmentStorage.ReadDB2(data, "ItemChildEquipment.db2", HotfixStatements.SEL_ITEM_CHILD_EQUIPMENT);
             ItemClassStorage.ReadDB2(data, "ItemClass.db2", HotfixStatements.SEL_ITEM_CLASS, HotfixStatements.SEL_ITEM_CLASS_LOCALE);
-            ItemContextPickerEntryStorage.ReadDB2(data, "ItemContextPickerEntry.db2", HotfixStatements.SEL_ITEM_CONTEXT_PICKER_ENTRY);
-            ItemCurrencyCostStorage.ReadDB2(data, "ItemCurrencyCost.db2", HotfixStatements.SEL_ITEM_CURRENCY_COST);
+            // ItemContextPickerEntryStorage.ReadDB2(data, "ItemContextPickerEntry.db2", HotfixStatements.SEL_ITEM_CONTEXT_PICKER_ENTRY);
+            // ItemCurrencyCostStorage.ReadDB2(data, "ItemCurrencyCost.db2", HotfixStatements.SEL_ITEM_CURRENCY_COST);
             ItemDamageAmmoStorage.ReadDB2(data, "ItemDamageAmmo.db2", HotfixStatements.SEL_ITEM_DAMAGE_AMMO);
             ItemDamageOneHandStorage.ReadDB2(data, "ItemDamageOneHand.db2", HotfixStatements.SEL_ITEM_DAMAGE_ONE_HAND);
             ItemDamageOneHandCasterStorage.ReadDB2(data, "ItemDamageOneHandCaster.db2", HotfixStatements.SEL_ITEM_DAMAGE_ONE_HAND_CASTER);
@@ -180,31 +183,31 @@ namespace Game.DataStorage
             ItemEffectStorage.ReadDB2(data, "ItemEffect.db2", HotfixStatements.SEL_ITEM_EFFECT);
             ItemStorage.ReadDB2(data, "Item.db2", HotfixStatements.SEL_ITEM);
             ItemExtendedCostStorage.ReadDB2(data, "ItemExtendedCost.db2", HotfixStatements.SEL_ITEM_EXTENDED_COST);
-            ItemLevelSelectorStorage.ReadDB2(data, "ItemLevelSelector.db2", HotfixStatements.SEL_ITEM_LEVEL_SELECTOR);
-            ItemLevelSelectorQualityStorage.ReadDB2(data, "ItemLevelSelectorQuality.db2", HotfixStatements.SEL_ITEM_LEVEL_SELECTOR_QUALITY);
-            ItemLevelSelectorQualitySetStorage.ReadDB2(data, "ItemLevelSelectorQualitySet.db2", HotfixStatements.SEL_ITEM_LEVEL_SELECTOR_QUALITY_SET);
+            // ItemLevelSelectorStorage.ReadDB2(data, "ItemLevelSelector.db2", HotfixStatements.SEL_ITEM_LEVEL_SELECTOR);
+            // ItemLevelSelectorQualityStorage.ReadDB2(data, "ItemLevelSelectorQuality.db2", HotfixStatements.SEL_ITEM_LEVEL_SELECTOR_QUALITY);
+            // ItemLevelSelectorQualitySetStorage.ReadDB2(data, "ItemLevelSelectorQualitySet.db2", HotfixStatements.SEL_ITEM_LEVEL_SELECTOR_QUALITY_SET);
             ItemLimitCategoryStorage.ReadDB2(data, "ItemLimitCategory.db2", HotfixStatements.SEL_ITEM_LIMIT_CATEGORY, HotfixStatements.SEL_ITEM_LIMIT_CATEGORY_LOCALE);
             ItemLimitCategoryConditionStorage.ReadDB2(data, "ItemLimitCategoryCondition.db2", HotfixStatements.SEL_ITEM_LIMIT_CATEGORY_CONDITION);
             ItemModifiedAppearanceStorage.ReadDB2(data, "ItemModifiedAppearance.db2", HotfixStatements.SEL_ITEM_MODIFIED_APPEARANCE);
             ItemModifiedAppearanceExtraStorage.ReadDB2(data, "ItemModifiedAppearanceExtra.db2", HotfixStatements.SEL_ITEM_MODIFIED_APPEARANCE_EXTRA);
             ItemNameDescriptionStorage.ReadDB2(data, "ItemNameDescription.db2", HotfixStatements.SEL_ITEM_NAME_DESCRIPTION, HotfixStatements.SEL_ITEM_NAME_DESCRIPTION_LOCALE);
             ItemPriceBaseStorage.ReadDB2(data, "ItemPriceBase.db2", HotfixStatements.SEL_ITEM_PRICE_BASE);
-            ItemRandomPropertiesStorage.ReadDB2(data, "ItemRandomProperties.db2"); // not in 1.60.1 hotfixes
-            ItemRandomSuffixStorage.ReadDB2(data, "ItemRandomSuffix.db2"); // not in 1.60.1 hotfixes
+            // ItemRandomPropertiesStorage.ReadDB2(data, "ItemRandomProperties.db2"); // not in 1.60.1 hotfixes
+            // ItemRandomSuffixStorage.ReadDB2(data, "ItemRandomSuffix.db2"); // not in 1.60.1 hotfixes
             ItemSearchNameStorage.ReadDB2(data, "ItemSearchName.db2", HotfixStatements.SEL_ITEM_SEARCH_NAME, HotfixStatements.SEL_ITEM_SEARCH_NAME_LOCALE);
             ItemSetStorage.ReadDB2(data, "ItemSet.db2", HotfixStatements.SEL_ITEM_SET, HotfixStatements.SEL_ITEM_SET_LOCALE);
             ItemSetSpellStorage.ReadDB2(data, "ItemSetSpell.db2", HotfixStatements.SEL_ITEM_SET_SPELL);
             ItemSparseStorage.ReadDB2(data, "ItemSparse.db2", HotfixStatements.SEL_ITEM_SPARSE, HotfixStatements.SEL_ITEM_SPARSE_LOCALE);
-            ItemSpecStorage.ReadDB2(data, "ItemSpec.db2", HotfixStatements.SEL_ITEM_SPEC);
+            // ItemSpecStorage.ReadDB2(data, "ItemSpec.db2", HotfixStatements.SEL_ITEM_SPEC);
             ItemSpecOverrideStorage.ReadDB2(data, "ItemSpecOverride.db2", HotfixStatements.SEL_ITEM_SPEC_OVERRIDE);
             ItemXBonusTreeStorage.ReadDB2(data, "ItemXBonusTree.db2", HotfixStatements.SEL_ITEM_X_BONUS_TREE);
             ItemXItemEffectStorage.ReadDB2(data, "ItemXItemEffect.db2", HotfixStatements.SEL_ITEM_X_ITEM_EFFECT);
-            JournalEncounterStorage.ReadDB2(data, "JournalEncounter.db2", HotfixStatements.SEL_JOURNAL_ENCOUNTER, HotfixStatements.SEL_JOURNAL_ENCOUNTER_LOCALE);
-            JournalEncounterSectionStorage.ReadDB2(data, "JournalEncounterSection.db2", HotfixStatements.SEL_JOURNAL_ENCOUNTER_SECTION, HotfixStatements.SEL_JOURNAL_ENCOUNTER_SECTION_LOCALE);
-            JournalInstanceStorage.ReadDB2(data, "JournalInstance.db2", HotfixStatements.SEL_JOURNAL_INSTANCE, HotfixStatements.SEL_JOURNAL_INSTANCE_LOCALE);
-            JournalTierStorage.ReadDB2(data, "JournalTier.db2", HotfixStatements.SEL_JOURNAL_TIER, HotfixStatements.SEL_JOURNAL_TIER_LOCALE);
-            KeyChainStorage.ReadDB2(data, "KeyChain.db2", HotfixStatements.SEL_KEYCHAIN);
-            KeystoneAffixStorage.ReadDB2(data, "KeystoneAffix.db2", HotfixStatements.SEL_KEYSTONE_AFFIX, HotfixStatements.SEL_KEYSTONE_AFFIX_LOCALE);
+            // JournalEncounterStorage.ReadDB2(data, "JournalEncounter.db2", HotfixStatements.SEL_JOURNAL_ENCOUNTER, HotfixStatements.SEL_JOURNAL_ENCOUNTER_LOCALE);
+            // JournalEncounterSectionStorage.ReadDB2(data, "JournalEncounterSection.db2", HotfixStatements.SEL_JOURNAL_ENCOUNTER_SECTION, HotfixStatements.SEL_JOURNAL_ENCOUNTER_SECTION_LOCALE);
+            // JournalInstanceStorage.ReadDB2(data, "JournalInstance.db2", HotfixStatements.SEL_JOURNAL_INSTANCE, HotfixStatements.SEL_JOURNAL_INSTANCE_LOCALE);
+            // JournalTierStorage.ReadDB2(data, "JournalTier.db2", HotfixStatements.SEL_JOURNAL_TIER, HotfixStatements.SEL_JOURNAL_TIER_LOCALE);
+            // KeyChainStorage.ReadDB2(data, "KeyChain.db2", HotfixStatements.SEL_KEYCHAIN);
+            // KeystoneAffixStorage.ReadDB2(data, "KeystoneAffix.db2", HotfixStatements.SEL_KEYSTONE_AFFIX, HotfixStatements.SEL_KEYSTONE_AFFIX_LOCALE);
             LanguageWordsStorage.ReadDB2(data, "LanguageWords.db2", HotfixStatements.SEL_LANGUAGE_WORDS);
             LanguagesStorage.ReadDB2(data, "Languages.db2", HotfixStatements.SEL_LANGUAGES, HotfixStatements.SEL_LANGUAGES_LOCALE);
             LFGDungeonsStorage.ReadDB2(data, "LFGDungeons.db2", HotfixStatements.SEL_LFG_DUNGEONS, HotfixStatements.SEL_LFG_DUNGEONS_LOCALE);
@@ -213,7 +216,7 @@ namespace Game.DataStorage
             LockStorage.ReadDB2(data, "Lock.db2", HotfixStatements.SEL_LOCK);
             MailTemplateStorage.ReadDB2(data, "MailTemplate.db2", HotfixStatements.SEL_MAIL_TEMPLATE, HotfixStatements.SEL_MAIL_TEMPLATE_LOCALE);
             MapStorage.ReadDB2(data, "Map.db2", HotfixStatements.SEL_MAP, HotfixStatements.SEL_MAP_LOCALE);
-            MapChallengeModeStorage.ReadDB2(data, "MapChallengeMode.db2", HotfixStatements.SEL_MAP_CHALLENGE_MODE, HotfixStatements.SEL_MAP_CHALLENGE_MODE_LOCALE);
+            // MapChallengeModeStorage.ReadDB2(data, "MapChallengeMode.db2", HotfixStatements.SEL_MAP_CHALLENGE_MODE, HotfixStatements.SEL_MAP_CHALLENGE_MODE_LOCALE);
             MapDifficultyStorage.ReadDB2(data, "MapDifficulty.db2", HotfixStatements.SEL_MAP_DIFFICULTY, HotfixStatements.SEL_MAP_DIFFICULTY_LOCALE);
             MapDifficultyXConditionStorage.ReadDB2(data, "MapDifficultyXCondition.db2", HotfixStatements.SEL_MAP_DIFFICULTY_X_CONDITION, HotfixStatements.SEL_MAP_DIFFICULTY_X_CONDITION_LOCALE);
             ModifierTreeStorage.ReadDB2(data, "ModifierTree.db2", HotfixStatements.SEL_MODIFIER_TREE);
@@ -229,36 +232,36 @@ namespace Game.DataStorage
             NamesReservedLocaleStorage.ReadDB2(data, "NamesReservedLocale.db2", HotfixStatements.SEL_NAMES_RESERVED_LOCALE);
             NumTalentsAtLevelStorage.ReadDB2(data, "NumTalentsAtLevel.db2", HotfixStatements.SEL_NUM_TALENTS_AT_LEVEL);
             OverrideSpellDataStorage.ReadDB2(data, "OverrideSpellData.db2", HotfixStatements.SEL_OVERRIDE_SPELL_DATA);
-            ParagonReputationStorage.ReadDB2(data, "ParagonReputation.db2", HotfixStatements.SEL_PARAGON_REPUTATION);
+            // ParagonReputationStorage.ReadDB2(data, "ParagonReputation.db2", HotfixStatements.SEL_PARAGON_REPUTATION);
             PhaseStorage.ReadDB2(data, "Phase.db2", HotfixStatements.SEL_PHASE);
             PhaseXPhaseGroupStorage.ReadDB2(data, "PhaseXPhaseGroup.db2", HotfixStatements.SEL_PHASE_X_PHASE_GROUP);
             PlayerConditionStorage.ReadDB2(data, "PlayerCondition.db2", HotfixStatements.SEL_PLAYER_CONDITION, HotfixStatements.SEL_PLAYER_CONDITION_LOCALE);
             PowerDisplayStorage.ReadDB2(data, "PowerDisplay.db2", HotfixStatements.SEL_POWER_DISPLAY);
             PowerTypeStorage.ReadDB2(data, "PowerType.db2", HotfixStatements.SEL_POWER_TYPE);
-            PrestigeLevelInfoStorage.ReadDB2(data, "PrestigeLevelInfo.db2", HotfixStatements.SEL_PRESTIGE_LEVEL_INFO, HotfixStatements.SEL_PRESTIGE_LEVEL_INFO_LOCALE);
+            // PrestigeLevelInfoStorage.ReadDB2(data, "PrestigeLevelInfo.db2", HotfixStatements.SEL_PRESTIGE_LEVEL_INFO, HotfixStatements.SEL_PRESTIGE_LEVEL_INFO_LOCALE);
             PvpDifficultyStorage.ReadDB2(data, "PVPDifficulty.db2", HotfixStatements.SEL_PVP_DIFFICULTY);
-            PvpItemStorage.ReadDB2(data, "PVPItem.db2", HotfixStatements.SEL_PVP_ITEM);
+            // PvpItemStorage.ReadDB2(data, "PVPItem.db2", HotfixStatements.SEL_PVP_ITEM);
             PvpSeasonStorage.ReadDB2(data, "PvpSeason.db2", HotfixStatements.SEL_PVP_SEASON);
-            PvpTalentStorage.ReadDB2(data, "PvpTalent.db2", HotfixStatements.SEL_PVP_TALENT, HotfixStatements.SEL_PVP_TALENT_LOCALE);
-            PvpTalentCategoryStorage.ReadDB2(data, "PvpTalentCategory.db2", HotfixStatements.SEL_PVP_TALENT_CATEGORY);
-            PvpTalentSlotUnlockStorage.ReadDB2(data, "PvpTalentSlotUnlock.db2", HotfixStatements.SEL_PVP_TALENT_SLOT_UNLOCK);
-            PvpTierStorage.ReadDB2(data, "PvpTier.db2", HotfixStatements.SEL_PVP_TIER, HotfixStatements.SEL_PVP_TIER_LOCALE);
+            // PvpTalentStorage.ReadDB2(data, "PvpTalent.db2", HotfixStatements.SEL_PVP_TALENT, HotfixStatements.SEL_PVP_TALENT_LOCALE);
+            // PvpTalentCategoryStorage.ReadDB2(data, "PvpTalentCategory.db2", HotfixStatements.SEL_PVP_TALENT_CATEGORY);
+            // PvpTalentSlotUnlockStorage.ReadDB2(data, "PvpTalentSlotUnlock.db2", HotfixStatements.SEL_PVP_TALENT_SLOT_UNLOCK);
+            // PvpTierStorage.ReadDB2(data, "PvpTier.db2", HotfixStatements.SEL_PVP_TIER, HotfixStatements.SEL_PVP_TIER_LOCALE);
             QuestFactionRewardStorage.ReadDB2(data, "QuestFactionReward.db2", HotfixStatements.SEL_QUEST_FACTION_REWARD);
             QuestInfoStorage.ReadDB2(data, "QuestInfo.db2", HotfixStatements.SEL_QUEST_INFO, HotfixStatements.SEL_QUEST_INFO_LOCALE);
             QuestLineXQuestStorage.ReadDB2(data, "QuestLineXQuest.db2", HotfixStatements.SEL_QUEST_LINE_X_QUEST);
             QuestMoneyRewardStorage.ReadDB2(data, "QuestMoneyReward.db2", HotfixStatements.SEL_QUEST_MONEY_REWARD);
-            QuestPackageItemStorage.ReadDB2(data, "QuestPackageItem.db2", HotfixStatements.SEL_QUEST_PACKAGE_ITEM);
+            // QuestPackageItemStorage.ReadDB2(data, "QuestPackageItem.db2", HotfixStatements.SEL_QUEST_PACKAGE_ITEM);
             QuestSortStorage.ReadDB2(data, "QuestSort.db2", HotfixStatements.SEL_QUEST_SORT, HotfixStatements.SEL_QUEST_SORT_LOCALE);
             QuestV2Storage.ReadDB2(data, "QuestV2.db2", HotfixStatements.SEL_QUEST_V2);
             QuestXPStorage.ReadDB2(data, "QuestXP.db2", HotfixStatements.SEL_QUEST_XP);
             RandPropPointsStorage.ReadDB2(data, "RandPropPoints.db2", HotfixStatements.SEL_RAND_PROP_POINTS);
-            RewardPackStorage.ReadDB2(data, "RewardPack.db2", HotfixStatements.SEL_REWARD_PACK);
-            RewardPackXCurrencyTypeStorage.ReadDB2(data, "RewardPackXCurrencyType.db2", HotfixStatements.SEL_REWARD_PACK_X_CURRENCY_TYPE);
-            RewardPackXItemStorage.ReadDB2(data, "RewardPackXItem.db2", HotfixStatements.SEL_REWARD_PACK_X_ITEM);
-            ScalingStatDistributionStorage.ReadDB2(data, "ScalingStatDistribution.db2"); // not in 1.60.1 hotfixes
-            ScalingStatValuesStorage.ReadDB2(data, "ScalingStatValues.db2"); // not in 1.60.1 hotfixes
-            ScenarioStorage.ReadDB2(data, "Scenario.db2", HotfixStatements.SEL_SCENARIO, HotfixStatements.SEL_SCENARIO_LOCALE);
-            ScenarioStepStorage.ReadDB2(data, "ScenarioStep.db2", HotfixStatements.SEL_SCENARIO_STEP, HotfixStatements.SEL_SCENARIO_STEP_LOCALE);
+            // RewardPackStorage.ReadDB2(data, "RewardPack.db2", HotfixStatements.SEL_REWARD_PACK);
+            // RewardPackXCurrencyTypeStorage.ReadDB2(data, "RewardPackXCurrencyType.db2", HotfixStatements.SEL_REWARD_PACK_X_CURRENCY_TYPE);
+            // RewardPackXItemStorage.ReadDB2(data, "RewardPackXItem.db2", HotfixStatements.SEL_REWARD_PACK_X_ITEM);
+            // ScalingStatDistributionStorage.ReadDB2(data, "ScalingStatDistribution.db2"); // not in 1.60.1 hotfixes
+            // ScalingStatValuesStorage.ReadDB2(data, "ScalingStatValues.db2"); // not in 1.60.1 hotfixes
+            // ScenarioStorage.ReadDB2(data, "Scenario.db2", HotfixStatements.SEL_SCENARIO, HotfixStatements.SEL_SCENARIO_LOCALE);
+            // ScenarioStepStorage.ReadDB2(data, "ScenarioStep.db2", HotfixStatements.SEL_SCENARIO_STEP, HotfixStatements.SEL_SCENARIO_STEP_LOCALE);
             SceneScriptStorage.ReadDB2(data, "SceneScript.db2", HotfixStatements.SEL_SCENE_SCRIPT);
             SceneScriptGlobalTextStorage.ReadDB2(data, "SceneScriptGlobalText.db2", HotfixStatements.SEL_SCENE_SCRIPT_GLOBAL_TEXT);
             SceneScriptPackageStorage.ReadDB2(data, "SceneScriptPackage.db2", HotfixStatements.SEL_SCENE_SCRIPT_PACKAGE);
@@ -269,8 +272,8 @@ namespace Game.DataStorage
             SkillLineXTraitTreeStorage.ReadDB2(data, "SkillLineXTraitTree.db2", HotfixStatements.SEL_SKILL_LINE_X_TRAIT_TREE);
             SkillRaceClassInfoStorage.ReadDB2(data, "SkillRaceClassInfo.db2", HotfixStatements.SEL_SKILL_RACE_CLASS_INFO);
             SoundKitStorage.ReadDB2(data, "SoundKit.db2", HotfixStatements.SEL_SOUND_KIT);
-            SpecializationSpellsStorage.ReadDB2(data, "SpecializationSpells.db2", HotfixStatements.SEL_SPECIALIZATION_SPELLS, HotfixStatements.SEL_SPECIALIZATION_SPELLS_LOCALE);
-            SpecSetMemberStorage.ReadDB2(data, "SpecSetMember.db2", HotfixStatements.SEL_SPEC_SET_MEMBER);
+            // SpecializationSpellsStorage.ReadDB2(data, "SpecializationSpells.db2", HotfixStatements.SEL_SPECIALIZATION_SPELLS, HotfixStatements.SEL_SPECIALIZATION_SPELLS_LOCALE);
+            // SpecSetMemberStorage.ReadDB2(data, "SpecSetMember.db2", HotfixStatements.SEL_SPEC_SET_MEMBER);
             SpellAuraOptionsStorage.ReadDB2(data, "SpellAuraOptions.db2", HotfixStatements.SEL_SPELL_AURA_OPTIONS);
             SpellAuraRestrictionsStorage.ReadDB2(data, "SpellAuraRestrictions.db2", HotfixStatements.SEL_SPELL_AURA_RESTRICTIONS);
             SpellCastTimesStorage.ReadDB2(data, "SpellCastTimes.db2", HotfixStatements.SEL_SPELL_CAST_TIMES);
@@ -285,7 +288,7 @@ namespace Game.DataStorage
             SpellFocusObjectStorage.ReadDB2(data, "SpellFocusObject.db2", HotfixStatements.SEL_SPELL_FOCUS_OBJECT, HotfixStatements.SEL_SPELL_FOCUS_OBJECT_LOCALE);
             SpellInterruptsStorage.ReadDB2(data, "SpellInterrupts.db2", HotfixStatements.SEL_SPELL_INTERRUPTS);
             SpellItemEnchantmentStorage.ReadDB2(data, "SpellItemEnchantment.db2", HotfixStatements.SEL_SPELL_ITEM_ENCHANTMENT, HotfixStatements.SEL_SPELL_ITEM_ENCHANTMENT_LOCALE);
-            SpellItemEnchantmentConditionStorage.ReadDB2(data, "SpellItemEnchantmentCondition.db2", HotfixStatements.SEL_SPELL_ITEM_ENCHANTMENT_CONDITION);
+            // SpellItemEnchantmentConditionStorage.ReadDB2(data, "SpellItemEnchantmentCondition.db2", HotfixStatements.SEL_SPELL_ITEM_ENCHANTMENT_CONDITION);
             SpellKeyboundOverrideStorage.ReadDB2(data, "SpellKeyboundOverride.db2", HotfixStatements.SEL_SPELL_KEYBOUND_OVERRIDE);
             SpellLabelStorage.ReadDB2(data, "SpellLabel.db2", HotfixStatements.SEL_SPELL_LABEL);
             SpellLearnSpellStorage.ReadDB2(data, "SpellLearnSpell.db2", HotfixStatements.SEL_SPELL_LEARN_SPELL);
@@ -293,14 +296,14 @@ namespace Game.DataStorage
             SpellMiscStorage.ReadDB2(data, "SpellMisc.db2", HotfixStatements.SEL_SPELL_MISC);
             SpellNameStorage.ReadDB2(data, "SpellName.db2", HotfixStatements.SEL_SPELL_NAME, HotfixStatements.SEL_SPELL_NAME_LOCALE);
             SpellPowerStorage.ReadDB2(data, "SpellPower.db2", HotfixStatements.SEL_SPELL_POWER);
-            SpellPowerDifficultyStorage.ReadDB2(data, "SpellPowerDifficulty.db2", HotfixStatements.SEL_SPELL_POWER_DIFFICULTY);
+            // SpellPowerDifficultyStorage.ReadDB2(data, "SpellPowerDifficulty.db2", HotfixStatements.SEL_SPELL_POWER_DIFFICULTY);
             SpellProcsPerMinuteStorage.ReadDB2(data, "SpellProcsPerMinute.db2", HotfixStatements.SEL_SPELL_PROCS_PER_MINUTE);
-            SpellProcsPerMinuteModStorage.ReadDB2(data, "SpellProcsPerMinuteMod.db2", HotfixStatements.SEL_SPELL_PROCS_PER_MINUTE_MOD);
+            // SpellProcsPerMinuteModStorage.ReadDB2(data, "SpellProcsPerMinuteMod.db2", HotfixStatements.SEL_SPELL_PROCS_PER_MINUTE_MOD);
             SpellRadiusStorage.ReadDB2(data, "SpellRadius.db2", HotfixStatements.SEL_SPELL_RADIUS);
             SpellRangeStorage.ReadDB2(data, "SpellRange.db2", HotfixStatements.SEL_SPELL_RANGE, HotfixStatements.SEL_SPELL_RANGE_LOCALE);
             SpellReagentsStorage.ReadDB2(data, "SpellReagents.db2", HotfixStatements.SEL_SPELL_REAGENTS);
-            SpellReagentsCurrencyStorage.ReadDB2(data, "SpellReagentsCurrency.db2", HotfixStatements.SEL_SPELL_REAGENTS_CURRENCY);
-            SpellScalingStorage.ReadDB2(data, "SpellScaling.db2", HotfixStatements.SEL_SPELL_SCALING);
+            // SpellReagentsCurrencyStorage.ReadDB2(data, "SpellReagentsCurrency.db2", HotfixStatements.SEL_SPELL_REAGENTS_CURRENCY);
+            // SpellScalingStorage.ReadDB2(data, "SpellScaling.db2", HotfixStatements.SEL_SPELL_SCALING);
             SpellShapeshiftStorage.ReadDB2(data, "SpellShapeshift.db2", HotfixStatements.SEL_SPELL_SHAPESHIFT);
             SpellShapeshiftFormStorage.ReadDB2(data, "SpellShapeshiftForm.db2", HotfixStatements.SEL_SPELL_SHAPESHIFT_FORM, HotfixStatements.SEL_SPELL_SHAPESHIFT_FORM_LOCALE);
             SpellTargetRestrictionsStorage.ReadDB2(data, "SpellTargetRestrictions.db2", HotfixStatements.SEL_SPELL_TARGET_RESTRICTIONS);
@@ -329,8 +332,6 @@ namespace Game.DataStorage
                     if (Game.Systems.Legacy.LegacyClientData.RestoreMissingRuleset(original, hotfix))
                         ++restoredLegacyRulesets;
                 });
-            if (restoredLegacyRulesets != 0)
-                Log.outWarn(LogFilter.ServerLoading, $"Legacy: retained {restoredLegacyRulesets} client DB2 ruleset relationships omitted by TraitCurrencySource hotfix rows.");
             RenownRewardsStorage.ReadDB2(data, "RenownRewards.db2", HotfixStatements.None);
             AvailableSuperDistrictStorage.ReadDB2(data, "AvailableSuperDistrict.db2", HotfixStatements.None);
             SuperDistrictSetXAvailableSDStorage.ReadDB2(data, "SuperDistrictSetXAvailableSD.db2", HotfixStatements.None);
@@ -339,18 +340,18 @@ namespace Game.DataStorage
             TraitEdgeStorage.ReadDB2(data, "TraitEdge.db2", HotfixStatements.SEL_TRAIT_EDGE);
             TraitNodeStorage.ReadDB2(data, "TraitNode.db2", HotfixStatements.SEL_TRAIT_NODE);
             TraitNodeEntryStorage.ReadDB2(data, "TraitNodeEntry.db2", HotfixStatements.SEL_TRAIT_NODE_ENTRY);
-            TraitNodeEntryXTraitCondStorage.ReadDB2(data, "TraitNodeEntryXTraitCond.db2", HotfixStatements.SEL_TRAIT_NODE_ENTRY_X_TRAIT_COND);
-            TraitNodeEntryXTraitCostStorage.ReadDB2(data, "TraitNodeEntryXTraitCost.db2", HotfixStatements.SEL_TRAIT_NODE_ENTRY_X_TRAIT_COST);
+            // TraitNodeEntryXTraitCondStorage.ReadDB2(data, "TraitNodeEntryXTraitCond.db2", HotfixStatements.SEL_TRAIT_NODE_ENTRY_X_TRAIT_COND);
+            // TraitNodeEntryXTraitCostStorage.ReadDB2(data, "TraitNodeEntryXTraitCost.db2", HotfixStatements.SEL_TRAIT_NODE_ENTRY_X_TRAIT_COST);
             TraitNodeGroupStorage.ReadDB2(data, "TraitNodeGroup.db2", HotfixStatements.SEL_TRAIT_NODE_GROUP);
             TraitNodeGroupXTraitCondStorage.ReadDB2(data, "TraitNodeGroupXTraitCond.db2", HotfixStatements.SEL_TRAIT_NODE_GROUP_X_TRAIT_COND);
-            TraitNodeGroupXTraitCostStorage.ReadDB2(data, "TraitNodeGroupXTraitCost.db2", HotfixStatements.SEL_TRAIT_NODE_GROUP_X_TRAIT_COST);
+            // TraitNodeGroupXTraitCostStorage.ReadDB2(data, "TraitNodeGroupXTraitCost.db2", HotfixStatements.SEL_TRAIT_NODE_GROUP_X_TRAIT_COST);
             TraitNodeGroupXTraitNodeStorage.ReadDB2(data, "TraitNodeGroupXTraitNode.db2", HotfixStatements.SEL_TRAIT_NODE_GROUP_X_TRAIT_NODE);
             TraitNodeXTraitCondStorage.ReadDB2(data, "TraitNodeXTraitCond.db2", HotfixStatements.SEL_TRAIT_NODE_X_TRAIT_COND);
-            TraitNodeXTraitCostStorage.ReadDB2(data, "TraitNodeXTraitCost.db2", HotfixStatements.SEL_TRAIT_NODE_X_TRAIT_COST);
+            // TraitNodeXTraitCostStorage.ReadDB2(data, "TraitNodeXTraitCost.db2", HotfixStatements.SEL_TRAIT_NODE_X_TRAIT_COST);
             TraitNodeXTraitNodeEntryStorage.ReadDB2(data, "TraitNodeXTraitNodeEntry.db2", HotfixStatements.SEL_TRAIT_NODE_X_TRAIT_NODE_ENTRY);
             TraitTreeStorage.ReadDB2(data, "TraitTree.db2", HotfixStatements.SEL_TRAIT_TREE);
-            TraitTreeLoadoutStorage.ReadDB2(data, "TraitTreeLoadout.db2", HotfixStatements.SEL_TRAIT_TREE_LOADOUT);
-            TraitTreeLoadoutEntryStorage.ReadDB2(data, "TraitTreeLoadoutEntry.db2", HotfixStatements.SEL_TRAIT_TREE_LOADOUT_ENTRY);
+            // TraitTreeLoadoutStorage.ReadDB2(data, "TraitTreeLoadout.db2", HotfixStatements.SEL_TRAIT_TREE_LOADOUT);
+            // TraitTreeLoadoutEntryStorage.ReadDB2(data, "TraitTreeLoadoutEntry.db2", HotfixStatements.SEL_TRAIT_TREE_LOADOUT_ENTRY);
             TraitTreeXTraitCostStorage.ReadDB2(data, "TraitTreeXTraitCost.db2", HotfixStatements.SEL_TRAIT_TREE_X_TRAIT_COST);
             TraitTreeXTraitCurrencyStorage.ReadDB2(data, "TraitTreeXTraitCurrency.db2", HotfixStatements.SEL_TRAIT_TREE_X_TRAIT_CURRENCY);
             TransmogHolidayStorage.ReadDB2(data, "TransmogHoliday.db2", HotfixStatements.SEL_TRANSMOG_HOLIDAY);
@@ -358,19 +359,23 @@ namespace Game.DataStorage
             TransmogSetGroupStorage.ReadDB2(data, "TransmogSetGroup.db2", HotfixStatements.SEL_TRANSMOG_SET_GROUP, HotfixStatements.SEL_TRANSMOG_SET_GROUP_LOCALE);
             TransmogSetItemStorage.ReadDB2(data, "TransmogSetItem.db2", HotfixStatements.SEL_TRANSMOG_SET_ITEM);
             TransportAnimationStorage.ReadDB2(data, "TransportAnimation.db2", HotfixStatements.SEL_TRANSPORT_ANIMATION);
-            TransportRotationStorage.ReadDB2(data, "TransportRotation.db2", HotfixStatements.SEL_TRANSPORT_ROTATION);
+            // TransportRotationStorage.ReadDB2(data, "TransportRotation.db2", HotfixStatements.SEL_TRANSPORT_ROTATION);
             UiMapStorage.ReadDB2(data, "UiMap.db2", HotfixStatements.SEL_UI_MAP, HotfixStatements.SEL_UI_MAP_LOCALE);
             UiMapAssignmentStorage.ReadDB2(data, "UiMapAssignment.db2", HotfixStatements.SEL_UI_MAP_ASSIGNMENT);
-            UiMapLinkStorage.ReadDB2(data, "UiMapLink.db2", HotfixStatements.SEL_UI_MAP_LINK);
+            // UiMapLinkStorage.ReadDB2(data, "UiMapLink.db2", HotfixStatements.SEL_UI_MAP_LINK);
             UiMapXMapArtStorage.ReadDB2(data, "UiMapXMapArt.db2", HotfixStatements.SEL_UI_MAP_X_MAP_ART);
             UnitConditionStorage.ReadDB2(data, "UnitCondition.db2", HotfixStatements.SEL_UNIT_CONDITION);
-            UnitPowerBarStorage.ReadDB2(data, "UnitPowerBar.db2", HotfixStatements.SEL_UNIT_POWER_BAR, HotfixStatements.SEL_UNIT_POWER_BAR_LOCALE);
+            // UnitPowerBarStorage.ReadDB2(data, "UnitPowerBar.db2", HotfixStatements.SEL_UNIT_POWER_BAR, HotfixStatements.SEL_UNIT_POWER_BAR_LOCALE);
             VehicleStorage.ReadDB2(data, "Vehicle.db2", HotfixStatements.SEL_VEHICLE);
             VehicleSeatStorage.ReadDB2(data, "VehicleSeat.db2", HotfixStatements.SEL_VEHICLE_SEAT);
             WMOAreaTableStorage.ReadDB2(data, "WMOAreaTable.db2", HotfixStatements.SEL_WMO_AREA_TABLE, HotfixStatements.SEL_WMO_AREA_TABLE_LOCALE);
             WorldEffectStorage.ReadDB2(data, "WorldEffect.db2", HotfixStatements.SEL_WORLD_EFFECT);
             WorldMapOverlayStorage.ReadDB2(data, "WorldMapOverlay.db2", HotfixStatements.SEL_WORLD_MAP_OVERLAY);
             WorldStateExpressionStorage.ReadDB2(data, "WorldStateExpression.db2", HotfixStatements.SEL_WORLD_STATE_EXPRESSION);
+
+            data.LoadQueuedStores();
+            if (restoredLegacyRulesets != 0)
+                Log.outWarn(LogFilter.ServerLoading, $"Legacy: retained {restoredLegacyRulesets} client DB2 ruleset relationships omitted by TraitCurrencySource hotfix rows.");
 
             Global.DB2Mgr.LoadStores();
 

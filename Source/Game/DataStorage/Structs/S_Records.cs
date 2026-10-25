@@ -273,7 +273,7 @@ namespace Game.DataStorage
         private int[] _raceMask = new int[2];
 
         #region Properties
-        public RaceMask RaceMask => (RaceMask)_raceMask[0];
+        public RaceMask RaceMask => _raceMask.ToRaceMask();
         public SkillType SkillLine => (SkillType)_skillLine;
         public ClassMask ClassMask => (ClassMask)_classMask;
         public AbilityLearnType AcquireMethod => (AbilityLearnType)_acquireMethod;
@@ -321,7 +321,7 @@ namespace Game.DataStorage
 
         #region Properties
         public SkillRaceClassInfoFlags Flags => (SkillRaceClassInfoFlags)_flags;
-        public RaceMask RaceMask => (RaceMask)_raceMask[0];
+        public RaceMask RaceMask => _raceMask.ToRaceMask();
         public ClassMask ClassMask => (ClassMask)_classMask;
         public SkillType SkillID => (SkillType)_skillID;
         #endregion

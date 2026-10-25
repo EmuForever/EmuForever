@@ -32,6 +32,11 @@ namespace Game.Chat.Commands
             return (first, surname);
         }
         static readonly ConcurrentDictionary<string, byte> Creating = new(StringComparer.OrdinalIgnoreCase);
+        static void ReportCreationFailure(CommandHandler handler, string message)
+        {
+            Log.outError(LogFilter.Server, message);
+            handler.SendSysMessage(message);
+        }
         static bool IsOperator(CommandHandler h) => h.GetSession() == null || h.GetSession().GetSecurity() >= AccountTypes.Moderator;
         static bool Enabled(CommandHandler h)
         {
@@ -188,7 +193,7 @@ namespace Game.Chat.Commands
                         try
                         {
                             if (result != ResponseCodes.CharCreateSuccess)
-                                h.SendSysMessage($"SI creation {displayName}: {result}.");
+                                ReportCreationFailure(h, $"SI creation {displayName}: {result} ({(int)result}).");
                             else
                                 h.SendSysMessage($"Created SI player {displayName}: character {guid.GetCounter()}, account {unchecked((uint)account)}. Use .si spawn {name}.");
                         }
@@ -197,7 +202,7 @@ namespace Game.Chat.Commands
                     Global.WorldMgr.AddSession(session);
                     queued = true;
                 }
-                catch (Exception error) { h.SendSysMessage($"SI creation {displayName} failed: {error.Message}"); }
+                catch (Exception error) { ReportCreationFailure(h, $"SI creation {displayName} failed: {error.GetBaseException().Message}"); }
                 finally
                 {
                     if (!queued) { Creating.TryRemove(name, out _); completed?.Invoke(false); }

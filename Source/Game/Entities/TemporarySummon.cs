@@ -665,7 +665,7 @@ namespace Game.Entities
                 SetCreateHealth(pInfo.health);
                 SetCreateMana(pInfo.mana);
 
-                StatMods.SetMult(UnitMods.PowerStart + (int)powerType, 1.0f, UnitModType.BasePermanent);
+                StatMods.SetMult(UnitModManager.GetPowerUnitMod(powerType), 1.0f, UnitModType.BasePermanent);
 
                 if (pInfo.armor > 0)
                     StatMods.SetFlat(UnitMods.Armor, pInfo.armor, UnitModType.BasePermanent);
@@ -1033,7 +1033,7 @@ namespace Game.Entities
             if (GetPowerIndex(power) == (uint)PowerType.Max)
                 return;
 
-            UnitMods unitMod = UnitMods.PowerStart + (int)power;
+            UnitMods unitMod = UnitModManager.GetPowerUnitMod(power);
 
             float intellect = (power == PowerType.Mana) ? GetStat(Stats.Intellect) - GetCreateStat(Stats.Intellect) : 0.0f;
             float multiplicator = 15.0f;

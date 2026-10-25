@@ -35,15 +35,7 @@ namespace Game.Misc
                 }
 
                 if (!_menuItems.Empty())
-                {
-                    foreach (var pair in _menuItems)
-                    {
-                        if (pair.Value.OrderIndex > orderIndex)
-                            break;
-
-                        orderIndex = pair.Value.OrderIndex + 1;
-                    }
-                }
+                    orderIndex = System.Math.Max(orderIndex, _menuItems.Keys.Last() + 1);
             }
 
             if (gossipOptionId == 0)
@@ -67,7 +59,8 @@ namespace Game.Misc
             menuItem.Sender = sender;
             menuItem.Action = action;
 
-            _menuItems.Add(orderIndex, menuItem);
+            // Explicit indexes can replace an option (including conditional DB variants), as in the client menu model.
+            _menuItems[orderIndex] = menuItem;
             return orderIndex;
         }
 

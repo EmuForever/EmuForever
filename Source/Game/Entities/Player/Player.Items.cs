@@ -5935,9 +5935,32 @@ namespace Game.Entities
                 (uint)(enabled ? current | flags : current & ~flags));
         }
 
+        public void SetAccountSecured(bool secured)
+        {
+            if (secured)
+                SetPlayerLocalFlag(PlayerLocalFlags.AccountSecured);
+            else
+                RemovePlayerLocalFlag(PlayerLocalFlags.AccountSecured);
+
+            UpdateInventorySlotCount();
+        }
+
+        public void UpdateInventorySlotCount()
+        {
+            int slots = InventorySlots.DefaultSize;
+            if (HasPlayerLocalFlag(PlayerLocalFlags.AccountSecured))
+                slots += 4;
+
+            AuraEffect alpacaSaddlebags = GetAuraEffect(317795, 0);
+            if (alpacaSaddlebags != null)
+                slots += alpacaSaddlebags.GetAmount();
+
+            SetInventorySlotCount((byte)Math.Clamp(slots, InventorySlots.DefaultSize, InventorySlots.ItemEnd - InventorySlots.ItemStart));
+        }
+
+        // Absolute saved capacity: do not add account/aura bonuses a second time on login.
         public void SetInventorySlotCount(byte slots)
         {
-            //ASSERT(slots <= (INVENTORY_SLOT_ITEM_END - INVENTORY_SLOT_ITEM_START));
 
             if (slots < GetInventorySlotCount())
             {

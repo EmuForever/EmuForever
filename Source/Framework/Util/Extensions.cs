@@ -16,6 +16,12 @@ namespace System
 {
     public static class Extensions
     {
+        public static RaceMask ToRaceMask(this int[] words)
+        {
+            // DB2 stores race masks as unsigned low/high 32-bit words.
+            return (RaceMask)((ulong)(uint)words[0] | ((ulong)(uint)words[1] << 32));
+        }
+
         public static bool HasAnyFlag<T>(this T value, T flag) where T : IBinaryInteger<T>
         {
             return (value & flag) != T.Zero;

@@ -761,8 +761,9 @@ namespace Game
             Log.outInfo(LogFilter.ServerLoading, "Loading Vehicle Accessories...");
             Global.ObjectMgr.LoadVehicleAccessories();                       // must be after LoadCreatureTemplates() and LoadNPCSpellClickSpells()
 
-            Log.outInfo(LogFilter.ServerLoading, "Loading Vehicle Seat Addon Data...");
-            Global.ObjectMgr.LoadVehicleSeatAddon();                         // must be after loading DBC
+            // Forever does not use the optional vehicle_seat_addon table.
+            // Log.outInfo(LogFilter.ServerLoading, "Loading Vehicle Seat Addon Data...");
+            // Global.ObjectMgr.LoadVehicleSeatAddon();
 
             Log.outInfo(LogFilter.ServerLoading, "Loading SpellArea Data...");                // must be after quest load
             Global.SpellMgr.LoadSpellAreas();

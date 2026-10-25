@@ -877,7 +877,7 @@ namespace Framework.Constants
         Rage = 1,
         Focus = 2,
         Energy = 3,
-        Happinnes = 4,
+        ComboPoints = 4,
         Runes = 5,
         RunicPower = 6,
         ///<summary>(unused 3.4.3)</summary> 
@@ -894,7 +894,6 @@ namespace Framework.Constants
         Chi = 12,
         ///<summary>(unused 3.4.3)</summary> 
         Insanity = 13,
-        ComboPoints = 14,
         ///<summary>(unused 3.4.3)</summary> 
         DemonicFury = 15,
         ///<summary>(unused 3.4.3)</summary> 
@@ -911,7 +910,9 @@ namespace Framework.Constants
         AlternateQuest = 23,
         AlternateEncounter = 24,
         AlternateMount = 25,
-        Max = 26,
+        Happiness = 27,
+        Happinnes = Happiness,
+        Max = 28,
 
         All = 127,          // default for class?
         MaxPerClass = 10
@@ -2410,6 +2411,8 @@ namespace Framework.Constants
         WorldBossLevelDiff,
         /// <summary cref="uint">uint</summary>
         XpBoostDaymask,
+        /// <summary cref="bool">bool</summary>
+        ClassicSecuredBagSlotsForAll,
         Max
     }
 

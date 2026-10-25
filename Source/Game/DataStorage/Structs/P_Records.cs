@@ -134,7 +134,7 @@ namespace Game.DataStorage
         public ushort[] TraitNodeEntryMaxRank = new ushort[4];
 
         #region Properties
-        public RaceMask RaceMask => (RaceMask)_raceMask[0];
+        public RaceMask RaceMask => _raceMask.ToRaceMask();
         public ClassMask ClassMask => (ClassMask)_classMask;
         public Gender Gender => (Gender)_gender;
         public Gender NativeGender => (Gender)_nativeGender;

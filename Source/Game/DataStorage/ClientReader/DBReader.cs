@@ -13,7 +13,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace Game.DataStorage
 {
@@ -396,13 +395,13 @@ namespace Game.DataStorage
 
             T obj = new();
 
-            foreach (var f in typeof(T).GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+            foreach (var f in RecordFields<T>.Fields)
             {
                 Type type = f.FieldType;
 
                 int? Id_or_Ref = default;
 
-                if (Regex.IsMatch(f.Name, "^_?id$", RegexOptions.IgnoreCase))
+                if (f.Name.Equals("id", StringComparison.OrdinalIgnoreCase) || f.Name.Equals("_id", StringComparison.OrdinalIgnoreCase))
                 {
                     if (!_dataHasId)
                         Id_or_Ref = Id;
@@ -614,6 +613,11 @@ namespace Game.DataStorage
             }
 
             return obj;
+        }
+
+        static class RecordFields<T>
+        {
+            public static readonly FieldInfo[] Fields = typeof(T).GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         }
 
         public WDC4Row Clone()

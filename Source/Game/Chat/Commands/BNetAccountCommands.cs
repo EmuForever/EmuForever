@@ -19,11 +19,12 @@ namespace Game.Chat.Commands
                 return false;
             }
 
+            bool withGameAccount = createGameAccount.GetValueOrDefault(true);
             string gameAccountName;
-            switch (Global.BNetAccountMgr.CreateBattlenetAccount(accountName, password, createGameAccount.GetValueOrDefault(true), out gameAccountName))
+            switch (Global.BNetAccountMgr.CreateBattlenetAccount(accountName, password, withGameAccount, out gameAccountName))
             {
                 case AccountOpResult.Ok:
-                    if (createGameAccount.HasValue && createGameAccount.Value)
+                    if (withGameAccount)
                         handler.SendSysMessage(CypherStrings.AccountCreatedBnetWithGame, accountName, gameAccountName);
                     else
                         handler.SendSysMessage(CypherStrings.AccountCreated, accountName);
@@ -34,7 +35,7 @@ namespace Game.Chat.Commands
                             $"Account: {handler.GetSession().GetAccountId()} (IP: {handler.GetSession().GetRemoteAddress()}) " +
                             $"Character:[{handler.GetSession().GetPlayer().GetName()}] ({handler.GetSession().GetPlayer().GetGUID()}) " +
                             $"created Battle.net account " +
-                            $"{accountName}{(createGameAccount.Value ? " with game account " : "")}{(createGameAccount.Value ? gameAccountName : "")}");
+                            $"{accountName}{(withGameAccount ? " with game account " : "")}{(withGameAccount ? gameAccountName : "")}");
                     }
                     break;
                 case AccountOpResult.NameTooLong:
@@ -46,8 +47,12 @@ namespace Game.Chat.Commands
                 case AccountOpResult.NameAlreadyExist:
                     handler.SendSysMessage(CypherStrings.AccountAlreadyExist);
                     return false;
+                case AccountOpResult.DBInternalError:
+                    handler.SendSysMessage(CypherStrings.AccountNotCreatedSqlError, accountName);
+                    return false;
                 default:
-                    break;
+                    handler.SendSysMessage(CypherStrings.AccountNotCreated, accountName);
+                    return false;
             }
 
             return true;

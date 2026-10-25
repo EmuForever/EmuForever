@@ -1,4 +1,4 @@
-// Managed front end for native recastnavigation Detour 1.6.0 (Source/Native/DetourNative).
+// Managed front end for the prebuilt x64 DetourNative.dll (recastnavigation Detour 1.6.0).
 //
 // This replaces the old line-by-line C# port of Detour. That port turned every tile into millions of
 // small objects (a class per polygon, link, detail mesh and BV node, each with its own little arrays):

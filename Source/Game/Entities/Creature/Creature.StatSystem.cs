@@ -61,6 +61,8 @@ namespace Game.Entities
 
             switch (powerType)
             {
+                case PowerType.Happiness when this is Pet pet && pet.IsHunterPet():
+                    return 1;
                 case PowerType.ComboPoints:
                     return 2;
                 default:
@@ -75,7 +77,7 @@ namespace Game.Entities
             if (GetPowerIndex(power) == (uint)PowerType.Max)
                 return;
 
-            UnitMods unitMod = UnitMods.PowerStart + (int)power;
+            UnitMods unitMod = UnitModManager.GetPowerUnitMod(power);
             UnitModResult powerValue = new(0);
             UnitMod createPowerValue = new(UnitModType.BasePermanent)
             {
@@ -166,12 +168,13 @@ namespace Game.Entities
             float attackPower = GetTotalAttackPowerValue(attType);
             float attackSpeedMulti = Math.Max(GetAPMultiplier(attType, normalized), 0.25f);
 
-            UnitModResult minDamageModified = new(weaponMinDamage);
-            UnitModResult maxDamageModified = new(weaponMaxDamage);
+            // Keep AP fractional until the final damage roll. FlatModifier stores integers.
+            float attackPowerDamage = attackPower / 14.0f;
+            UnitModResult minDamageModified = new(weaponMinDamage * variance + attackPowerDamage);
+            UnitModResult maxDamageModified = new(weaponMaxDamage * variance + attackPowerDamage);
 
             UnitMod baseMods = new()
             {
-                Flat = new((int)(attackPower / 14.0f * variance)),
                 Mult = new(attackSpeedMulti * GetCreatureTemplateStats().DamageModifier), // = DamageModifier * _GetDamageMod(rank)
             };
 

@@ -38,7 +38,7 @@ namespace Game.DataStorage
         public int[] ReputationRaceMask4 = new int[2];
 
         #region Properties
-        public RaceMask ReputationRaceMask(int index) => (RaceMask)(index switch { 0 => ReputationRaceMask1, 1 => ReputationRaceMask2, 2 => ReputationRaceMask3, _ => ReputationRaceMask4 })[0];
+        public RaceMask ReputationRaceMask(int index) => (index switch { 0 => ReputationRaceMask1, 1 => ReputationRaceMask2, 2 => ReputationRaceMask3, _ => ReputationRaceMask4 }).ToRaceMask();
         public ClassMask ReputationClassMask(int index) => (ClassMask)_reputationClassMask[index];
         #endregion
 

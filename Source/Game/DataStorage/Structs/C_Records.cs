@@ -75,7 +75,7 @@ namespace Game.DataStorage
         private int[] _raceMask = new int[2];
 
         #region Properties
-        public RaceMask RaceMask => (RaceMask)_raceMask[0];
+        public RaceMask RaceMask => _raceMask.ToRaceMask();
         public Class ChrClassID => (Class)_chrClassID;
         public ItemContext ItemContext => (ItemContext)_itemContext;
         #endregion
@@ -300,7 +300,7 @@ namespace Game.DataStorage
         private int[] _raceMask = new int[2];
 
         #region Properties
-        public RaceMask RaceMask => (RaceMask)_raceMask[0];
+        public RaceMask RaceMask => _raceMask.ToRaceMask();
         public ClassMask ClassMask => (ClassMask)_classMask;
         public ChrCustomizationReqFlag Flags => (ChrCustomizationReqFlag)_flags;
         #endregion

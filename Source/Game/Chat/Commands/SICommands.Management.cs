@@ -133,7 +133,7 @@ namespace Game.Chat.Commands
                     }
                     catch { --active; throw; }
                 }
-                catch (Exception error) { ++failed; h.SendSysMessage("SI creation failed: " + error.Message); }
+                catch (Exception error) { ++failed; ReportCreationFailure(h, "SI creation failed: " + error.GetBaseException().Message); }
                 return false;
             });
             h.SendSysMessage($"Queued {total} random {team} SI character(s). Creation is paced; characters remain offline until spawned.");

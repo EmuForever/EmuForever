@@ -7,6 +7,7 @@ namespace Framework.Database
     {
         public override void PreparedStatements()
         {
+            PrepareStatement(LoginStatements.SEL_BNET_ACCOUNT_SECURED, "SELECT EXISTS(SELECT 1 FROM bnot_accounts WHERE id = ? AND authenticator_secret IS NOT NULL AND authenticator_secret <> '')");
             PrepareStatement(LoginStatements.SEL_LEGACY_CHALLENGES, "SELECT challenge_id, completed_at FROM legacy_account_challenge WHERE account_kind = ? AND account_id = ? AND ruleset = ?");
             PrepareStatement(LoginStatements.INS_LEGACY_CHALLENGE, "INSERT IGNORE INTO legacy_account_challenge (account_kind, account_id, ruleset, challenge_id, completed_at, source_guid) VALUES (?, ?, ?, ?, ?, ?)");
             PrepareStatement(LoginStatements.SEL_LEGACY_WOW_ACCOUNTS, "SELECT id FROM account WHERE battlenet_account = ?");
@@ -122,7 +123,7 @@ namespace Framework.Database
             PrepareStatement(LoginStatements.SEL_BNET_LAST_PLAYER_CHARACTERS, "SELECT lpc.accountId, lpc.region, lpc.battlegroup, lpc.realmId, lpc.characterName, lpc.characterGUID, lpc.lastPlayedTime FROM account_last_played_character lpc LEFT JOIN account a ON lpc.accountId = a.id WHERE a.battlenet_account = ?");
             PrepareStatement(LoginStatements.DEL_BNET_LAST_PLAYER_CHARACTERS, "DELETE FROM account_last_played_character WHERE accountId = ? AND region = ? AND battlegroup = ?");
             PrepareStatement(LoginStatements.INS_BNET_LAST_PLAYER_CHARACTERS, "INSERT INTO account_last_played_character (accountId, region, battlegroup, realmId, characterName, characterGUID, lastPlayedTime) VALUES (?,?,?,?,?,?,?)");
-            PrepareStatement(LoginStatements.INS_BNET_ACCOUNT, "INSERT INTO bnot_accounts (`email`,`srp_version`,`salt`,`verifier`) VALUES (?, ?, ?, ?)");
+            PrepareStatement(LoginStatements.INS_BNET_ACCOUNT, "INSERT INTO bnot_accounts (`email`,`srp_version`,`salt`,`verifier`,`id`) VALUES (?, ?, ?, ?, ?)");
             PrepareStatement(LoginStatements.SEL_BNET_ACCOUNT_EMAIL_BY_ID, "SELECT email FROM bnot_accounts WHERE id = ?");
             PrepareStatement(LoginStatements.SEL_BNET_ACCOUNT_ID_BY_EMAIL, "SELECT id FROM bnot_accounts WHERE email = ?");
             PrepareStatement(LoginStatements.UPD_BNET_LOGON, "UPDATE bnot_accounts SET srp_version = ?, salt = ?, verifier = ? WHERE id = ?");
@@ -337,6 +338,7 @@ namespace Framework.Database
         INS_LEGACY_CHALLENGE,
         UPSERT_LEGACY_REWARD,
         SEL_LEGACY_WOW_ACCOUNTS,
+        SEL_BNET_ACCOUNT_SECURED,
         MAX_LOGINDATABASE_STATEMENTS
     }
 }

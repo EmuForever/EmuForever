@@ -5,6 +5,7 @@ using Framework.Database;
 using System;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 
 class ConsoleAppender : Appender
 {
@@ -18,7 +19,7 @@ class ConsoleAppender : Appender
             ConsoleColor.Green,
             ConsoleColor.Yellow,
             ConsoleColor.Red,
-            ConsoleColor.Blue,
+            ConsoleColor.Red,
             ConsoleColor.Magenta
         ];
     }
@@ -27,7 +28,10 @@ class ConsoleAppender : Appender
     // writer outright while its window is paused (for example during a QuickEdit text selection); written
     // synchronously, that froze map threads for seconds at a time. Bursts beyond the queue are dropped and
     // counted rather than stalling the game.
-    static readonly System.Collections.Concurrent.BlockingCollection<(ConsoleColor Color, string Text)> Pending = new(20000);
+    readonly record struct ConsoleEntry(ConsoleColor Color, LogLevel Level, LogFilter Type, string Prefix, string Text,
+        int ThreadId, TaskCompletionSource<bool> Flushed = null);
+
+    static readonly System.Collections.Concurrent.BlockingCollection<ConsoleEntry> Pending = new(20000);
     static long _dropped;
     static readonly System.Threading.Thread Writer = StartWriter();
 
@@ -35,19 +39,24 @@ class ConsoleAppender : Appender
     {
         var thread = new System.Threading.Thread(() =>
         {
-            foreach (var (color, text) in Pending.GetConsumingEnumerable())
+            var formatter = new ServerLoadingConsoleFormatter(WriteConsole);
+            foreach (var entry in Pending.GetConsumingEnumerable())
             {
                 try
                 {
+                    if (entry.Flushed != null)
+                    {
+                        try { formatter.Flush(); }
+                        finally { entry.Flushed.TrySetResult(true); }
+                        continue;
+                    }
+
                     long dropped = System.Threading.Interlocked.Exchange(ref _dropped, 0);
                     if (dropped != 0)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine($" Console output was too busy; skipped {dropped} log lines (log files keep them).");
-                    }
-                    Console.ForegroundColor = color;
-                    Console.WriteLine(text);
-                    Console.ResetColor();
+                        formatter.Write(LogLevel.Warn, LogFilter.Server, string.Empty,
+                            $"Console output was too busy; skipped {dropped} log lines (log files keep them).", 0, ConsoleColor.Yellow);
+
+                    formatter.Write(entry.Level, entry.Type, entry.Prefix, entry.Text, entry.ThreadId, entry.Color);
                 }
                 catch (Exception) { /* A closed console must not stop logging. */ }
             }
@@ -60,14 +69,32 @@ class ConsoleAppender : Appender
 
     public static void Flush()
     {
-        var deadline = DateTime.UtcNow.AddSeconds(2);
-        while (Pending.Count > 0 && DateTime.UtcNow < deadline) System.Threading.Thread.Sleep(10);
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        if (Pending.TryAdd(new ConsoleEntry(default, default, default, null, null, 0, completion), 2000))
+            completion.Task.Wait(TimeSpan.FromMilliseconds(Math.Max(0, 2000 - watch.ElapsedMilliseconds)));
+    }
+
+    static void WriteConsole(ConsoleColor color, string text, bool newLine)
+    {
+        try { Console.ForegroundColor = color; }
+        catch (IOException) { /* Redirected output can still receive the text. */ }
+
+        if (newLine)
+            Console.WriteLine(text);
+        else
+            Console.Write(text);
+
+        try { Console.ResetColor(); }
+        catch (IOException) { }
     }
 
     public override void _write(LogMessage message)
     {
         _ = Writer;
-        if (!Pending.TryAdd((_consoleColor[(int)message.level], $" {message.prefix} {message.text}")))
+        // Snapshot mutable prefixes before another appender applies its own formatting.
+        if (!Pending.TryAdd(new ConsoleEntry(_consoleColor[(int)message.level], message.level, message.type,
+            message.prefix, message.text, message.ThreadId)))
             System.Threading.Interlocked.Increment(ref _dropped);
     }
 
@@ -255,6 +282,7 @@ class LogMessage
         type = _type;
         text = _text;
         mtime = DateTime.Now;
+        ThreadId = Environment.CurrentManagedThreadId;
     }
 
     public LogLevel level;
@@ -263,4 +291,5 @@ class LogMessage
     public string prefix;
     public string dynamicName;
     public DateTime mtime;
+    public int ThreadId { get; }
 }

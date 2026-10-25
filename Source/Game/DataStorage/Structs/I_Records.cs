@@ -387,7 +387,7 @@ namespace Game.DataStorage
         private int[] _raceMask = new int[2];
 
         #region Properties
-        public RaceMask RaceMask => (RaceMask)_raceMask[0];
+        public RaceMask RaceMask => _raceMask.ToRaceMask();
         #endregion
     };
 
@@ -500,7 +500,7 @@ namespace Game.DataStorage
         public byte AmmunitionType;
 
         #region Properties
-        public RaceMask AllowableRace => (RaceMask)_allowableRace[0];
+        public RaceMask AllowableRace => _allowableRace.ToRaceMask();
         public ClassMask AllowableClass => (ClassMask)_allowableClass;
         public SpellSchools DamageType => (SpellSchools)_damageType;
         public ItemModType StatModifierBonusStat(int itemStatSlot) => (ItemModType)_statModifierBonusStat[itemStatSlot];

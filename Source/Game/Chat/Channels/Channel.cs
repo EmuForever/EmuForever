@@ -10,6 +10,7 @@ using Game.Maps;
 using Game.Networking.Packets;
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
 
 namespace Game.Chat
@@ -46,8 +47,7 @@ namespace Game.Chat
             _channelGuid = guid;
             _channelName = name;
 
-            StringArray tokens = new(banList, ' ');
-            foreach (string token in tokens)
+            foreach (string token in (banList ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries))
             {
                 // legacy db content might not have 0x prefix, account for that
                 string bannedGuidStr = token.Contains("0x") ? token.Substring(2) : token;
@@ -226,7 +226,7 @@ namespace Game.Chat
 
             PlayerInfo info = _playersStore.LookupByKey(guid);
             bool changeowner = info.IsOwner();
-            _playersStore.Remove(guid);
+            _playersStore.TryRemove(guid, out _);
 
             if (_announceEnabled && !player.GetSession().HasPermission(RBACPermissions.SilentlyJoinChannel))
             {
@@ -321,7 +321,7 @@ namespace Game.Chat
                 SendToAll(builder);
             }
 
-            _playersStore.Remove(victim);
+            _playersStore.TryRemove(victim, out _);
             badPlayer.LeftChannel(this);
 
             if (changeowner && _ownershipEnabled && !_playersStore.Empty())
@@ -889,7 +889,7 @@ namespace Game.Chat
         ObjectGuid _ownerGuid;
         string _channelName;
         string _channelPassword;
-        Dictionary<ObjectGuid, PlayerInfo> _playersStore = new();
+        ConcurrentDictionary<ObjectGuid, PlayerInfo> _playersStore = new();
         List<ObjectGuid> _bannedStore = new();
 
         AreaTableRecord _zoneEntry;

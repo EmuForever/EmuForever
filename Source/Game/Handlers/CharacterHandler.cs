@@ -911,6 +911,7 @@ namespace Game
             }
 
             pCurrChar.SetVirtualPlayerRealm(Global.WorldMgr.GetVirtualRealmAddress());
+            pCurrChar.SetAccountSecured(HasSecuredBackpack());
 
             SendAccountDataTimes(ObjectGuid.Empty, AccountDataTypeMask.GlobalCacheMask);
             SendTutorialsData();
@@ -970,33 +971,8 @@ namespace Game
             pCurrChar.SendInitialPacketsBeforeAddToMap();
 
             //Show cinematic at the first time that player login
-            if (pCurrChar.GetCinematic() == 0)
-            {
+            if (pCurrChar.GetCinematic() == 0 && pCurrChar.TryPlayIntro())
                 pCurrChar.SetCinematic(1);
-                var playerInfo = Global.ObjectMgr.GetPlayerInfo(pCurrChar.GetRace(), pCurrChar.GetClass());
-                if (playerInfo != null)
-                {
-                    switch (pCurrChar.GetCreateMode())
-                    {
-                        case PlayerCreateMode.Normal:
-                            if (playerInfo.introMovieId.HasValue)
-                                pCurrChar.SendMovieStart(playerInfo.introMovieId.Value);
-                            else if (playerInfo.introSceneId.HasValue)
-                                pCurrChar.GetSceneMgr().PlayScene(playerInfo.introSceneId.Value);
-                            else if (CliDB.ChrClassesStorage.TryGetValue(pCurrChar.GetClass(), out ChrClassesRecord chrClassesRecord) && chrClassesRecord.CinematicSequenceID != 0)
-                                pCurrChar.SendCinematicStart(chrClassesRecord.CinematicSequenceID);
-                            else if (CliDB.ChrRacesStorage.TryGetValue((int)pCurrChar.GetRace(), out ChrRacesRecord chrRacesRecord) && chrRacesRecord.CinematicSequenceID != 0)
-                                pCurrChar.SendCinematicStart(chrRacesRecord.CinematicSequenceID);
-                            break;
-                        case PlayerCreateMode.NPE:
-                            if (playerInfo.introSceneIdNPE.HasValue)
-                                pCurrChar.GetSceneMgr().PlayScene(playerInfo.introSceneIdNPE.Value);
-                            break;
-                        default:
-                            break;
-                    }
-                }
-            }
 
             if (!pCurrChar.GetMap().AddPlayerToMap(pCurrChar))
             {
@@ -2513,15 +2489,7 @@ namespace Game
             if (GetPlayer().m_activePlayerData.XP != 0)
                 return;
 
-            ChrClassesRecord classEntry = CliDB.ChrClassesStorage.LookupByKey(GetPlayer().GetClass());
-            if (classEntry != null)
-            {
-                ChrRacesRecord raceEntry = CliDB.ChrRacesStorage.LookupByKey((int)GetPlayer().GetRace());
-                if (classEntry.CinematicSequenceID != 0)
-                    GetPlayer().SendCinematicStart(classEntry.CinematicSequenceID);
-                else if (raceEntry != null)
-                    GetPlayer().SendCinematicStart(raceEntry.CinematicSequenceID);
-            }
+            GetPlayer().TryPlayIntro();
         }
 
         [WorldPacketHandler(ClientOpcodes.GetUndeleteCharacterCooldownStatus, Status = SessionStatus.Authed)]
@@ -3061,6 +3029,10 @@ namespace Game
             stmt.SetInt64(0, lowGuid);
             SetQuery(PlayerLoginQueryLoad.HomeBind, stmt);
 
+            stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_CHARACTER_ACTIONS);
+            stmt.SetInt64(0, lowGuid);
+            SetQuery(PlayerLoginQueryLoad.Actions, stmt);
+
             stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_CHARACTER_SPELLCOOLDOWNS);
             stmt.SetInt64(0, lowGuid);
             SetQuery(PlayerLoginQueryLoad.SpellCooldowns, stmt);
@@ -3252,6 +3224,7 @@ namespace Game
         PetSlots,
         TraitEntries,
         TraitConfigs,
+        Actions,
         Max
     }
 

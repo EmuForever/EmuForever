@@ -104,6 +104,7 @@ namespace Game
             europaTicketConfig.SuggestionsEnabled = WorldConfig.Values[WorldCfg.SupportSuggestionsEnabled].Bool;
 
             features.EuropaTicketSystemStatus = europaTicketConfig;
+            features.GameRuleValues.AddRange(Global.WorldMgr.GetGameRules());
 
             SendPacket(features);
 
