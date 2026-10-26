@@ -5001,6 +5001,13 @@ namespace Game.Spells
             if (unitTarget == null || !unitTarget.IsTypeId(TypeId.Player))
                 return;
 
+            // Classic 1.60 dual spec (checked in Spell.CheckCast): Activate Secondary Spec (63644) / Activate Primary Spec (63645)
+            if (m_spellInfo.Id == 63644 || m_spellInfo.Id == 63645)
+            {
+                unitTarget.ToPlayer().ActivateClassicSpecGroup(m_spellInfo.Id == 63644);
+                return;
+            }
+
             unitTarget.ToPlayer().ActivateTalentGroup((int)effectInfo.BasePoints);
         }
 

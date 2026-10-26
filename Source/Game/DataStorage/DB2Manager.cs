@@ -191,6 +191,9 @@ namespace Game.DataStorage
                 _chrSpecializationsByIndex[(int)storageIndex][chrSpec.OrderIndex] = chrSpec;
             }
 
+            foreach (PlayerExpectedStatRecord playerExpectedStat in PlayerExpectedStatStorage.Values)
+                _playerExpectedStats[((Class)playerExpectedStat.ClassID, playerExpectedStat.Level)] = playerExpectedStat;
+
             foreach (ConditionalContentTuningRecord conditionalContentTuning in ConditionalContentTuningStorage.Values)
                 _conditionalContentTuning.Add(conditionalContentTuning.ParentContentTuningID, conditionalContentTuning);
 
@@ -1000,6 +1003,15 @@ namespace Game.DataStorage
             return raceEntry.Name[Locale.enUS];
         }
 
+        // 1.60.1: PlayerExpectedStat.db2 row of the class and level; levels above the table use its highest row
+        public PlayerExpectedStatRecord GetPlayerExpectedStat(Class class_, int level)
+        {
+            for (int lvl = Math.Min(level, SharedConst.StrongMaxLevel); lvl > 0; --lvl)
+                if (_playerExpectedStats.TryGetValue((class_, lvl), out PlayerExpectedStatRecord record))
+                    return record;
+            return null;
+        }
+
         public ChrSpecializationRecord GetChrSpecializationByIndex(Class class_, int index)
         {
             var classSet = _chrSpecializationsByIndex.LookupByIndex((int)class_);
@@ -1015,7 +1027,8 @@ namespace Game.DataStorage
 
         public ChrSpecializationRecord GetDefaultChrSpecializationForClass(Class class_)
         {
-            return GetChrSpecializationByIndex(class_, PlayerConst.InitialSpecializationIndex);
+            // Classic 1.60 classes have a single specialization (index 0) holding every talent tree and no retail initial spec
+            return GetChrSpecializationByIndex(class_, PlayerConst.InitialSpecializationIndex) ?? GetChrSpecializationByIndex(class_, 0);
         }
 
         public int GetRedirectedContentTuningId(int contentTuningId, uint redirectFlag)
@@ -2195,6 +2208,7 @@ namespace Game.DataStorage
         MultiMap<(Race, Gender), ChrCustomizationOptionRecord> _chrCustomizationOptionsByRaceAndGender = new();
         Dictionary<int, MultiMap<int, int>> _chrCustomizationRequiredChoices = new();
         ChrSpecializationRecord[][] _chrSpecializationsByIndex = new ChrSpecializationRecord[(int)Class.Max + 1][];
+        Dictionary<(Class, int), PlayerExpectedStatRecord> _playerExpectedStats = new();
         MultiMap<int, ConditionalContentTuningRecord> _conditionalContentTuning = new();
         MultiMap<int, CurrencyContainerRecord> _currencyContainers = new();
         List<(int, int)> _contentTuningLabels = new();

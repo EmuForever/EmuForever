@@ -7479,9 +7479,10 @@ namespace Game
             Log.outInfo(LogFilter.ServerLoading, "Loading Player Create Level Stats Data...");
             {
                 {
-                    //                                         0      1      2     3    4    5     6    7     8        9
-                    // Classic health is class base HP plus the health supplied by stamina.
-                    SQLResult result = DB.World.Query("SELECT r.race, c.class, c.level, CAST(c.str + r.str AS SIGNED), CAST(c.agi + r.agi AS SIGNED), CAST(c.sta + r.sta AS SIGNED), CAST(c.inte + r.inte AS SIGNED), CAST(c.spi + r.spi AS SIGNED), c.basehp, c.basemana " +
+                    //                                         0      1      2     3    4    5     6    7     8
+                    // Classic health is class base HP plus the health supplied by stamina. Base stats and health are server data
+                    // (no client DB2 has them); base mana comes from PlayerExpectedStat.db2.
+                    SQLResult result = DB.World.Query("SELECT r.race, c.class, c.level, CAST(c.str + r.str AS SIGNED), CAST(c.agi + r.agi AS SIGNED), CAST(c.sta + r.sta AS SIGNED), CAST(c.inte + r.inte AS SIGNED), CAST(c.spi + r.spi AS SIGNED), c.basehp " +
                         // Only configured race/class pairs own player level data.
                         // A cartesian product invents invalid combinations and logs
                         // thousands of errors even when both source tables are valid.
@@ -7553,9 +7554,7 @@ namespace Game
                             }
 
                             playerInfo.levelInfo[currentlevel - 1].baseHealth = checked((int)result.Read<uint>(8));
-                            var baseMp = CliDB.BaseMPGameTable.GetRow(currentlevel);
-                            int baseMana = checked((int)result.Read<uint>(9));
-                            playerInfo.levelInfo[currentlevel - 1].baseMana = baseMana != 0 ? baseMana : baseMp != null ? (int)CliDB.GetGameTableColumnForClass(baseMp, currentClass) : 0;
+                            playerInfo.levelInfo[currentlevel - 1].baseMana = Global.DB2Mgr.GetPlayerExpectedStat(currentClass, currentlevel)?.BaseMana ?? 0;
                         }
 
                         ++count;
@@ -7677,68 +7676,6 @@ namespace Game
 
                 Log.outInfo(LogFilter.ServerLoading, $"Loaded {count} xp for level definition(s) from database in {Time.Diff(oldMSTime)} ms.");
             }
-        }
-
-        public float GetOCTRegenHP(Class class_, int level)
-        {
-            if (level < 1 || class_ >= Class.Max)
-                return 0.0f;
-
-            if (level > WorldConfig.Values[WorldCfg.MaxPlayerLevel].Int32)
-                level = WorldConfig.Values[WorldCfg.MaxPlayerLevel].Int32;
-
-            GtOCTRegenHPRecord octRegenHP = CliDB.OCTRegenHPGameTable.GetRow(level);
-            if (octRegenHP is null)
-            {
-                Log.outError(LogFilter.Misc, 
-                    $"Tried to get non-existant Class-Level combination data " +
-                    $"from OCTRegenHP. Class {class_} Level {level}.");
-
-                return 0.0f;
-            }
-
-            return CliDB.GetGameTableColumnForClass(octRegenHP, class_);
-        }
-
-        public float GetRegenHPPerSpt(Class class_, int level)
-        {
-            if (level < 1 || class_ >= Class.Max)
-                return 0.0f;
-
-            if (level > WorldConfig.Values[WorldCfg.MaxPlayerLevel].Int32)
-                level = WorldConfig.Values[WorldCfg.MaxPlayerLevel].Int32;
-
-            GtRegenHPPerSptRecord regenHPPerSpt = CliDB.RegenHPPerSptGameTable.GetRow(level);
-            if (regenHPPerSpt is null)
-            {
-                Log.outError(LogFilter.Misc, 
-                    $"Tried to get non-existant Class-Level combination data " +
-                    $"from RegenHPPerSpt. Class {class_} Level {level}.");
-
-                return 0.0f;
-            }
-            return CliDB.GetGameTableColumnForClass(regenHPPerSpt, class_);
-        }
-
-        public float GetRegenMPPerSpt(Class class_, int level)
-        {
-            if (level < 1 || class_ >= Class.Max)
-                return 0.0f;
-
-            if (level > WorldConfig.Values[WorldCfg.MaxPlayerLevel].Int32)
-                level = WorldConfig.Values[WorldCfg.MaxPlayerLevel].Int32;
-
-            GtRegenMPPerSptRecord regenMPPerSpt = CliDB.RegenMPPerSptGameTable.GetRow(level);
-            if (regenMPPerSpt is null)
-            {
-                Log.outError(LogFilter.Misc, 
-                    $"Tried to get non-existant Class-Level combination data " +
-                    $"from RegenMPPerSpt. Class {class_} Level {level}.");
-
-                return 0.0f;
-            }
-
-            return CliDB.GetGameTableColumnForClass(regenMPPerSpt, class_);
         }
 
         void PlayerCreateInfoAddItemHelper(Race race, Class class_, int itemId, int count)

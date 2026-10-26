@@ -4321,18 +4321,23 @@ namespace Game.Spells
                     if (itemInventoryType == InventoryType.Thrown)
                     {
                         ammoDisplayID = pItem.GetDisplayId(playerCaster);
+                        if (ammoDisplayID.GetValueOrDefault() <= 0 || ammoDisplayID >= 500000)
+                            ammoDisplayID = 23211;
                         ammoInventoryType = itemInventoryType;
                     }
                     else
                     {
-                        int ammoID = playerCaster.m_activePlayerData.AmmoID;
+                        int ammoID = playerCaster.GetUsedAmmoId();
                         if (ammoID > 0)
                         {
                             ItemTemplate pProto = Global.ObjectMgr.GetItemTemplate(ammoID);
                             if (pProto != null)
                             {
-                                ammoDisplayID = pProto.GetDisplayInfoID();
-                                ammoInventoryType = pProto.GetInventoryType();
+                                ammoDisplayID = Player.GetAmmoDisplayId(pProto);
+                                // Classic's generic ammo appearance has no drawable model.
+                                if (!Player.HasDrawableAmmoDisplay(pProto))
+                                    ammoDisplayID = 23211;
+                                ammoInventoryType = InventoryType.Ammo;
                             }
                         }
                         else if (playerCaster.HasAura(46699))      // Requires No Ammo, used by Thori'dal, the Stars' Fury [item:34334]
@@ -5996,6 +6001,10 @@ namespace Game.Spells
                         Player playerCaster = m_caster.ToPlayer();
                         if (playerCaster == null)
                             return SpellCastResult.TargetNotPlayer;
+
+                        // Classic 1.60 dual spec: the target spec group must exist (secondary is bought from a class trainer)
+                        if ((m_spellInfo.Id == 63644 || m_spellInfo.Id == 63645) && playerCaster.GetClassicSpecGroupConfig(m_spellInfo.Id == 63644) == null)
+                            return SpellCastResult.NoSpec;
 
                         // can't change during already started arena/Battleground
                         Battleground bg = player.GetBattleground();

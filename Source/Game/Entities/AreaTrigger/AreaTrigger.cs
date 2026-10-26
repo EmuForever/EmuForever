@@ -734,7 +734,7 @@ namespace Game.Entities
 
         void HandleUnitEnterExit(List<Unit> newTargetList)
         {
-            List<ObjectGuid> exitUnits = _insideUnits;
+            List<ObjectGuid> exitUnits = new(_insideUnits);
             _insideUnits.Clear();
 
             List<Unit> enteringUnits = new();

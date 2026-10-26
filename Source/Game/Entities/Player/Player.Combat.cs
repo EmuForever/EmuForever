@@ -90,61 +90,15 @@ namespace Game.Entities
             return m_activePlayerData.CombatRatings[(int)cr] * GetRatingMultiplier(cr);
         }
 
+        // Classic 1.60 (vanilla, TC): dodge from agility does not diminish. Agility per 1% of dodge equals agility per 1% of crit
+        // (PlayerExpectedStat.db2), except rogues and hunters, who need half of it.
         void GetDodgeFromAgility(ref float diminishing, ref float nondiminishing)
         {
-            // Table for base dodge values
-            float[] dodge_base =
-            {
-                0.036640f, // Warrior
-                0.034943f, // Paladin
-                -0.040873f, // Hunter
-                0.020957f, // Rogue
-                0.034178f, // Priest
-                0.036640f, // DK
-                0.021080f, // Shaman
-                0.036587f, // Mage
-                0.024211f, // Warlock
-                0.0f,      // Monk
-                0.056097f  // Druid
-            };
+            diminishing = 0.0f;
+            float dodgePerCrit = GetClass() is Class.Rogue or Class.Hunter ? 2.0f : 1.0f;
+            nondiminishing = GetMeleeCritFromAgility() * dodgePerCrit;
+        }
 
-            // Crit/agility to dodge/agility coefficient multipliers; 3.2.0 increased required agility by 15%
-            float[] crit_to_dodge =
-            {
-                0.85f/1.15f,    // Warrior
-                1.00f/1.15f,    // Paladin
-                1.11f/1.15f,    // Hunter
-                2.00f/1.15f,    // Rogue
-                1.00f/1.15f,    // Priest
-                0.85f/1.15f,    // DK
-                1.60f/1.15f,    // Shaman
-                1.00f/1.15f,    // Mage
-                0.97f/1.15f,    // Warlock (?)
-                0.0f,           // Monk
-                2.00f/1.15f     // Druid
-            };
-
-            int level = GetLevel();
-            Class pclass = GetClass();
-
-            // Dodge per agility is proportional to crit per agility, which is available from DBC files
-            GtChanceToMeleeCritRecord dodgeRatio = CliDB.ChanceToMeleeCritGameTable.GetRow(level);
-            if (dodgeRatio == null || pclass > Class.Max)
-                return;
-
-            // @todo research if talents/effects that increase total agility by x% should increase non-diminishing part
-            float base_agility = GetCreateStat(Stats.Agility);
-            base_agility *= StatMods.GetOrDefault(UnitMods.StatStart + (int)Stats.Agility, UnitModType.BasePermanent).Mult;
-            base_agility *= StatMods.GetOrDefault(UnitMods.StatStart + (int)Stats.Agility, UnitModType.BaseTemporary).Mult;
-
-            float bonus_agility = GetStat(Stats.Agility) - base_agility;
-
-            // calculate diminishing (green in char screen) and non-diminishing (white) contribution
-            float classRatio = CliDB.GetGameTableColumnForClass(dodgeRatio, pclass);
-            diminishing = 100.0f * bonus_agility * classRatio * crit_to_dodge[(int)pclass - 1];
-            nondiminishing = 100.0f * (dodge_base[(int)pclass - 1] + base_agility * classRatio * crit_to_dodge[(int)pclass - 1]);            
-        }       
-        
         public float GetExpertiseDodgeOrParryReduction(WeaponAttackType attType)
         {
             switch (attType)

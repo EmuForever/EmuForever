@@ -1056,7 +1056,8 @@ namespace Game.Entities
 
         public bool CanResetTalents(Player player)
         {
-            return player.GetLevel() >= 15 && player.GetClass() == GetCreatureTemplate().TrainerClass;
+            return player.GetLevel() >= 10 // Classic 1.60: vanilla talents start at level 10 (TC; retail 15)
+                && player.GetClass() == GetCreatureTemplate().TrainerClass;
         }
 
         public void SetTextRepeatId(byte textGroup, byte id)

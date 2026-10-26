@@ -145,6 +145,23 @@ namespace Game.DataStorage
         #endregion
     }
 
+    // 1.60.1: PlayerExpectedStat.db2, one row per class and level (1-123). Field names from the values:
+    // BaseMana matches BaseMp.txt; CritPerAgility is 1 / (agility per 1% melee crit) / 100 (warrior 60: 0.0005 = 20 agility),
+    // SpellCritPerIntellect likewise for spell crit (mage 60: 0.000168 = 59.5 intellect). Unknown3 is always 0, Unknown5 always 10,
+    // Unknown6 is the same for every class (1 at level 1, 287 at 60).
+    public sealed class PlayerExpectedStatRecord
+    {
+        public int Id;
+        public int Level;
+        public int ClassID;
+        public int Unknown3;
+        public int BaseMana;
+        public int Unknown5;
+        public int Unknown6;
+        public float CritPerAgility;
+        public float SpellCritPerIntellect;
+    }
+
     public sealed class PowerDisplayRecord
     {
         public int Id;

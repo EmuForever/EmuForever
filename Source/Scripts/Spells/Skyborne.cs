@@ -17,24 +17,29 @@ namespace Scripts.Spells.Generic
             return ValidateSpellInfo(EnergizedShort, EnergizedLong);
         }
 
-        void AttuneLeyLine()
+        void AttuneLeyLine(int effIndex)
         {
             var caster = GetCaster().ToPlayer();
             if (caster == null)
                 return;
 
-            // Use the focus and radius configured on the ley-line objects. The
-            // client spell supplies the 15-second fallback when no focus is nearby.
+            // Replace the short buff before EffectTriggerSpell queues its cast.
+            // Removing it in AfterCast is too early to remove that queued aura.
             bool nearby = caster.GetGameObjectListWithEntryInGrid(0, caster.GetVisibilityRange())
                 .Any(go => go.GetGoInfo().GetSpellFocusType() == LeyLineFocus && go.IsSpawned()
                     && go.IsWithinDist(caster, go.GetGoInfo().GetSpellFocusRadius()));
-            if (nearby && caster.CastSpell(caster, EnergizedLong, TriggerCastFlags.FullMask) == SpellCastResult.SpellCastOk)
-                caster.RemoveAurasDueToSpell(EnergizedShort);
+            if (!nearby)
+                return;
+
+            PreventHitDefaultEffect(effIndex);
+            caster.RemoveAurasDueToSpell(EnergizedShort);
+            caster.CastSpell(caster, EnergizedLong,
+                new CastSpellExtraArgs(TriggerCastFlags.FullMask).SetTriggeringSpell(GetSpell()));
         }
 
         public override void Register()
         {
-            AfterCast.Add(new(AttuneLeyLine));
+            OnEffectLaunch.Add(new(AttuneLeyLine, 0, SpellEffectName.TriggerSpell));
         }
     }
 }

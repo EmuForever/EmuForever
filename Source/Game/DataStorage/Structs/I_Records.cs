@@ -188,6 +188,16 @@ namespace Game.DataStorage
         public float[] Quality = new float[7];
     }
 
+    /// <summary>
+    /// 1.60.1: ItemDamageRanged.db2, ItemDamageThrown.db2 and ItemDamageWand.db2 (client meta: int32 ItemLevel, float Quality[7])
+    /// </summary>
+    public sealed class ItemDamageRangedRecord
+    {
+        public int Id;
+        public int ItemLevel;
+        public float[] Quality = new float[7];
+    }
+
     public sealed class ItemDisenchantLootRecord
     {
         public int Id;

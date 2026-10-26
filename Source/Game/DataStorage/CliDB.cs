@@ -179,6 +179,10 @@ namespace Game.DataStorage
             ItemDamageOneHandCasterStorage.ReadDB2(data, "ItemDamageOneHandCaster.db2", HotfixStatements.SEL_ITEM_DAMAGE_ONE_HAND_CASTER);
             ItemDamageTwoHandStorage.ReadDB2(data, "ItemDamageTwoHand.db2", HotfixStatements.SEL_ITEM_DAMAGE_TWO_HAND);
             ItemDamageTwoHandCasterStorage.ReadDB2(data, "ItemDamageTwoHandCaster.db2", HotfixStatements.SEL_ITEM_DAMAGE_TWO_HAND_CASTER);
+            // 1.60.1: ranged weapons have their own damage tables (no hotfix tables for them)
+            ItemDamageRangedStorage.ReadDB2(data, "ItemDamageRanged.db2");
+            ItemDamageThrownStorage.ReadDB2(data, "ItemDamageThrown.db2");
+            ItemDamageWandStorage.ReadDB2(data, "ItemDamageWand.db2");
             ItemDisenchantLootStorage.ReadDB2(data, "ItemDisenchantLoot.db2", HotfixStatements.SEL_ITEM_DISENCHANT_LOOT);
             ItemEffectStorage.ReadDB2(data, "ItemEffect.db2", HotfixStatements.SEL_ITEM_EFFECT);
             ItemStorage.ReadDB2(data, "Item.db2", HotfixStatements.SEL_ITEM);
@@ -236,6 +240,8 @@ namespace Game.DataStorage
             PhaseStorage.ReadDB2(data, "Phase.db2", HotfixStatements.SEL_PHASE);
             PhaseXPhaseGroupStorage.ReadDB2(data, "PhaseXPhaseGroup.db2", HotfixStatements.SEL_PHASE_X_PHASE_GROUP);
             PlayerConditionStorage.ReadDB2(data, "PlayerCondition.db2", HotfixStatements.SEL_PLAYER_CONDITION, HotfixStatements.SEL_PLAYER_CONDITION_LOCALE);
+            // 1.60.1: base mana and crit / dodge per stat for each class and level (replaces BaseMp and the ChanceTo* game tables)
+            PlayerExpectedStatStorage.ReadDB2(data, "PlayerExpectedStat.db2");
             PowerDisplayStorage.ReadDB2(data, "PowerDisplay.db2", HotfixStatements.SEL_POWER_DISPLAY);
             PowerTypeStorage.ReadDB2(data, "PowerType.db2", HotfixStatements.SEL_POWER_TYPE);
             // PrestigeLevelInfoStorage.ReadDB2(data, "PrestigeLevelInfo.db2", HotfixStatements.SEL_PRESTIGE_LEVEL_INFO, HotfixStatements.SEL_PRESTIGE_LEVEL_INFO_LOCALE);
@@ -460,27 +466,15 @@ namespace Game.DataStorage
             ArtifactKnowledgeMultiplierGameTable = ReadGameTable<GtArtifactKnowledgeMultiplierRecord>("ArtifactKnowledgeMultiplier.txt");
             ArtifactLevelXPGameTable = ReadGameTable<GtArtifactLevelXPRecord>("artifactLevelXP.txt");
             BarberShopCostBaseGameTable = ReadGameTable<GtBarberShopCostBaseRecord>("BarberShopCostBase.txt");
-            BaseMPGameTable = ReadGameTable<GtBaseMPRecord>("BaseMp.txt"); // 1.60.1: base mana comes from this table (player_levelstats is gone)
             BattlePetXPGameTable = ReadGameTable<GtBattlePetXPRecord>("BattlePetXP.txt");
             XpGameTable = ReadGameTable<GtXpRecord>("xp.txt");
-            ChallengeModeDamageGameTable = ReadGameTable<GtChallengeModeDamageRecord>("ChallengeModeDamage.txt");
-            ChallengeModeHealthGameTable = ReadGameTable<GtChallengeModeHealthRecord>("ChallengeModeHealth.txt");
-            ChanceToMeleeCritGameTable = ReadGameTable<GtChanceToMeleeCritRecord>("ChanceToMeleeCrit.txt");
-            ChanceToMeleeCritBaseGameTable = ReadGameTable<GtChanceToMeleeCritBaseRecord>("ChanceToMeleeCritBase.txt");
-            ChanceToSpellCritGameTable = ReadGameTable<GtChanceToSpellCritRecord>("ChanceToSpellCrit.txt");
-            ChanceToSpellCritBaseGameTable = ReadGameTable<GtChanceToSpellCritBaseRecord>("ChanceToSpellCritBase.txt");
             CombatRatingsGameTable = ReadGameTable<GtCombatRatingsRecord>("CombatRatings.txt");
             CombatRatingsMultByILvlGameTable = ReadGameTable<GtCombatRatingsMultByILvlRecord>("CombatRatingsMultByILvl.txt");
             ItemSocketCostPerLevelGameTable = ReadGameTable<GtItemSocketCostPerLevelRecord>("ItemSocketCostPerLevel.txt");
             HonorLevelGameTable = ReadGameTable<GtHonorLevelRecord>("HonorLevel.txt");            
             HpPerStaGameTable = ReadGameTable<GtHpPerStaRecord>("HpPerSta.txt");
             NpcManaCostScalerGameTable = ReadGameTable<GtNpcManaCostScalerRecord>("NPCManaCostScaler.txt");
-            OCTRegenHPGameTable = ReadGameTable<GtOCTRegenHPRecord>("OCTRegenHP.txt");
-            OCTRegenMPGameTable = ReadGameTable<GtOCTRegenMPRecord>("OCTRegenMP.txt");
-            RegenHPPerSptGameTable = ReadGameTable<GtRegenHPPerSptRecord>("RegenHPPerSpt.txt");
-            RegenMPPerSptGameTable = ReadGameTable<GtRegenMPPerSptRecord>("RegenMPPerSpt.txt");
             SandboxScalingGameTable = ReadGameTable<GtSandboxScalingRecord>("SandboxScaling.txt");
-            ShieldBlockRegularGameTable = ReadGameTable<GtShieldBlockRegularRecord>("ShieldBlockRegular.txt");
             SpellScalingGameTable = ReadGameTable<GtSpellScalingRecord>("SpellScaling.txt");
 
             Log.outInfo(LogFilter.ServerLoading, $"Initialized {loadedFileCount} DBC GameTables data stores in {Time.Diff(oldMSTime)} ms.");
@@ -662,6 +656,9 @@ namespace Game.DataStorage
         public static DB6Storage<int, ItemDamageRecord> ItemDamageOneHandCasterStorage = new();
         public static DB6Storage<int, ItemDamageRecord> ItemDamageTwoHandStorage = new();
         public static DB6Storage<int, ItemDamageRecord> ItemDamageTwoHandCasterStorage = new();
+        public static DB6Storage<int, ItemDamageRangedRecord> ItemDamageRangedStorage = new();
+        public static DB6Storage<int, ItemDamageRangedRecord> ItemDamageThrownStorage = new();
+        public static DB6Storage<int, ItemDamageRangedRecord> ItemDamageWandStorage = new();
         public static DB6Storage<int, ItemDisenchantLootRecord> ItemDisenchantLootStorage = new();
         public static DB6Storage<int, ItemEffectRecord> ItemEffectStorage = new();
         public static DB6Storage<int, ItemRecord> ItemStorage = new();
@@ -719,6 +716,7 @@ namespace Game.DataStorage
         public static DB6Storage<int, PhaseRecord> PhaseStorage = new();
         public static DB6Storage<int, PhaseXPhaseGroupRecord> PhaseXPhaseGroupStorage = new();
         public static DB6Storage<int, PlayerConditionRecord> PlayerConditionStorage = new();
+        public static DB6Storage<int, PlayerExpectedStatRecord> PlayerExpectedStatStorage = new();
         public static DB6Storage<int, PowerDisplayRecord> PowerDisplayStorage = new();
         public static DB6Storage<int, PowerTypeRecord> PowerTypeStorage = new();
         public static DB6Storage<int, PrestigeLevelInfoRecord> PrestigeLevelInfoStorage = new();
@@ -855,27 +853,15 @@ namespace Game.DataStorage
         public static GameTable<GtArtifactKnowledgeMultiplierRecord> ArtifactKnowledgeMultiplierGameTable;
         public static GameTable<GtArtifactLevelXPRecord> ArtifactLevelXPGameTable;
         public static GameTable<GtBarberShopCostBaseRecord> BarberShopCostBaseGameTable;
-        public static GameTable<GtBaseMPRecord> BaseMPGameTable;
         public static GameTable<GtBattlePetXPRecord> BattlePetXPGameTable;
         public static GameTable<GtXpRecord> XpGameTable;
-        public static GameTable<GtChallengeModeDamageRecord> ChallengeModeDamageGameTable;
-        public static GameTable<GtChallengeModeHealthRecord> ChallengeModeHealthGameTable;
-        public static GameTable<GtChanceToMeleeCritRecord> ChanceToMeleeCritGameTable;
-        public static GameTable<GtChanceToMeleeCritBaseRecord> ChanceToMeleeCritBaseGameTable;
-        public static GameTable<GtChanceToSpellCritRecord> ChanceToSpellCritGameTable;
-        public static GameTable<GtChanceToSpellCritBaseRecord> ChanceToSpellCritBaseGameTable;
         public static GameTable<GtCombatRatingsRecord> CombatRatingsGameTable;
         public static GameTable<GtCombatRatingsMultByILvlRecord> CombatRatingsMultByILvlGameTable;
         public static GameTable<GtHonorLevelRecord> HonorLevelGameTable;
         public static GameTable<GtHpPerStaRecord> HpPerStaGameTable;
         public static GameTable<GtItemSocketCostPerLevelRecord> ItemSocketCostPerLevelGameTable;
         public static GameTable<GtNpcManaCostScalerRecord> NpcManaCostScalerGameTable;
-        public static GameTable<GtOCTRegenHPRecord> OCTRegenHPGameTable;
-        public static GameTable<GtOCTRegenMPRecord> OCTRegenMPGameTable;
-        public static GameTable<GtRegenHPPerSptRecord> RegenHPPerSptGameTable;
-        public static GameTable<GtRegenMPPerSptRecord> RegenMPPerSptGameTable;
         public static GameTable<GtSandboxScalingRecord> SandboxScalingGameTable;
-        public static GameTable<GtShieldBlockRegularRecord> ShieldBlockRegularGameTable;
         public static GameTable<GtSpellScalingRecord> SpellScalingGameTable;
         #endregion
 
@@ -945,17 +931,6 @@ namespace Game.DataStorage
             return row.values[prestigeLevel];
         }
 
-        public static int GetShieldBlockRegularColumnForQuality(GtShieldBlockRegularRecord row, ItemQuality quality)
-        {
-            if (row == null)
-                return 0;
-
-            int qualityIndex = (int)quality;
-            if ((uint)qualityIndex >= (uint)row.values.Length)
-                return 0;
-
-            return (int)row.values[qualityIndex];
-        }
         #endregion
     }
 }

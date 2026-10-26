@@ -1662,11 +1662,13 @@ namespace Game.Entities
 
                 if (procSpellTypeMask == 0)
                 {
+                    // Client data leftovers (e.g. vanilla "on kill" ProcFlags on Mark of the Wild ranks): without a proc aura the
+                    // spell never procs, and a spell_proc row would add a proc it does not have. Not a database error.
                     foreach (var spellEffectInfo in spellInfo.GetEffects())
                     {
                         if (spellEffectInfo.IsAura())
                         {
-                            Log.outError(LogFilter.Sql, 
+                            Log.outDebug(LogFilter.Sql,
                                 $"Spell Id {spellInfo.Id} has DBC ProcFlags " +
                                 $"0x{spellInfo.ProcFlags.ProcFlags:X} " +
                                 $"0x{spellInfo.ProcFlags.ProcFlags2:X}, " +
@@ -2425,6 +2427,17 @@ namespace Game.Entities
             foreach (var effect in CliDB.SpellEffectStorage.Values)
             {
                 Cypher.Assert(effect.EffectIndex < SpellConst.MaxEffects, $"MAX_SPELL_EFFECTS must be at least {effect.EffectIndex}");
+
+                // Classic 1.60 client data (TC GetClassicAuraType) uses aura types beyond retail's range for effects that used a retail
+                // aura before. 674: armor buffs and debuffs (Mark of the Wild, Devotion Aura, Sunder Armor, Faerie Fire, Expose Armor,
+                // Curse of Recklessness: physical school mask, flat value), all SPELL_AURA_MOD_RESISTANCE. 673: Thick Hide (armor from
+                // items in %).
+                switch ((int)effect.EffectAura)
+                {
+                    case 673: effect.EffectAura = AuraType.ModBaseResistancePct; break;
+                    case 674: effect.EffectAura = AuraType.ModResistance; break;
+                }
+
                 if (effect.Effect >= SpellEffectName.TotalSpellEffects || effect.EffectAura < 0 || effect.EffectAura >= AuraType.Total
                     || effect.ImplicitTarget[0] >= (int)Targets.TotalSpellTargets || effect.ImplicitTarget[1] >= (int)Targets.TotalSpellTargets)
                 {
@@ -3364,6 +3377,12 @@ namespace Game.Entities
         public void LoadSpellInfoCorrections()
         {
             RelativeTime oldMSTime = Time.NowRelative;
+
+            // Blessing of Zephras is an out-of-combat travel buff.
+            ApplySpellFix([1258510], spellInfo =>
+            {
+                spellInfo.AuraInterruptFlags |= SpellAuraInterruptFlags.Attacking | SpellAuraInterruptFlags.EnteringCombat;
+            });
 
             // Some spells have no amplitude set
             {

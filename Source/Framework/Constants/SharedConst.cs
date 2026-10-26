@@ -1053,7 +1053,7 @@ namespace Framework.Constants
         Constant = 6,
     }
 
-    public enum Difficulty : byte
+    public enum Difficulty : ushort // 1.60.1 Difficulty.db2 has IDs above 255 (256)
     {
         None = 0,
         Normal = 1,

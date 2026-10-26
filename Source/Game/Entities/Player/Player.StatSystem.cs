@@ -423,26 +423,36 @@ namespace Game.Entities
             SetModDamageDonePercent(SpellSchools.Normal, cache.TotalTemporary.HasValue ? cache.TotalTemporary.Value.Mult : 1.0f);
         }
 
+        // 1.60.1: crit per point of agility of the class and level comes from PlayerExpectedStat.db2 (the ChanceToMeleeCrit game
+        // tables are gone)
         public float GetMeleeCritFromAgility()
         {
-            int level = GetLevel();
-            Class pclass = GetClass();
-
-            if (level > SharedConst.GTMaxLevel)
-                level = SharedConst.GTMaxLevel;
-
-            GtChanceToMeleeCritBaseRecord critBase = CliDB.ChanceToMeleeCritBaseGameTable.GetRow(1);
-            GtChanceToMeleeCritRecord critRatio = CliDB.ChanceToMeleeCritGameTable.GetRow(level);
-            if (critBase == null || critRatio == null)
+            PlayerExpectedStatRecord expected = Global.DB2Mgr.GetPlayerExpectedStat(GetClass(), GetLevel());
+            if (expected == null)
                 return 0.0f;
 
-            float crit = CliDB.GetGameTableColumnForClass(critBase, pclass) + GetStat(Stats.Agility) * CliDB.GetGameTableColumnForClass(critRatio, pclass);
-            return crit * 100.0f;
+            return Math.Max(0.0f, GetStat(Stats.Agility)) * expected.CritPerAgility * 100.0f;
+        }
+
+        // Classic 1.60 (vanilla, VMaNGOS "Nostalrius: base dodge per class", TC): base melee crit and dodge of the class
+        float GetClassicBaseCritAndDodge()
+        {
+            return GetClass() switch
+            {
+                Class.Druid => 0.9f,
+                Class.Mage => 3.2f,
+                Class.Paladin => 0.7f,
+                Class.Priest => 3.0f,
+                Class.Shaman => 1.7f,
+                Class.Warlock => 2.0f,
+                _ => 0.0f    // warrior, rogue, hunter
+            };
         }
 
         public void UpdateAllCritPercentages()
         {
-            float value = GetMeleeCritFromAgility();
+            // Classic 1.60 (vanilla): base melee crit of the class + crit from agility
+            float value = GetClassicBaseCritAndDodge() + GetMeleeCritFromAgility();
 
             SetBaseModPctValue(BaseModGroup.CritPercentage, value);
             SetBaseModPctValue(BaseModGroup.OffhandCritPercentage, value);
@@ -1114,6 +1124,8 @@ namespace Game.Entities
         {
             float diminishing = 0.0f, nondiminishing = 0.0f;
             GetDodgeFromAgility(ref diminishing, ref nondiminishing);
+            // Classic 1.60 (vanilla, VMaNGOS): base dodge of the class
+            nondiminishing += GetClassicBaseCritAndDodge();
             // Modify value from defense skill (only bonus from defense rating diminishes)
             nondiminishing += (GetSkillValue(SkillType.Defense) - GetMaxSkillValueForLevel()) * 0.04f;
             diminishing += GetRatingBonusValue(CombatRating.DefenseSkill) * 0.04f;
@@ -1271,23 +1283,26 @@ namespace Game.Entities
             return 1.0f;
         }
 
+        // 1.60.1: spell crit per point of intellect from PlayerExpectedStat.db2 (0 for warriors and rogues); the base spell crit of
+        // the class is vanilla's (TC), the client data has none
         public float GetSpellCritFromIntellect()
         {
-            int level = GetLevel();
-            Class pclass = GetClass();
+            PlayerExpectedStatRecord expected = Global.DB2Mgr.GetPlayerExpectedStat(GetClass(), GetLevel());
+            if (expected == null || expected.SpellCritPerIntellect == 0.0f)
+                return 0.0f;
 
-            if (level > SharedConst.GTMaxLevel)
-                level = SharedConst.GTMaxLevel;
-
-            GtChanceToSpellCritBaseRecord critBase = CliDB.ChanceToSpellCritBaseGameTable.GetRow(1);
-            GtChanceToSpellCritRecord critRatio = CliDB.ChanceToSpellCritGameTable.GetRow(level);
-
-            if (critBase == null || critRatio == null)
-                return 0;
-
-            float crit = CliDB.GetGameTableColumnForClass(critBase, pclass) + GetStat(Stats.Intellect) * CliDB.GetGameTableColumnForClass(critRatio, pclass);
-
-            return crit * 100.0f;
+            float baseCrit = GetClass() switch
+            {
+                Class.Mage => 0.2f,
+                Class.Priest => 0.8f,
+                Class.Warlock => 1.7f,
+                Class.Druid => 1.8f,
+                Class.Shaman => 2.3f,
+                Class.Paladin => 3.5f,
+                Class.Hunter => 3.6f,
+                _ => 0.0f
+            };
+            return baseCrit + Math.Max(0.0f, GetStat(Stats.Intellect)) * expected.SpellCritPerIntellect * 100.0f;
         }
 
         public void UpdateSpellCritChance(SpellSchools school)

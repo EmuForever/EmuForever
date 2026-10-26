@@ -782,6 +782,11 @@ namespace Game.Entities
         //Network
         public void SendPacket(ServerPacket data)
         {
+            // Creation uses a temporary Player on the character-select session.
+            // Its skills, talents and auras are saved and sent on the actual login.
+            if (_session.GetPlayer() != this)
+                return;
+
             _session.SendPacket(data);
         }
 
@@ -2735,6 +2740,11 @@ namespace Game.Entities
                     }
                 }
 
+                // Classic 1.60 dual spec purchase: class trainers of the player's class, from level 10, until bought
+                if (IsClassicDualSpecGossipOption(gossipMenuItem.GossipOptionID)
+                    && (creature == null || !creature.CanResetTalents(this) || GetClassicSpecGroupConfig(true) != null))
+                    canTalk = false;
+
                 if (canTalk)
                     menu.GetGossipMenu().AddMenuItem(gossipMenuItem, gossipMenuItem.MenuID, gossipMenuItem.OrderIndex);
             }
@@ -2831,6 +2841,13 @@ namespace Game.Entities
             switch (gossipOptionNpc)
             {
                 case GossipOptionNpc.None:
+                    if (IsClassicDualSpecGossipOption(item.GossipOptionID))
+                    {
+                        PlayerTalkClass.SendCloseGossip();
+                        Creature trainer = source.ToCreature();
+                        if (trainer == null || !trainer.CanResetTalents(this) || !PurchaseClassicDualSpec())
+                            return;                                 // not charged
+                    }
                     break;
                 case GossipOptionNpc.Vendor:
                     GetSession().SendListInventory(guid);

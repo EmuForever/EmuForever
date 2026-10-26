@@ -174,53 +174,40 @@ namespace Game.Entities
             if (GetClass() != ItemClass.Weapon || quality > ItemQuality.Artifact)
                 return 0.0f;
 
-            float dps = 0.0f;
             var itemLevel = GetItemLevel();
+            float Dps(DB6Storage<int, ItemDamageRecord> table) => table.LookupByKey(itemLevel)?.Quality[(int)quality] ?? 0.0f;
+            float RangedDps(DB6Storage<int, ItemDamageRangedRecord> table) => table.LookupByKey(itemLevel)?.Quality[(int)quality] ?? 0.0f;
 
             switch (GetInventoryType())
             {
                 case InventoryType.Ammo:
-                    dps = CliDB.ItemDamageAmmoStorage.LookupByKey(itemLevel).Quality[(int)quality];
-                    break;
+                    return Dps(CliDB.ItemDamageAmmoStorage);
                 case InventoryType.Weapon2Hand:
-                    if (HasFlag(ItemFlags2.CasterWeapon))
-                        dps = CliDB.ItemDamageTwoHandCasterStorage.LookupByKey(itemLevel).Quality[(int)quality];
-                    else
-                        dps = CliDB.ItemDamageTwoHandStorage.LookupByKey(itemLevel).Quality[(int)quality];
-                    break;
+                    return Dps(HasFlag(ItemFlags2.CasterWeapon) ? CliDB.ItemDamageTwoHandCasterStorage : CliDB.ItemDamageTwoHandStorage);
                 case InventoryType.Ranged:
                 case InventoryType.Thrown:
                 case InventoryType.RangedRight:
+                    // 1.60.1: ranged weapons have their own tables (ItemDamageRanged / Thrown / Wand.db2), lower than the two-hand ones
                     switch (GetSubClass().Weapon)
                     {
                         case ItemSubClassWeapon.Wand:
-                            dps = CliDB.ItemDamageOneHandCasterStorage.LookupByKey(itemLevel).Quality[(int)quality];
-                            break;
+                            return RangedDps(CliDB.ItemDamageWandStorage);
+                        case ItemSubClassWeapon.Thrown:
+                            return RangedDps(CliDB.ItemDamageThrownStorage);
                         case ItemSubClassWeapon.Bow:
                         case ItemSubClassWeapon.Gun:
                         case ItemSubClassWeapon.Crossbow:
-                            if (HasFlag(ItemFlags2.CasterWeapon))
-                                dps = CliDB.ItemDamageTwoHandCasterStorage.LookupByKey(itemLevel).Quality[(int)quality];
-                            else
-                                dps = CliDB.ItemDamageTwoHandStorage.LookupByKey(itemLevel).Quality[(int)quality];
-                            break;
+                            return RangedDps(CliDB.ItemDamageRangedStorage);
                         default:
-                            break;
+                            return 0.0f;
                     }
-                    break;
                 case InventoryType.Weapon:
                 case InventoryType.WeaponMainhand:
                 case InventoryType.WeaponOffhand:
-                    if (HasFlag(ItemFlags2.CasterWeapon))
-                        dps = CliDB.ItemDamageOneHandCasterStorage.LookupByKey(itemLevel).Quality[(int)quality];
-                    else
-                        dps = CliDB.ItemDamageOneHandStorage.LookupByKey(itemLevel).Quality[(int)quality];
-                    break;
+                    return Dps(HasFlag(ItemFlags2.CasterWeapon) ? CliDB.ItemDamageOneHandCasterStorage : CliDB.ItemDamageOneHandStorage);
                 default:
-                    break;
+                    return 0.0f;
             }
-
-            return dps;
         }
 
         public void GetDamage(out float minDamage, out float maxDamage)
@@ -358,12 +345,6 @@ namespace Game.Entities
         {
             Cypher.Assert(index < ItemConst.MaxGemSockets);
             return (SocketType)ExtendedData.SocketType[index];
-        }
-
-        public int GetShieldBlockValue(int itemLevel)
-        {
-            var blockEntry = CliDB.ShieldBlockRegularGameTable.GetRow(itemLevel);
-            return CliDB.GetShieldBlockRegularColumnForQuality(blockEntry, GetQuality());
         }
 
         public int GetSocketBonus() { return ExtendedData.SocketMatchEnchantmentId; }

@@ -358,7 +358,7 @@ namespace Game.Entities
             }
 
             SetActiveTalentGroup(talentGroup);
-            SetPrimarySpecialization(ChrSpecialization.None);
+            SetPrimarySpecialization(GetDefaultSpecId()); // Classic 1.60: one specialization for both groups
 
             // if the talent can be found in the newly activated PlayerTalentMap
             foreach (var talent in GetPlayerTalents(GetActiveTalentGroup()))
@@ -546,6 +546,18 @@ namespace Game.Entities
                 RemoveTalent(talentEntry);
             }
 
+            // Classic 1.60: talents are a trait config (C_ClassTalents); drop every purchased rank of the active combat config
+            // and keep only ranks the tree grants for free
+            TraitConfig activeConfig = GetTraitConfig(m_activePlayerData.ActiveCombatTraitConfigID);
+            if (activeConfig != null && activeConfig.Type == (int)TraitConfigType.Combat)
+            {
+                TraitConfigPacket resetConfig = new(activeConfig);
+                resetConfig.Entries.RemoveAll(entry => entry.GrantedRanks == 0);
+                foreach (TraitEntryPacket entry in resetConfig.Entries)
+                    entry.Rank = 0;
+                UpdateTraitConfig(resetConfig, 0, false);
+            }
+
             SQLTransaction trans = new();
             _SaveTalents(trans);
             _SaveSpells(trans);
@@ -575,50 +587,97 @@ namespace Game.Entities
 
         public void SendTalentsInfoData()
         {
+            // Classic 1.60 (TC Player::SendTalentsInfoData): talents live in the combat trait configs. The client's spec group
+            // count (GetNumSpecGroups) is the number of talent groups sent here: one for the class's single specialization, and a
+            // second once the character owns a combat config flagged SecondarySpec (dual spec bought from a class trainer).
             UpdateTalentData packet = new();
-            var ActiveGroup = GetActiveTalentGroup();
-            packet.ActiveGroup = ActiveGroup;
-            packet.UnspentTalentPoints = GetFreeTalentPoints();
-
-            for (byte specIdx = 0; specIdx < (1 + GetBonusTalentGroupCount()); ++specIdx)
+            ChrSpecializationRecord spec = GetPrimarySpecializationEntry();
+            uint specId = spec != null ? (uint)spec.Id : 0;
+            packet.PrimarySpecialization = specId;
+            packet.TalentGroups.Add(new ForeverTalentGroupInfo { SpecID = specId });
+            packet.ActiveGroup = 0;
+            if (GetClassicSpecGroupConfig(true) != null)
             {
-                TalentGroupInfo groupInfoPkt = new();
-                groupInfoPkt.SpecID = PlayerConst.MaxSpecializations;
-                var talents = GetPlayerTalents(specIdx);
-
-                foreach (var pair in talents)
-                {
-                    if (pair.Value.State == PlayerSpellState.Removed)
-                        continue;
-
-                    TalentRecord talentInfo = CliDB.TalentStorage.LookupByKey(pair.Key);
-                    if (talentInfo == null)
-                    {
-                        Log.outError(LogFilter.Player, 
-                            $"Player::SendTalentsInfoData: " +
-                            $"Player '{GetName()}' ({GetGuild()}) " +
-                            $"has unknown talent id: {pair.Key}.");
-                        continue;
-                    }
-
-                    SpellInfo spellEntry = Global.SpellMgr.GetSpellInfo(talentInfo.SpellRank[pair.Value.Rank], Difficulty.None);
-                    if (spellEntry == null)
-                    {
-                        Log.outError(LogFilter.Player, 
-                            $"Player::SendTalentsInfoData: " +
-                            $"Player '{GetName()}' ({GetGuild()}) " +
-                            $"has unknown talent spell: {talentInfo.SpellID}.");
-                        continue;
-                    }
-
-                    groupInfoPkt.Talents.Add(new(pair.Key, pair.Value.Rank));
-                }
-
-                groupInfoPkt.GlyphIDs = GetGlyphs(specIdx);
-                packet.TalentGroupInfos.Add(groupInfoPkt);
+                packet.TalentGroups.Add(new ForeverTalentGroupInfo { SpecID = specId });
+                packet.ActiveGroup = (byte)(GetActiveTalentGroup() == 1 ? 1 : 0);
             }
 
             SendPacket(packet);
+        }
+
+        // Classic 1.60 dual spec: combat trait config of spec group 0 (ActiveForSpec) or 1 (SecondarySpec) for the current spec
+        public TraitConfig GetClassicSpecGroupConfig(bool secondary)
+        {
+            TraitCombatConfigFlags flag = secondary ? TraitCombatConfigFlags.SecondarySpec : TraitCombatConfigFlags.ActiveForSpec;
+            int index = m_activePlayerData.TraitConfigs.FindIndexIf(traitConfig =>
+                traitConfig.Type == (int)TraitConfigType.Combat
+                && traitConfig.ChrSpecializationID == (int)GetPrimarySpecialization()
+                && ((TraitCombatConfigFlags)(int)traitConfig.CombatConfigFlags & flag) != 0);
+            return index >= 0 ? m_activePlayerData.TraitConfigs[index] : null;
+        }
+
+        // Classic 1.60 dual spec: bought from class trainers (gossip options 95000000 + menu id, world DB)
+        public static bool IsClassicDualSpecGossipOption(int gossipOptionId)
+        {
+            return gossipOptionId >= 95000000 && gossipOptionId < 96000000;
+        }
+
+        public bool PurchaseClassicDualSpec()
+        {
+            if (GetClassicSpecGroupConfig(true) != null)
+                return false;
+
+            TraitConfig primary = GetClassicSpecGroupConfig(false);
+            if (primary == null)
+                return false;
+
+            int localIdentifier = 1;
+            while (m_activePlayerData.TraitConfigs.FindIndexIf(traitConfig =>
+                traitConfig.Type == (int)TraitConfigType.Combat && traitConfig.LocalIdentifier == localIdentifier) >= 0)
+                ++localIdentifier;
+
+            TraitConfigPacket traitConfig = new();
+            traitConfig.Type = TraitConfigType.Combat;
+            traitConfig.ChrSpecializationID = (ChrSpecialization)primary.ChrSpecializationID.GetValue();
+            traitConfig.CombatConfigFlags = TraitCombatConfigFlags.SecondarySpec;
+            traitConfig.LocalIdentifier = localIdentifier;
+            traitConfig.Name = primary.Name.GetValue() ?? "";
+            CreateTraitConfig(traitConfig);
+
+            SendTalentsInfoData();
+            return true;
+        }
+
+        // Classic 1.60 dual spec: "Activate Primary/Secondary Spec" (spells 63645/63644). Swaps the applied talents, the action
+        // bars (stored per talent group) and tells the client the new active group.
+        public bool ActivateClassicSpecGroup(bool secondary)
+        {
+            TraitConfig target = GetClassicSpecGroupConfig(secondary);
+            if (target == null)
+                return false;
+
+            int targetId = target.ID;
+            int currentId = m_activePlayerData.ActiveCombatTraitConfigID;
+            if (targetId == currentId)
+                return true;
+
+            if (IsNonMeleeSpellCast(false))
+                InterruptNonMeleeSpells(false);
+
+            SQLTransaction trans = new();
+            _SaveActions(trans);
+            DB.Characters.CommitTransaction(trans);
+
+            // Let client clear his current Actions
+            SendActionButtons(ActionsButtonsUpdateReason.SpecSwap);
+
+            ApplyTraitConfig(currentId, false);
+            SetActiveTalentGroup(secondary ? 1 : 0);
+            SetActiveCombatTraitConfigID(targetId);
+            ApplyTraitConfig(targetId, true);
+
+            StartLoadingActionButtons(SendTalentsInfoData);
+            return true;
         }
 
         public void SendRespecWipeConfirm(ObjectGuid guid, long cost, SpecResetType respecType)

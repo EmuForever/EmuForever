@@ -405,9 +405,9 @@ namespace Game.Entities
             {
                 LearnSkillRewardedSpells(skillId, skillValue, race);
 
-                // enable parent skill line if missing
+                // enable parent skill line if missing (Classic 1.60, TC: never from a profession child line)
                 var skillEntry = CliDB.SkillLineStorage.LookupByKey(skillId);
-                if (skillEntry.ParentSkillLineID != 0 && skillEntry.ParentTierIndex > 0 && GetSkillStep(skillEntry.ParentSkillLineID) < skillEntry.ParentTierIndex)
+                if (skillEntry.ParentSkillLineID != 0 && !IsClassicProfessionChildSkill(skillEntry) && skillEntry.ParentTierIndex > 0 && GetSkillStep(skillEntry.ParentSkillLineID) < skillEntry.ParentTierIndex)
                 {
                     var rcEntry = Global.DB2Mgr.GetSkillRaceClassInfo(skillEntry.ParentSkillLineID, GetRace(), GetClass());
                     if (rcEntry != null)
@@ -436,6 +436,10 @@ namespace Game.Entities
                     }
                 }
             }
+
+            // Classic 1.60: profession child lines (the recipe lists) carry the profession's rank
+            foreach (var skillId in loadedSkillValues.Keys.ToList())
+                SyncClassicProfessionChildSkills(skillId);
 
             foreach (var skill in loadedProfessionsWithoutSlot)
             {
@@ -1210,6 +1214,16 @@ namespace Game.Entities
                     && traitConfig.ChrSpecializationID == (int)GetPrimarySpecialization()
                     && (traitConfig.CombatConfigFlags & (int)TraitCombatConfigFlags.ActiveForSpec) != 0;
             });
+
+            // Classic 1.60 dual spec: talent group 1 is the config flagged SecondarySpec
+            if (GetActiveTalentGroup() == 1)
+            {
+                TraitConfig secondaryConfig = GetClassicSpecGroupConfig(true);
+                if (secondaryConfig != null)
+                    activeConfig = m_activePlayerData.TraitConfigs.FindIndexIf(traitConfig => traitConfig.ID == secondaryConfig.ID);
+                else
+                    SetActiveTalentGroup(0);
+            }
 
             if (activeConfig >= 0)
                 SetActiveCombatTraitConfigID(m_activePlayerData.TraitConfigs[activeConfig].ID);
@@ -3526,6 +3540,9 @@ namespace Game.Entities
             SetNumRespecs(numRespecs);
             SetActiveTalentGroup(activeTalentGroup);
             SetBonusTalentGroupCount(bonusTalentGroups);
+            // Classic 1.60: the class's single specialization owns the talent trait configs; without it no combat config
+            // becomes active and the client cannot apply talents. It is not stored, every character uses it.
+            SetPrimarySpecialization(GetDefaultSpecId());
 
             ChrSpecializationRecord chrSpec = CliDB.ChrSpecializationStorage.LookupByKey((int)lootSpecId);
             if (chrSpec != null)

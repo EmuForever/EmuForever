@@ -2419,7 +2419,8 @@ namespace Framework.Constants
         None = 0x0,
         ActiveForSpec = 0x1,
         StarterBuild = 0x2,
-        SharedActionBars = 0x4
+        SharedActionBars = 0x4,
+        SecondarySpec = 0x8 // Classic 1.60: config of the second spec group (dual spec)
     }
 
     [Flags]

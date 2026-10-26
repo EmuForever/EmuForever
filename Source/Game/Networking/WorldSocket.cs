@@ -691,7 +691,7 @@ namespace Game.Networking
             // RBAC must be loaded before adding session to check for skip queue permission
             _worldSession.GetRBACData().LoadFromDBCallback(result);
 
-            await Task.Delay(2500); // I assume everything happens faster than trinitycore so we move up to 2.5sec to allow launcher to finish.
+            await Task.Delay(2500); // I assume everything happens faster than trinitycore so we move up to 2.5sec to allow launcher to finish. This is a hack fix and launcher should inform server when client is patched fully.
 
             SendPacket(new EnterEncryptedMode(_encryptKey, true));
         }

@@ -21,23 +21,6 @@ namespace Game.DataStorage
         public readonly float Cost;
     }
 
-    public sealed class GtBaseMPRecord
-    {
-        public readonly float[] values = new float[(int)GtClass.Max - 1];
-        //public readonly float Rogue;
-        //public readonly float Druid;
-        //public readonly float Hunter;
-        //public readonly float Mage;
-        //public readonly float Paladin;
-        //public readonly float Priest;
-        //public readonly float Shaman;
-        //public readonly float Warlock;
-        //public readonly float Warrior;
-        //public readonly float DeathKnight;
-        //public readonly float Monk;
-        //public readonly float DemonHunter;
-    }
-
     public sealed class GtXpRecord
     {
         public readonly float Total;
@@ -51,81 +34,6 @@ namespace Game.DataStorage
     {
         public readonly float Wins;
         public readonly float Xp;
-    }
-
-    public sealed class GtChallengeModeDamageRecord
-    {
-        public readonly float ChallengeLevel;
-        public readonly float Scalar;
-    }
-
-    public sealed class GtChallengeModeHealthRecord
-    {
-        public readonly float ChallengeLevel;
-        public readonly float Scalar;
-    }
-    public sealed class GtChanceToMeleeCritRecord
-    {
-        public readonly float[] values = new float[(int)Class.Max - 1];
-        //public readonly float Warrior;
-        //public readonly float Paladin;
-        //public readonly float Hunter;
-        //public readonly float Rogue;
-        //public readonly float Priest;
-        //public readonly float DeathKnight;
-        //public readonly float Shaman;
-        //public readonly float Mage;
-        //public readonly float Warlock;
-        //public readonly float Monk;
-        //public readonly float Druid;
-    }
-
-    public sealed class GtChanceToMeleeCritBaseRecord
-    {
-        public readonly float[] values = new float[(int)Class.Max - 1];
-        //public readonly float Warrior;
-        //public readonly float Paladin;
-        //public readonly float Hunter;
-        //public readonly float Rogue;
-        //public readonly float Priest;
-        //public readonly float DeathKnight;
-        //public readonly float Shaman;
-        //public readonly float Mage;
-        //public readonly float Warlock;
-        //public readonly float Monk;
-        //public readonly float Druid;
-    }
-
-    public sealed class GtChanceToSpellCritRecord
-    {
-        public readonly float[] values = new float[(int)Class.Max - 1];
-        //public readonly float Warrior;
-        //public readonly float Paladin;
-        //public readonly float Hunter;
-        //public readonly float Rogue;
-        //public readonly float Priest;
-        //public readonly float DeathKnight;
-        //public readonly float Shaman;
-        //public readonly float Mage;
-        //public readonly float Warlock;
-        //public readonly float Monk;
-        //public readonly float Druid;
-    }
-
-    public sealed class GtChanceToSpellCritBaseRecord
-    {
-        public readonly float[] values = new float[(int)Class.Max - 1];
-        //public readonly float Warrior;
-        //public readonly float Paladin;
-        //public readonly float Hunter;
-        //public readonly float Rogue;
-        //public readonly float Priest;
-        //public readonly float DeathKnight;
-        //public readonly float Shaman;
-        //public readonly float Mage;
-        //public readonly float Warlock;
-        //public readonly float Monk;
-        //public readonly float Druid;
     }
 
     public sealed class GtCombatRatingsRecord
@@ -225,89 +133,12 @@ namespace Game.DataStorage
         public readonly float Scaler;
     }
 
-    public sealed class GtOCTRegenHPRecord
-    {
-        public readonly float[] values = new float[(int)Class.Max - 1];
-        //public readonly float Warrior;
-        //public readonly float Paladin;
-        //public readonly float Hunter;
-        //public readonly float Rogue;
-        //public readonly float Priest;
-        //public readonly float DeathKnight;
-        //public readonly float Shaman;
-        //public readonly float Mage;
-        //public readonly float Warlock;
-        //public readonly float Monk;
-        //public readonly float Druid;
-    }
-
-    public sealed class GtOCTRegenMPRecord
-    {
-        public readonly float[] values = new float[(int)Class.Max - 1];
-        //public readonly float Warrior;
-        //public readonly float Paladin;
-        //public readonly float Hunter;
-        //public readonly float Rogue;
-        //public readonly float Priest;
-        //public readonly float DeathKnight;
-        //public readonly float Shaman;
-        //public readonly float Mage;
-        //public readonly float Warlock;
-        //public readonly float Monk;
-        //public readonly float Druid;
-    }
-
-    public sealed class GtRegenHPPerSptRecord
-    {
-        public readonly float[] values = new float[(int)Class.Max - 1];
-        //public readonly float Warrior;
-        //public readonly float Paladin;
-        //public readonly float Hunter;
-        //public readonly float Rogue;
-        //public readonly float Priest;
-        //public readonly float DeathKnight;
-        //public readonly float Shaman;
-        //public readonly float Mage;
-        //public readonly float Warlock;
-        //public readonly float Monk;
-        //public readonly float Druid;
-    }
-
-    public sealed class GtRegenMPPerSptRecord
-    {
-        public readonly float[] values = new float[(int)Class.Max - 1];
-        //public readonly float Warrior;
-        //public readonly float Paladin;
-        //public readonly float Hunter;
-        //public readonly float Rogue;
-        //public readonly float Priest;
-        //public readonly float DeathKnight;
-        //public readonly float Shaman;
-        //public readonly float Mage;
-        //public readonly float Warlock;
-        //public readonly float Monk;
-        //public readonly float Druid;
-    }
-
     public sealed class GtSandboxScalingRecord
     {
         public readonly float P2P_Healing;
         public readonly float E2P_Damage;
         public readonly float P2E_Damage;
     }
-
-    public sealed class GtShieldBlockRegularRecord
-    {
-        public readonly float[] values = new float[(int)ItemQuality.Max];
-        //public readonly float Poor;
-        //public readonly float Standard;
-        //public readonly float Good;
-        //public readonly float Superior;
-        //public readonly float Epic;
-        //public readonly float Legendary;
-        //public readonly float Artifact;
-        //public readonly float ScalingStat;
-    };
 
     public sealed class GtSpellScalingRecord
     {

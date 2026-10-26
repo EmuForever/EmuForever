@@ -458,6 +458,11 @@ namespace Game.Loots
                 if (!spellInfo.IsLootCrafting())
                     continue;
 
+                // 1.60.1: 1325180 is the "create loot" spell of item 287045, which nothing in the world sells, drops or rewards;
+                // no 1.60 source has its loot
+                if (spellInfo.Id == 1325180)
+                    continue;
+
                 if (!lootIdSet.Contains(spellInfo.Id))
                 {
                     // not report about not trainable spells (optionally supported by DB)

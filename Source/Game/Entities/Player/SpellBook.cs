@@ -729,6 +729,11 @@ namespace Game.Entities
                     if (skill_value < spellLearnSkill.value)
                         skill_value = spellLearnSkill.value;
 
+                    // Classic 1.60 (TC): vanilla trainers teach profession ranks (e.g. Tailoring 3908) directly instead of casting
+                    // them, so the skill starts here; value 0 would mean "no skill" (Spell.EffectSkill uses at least 1 too)
+                    if (skill_value == 0)
+                        skill_value = 1;
+
                     ushort new_skill_max_value = spellLearnSkill.maxvalue;
 
                     if (new_skill_max_value == 0)

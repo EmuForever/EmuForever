@@ -231,14 +231,23 @@ namespace Game
 
                         receiver = Global.ObjAccessor.FindConnectedPlayerByName(extName.Name);
                     }
-                    if (receiver == null || (lang != Language.Addon && !receiver.IsAcceptWhispers() && receiver.GetSession().HasPermission(RBACPermissions.CanFilterWhispers) && !receiver.IsInWhisperWhiteList(sender.GetGUID())))
+                    if (receiver == null)
+                    {
+                        SendChatPlayerNotfoundNotice(target);
+                        return;
+                    }
+
+                    // Staff to staff whispers always arrive, whether the receiving GM accepts whispers or is hidden
+                    bool staffToStaff = GetSecurity() > AccountTypes.Player && receiver.GetSession().GetSecurity() > AccountTypes.Player;
+
+                    if (!staffToStaff && lang != Language.Addon && !receiver.IsAcceptWhispers() && receiver.GetSession().HasPermission(RBACPermissions.CanFilterWhispers) && !receiver.IsInWhisperWhiteList(sender.GetGUID()))
                     {
                         SendChatPlayerNotfoundNotice(target);
                         return;
                     }
 
                     // Apply checks only if receiver is not already in whitelist and if receiver is not a GM with ".whisper on"
-                    if (!receiver.IsInWhisperWhiteList(sender.GetGUID()) && !receiver.IsGameMasterAcceptingWhispers())
+                    if (!staffToStaff && !receiver.IsInWhisperWhiteList(sender.GetGUID()) && !receiver.IsGameMasterAcceptingWhispers())
                     {
                         if (!sender.IsGameMaster() && sender.GetLevel() < WorldConfig.Values[WorldCfg.ChatWhisperLevelReq].Int32)
                         {

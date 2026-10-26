@@ -60,6 +60,9 @@ namespace Game
 
         public void Dispose()
         {
+            // Saving/removing the player can produce aura, power and combat updates.
+            // A session being destroyed has no client to receive those updates.
+            Volatile.Write(ref _socketCleanupStarted, 1);
             DisposeClassicServices();
             if (_siCreateCompleted != null)
                 CompleteSICreation(ResponseCodes.CharCreateError, ObjectGuid.Empty);
@@ -67,15 +70,7 @@ namespace Game
             if (_player != null)
                 LogoutPlayer(true);
 
-            // - If have unclosed socket, close it
-            for (byte i = 0; i < 2; ++i)
-            {
-                if (m_Socket[i] != null)
-                {
-                    m_Socket[i].CloseSocket();
-                    m_Socket[i] = null;
-                }
-            }
+            CloseClientSockets();
 
             // empty incoming packet queue
             _recvQueue.Writer.TryComplete();
@@ -249,6 +244,9 @@ namespace Game
 
         public bool Update(TimeSpan diff, PacketFilter updater)
         {
+            if (Volatile.Read(ref _socketCleanupStarted) != 0)
+                return false;
+
             if (IsServerControlled)
             {
                 // Database completion and transfers belong to the world update, never a worker.
@@ -272,7 +270,7 @@ namespace Game
             /// If necessary, kick the player because the client didn't send anything for too long
             /// (or they've been idling in character select)
             if (IsConnectionIdle() && !HasPermission(RBACPermissions.IgnoreIdleConnection))
-                m_Socket[(int)ConnectionType.Realm].CloseSocket();
+                m_Socket[(int)ConnectionType.Realm]?.CloseSocket();
 
             WorldPacket firstDelayedPacket = null;
             uint processedPackets = 0;
@@ -411,17 +409,7 @@ namespace Game
                     expireTime -= expireTime > diff ? diff : expireTime;
                     if (expireTime < diff || forceExit || GetPlayer() == null)
                     {
-                        if (m_Socket[(int)ConnectionType.Realm] != null)
-                        {
-                            m_Socket[(int)ConnectionType.Realm].CloseSocket();
-                            m_Socket[(int)ConnectionType.Realm] = null;
-                        }
-
-                        if (m_Socket[(int)ConnectionType.Instance] != null)
-                        {
-                            m_Socket[(int)ConnectionType.Instance].CloseSocket();
-                            m_Socket[(int)ConnectionType.Instance] = null;
-                        }
+                        CloseClientSockets();
                     }
                 }
 
@@ -451,7 +439,7 @@ namespace Game
         public void SendPacket(ServerPacket packet)
         {
             // Observer broadcasts still use the ordinary map visibility system.
-            if (IsServerControlled)
+            if (IsServerControlled || Volatile.Read(ref _socketCleanupStarted) != 0)
                 return;
             if (packet == null)
                 return;
@@ -471,14 +459,25 @@ namespace Game
                 return;
             }
 
-            if (m_Socket[(int)conIdx] == null)
+            WorldSocket socket = Volatile.Read(ref m_Socket[(int)conIdx]);
+            if (socket == null)
             {
-                Log.outError(LogFilter.Network,
-                    $"Prevented sending of {packet.GetOpcode()} to non existent socket {conIdx} to {GetPlayerInfo()}");
+                if (Volatile.Read(ref _socketCleanupStarted) == 0)
+                    Log.outError(LogFilter.Network,
+                        $"Prevented sending of {packet.GetOpcode()} to non existent socket {conIdx} to {GetPlayerInfo()}");
                 return;
             }
 
-            m_Socket[(int)conIdx].SendPacket(packet);
+            socket.SendPacket(packet);
+        }
+
+        void CloseClientSockets()
+        {
+            // Mark teardown before retiring either reference, including sends from
+            // player cleanup or another update thread racing this transition.
+            Volatile.Write(ref _socketCleanupStarted, 1);
+            for (int i = 0; i < m_Socket.Length; ++i)
+                Interlocked.Exchange(ref m_Socket[i], null)?.CloseSocket();
         }
 
         public void AddInstanceConnection(WorldSocket sock) { m_Socket[(int)ConnectionType.Instance] = sock; }
@@ -783,7 +782,10 @@ namespace Game
 
         void SetLogoutStartTime(ServerTime requestTime)
         {
-            _logoutTime = requestTime;
+            // Match Trinity's time_t logout countdown. Keeping the fractional
+            // second makes the client's end-of-countdown CANCEL win the race
+            // against expiration, repeatedly restarting background idle logouts.
+            _logoutTime = (ServerTime)(UnixTime64)requestTime;
         }
 
         bool ShouldLogOut(ServerTime currTime)
@@ -1056,6 +1058,7 @@ namespace Game
 
         Milliseconds expireTime;
         bool forceExit;
+        int _socketCleanupStarted;
 
         DosProtection AntiDOS;
         Warden _warden;                                    // Remains NULL if Warden system is not enabled by config

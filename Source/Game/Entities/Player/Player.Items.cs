@@ -3891,12 +3891,6 @@ namespace Game.Entities
                     StatMods.ModifyFlat(UnitMods.ResistanceStart + (int)i, resistance, apply, UnitModType.BasePermanent);
             }
 
-            if (proto.GetClass() == ItemClass.Armor && proto.GetSubClass().Armor == ItemSubClassArmor.Shield &&
-                proto.GetShieldBlockValue(proto.GetItemLevel()) is int shieldBlockValue && shieldBlockValue != 0)
-            {
-                SetUpdateFieldValue(m_values.ModifyValue(m_activePlayerData).ModifyValue(m_activePlayerData.ShieldBlock), apply ? shieldBlockValue : 0);
-            }
-
             var attType = GetAttackBySlot(slot);
             if (attType.HasValue)
             {
@@ -4822,6 +4816,14 @@ namespace Game.Entities
             SetUpdateFieldValue(m_values.ModifyValue(m_activePlayerData).ModifyValue(m_activePlayerData.PvpMedals), unchecked((uint)ammoId));
         }
 
+        public static int GetAmmoDisplayId(ItemTemplate ammo) => ammo?.GetDisplayInfoID() ?? 0;
+
+        public static bool HasDrawableAmmoDisplay(ItemTemplate ammo)
+        {
+            int display = GetAmmoDisplayId(ammo);
+            return display > 0 && display < 500000;
+        }
+
         bool IsAmmoUsableWithRangedWeapon(ItemTemplate ammo)
         {
             if (ammo == null || ammo.GetClass() != ItemClass.Projectile)
@@ -4841,23 +4843,35 @@ namespace Game.Entities
 
         public void AutoSelectAmmo()
         {
+            bool preferDrawable = _session != null && _session.IsServerControlled;
             int current = GetUsedAmmoId();
             if (current != 0 && GetItemCount(current) != 0
-                && IsAmmoUsableWithRangedWeapon(Global.ObjectMgr.GetItemTemplate(current)))
+                && IsAmmoUsableWithRangedWeapon(Global.ObjectMgr.GetItemTemplate(current))
+                && (!preferDrawable || HasDrawableAmmoDisplay(Global.ObjectMgr.GetItemTemplate(current))))
             {
                 _ApplyAmmoBonuses();
                 return;
             }
 
             int found = 0;
+            int foundDrawable = 0;
             ForEachItem(ItemSearchLocation.Inventory, item =>
             {
                 var template = item.GetTemplate();
                 if (item.GetCount() == 0 || !IsAmmoUsableWithRangedWeapon(template) || CanUseItem(template) != InventoryResult.Ok)
                     return true;
-                found = item.GetEntry();
-                return false;
+                if (found == 0)
+                    found = item.GetEntry();
+                if (!preferDrawable || HasDrawableAmmoDisplay(template))
+                {
+                    foundDrawable = item.GetEntry();
+                    return false;
+                }
+                return true;
             });
+
+            if (foundDrawable != 0)
+                found = foundDrawable;
 
             if (found == 0)
                 RemoveAmmo();
