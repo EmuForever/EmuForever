@@ -188,12 +188,120 @@ namespace Game
                 charResult.RaceUnlockData.Add(raceUnlock);
             }
 
+            // Classic 1.60: the official server sends every character as a regionwide entry (Realmless set, no realm entries; TC
+            // sniff 70235). Only that entry has money; the character select tooltip shows it with the two primary professions.
+            List<EnumCharactersResult.CharacterInfo> realmCharacters = new();
+            if (!charResult.IsDeletedCharacters && !charResult.Characters.Empty())
+            {
+                string guids = string.Join(",", charResult.Characters.Select(character => character.Guid.GetCounter()));
+
+                Dictionary<long, ulong> money = new();
+                SQLResult moneyResult = DB.Characters.Query($"SELECT guid, money FROM characters WHERE guid IN ({guids})");
+                if (!moneyResult.IsEmpty())
+                {
+                    do
+                        money[moneyResult.Read<long>(0)] = moneyResult.Read<ulong>(1);
+                    while (moneyResult.NextRow());
+                }
+
+                MultiMap<long, uint> professions = new();
+                SQLResult skillResult = DB.Characters.Query($"SELECT guid, skill FROM character_skills WHERE guid IN ({guids})");
+                if (!skillResult.IsEmpty())
+                {
+                    do
+                    {
+                        ushort skill = skillResult.Read<ushort>(1);
+                        SkillLineRecord skillLine = CliDB.SkillLineStorage.LookupByKey((SkillType)skill);
+                        if (skillLine != null && skillLine.CategoryID == SkillCategory.Profession && skillLine.ParentSkillLineID == 0)
+                            professions.Add(skillResult.Read<long>(0), skill);
+                    } while (skillResult.NextRow());
+                }
+
+                foreach (EnumCharactersResult.CharacterInfo character in charResult.Characters)
+                {
+                    long guid = character.Guid.GetCounter();
+                    var characterProfessions = professions[guid];
+                    for (int i = 0; i < characterProfessions.Count && i < 2; ++i)
+                        character.ProfessionIds[i] = characterProfessions[i];
+
+                    EnumCharactersResult.RegionwideCharacterListEntry entry = new(character);
+                    entry.Money = money.GetValueOrDefault(guid);
+                    charResult.RegionwideCharacters.Add(entry);
+                }
+
+                charResult.Realmless = true;
+                realmCharacters = charResult.Characters;
+                charResult.Characters = new();
+            }
+
             SendPacket(charResult);
+
+            if (!realmCharacters.Empty())
+            {
+                RegionwideCharacterRestrictionsData restrictions = new();
+                restrictions.Characters.AddRange(realmCharacters.Select(character => character.Guid));
+                SendPacket(restrictions);
+            }
 
             SendPacket(new RecentAllyDataResponse());
 
             if (!charResult.IsDeletedCharacters)
                 SendPacket(new AccountItemCollectionData());
+
+            // Classic 1.60: unread mail senders per character (mail icon on the character list). Sent right after the enum the
+            // client ignores it; the official server sends it ~2.6 s later, so Update sends it after 3 s (TC).
+            if (!realmCharacters.Empty() && Framework.Configuration.ConfigMgr.GetDefaultValue("Classic.CharacterListMailData", true))
+                QueueCharacterListMailData(realmCharacters);
+        }
+
+        void QueueCharacterListMailData(List<EnumCharactersResult.CharacterInfo> characters)
+        {
+            string receivers = string.Join(",", characters.Select(character => character.Guid.GetCounter()));
+
+            Dictionary<long, List<(uint Type, string Name)>> senders = new();
+            SQLResult mails = DB.Characters.Query(
+                $"SELECT m.receiver, m.messageType, m.sender, c.name FROM mail m " +
+                $"LEFT JOIN characters c ON m.messageType = {(int)MailMessageType.Normal} AND c.guid = m.sender " +
+                $"WHERE m.receiver IN ({receivers}) AND m.deliver_time <= UNIX_TIMESTAMP() AND (m.checked & {(int)MailCheckFlags.Read}) = 0");
+            if (!mails.IsEmpty())
+            {
+                do
+                {
+                    uint type = 0;
+                    string name = null;
+                    switch ((MailMessageType)mails.Read<byte>(1))
+                    {
+                        case MailMessageType.Normal:
+                            name = mails.Read<string>(3);
+                            break;
+                        case MailMessageType.Auction:
+                            type = 8;
+                            name = "Auction House";
+                            break;
+                        case MailMessageType.Creature:
+                            name = Global.ObjectMgr.GetCreatureTemplate((int)mails.Read<long>(2))?.Name;
+                            break;
+                        case MailMessageType.Gameobject:
+                            name = Global.ObjectMgr.GetGameObjectTemplate((int)mails.Read<long>(2))?.name;
+                            break;
+                    }
+                    if (string.IsNullOrEmpty(name) || name.GetByteCount() > 62)
+                        continue;
+
+                    long receiver = mails.Read<long>(0);
+                    if (!senders.TryGetValue(receiver, out var list))
+                        senders[receiver] = list = new();
+                    if (list.Count < 10 && !list.Contains((type, name)))
+                        list.Add((type, name));
+                } while (mails.NextRow());
+            }
+
+            RegionwideCharacterMailData mailData = new();
+            foreach (EnumCharactersResult.CharacterInfo character in characters)
+                mailData.Characters.Add((character.Guid, senders.GetValueOrDefault(character.Guid.GetCounter()) ?? new()));
+
+            _classicCharacterMailData = mailData;
+            _classicCharacterMailDataTimer = TimeSpan.FromSeconds(3);
         }
 
         [WorldPacketHandler(ClientOpcodes.EnumCharactersDeletedByClient, Status = SessionStatus.Authed)]

@@ -753,6 +753,15 @@ sealed class PlayerSession
             if (ruleset != null && _game.LastPlayed.TryGetValue(ruleset.SubRegion, out LastPlayed? rulesetChar))
                 played = rulesetChar;
         }
+        else if (played == null)
+        {
+            // With several realms every one is its own sub-region, and the login request (no ruleset filter) names whichever one
+            // the client selected (70-1-73, Hardcore). An empty answer there sends the client to the ruleset picker, so answer with
+            // the most recent character on any realm; its realm entry carries the superDistrictID the client then joins.
+            played = _game.LastPlayed.Values
+                .Where(p => _realms.Find(p.RealmAddress) is RealmEntry r && _realms.RealmEntryJson(r, _build, _game.Security).Length > 0)
+                .MaxBy(p => p.Time);
+        }
         if (played != null)
         {
             RealmEntry? realm = _realms.Find(played.RealmAddress);

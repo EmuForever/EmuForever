@@ -2739,24 +2739,15 @@ namespace Game.Entities
                     menu.GetGossipMenu().AddMenuItem(gossipMenuItem, gossipMenuItem.MenuID, gossipMenuItem.OrderIndex);
             }
 
-            // Classic trainers and vendors can have service flags without a matching gossip row.
-            // Keep their services reachable, as in the Forever C++ core.
+            // Legacy reset is an additional server feature; normal services use their database options.
             if (source.ToCreature() is Creature serviceNpc)
             {
                 GossipMenu gossipMenu = menu.GetGossipMenu();
-                bool HasOption(GossipOptionNpc option) => gossipMenu.GetMenuItems().Values.Any(item => item.OptionNpc == option);
 
                 if (CanResetLegacyAt(serviceNpc) && GetLegacyConfig()?.Entries.FindIndexIf(entry => entry.Rank > 0) >= 0)
                     gossipMenu.AddMenuItem(LegacyResetGossipOption, -1, GossipOptionNpc.None, "Reset my Legacy perks.", 0,
                         GossipOptionFlags.None, null, 0, 0, false, 0, "Reset all purchased Legacy perks?", null, null, menuId, LegacyResetGossipOption);
 
-                if (serviceNpc.HasNpcFlag(NPCFlags1.Trainer) && serviceNpc.GetTrainerId() != 0 && !HasOption(GossipOptionNpc.Trainer))
-                    gossipMenu.AddMenuItem(2146000001, -1, GossipOptionNpc.Trainer, "Train me.", 0,
-                        GossipOptionFlags.None, null, 0, 0, false, 0, "", null, null, menuId, gossipMenu.GetMenuItemCount());
-
-                if (serviceNpc.HasNpcFlag(NPCFlags1.Vendor) && serviceNpc.GetVendorItems() != null && !HasOption(GossipOptionNpc.Vendor))
-                    gossipMenu.AddMenuItem(2146000002, -1, GossipOptionNpc.Vendor, "Let me browse your goods.", 0,
-                        GossipOptionFlags.None, null, 0, 0, false, 0, "", null, null, menuId, gossipMenu.GetMenuItemCount());
             }
         }
 
@@ -3036,7 +3027,7 @@ namespace Game.Entities
                     if (menuIdToShow != 0)
                         return menuIdToShow;
 
-                    // otherwise pick from db based on conditions
+                    // Otherwise pick an assigned database menu based on its conditions.
                     foreach (var menuId in source.ToCreature().GetCreatureTemplate().GossipMenuIds)
                     {
                         var menuBounds = ObjectMgr.GetGossipMenusMapBounds(menuId);

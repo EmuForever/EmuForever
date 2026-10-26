@@ -378,6 +378,19 @@ namespace Game
 
             if (updater.ProcessUnsafe())
             {
+                // Classic 1.60: character list mail data, sent once the character list is shown (see HandleCharEnum)
+                if (_classicCharacterMailData != null)
+                {
+                    if (_classicCharacterMailDataTimer <= diff)
+                    {
+                        if (_player == null)
+                            SendPacket(_classicCharacterMailData);
+                        _classicCharacterMailData = null;
+                    }
+                    else
+                        _classicCharacterMailDataTimer -= diff;
+                }
+
                 if (m_Socket[(int)ConnectionType.Realm] != null && m_Socket[(int)ConnectionType.Realm].IsOpen() && _warden != null)
                     _warden.Update(diff);
 
@@ -1090,6 +1103,10 @@ namespace Game
         Dictionary<uint, RelativeTime> _pendingTimeSyncRequests = new(); // key: counter. value: server time when packet with that counter was sent.
         uint _timeSyncNextCounter;
         Milliseconds _timeSyncTimer;
+
+        // Classic 1.60: SMSG_REGIONWIDE_CHARACTER_MAIL_DATA waits until the character list is shown (HandleCharEnum)
+        RegionwideCharacterMailData _classicCharacterMailData;
+        TimeSpan _classicCharacterMailDataTimer;
 
         CollectionMgr _collectionMgr;
 
