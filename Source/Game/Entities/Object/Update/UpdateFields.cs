@@ -4105,6 +4105,42 @@ namespace Game.Entities
         }
     }
 
+    public class BankTabSettings : HasChangesMask
+    {
+        public UpdateFieldString Name = new(0, 0);
+        public UpdateFieldString Icon = new(1, 1);
+        public UpdateFieldString Description = new(2, 2);
+        public UpdateField<int> DepositFlags = new(3, 3);
+        public BankTabSettings() : base(4) { }
+
+        public void WriteCreate(WorldPacket data, Player owner, Player receiver)
+        {
+            data.WriteBits(Name.GetValue().GetByteCount(), 7);
+            data.WriteBits(Icon.GetValue().GetByteCount(), 9);
+            data.WriteBits(Description.GetValue().GetByteCount(), 14);
+            data.WriteInt32(DepositFlags);
+            data.WriteString(Name); data.WriteString(Icon); data.WriteString(Description);
+        }
+
+        public void WriteUpdate(WorldPacket data, bool ignoreChangesMask, Player owner, Player receiver)
+        {
+            UpdateMask mask = new(4);
+            for (int i = 0; i < 4; ++i)
+                if (ignoreChangesMask || _changesMask[i]) mask.Set(i);
+            data.WriteBits(mask.GetBlock(0), 4);
+            if (mask[0]) data.WriteBits(Name.GetValue().GetByteCount(), 7);
+            if (mask[1]) data.WriteBits(Icon.GetValue().GetByteCount(), 9);
+            if (mask[2]) data.WriteBits(Description.GetValue().GetByteCount(), 14);
+            data.FlushBits();
+            if (mask[3]) data.WriteInt32(DepositFlags);
+            if (mask[0]) data.WriteString(Name);
+            if (mask[1]) data.WriteString(Icon);
+            if (mask[2]) data.WriteString(Description);
+        }
+
+        public override void ClearChangesMask() { _changesMask.ResetAll(); }
+    }
+
     public class ActivePlayerData : HasChangesMask
     {        
         public UpdateField<bool> SortBagsRightToLeft = new(0, 1);
@@ -4245,7 +4281,9 @@ namespace Game.Entities
         public UpdateFieldArray<ulong> QuestCompleted = new(875, 636, 637);
         public UpdateFieldArray<int> GlyphSlots = new(6, 1512, 1513);
         public UpdateFieldArray<int> Glyphs = new(6, 1512, 1519);
-        static int changeMaskLength = 1525;
+        public UpdateField<byte> NumCharacterBankTabs = new(1525, 1526);
+        public DynamicUpdateField<BankTabSettings> CharacterBankTabSettings = new(1525, 1527);
+        static int changeMaskLength = 1528;
 
         public static int ExploredZonesSize;
         public static int ExploredZonesBits;
@@ -4377,7 +4415,7 @@ namespace Game.Entities
             data.WriteInt32(HonorNextLevel);
             data.WriteInt32(PerksProgramCurrency);
             data.WriteUInt8(owner.m_playerData.NumBankSlots); // NumBankSlots lives in PlayerData in this core
-            data.WriteUInt8(0); // NumCharacterBankTabs
+            data.WriteUInt8(NumCharacterBankTabs);
             data.WriteUInt8(0); // NumAccountBankTabs
             for (int i = 0; i < 1; ++i)
             {
@@ -4538,7 +4576,7 @@ namespace Game.Entities
             data.WriteBit(false); // HasPerksProgramPendingReward
             data.WriteBit(false); // QuestSession
             data.WriteBit(PetStable.HasValue());
-            data.WriteBits(0, 4); // CharacterBankTabSettings (4 bits in Classic)
+            data.WriteBits(CharacterBankTabSettings.Size(), 4);
             data.WriteBits(0, 3); // AccountBankTabSettings
             data.WriteBit(false); // WalkInData
             data.WriteBit(false); // ChallengeModeData
@@ -4546,6 +4584,8 @@ namespace Game.Entities
             data.FlushBits();
             if (PetStable.HasValue())
                 WriteClassicStableInfo(data, PetStable.GetValue());
+            foreach (var settings in CharacterBankTabSettings)
+                settings.WriteCreate(data, owner, receiver);
         }
 
         // The item in client inventory slot clientSlot (see ClassicInventorySlots for the two numberings).
@@ -4730,6 +4770,8 @@ namespace Game.Entities
         static UpdateMask ToRefMask(UpdateMask ours)
         {
             UpdateMask r = new(RefChangeMaskLength);
+            if (ours[1526]) { r.Set(102); r.Set(133); }
+            if (ours[1527]) { r.Set(32); r.Set(48); }
             if (ours[1]) { r.Set(0); r.Set(4); }
             if (ours[2]) { r.Set(0); r.Set(5); }
             if (ours[3]) { r.Set(0); r.Set(7); }
@@ -5308,10 +5350,19 @@ namespace Game.Entities
             if (changesMask[32])
             {
                 bool classicBankTabs = changesMask[48] || changesMask[49];
-                if (classicBankTabs)
+                if (changesMask[48])
                 {
-                    data.FlushBits();
+                    if (!ignoreNestedChangesMask)
+                        CharacterBankTabSettings.WriteUpdateMask(data, 4);
+                    else
+                        WriteCompleteDynamicFieldUpdateMask(CharacterBankTabSettings.Size(), data, 4);
                 }
+                if (classicBankTabs)
+                    data.FlushBits();
+                if (changesMask[48])
+                    for (int i = 0; i < CharacterBankTabSettings.Size(); ++i)
+                        if (CharacterBankTabSettings.HasChanged(i) || ignoreNestedChangesMask)
+                            CharacterBankTabSettings[i].WriteUpdate(data, ignoreNestedChangesMask, owner, receiver);
                 if (changesMask[56])
                 {
                     data.WritePackedGuid(FarsightObject);
@@ -5598,6 +5649,8 @@ namespace Game.Entities
                 {
                     data.WriteInt32((int)PerksProgramCurrency.GetValue());
                 }
+                if (changesMask[133])
+                    data.WriteUInt8(NumCharacterBankTabs);
             }
             if (changesMask[134])
             {
@@ -5918,6 +5971,8 @@ namespace Game.Entities
             ClearChangesMask(QuestCompleted);
             ClearChangesMask(GlyphSlots);
             ClearChangesMask(Glyphs);
+            ClearChangesMask(NumCharacterBankTabs);
+            ClearChangesMask(CharacterBankTabSettings);
             _changesMask.ResetAll();
         }
     }

@@ -761,6 +761,24 @@ namespace Game
         public string GetAccountName() { return _accountName; }
         public int GetBattlenetAccountId() { return _battlenetAccountId; }
         public bool HasSecuredBackpack() => WorldConfig.Values[WorldCfg.ClassicSecuredBagSlotsForAll].Bool || _hasAuthenticator;
+
+        // Classic 1.60 experience preset. The client takes it from every character list (EnumCharactersResult) and builds its
+        // default keybindings from it: Classic turns with A/D, Enhanced strafes. Accounts that never sent one get the config default.
+        public bool IsClassicExperiencePreset() => _classicExperiencePreset ?? Framework.Configuration.ConfigMgr.GetDefaultValue("Classic.ExperiencePreset.Classic", false);
+
+        public void SetClassicExperiencePreset(bool classic)
+        {
+            if (_classicExperiencePreset == classic)
+                return;
+
+            _classicExperiencePreset = classic;
+
+            PreparedStatement stmt = LoginDatabase.GetPreparedStatement(LoginStatements.REP_BNET_EXPERIENCE_PRESET);
+            stmt.SetInt32(0, GetBattlenetAccountId());
+            stmt.SetUInt8(1, (byte)(classic ? 1 : 0));
+            DB.Login.Execute(stmt);
+        }
+
         public ObjectGuid GetBattlenetAccountGUID() { return ObjectGuid.Create(HighGuid.BNetAccount, GetBattlenetAccountId()); }
 
         public Player GetPlayer() { return _player; }
@@ -890,6 +908,9 @@ namespace Game
         {
             SQLResult secured = holder.GetResult(AccountInfoQueryLoad.AccountSecured);
             _hasAuthenticator = !secured.IsEmpty() && secured.Read<ulong>(0) != 0;
+            SQLResult experiencePreset = holder.GetResult(AccountInfoQueryLoad.ExperiencePreset);
+            if (!experiencePreset.IsEmpty())
+                _classicExperiencePreset = experiencePreset.Read<byte>(0) != 0;
             LoadAccountData(realmHolder.GetResult(AccountInfoQueryLoad.GlobalAccountDataIndexPerRealm), AccountDataTypeMask.GlobalCacheMask);
             LoadTutorialsData(realmHolder.GetResult(AccountInfoQueryLoad.TutorialsIndexPerRealm));
             _collectionMgr.LoadAccountToys(holder.GetResult(AccountInfoQueryLoad.GlobalAccountToys));
@@ -1120,6 +1141,7 @@ namespace Game
 
         BattlePetMgr _battlePetMgr;
         bool _hasAuthenticator;
+        bool? _classicExperiencePreset;
 
         AsyncCallbackProcessor<QueryCallback> _queryProcessor = new();
         AsyncCallbackProcessor<TransactionCallback> _transactionCallbacks = new();
@@ -1259,6 +1281,10 @@ namespace Game
             stmt.SetInt32(0, battlenetAccountId);
             SetQuery(AccountInfoQueryLoad.AccountSecured, stmt);
 
+            stmt = LoginDatabase.GetPreparedStatement(LoginStatements.SEL_BNET_EXPERIENCE_PRESET);
+            stmt.SetInt32(0, battlenetAccountId);
+            SetQuery(AccountInfoQueryLoad.ExperiencePreset, stmt);
+
             stmt = LoginDatabase.GetPreparedStatement(LoginStatements.SEL_ACCOUNT_TOYS);
             stmt.SetInt32(0, battlenetAccountId);
             SetQuery(AccountInfoQueryLoad.GlobalAccountToys, stmt);
@@ -1312,5 +1338,6 @@ namespace Game
         TutorialsIndexPerRealm,
         TransmogIllusions,
         AccountSecured,
+        ExperiencePreset,
     }
 }

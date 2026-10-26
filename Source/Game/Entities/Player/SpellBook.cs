@@ -659,7 +659,8 @@ namespace Game.Entities
                 if (traitDefinitionId.HasValue)
                 {
                     int traitConfigIndex = player.m_activePlayerData.TraitConfigs.FindIndexIf(config =>
-                        ((TraitConfigType)(int)config.Type != TraitConfigType.Combat || config.ID == player.m_activePlayerData.ActiveCombatTraitConfigID) &&
+                        ((TraitConfigType)(int)config.Type != TraitConfigType.Combat
+                            || config.ID.GetValue() == player.m_activePlayerData.ActiveCombatTraitConfigID.GetValue()) &&
                         config.Entries.FindIndexIf(entry => CliDB.TraitNodeEntryStorage.LookupByKey(entry.TraitNodeEntryID)?.TraitDefinitionID == traitDefinitionId) >= 0);
                     TraitConfig traitConfig = traitConfigIndex >= 0 ? player.m_activePlayerData.TraitConfigs[traitConfigIndex] : null;
                     if (traitConfig != null)

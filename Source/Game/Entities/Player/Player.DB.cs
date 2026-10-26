@@ -97,6 +97,8 @@ namespace Game.Entities
                                 if (err == InventoryResult.Ok)
                                     item = BankItem(dest, item, true);
                             }
+                            else
+                                err = InventoryResult.WrongSlot;
 
                             // Remember bags that may contain items in them
                             if (err == InventoryResult.Ok)
@@ -121,7 +123,11 @@ namespace Game.Entities
                             var bag = bagMap.LookupByKey(bagGuid);
                             if (bag != null)
                             {
-                                err = CanStoreItem(new(slot, bag.InventorySlot), out var dest, item);
+                                ItemPos storedPosition = new(slot, bag.InventorySlot);
+                                List<ItemPosCount> dest;
+                                err = storedPosition.IsBankPos
+                                    ? CanBankItem(storedPosition, out dest, item, false, false)
+                                    : CanStoreItem(storedPosition, out dest, item);
                                 if (err == InventoryResult.Ok)
                                     item = StoreItem(dest, item, true);
                             }
@@ -1228,12 +1234,18 @@ namespace Game.Entities
             if (activeConfig >= 0)
                 SetActiveCombatTraitConfigID(m_activePlayerData.TraitConfigs[activeConfig].ID);
 
+            ApplyLoadedTraitConfigs();
+        }
+
+        void ApplyLoadedTraitConfigs()
+        {
             foreach (TraitConfig traitConfig in m_activePlayerData.TraitConfigs)
             {
                 switch ((TraitConfigType)(int)traitConfig.Type)
                 {
                     case TraitConfigType.Combat:
-                        if (traitConfig.ID != m_activePlayerData.ActiveCombatTraitConfigID)
+                        // These are separate UpdateField<int> objects; compare their stored IDs.
+                        if (traitConfig.ID.GetValue() != m_activePlayerData.ActiveCombatTraitConfigID.GetValue())
                             continue;
                         break;
                     case TraitConfigType.Profession:
@@ -3590,7 +3602,9 @@ namespace Game.Entities
             // must be before inventory (some items required reputation check)
             reputationMgr.LoadFromDB(holder.GetResult(PlayerLoginQueryLoad.Reputation));
 
+            LoadClassicBankTabs(holder.GetResult(PlayerLoginQueryLoad.BankTabs));
             _LoadInventory(holder.GetResult(PlayerLoginQueryLoad.Inventory), time_diff);
+            GrantClassicFreeBankTab();
 
             if (IsVoidStorageUnlocked())
                 _LoadVoidStorage(holder.GetResult(PlayerLoginQueryLoad.VoidStorage));
@@ -4086,6 +4100,7 @@ namespace Game.Entities
             _SaveGlyphs(characterTransaction);
             _SaveTalents(characterTransaction);
             _SaveTraits(characterTransaction);
+            SaveClassicBankTabs(characterTransaction);
             _SaveSpells(characterTransaction);
             GetSpellHistory().SaveToDB<Player>(characterTransaction);
             _SaveActions(characterTransaction);

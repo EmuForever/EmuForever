@@ -21,8 +21,13 @@ namespace Game
                 return;
             }
 
+            if (packet.BankType != 0)
+                return;
+
             ItemPos itemPos = new(packet.Slot, packet.Bag);
             Item item = GetPlayer().GetItemByPos(itemPos);
+            if (item == null)
+                return;
 
             if (itemPos.IsInventoryPos) // move only from inventory (not equippable slots)
             {
@@ -40,19 +45,21 @@ namespace Game
         }
 
         [WorldPacketHandler(ClientOpcodes.BankerActivate, Processing = PacketProcessing.Inplace)]
-        void HandleBankerActivate(Hello packet)
+        void HandleBankerActivate(BankerActivate packet)
         {
-            Creature unit = GetPlayer().GetNPCIfCanInteractWith(packet.Unit, NPCFlags1.Banker, NPCFlags2.None);
+            if (packet.InteractionType != PlayerInteractionType.Banker && packet.InteractionType != PlayerInteractionType.CharacterBanker)
+                return;
+            Creature unit = GetPlayer().GetNPCIfCanInteractWith(packet.Banker, NPCFlags1.Banker, NPCFlags2.None);
             if (unit == null)
             {
-                Log.outError(LogFilter.Network, $"HandleBankerActivate: {packet.Unit} not found or you can not interact with him.");
+                Log.outError(LogFilter.Network, $"HandleBankerActivate: {packet.Banker} not found or you can not interact with him.");
                 return;
             }
 
             if (GetPlayer().HasUnitState(UnitState.Died))
                 GetPlayer().RemoveAurasByType(AuraType.FeignDeath);
 
-            SendShowBank(packet.Unit);
+            SendShowBank(packet.Banker, packet.InteractionType);
         }
 
         [WorldPacketHandler(ClientOpcodes.AutostoreBankItem, Processing = PacketProcessing.Inplace)]
@@ -66,6 +73,8 @@ namespace Game
 
             ItemPos itemPos = new(packet.Slot, packet.Bag);
             Item item = GetPlayer().GetItemByPos(itemPos);
+            if (item == null)
+                return;
 
             if (itemPos.IsBankPos && !itemPos.IsBagSlotPos) // moving from bank to inventory (not equippable slots)
             {
@@ -81,41 +90,64 @@ namespace Game
                 GetPlayer().StoreItem(dest, item, true);
                     
             }
-        }
-
-        [WorldPacketHandler(ClientOpcodes.BuyBankSlot, Processing = PacketProcessing.Inplace)]
-        void HandleBuyBankSlot(BuyBankSlot packet)
-        {
-            if (!CanUseBank(packet.Guid))
+            else if (itemPos.IsInventoryPos)
             {
-                Log.outDebug(LogFilter.Network, $"WORLD: HandleBuyBankSlot - {packet.Guid} not found or you can't interact with him.");
-                return;
+                InventoryResult result = GetPlayer().CanBankItem(ItemPos.Undefined, out var destination, item);
+                if (result != InventoryResult.Ok)
+                    GetPlayer().SendEquipError(result, item);
+                else
+                {
+                    GetPlayer().RemoveItem(itemPos, true);
+                    GetPlayer().ItemRemovedQuestCheck(item.GetEntry(), item.GetCount());
+                    GetPlayer().BankItem(destination, item, true);
+                }
             }
-
-            int slot = GetPlayer().GetBankBagSlotCount();
-            // next slot
-            ++slot;
-
-            BankBagSlotPricesRecord slotEntry = CliDB.BankBagSlotPricesStorage.LookupByKey(slot);
-            if (slotEntry == null)
-                return;
-
-            uint price = slotEntry.Cost;
-            if (!GetPlayer().HasEnoughMoney(price))
-                return;
-
-            GetPlayer().SetBankBagSlotCount((byte)slot);
-            GetPlayer().ModifyMoney(-price);
-            GetPlayer().UpdateCriteria(CriteriaType.BankSlotsPurchased);
         }
 
-        public void SendShowBank(ObjectGuid guid)
+        [WorldPacketHandler(ClientOpcodes.BuyAccountBankTab)]
+        void HandleBuyBankTab(BuyBankTab packet)
         {
+            if (packet.BankType != 0 || !CanUseBank(packet.Banker))
+                return;
+            GetPlayer().TryBuyCharacterBankTab();
+        }
+
+        [WorldPacketHandler(ClientOpcodes.UpdateAccountBankTabSettings)]
+        void HandleUpdateBankTabSettings(UpdateBankTabSettings packet)
+        {
+            if (packet.BankType != 0 || !CanUseBank(packet.Banker) || packet.Tab >= _player.GetCharacterBankTabCount())
+                return;
+            _player.SetCharacterBankTabSettings(packet.Tab, packet.Name, packet.Icon, packet.Description, packet.DepositFlags);
+        }
+
+        [WorldPacketHandler(ClientOpcodes.AutoDepositCharacterBank)]
+        void HandleAutoDepositCharacterBank(AutoDepositCharacterBank packet)
+        {
+            if (!CanUseBank(packet.Banker))
+                return;
+            foreach (Item item in _player.GetCraftingReagentItemsToDeposit())
+            {
+                InventoryResult result = _player.CanBankItem(ItemPos.Undefined, out var destination, item);
+                if (result != InventoryResult.Ok)
+                {
+                    _player.SendEquipError(result, item);
+                    break;
+                }
+                _player.RemoveItem(item.InventoryPosition, true);
+                _player.ItemRemovedQuestCheck(item.GetEntry(), item.GetCount());
+                _player.BankItem(destination, item, true);
+            }
+        }
+
+        public void SendShowBank(ObjectGuid guid, PlayerInteractionType interactionType = PlayerInteractionType.CharacterBanker)
+        {
+            if (!_player.GrantClassicFreeBankTab())
+                return;
             _player.PlayerTalkClass.GetInteractionData().Reset();
             _player.PlayerTalkClass.GetInteractionData().SourceGuid = guid;
             NPCInteractionOpenResult npcInteraction = new();
             npcInteraction.Npc = guid;
-            npcInteraction.InteractionType = PlayerInteractionType.Banker;
+            npcInteraction.InteractionType = interactionType;
             npcInteraction.Success = true;
             SendPacket(npcInteraction);
         }

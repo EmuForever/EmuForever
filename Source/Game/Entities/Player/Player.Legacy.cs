@@ -141,7 +141,8 @@ namespace Game.Entities
             int rank = 0;
             foreach (TraitConfig config in m_activePlayerData.TraitConfigs)
             {
-                if ((TraitConfigType)(int)config.Type == TraitConfigType.Combat && config.ID != m_activePlayerData.ActiveCombatTraitConfigID) continue;
+                if ((TraitConfigType)(int)config.Type == TraitConfigType.Combat
+                    && config.ID.GetValue() != m_activePlayerData.ActiveCombatTraitConfigID.GetValue()) continue;
                 foreach (TraitEntry entry in config.Entries)
                     if (CliDB.TraitNodeEntryStorage.LookupByKey(entry.TraitNodeEntryID)?.TraitDefinitionID == definitionId)
                         rank = Math.Max(rank, entry.Rank + entry.GrantedRanks);

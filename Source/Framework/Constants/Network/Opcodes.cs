@@ -908,6 +908,8 @@ namespace Framework.Constants
         SetEveryoneIsAssistant = 0x430046,
         SetExcludedChatCensorSources = 0x430133,
         SetFactionAtWar = 0x3E0079,
+        SetForeverExperiencePreset = 0x4301AC, // Classic wire 0x4401B1
+        SelectForeverExperiencePreset = 0x4301AD, // Classic wire 0x4401B2
         SetFactionInactive = 0x3E007B,
         SetFactionNotAtWar = 0x3E007A,
         SetGameEventDebugViewState = 0x3D006B,

@@ -6,6 +6,20 @@ using System;
 
 namespace Game.DataStorage
 {
+    public sealed class BankTabRecord
+    {
+        public int Id;
+        public ulong Cost;
+        public byte BankType;
+        public sbyte OrderIndex;
+        public int PlayerConditionID;
+        public int PurchasePromptTitle;
+        public int PurchasePromptBody;
+        public int PurchasePromptConfirmation;
+        public int TabCleanupConfirmation;
+        public int TabNameEditBoxHeader;
+    }
+
     public sealed class BankBagSlotPricesRecord
     {
         public int Id;

@@ -14,15 +14,14 @@ namespace Game.Entities
     ///   bags              30-33       30-33
     ///   reagent bag       34          34
     ///   backpack          35-58       35-62
-    ///   bank items        59-86       -      (the Classic bank is a tab container)
-    ///   bank bags         87-93       63-71  (the bank's own tab + 8 bags)
+    ///   bank bags         63-71       63-71  (the bank's own tab + 8 bags)
     ///   buyback           94-105      72-83
     ///   keyring           106-137     -
     ///   child equipment   138-140     84-86
     ///   equipable spells  -           87-102
     ///   account bank bags -           103-107
     ///
-    /// The bank has no Classic equivalent in this core yet, so bank items, bank bags and the keyring are not sent.
+    /// The keyring has no client equivalent and is not sent.
     /// Slot numbers are converted on the wire only: update fields, item packets read from the client, and
     /// ItemPushResult. Everything server-side keeps this core's numbering.
     /// </summary>
@@ -45,6 +44,8 @@ namespace Game.Entities
         {
             if (slot < InventorySlots.ItemEnd)
                 return slot;
+            if (slot >= InventorySlots.BankBagStart && slot < InventorySlots.BankBagEnd)
+                return slot;
             if (slot >= InventorySlots.BuyBackStart && slot < InventorySlots.BuyBackEnd)
                 return (byte)(ClientBuyBackStart + slot - InventorySlots.BuyBackStart);
             if (slot >= InventorySlots.ChildEquipmentStart && slot < InventorySlots.ChildEquipmentEnd)
@@ -61,6 +62,8 @@ namespace Game.Entities
                 return slot;
             if (slot < ClientItemEnd)
                 return ItemSlot.Null;   // backpack slots past this core's 24
+            if (slot >= InventorySlots.BankBagStart && slot < InventorySlots.BankBagEnd)
+                return slot;
             if (slot >= ClientBuyBackStart && slot < ClientBuyBackEnd)
                 return (byte)(InventorySlots.BuyBackStart + slot - ClientBuyBackStart);
             if (slot >= ClientChildEquipmentStart && slot < ClientChildEquipmentEnd)

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 namespace Framework.Database
@@ -611,6 +611,10 @@ namespace Framework.Database
             PrepareStatement(CharStatements.DEL_PETITION_SIGNATURE_BY_OWNER, "DELETE FROM petition_sign WHERE ownerguid = ?");
             PrepareStatement(CharStatements.INS_CHAR_GLYPHS, "INSERT INTO character_glyphs (guid, talentGroup, glyphSlot, glyphId) VALUES(?, ?, ?, ?)");
             PrepareStatement(CharStatements.INS_CHAR_TALENT, "INSERT INTO character_talent (guid, talentId, talentRank, talentGroup) VALUES (?, ?, ?, ?)");
+            PrepareStatement(CharStatements.SEL_CHAR_BANK_TAB_SETTINGS, "SELECT c.bankTabs, t.tabId, t.name, t.icon, t.description, t.depositFlags FROM characters c LEFT JOIN character_bank_tab_settings t ON t.characterGuid=c.guid WHERE c.guid=? ORDER BY t.tabId");
+            PrepareStatement(CharStatements.UPD_CHAR_BANK_TAB_COUNT, "UPDATE characters SET bankTabs=? WHERE guid=?");
+            PrepareStatement(CharStatements.DEL_CHAR_BANK_TAB_SETTINGS, "DELETE FROM character_bank_tab_settings WHERE characterGuid=?");
+            PrepareStatement(CharStatements.INS_CHAR_BANK_TAB_SETTINGS, "INSERT INTO character_bank_tab_settings (characterGuid,tabId,name,icon,description,depositFlags) VALUES (?,?,?,?,?,?)");
             PrepareStatement(CharStatements.UPD_CHAR_LIST_SLOT, "UPDATE characters SET slot = ? WHERE guid = ? AND account = ?");
             PrepareStatement(CharStatements.INS_CHAR_FISHINGSTEPS, "INSERT INTO character_fishingsteps (guid, fishingSteps) VALUES (?, ?)");
             PrepareStatement(CharStatements.DEL_CHAR_FISHINGSTEPS, "DELETE FROM character_fishingsteps WHERE guid = ?");
@@ -1302,6 +1306,10 @@ namespace Framework.Database
         SEL_LEGACY_CHARACTER_STATE,
         DEL_LEGACY_CHARACTER_STATE,
         UPSERT_LEGACY_CHARACTER_STATE,
+        SEL_CHAR_BANK_TAB_SETTINGS,
+        UPD_CHAR_BANK_TAB_COUNT,
+        DEL_CHAR_BANK_TAB_SETTINGS,
+        INS_CHAR_BANK_TAB_SETTINGS,
         MAX_CHARACTERDATABASE_STATEMENTS
     }
 }

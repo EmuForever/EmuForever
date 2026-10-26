@@ -70,6 +70,7 @@ namespace Game.DataStorage
             // AzeriteTierUnlockStorage.ReadDB2(data, "AzeriteTierUnlock.db2", HotfixStatements.SEL_AZERITE_TIER_UNLOCK);
             // AzeriteTierUnlockSetStorage.ReadDB2(data, "AzeriteTierUnlockSet.db2", HotfixStatements.SEL_AZERITE_TIER_UNLOCK_SET);
             BankBagSlotPricesStorage.ReadDB2(data, "BankBagSlotPrices.db2"); // not in 1.60.1 hotfixes
+            BankTabStorage.ReadDB2(data, "BankTab.db2", HotfixStatements.SEL_BANK_TAB);
             BannedAddOnsStorage.ReadDB2(data, "BannedAddons.db2", HotfixStatements.SEL_BANNED_ADDONS);
             BarberShopStyleStorage.ReadDB2(data, "BarberShopStyle.db2", HotfixStatements.SEL_BARBER_SHOP_STYLE, HotfixStatements.SEL_BARBER_SHOP_STYLE_LOCALE);
             // BattlePetBreedQualityStorage.ReadDB2(data, "BattlePetBreedQuality.db2", HotfixStatements.SEL_BATTLE_PET_BREED_QUALITY);
@@ -515,6 +516,7 @@ namespace Game.DataStorage
         public static DB6Storage<int, AzeriteTierUnlockRecord> AzeriteTierUnlockStorage = new();
         public static DB6Storage<int, AzeriteTierUnlockSetRecord> AzeriteTierUnlockSetStorage = new();
         public static DB6Storage<int, BankBagSlotPricesRecord> BankBagSlotPricesStorage = new();
+        public static DB6Storage<int, BankTabRecord> BankTabStorage = new();
         public static DB6Storage<int, BannedAddonsRecord> BannedAddOnsStorage = new();
         public static DB6Storage<int, BarberShopStyleRecord> BarberShopStyleStorage = new();
         public static DB6Storage<int, BattlePetAbilityRecord> BarberBattlePetAbilityStorage = new();

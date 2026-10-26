@@ -4356,7 +4356,7 @@ namespace Game.Entities
                             if (!sourceItem.IsBag())
                                 return InventoryResult.NotABag;
 
-                            if (pos.Slot - InventorySlots.BankBagStart >= GetBankBagSlotCount())
+                            if (pos.Slot - InventorySlots.BankBagStart >= GetCharacterBankTabCount())
                                 return InventoryResult.NoBankSlot;
 
                             return CanUseItem(sourceItem, not_loading);

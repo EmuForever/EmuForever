@@ -23,6 +23,18 @@ namespace Game
 {
     public partial class WorldSession
     {
+        [WorldPacketHandler(ClientOpcodes.SetForeverExperiencePreset, Status = SessionStatus.Authed)]
+        void HandleSetForeverExperiencePreset(SetForeverExperiencePreset packet)
+        {
+            SetClassicExperiencePreset(packet.Classic);
+        }
+
+        [WorldPacketHandler(ClientOpcodes.SelectForeverExperiencePreset, Status = SessionStatus.Authed)]
+        void HandleSelectForeverExperiencePreset(SelectForeverExperiencePreset packet)
+        {
+            SetClassicExperiencePreset(packet.Classic);
+        }
+
         [WorldPacketHandler(ClientOpcodes.EnumCharacters, Status = SessionStatus.Authed)]
         void HandleCharEnum(EnumCharacters charEnum)
         {
@@ -52,6 +64,7 @@ namespace Game
             charResult.Success = true;
             charResult.IsDeletedCharacters = holder.IsDeletedCharacters();
             charResult.DisabledClassesMask = WorldConfig.Values[WorldCfg.CharacterCreatingDisabledClassmask].Int32;
+            charResult.ClassicExperiencePreset = IsClassicExperiencePreset();
 
             if (!charResult.IsDeletedCharacters)
                 _legitCharacters.Clear();
@@ -3120,6 +3133,10 @@ namespace Game
             stmt.SetInt64(0, lowGuid);
             SetQuery(PlayerLoginQueryLoad.Inventory, stmt);
 
+            stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_CHAR_BANK_TAB_SETTINGS);
+            stmt.SetInt64(0, lowGuid);
+            SetQuery(PlayerLoginQueryLoad.BankTabs, stmt);
+
             stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_CHAR_VOID_STORAGE);
             stmt.SetInt64(0, lowGuid);
             SetQuery(PlayerLoginQueryLoad.VoidStorage, stmt);
@@ -3335,6 +3352,7 @@ namespace Game
         PetSlots,
         TraitEntries,
         TraitConfigs,
+        BankTabs,
         Actions,
         Max
     }

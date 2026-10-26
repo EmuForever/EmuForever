@@ -6282,6 +6282,16 @@
       "retail70391": "0x3E0079",
       "score": 5.5
     },
+    "SetForeverExperiencePreset": {
+      "message": "CMSG_SET_FOREVER_EXPERIENCE_PRESET",
+      "opcode": "0x4401B1",
+      "source": "70532 client: C_GameRules.SetForeverExperiencePreset sends it (vtable 0x40EE1F0, uint32 + 1 bit)"
+    },
+    "SelectForeverExperiencePreset": {
+      "message": "CMSG_SELECT_FOREVER_EXPERIENCE_PRESET",
+      "opcode": "0x4401B2",
+      "source": "70532 client: C_GameRules.SetForeverExperiencePreset sends it (vtable 0x40EE1C8, 1 bit)"
+    },
     "SetFactionInactive": {
       "message": "CMSG_SET_FACTION_INACTIVE",
       "opcode": "0x3F007D",

@@ -19,6 +19,34 @@ namespace Game.Networking.Packets
         public override void Read() { }
     }
 
+    // Classic 1.60 C_GameRules.SetForeverExperiencePreset: the glue screen sends both messages, the first one also when the
+    // character list disagrees with the preset picked in this client session. Layouts read from the 70532 client serializers.
+    public class SetForeverExperiencePreset : ClientPacket
+    {
+        public SetForeverExperiencePreset(WorldPacket packet) : base(packet) { }
+
+        public override void Read()
+        {
+            Unknown = _worldPacket.ReadUInt32();
+            Classic = _worldPacket.HasBit();
+        }
+
+        public uint Unknown;
+        public bool Classic;
+    }
+
+    public class SelectForeverExperiencePreset : ClientPacket
+    {
+        public SelectForeverExperiencePreset(WorldPacket packet) : base(packet) { }
+
+        public override void Read()
+        {
+            Classic = _worldPacket.HasBit();
+        }
+
+        public bool Classic;
+    }
+
     public class EnumCharactersResult : ServerPacket
     {
         public EnumCharactersResult() : base(ServerOpcodes.EnumCharactersResult) { }
@@ -35,7 +63,7 @@ namespace Game.Networking.Packets
             _worldPacket.WriteBit(IsTrialAccountRestricted);
             _worldPacket.WriteBit(false); // IsAccountLapsedPlayer
             _worldPacket.WriteBit(DisabledClassesMask.HasValue);
-            _worldPacket.WriteBit(false); // ForceCharacterListSort
+            _worldPacket.WriteBit(ClassicExperiencePreset); // TC ForceCharacterListSort; testing whether the client reads the preset here
             _worldPacket.WriteInt32(Characters.Count);
             _worldPacket.WriteInt32(RegionwideCharacters.Count);
             _worldPacket.WriteInt32(MaxCharacterLevel);
@@ -70,6 +98,7 @@ namespace Game.Networking.Packets
         public bool IsNewPlayerRestricted; // forbids using level boost and class trials
         public bool IsNewPlayer; // forbids hero classes and allied races
         public bool IsTrialAccountRestricted;
+        public bool ClassicExperiencePreset;
 
         public int MaxCharacterLevel = 1;
         public int? DisabledClassesMask = new();

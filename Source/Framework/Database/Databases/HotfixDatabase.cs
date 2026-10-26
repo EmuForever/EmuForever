@@ -136,6 +136,7 @@ namespace Framework.Database
             PrepareStatement(HotfixStatements.SEL_AZERITE_TIER_UNLOCK_SET, "SELECT ID, Flags FROM azerite_tier_unlock_set WHERE (`VerifiedBuild` > 0) = ?");
 
             // BankBagSlotPrices.db2
+            PrepareStatement(HotfixStatements.SEL_BANK_TAB, "SELECT ID, Cost, BankType, OrderIndex, PlayerConditionID, PurchasePromptTitle, PurchasePromptBody, PurchasePromptConfirmation, TabCleanupConfirmation, TabNameEditBoxHeader FROM bank_tab WHERE (`VerifiedBuild` > 0) = ?");
             PrepareStatement(HotfixStatements.SEL_BANK_BAG_SLOT_PRICES, "SELECT ID, Cost FROM bank_bag_slot_prices WHERE (`VerifiedBuild` > 0) = ?");
 
             // BannedAddons.db2
@@ -1503,6 +1504,7 @@ namespace Framework.Database
         SEL_AZERITE_TIER_UNLOCK_SET,
 
         SEL_BANK_BAG_SLOT_PRICES,
+        SEL_BANK_TAB,
 
         SEL_BANNED_ADDONS,
 

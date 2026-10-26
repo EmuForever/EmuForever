@@ -14,7 +14,7 @@ namespace Framework.Constants
         public const int MaxGemSockets = 3;
         public const int MaxSpells = 5;
         public const int MaxStats = 10;
-        public const int MaxBagSize = 36;
+        public const int MaxBagSize = 98;
         public const int MaxOutfitItems = 24;
         public const int MaxItemExtCostItems = 5;
         public const int MaxItemExtCostCurrencies = 5;
@@ -110,10 +110,10 @@ namespace Framework.Constants
         public const byte ItemEnd = 59;
 
         public const byte BankItemStart = 59;
-        public const byte BankItemEnd = 87;
+        public const byte BankItemEnd = BankItemStart; // Classic bank items live in the tab container.
 
-        public const byte BankBagStart = 87;
-        public const byte BankBagEnd = 94;
+        public const byte BankBagStart = 63;
+        public const byte BankBagEnd = 72;
 
         public const byte BuyBackStart = 94;
         public const byte BuyBackEnd = 106;

@@ -50,7 +50,7 @@ namespace Scripts.World.Areatriggers
     class classic_npc_energizing_vortex : SmartAI
     {
         const int BlessingOfZephras = 1258510;
-        const float PickupRadius = 1.0f;
+        const float PickupRadius = 3.0f;
         readonly HashSet<ObjectGuid> _inside = new();
         TimeSpan _checkTimer;
 

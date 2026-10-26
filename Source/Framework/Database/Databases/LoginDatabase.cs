@@ -149,6 +149,10 @@ namespace Framework.Database
             PrepareStatement(LoginStatements.SEL_ACCOUNT_TOYS, "SELECT itemId, isFavourite, hasFanfare FROM bnot_account_toys WHERE accountId = ?");
             PrepareStatement(LoginStatements.REP_ACCOUNT_TOYS, "REPLACE INTO bnot_account_toys (accountId, itemId, isFavourite, hasFanfare) VALUES (?, ?, ?, ?)");
 
+            // Classic 1.60 experience preset (Classic or Enhanced), chosen once on the glue screen
+            PrepareStatement(LoginStatements.SEL_BNET_EXPERIENCE_PRESET, "SELECT classic FROM bnot_account_experience_preset WHERE accountId = ?");
+            PrepareStatement(LoginStatements.REP_BNET_EXPERIENCE_PRESET, "REPLACE INTO bnot_account_experience_preset (accountId, classic) VALUES (?, ?)");
+
             // Battle Pets
             PrepareStatement(LoginStatements.SEL_BATTLE_PETS, "SELECT bp.guid, bp.species, bp.breed, bp.displayId, bp.level, bp.exp, bp.health, bp.quality, bp.flags, bp.name, bp.nameTimestamp, bp.owner, dn.genitive, dn.dative, dn.accusative, dn.instrumental, dn.prepositional FROM battle_pets bp LEFT JOIN battle_pet_declinedname dn ON bp.guid = dn.guid WHERE bp.battlenetAccountId = ? AND (bp.ownerRealmId IS NULL OR bp.ownerRealmId = ?)");
             PrepareStatement(LoginStatements.INS_BATTLE_PETS, "INSERT INTO battle_pets (guid, battlenetAccountId, species, breed, displayId, level, exp, health, quality, flags, name, nameTimestamp, owner, ownerRealmId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
@@ -307,6 +311,9 @@ namespace Framework.Database
 
         SEL_ACCOUNT_TOYS,
         REP_ACCOUNT_TOYS,
+
+        SEL_BNET_EXPERIENCE_PRESET,
+        REP_BNET_EXPERIENCE_PRESET,
 
         SEL_BATTLE_PETS,
         INS_BATTLE_PETS,
