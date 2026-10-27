@@ -34,7 +34,7 @@ namespace Game.Chat.Commands
         static readonly ConcurrentDictionary<string, byte> Creating = new(StringComparer.OrdinalIgnoreCase);
         static void ReportCreationFailure(CommandHandler handler, string message)
         {
-            Log.outError(LogFilter.Server, message);
+            Log.outError(LogFilter.SI, message);
             handler.SendSysMessage(message);
         }
         static bool IsOperator(CommandHandler h) => h.GetSession() == null || h.GetSession().GetSecurity() >= AccountTypes.Moderator;

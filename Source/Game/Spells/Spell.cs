@@ -4903,8 +4903,12 @@ namespace Game.Spells
 
                 unitCaster.ModifyPower(cost.Power, -cost.Amount);
 
-                if (cost.Power == PowerType.Mana)
+                // Classic 1.60 (vanilla): paying mana starts the five second rule (Player.Regenerate) (TC-forever)
+                if (cost.Power == PowerType.Mana && cost.Amount > 0)
+                {
                     unitCaster.SetLastManaUse(LoopTime.ServerTime);
+                    unitCaster.ToPlayer()?.InterruptPowerRegen(PowerType.Mana);
+                }
 
             }
         }
@@ -8487,26 +8491,9 @@ namespace Game.Spells
                 Player modOwner = m_caster.GetSpellModOwner();
                 if (modOwner != null)
                     modOwner.ApplySpellMod(m_spellInfo, SpellModOp.StartCooldown, ref gcd, this);
-                    
 
-                bool isMeleeOrRangedSpell = 
-                    m_spellInfo.DmgClass == SpellDmgClass.Melee 
-                    || m_spellInfo.DmgClass == SpellDmgClass.Ranged 
-                    || m_spellInfo.HasAttribute(SpellAttr0.UsesRangedSlot) 
-                    || m_spellInfo.HasAttribute(SpellAttr0.IsAbility);
-
-                // Apply haste rating
-                if (gcd > MinGCD && (m_spellInfo.StartRecoveryCategory == 133 && !isMeleeOrRangedSpell))
-                {
-                    gcd = (Milliseconds)(gcd * m_caster.ToUnit().m_unitData.ModSpellHaste);                    
-                    MathFunctions.RoundToInterval(ref gcd.Ticks, 750, 1500);                    
-                }
-
-                if (gcd > MinGCD && m_caster.ToUnit().HasAuraTypeWithAffectMask(AuraType.ModGlobalCooldownByHasteRegen, m_spellInfo))
-                {
-                    gcd = (Milliseconds)(gcd * m_caster.ToUnit().m_unitData.ModHasteRegen);
-                    MathFunctions.RoundToInterval(ref gcd.Ticks, 750, 1500);                   
-                }
+                // Classic 1.60 (vanilla): the global cooldown is not shortened by spell haste or haste regen (retail scaled it down to
+                // 0.75 s) (TC-forever)
             }
 
             m_caster.ToUnit().GetSpellHistory().AddGlobalCooldown(m_spellInfo, gcd);

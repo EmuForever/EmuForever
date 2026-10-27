@@ -3066,6 +3066,7 @@ namespace Game.Entities
             }
 
             _Create(guid);
+            InitializeGuildClubMemberId();
 
             if (GetSession().IsServerControlled)
             {

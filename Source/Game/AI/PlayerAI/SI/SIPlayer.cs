@@ -189,6 +189,14 @@ namespace Game.AI
                 Behavior = "Preparation"; _task?.Suspend(Now);
                 _preparation.Resume(Now); _preparation.Tick(Prepare, Now); return;
             }
+            // A full bag must not repeatedly choose loot/pulls ahead of an inventory trip.
+            // Once selected, bank/AH travel remains committed after the first slot is freed.
+            if ((_goal is "quest" or "grind") && (me.GetFreeInventorySlotCount() == 0 ||
+                _task?.Kind == SITaskKind.Vendor && _task.VendorPurpose is SIVendorPurpose.Bank or SIVendorPurpose.Auction))
+            {
+                RecoverIdleTask();
+                if (TickVendorBehavior()) { Behavior = "Vendor"; return; }
+            }
             if (TryLoot()) { Behavior = "Loot"; _task?.Suspend(Now); return; }
             if (Recuperate() || Rest() || Survive()) { Behavior = "Recovery"; _task?.Suspend(Now); return; }
             if(TickFlightPaths()){Behavior="FlightPaths";return;}
@@ -261,7 +269,7 @@ namespace Game.AI
             me.CastStop();
         }
 
-        static readonly SIBufferedLog Diagnostics = new(message => Log.outWarn(LogFilter.Server, message));
+        static readonly SIBufferedLog Diagnostics = new(message => Log.outWarn(LogFilter.SI, message));
         readonly System.Collections.Generic.Dictionary<string, long> _nextDiagnostic = new();
         void Report(string type, [InterpolatedStringHandlerArgument("type")] ref SIDiagnosticMessage summary)
         {

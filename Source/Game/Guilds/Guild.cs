@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -226,6 +226,7 @@ namespace Game.Guilds
                 memberData.ClassID = (byte)member.GetClass();
                 memberData.Gender = (byte)member.GetGender();
                 memberData.RaceID = (byte)member.GetRace();
+                memberData.GuildClubMemberID = Game.Services.Classic.ClassicSocialSupport.CreateClubMemberId(member.GetGUID(), (uint)Global.WorldMgr.GetRealm().Id.Index);
 
                 memberData.Authenticated = false;
                 memberData.SorEligible = false;
@@ -2594,6 +2595,8 @@ namespace Game.Guilds
         }
 
         public int GetMembersCount() { return m_members.Count; }
+        public IReadOnlyDictionary<ObjectGuid, Member> GetMembers() => m_members;
+        public bool HasAnyRankRight(GuildRankId rank, GuildRankRights rights) => _GetRankRights(rank).HasAnyFlag(rights);
 
         public GuildAchievementMgr GetAchievementMgr() { return m_achievementSys; }
 

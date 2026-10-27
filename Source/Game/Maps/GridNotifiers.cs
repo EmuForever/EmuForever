@@ -642,9 +642,12 @@ namespace Game.Maps
 
     public class UpdaterNotifier : Notifier
     {
-        public UpdaterNotifier(TimeSpan diff)
+        public UpdaterNotifier(TimeSpan diff, Map map, TimeSpan clock, TimeSpan maxCatchUp)
         {
             i_timeDiff = diff;
+            i_map = map;
+            i_clock = clock;
+            i_maxCatchUp = maxCatchUp;
         }
 
         public override void Visit(IReadOnlyList<WorldObject> objs)
@@ -658,17 +661,15 @@ namespace Game.Maps
 
                 if (obj.IsInWorld)
                 {
-                    TimeSpan diff = i_timeDiff;
-                    if (obj is Creature creature)
-                    {
-                        diff += creature.PendingUpdateDiff;
-                        if (diff < Creature.IdleUpdateInterval && creature.CanDeferIdleUpdate())
-                        {
-                            creature.PendingUpdateDiff = diff;
-                            continue;
-                        }
-                        creature.PendingUpdateDiff = TimeSpan.Zero;
-                    }
+                    // The time since this object's last update: one tick normally, more when its cell was
+                    // skipped (cells around a background bot) or it was deferred while idle; zero when it
+                    // moved into a cell visited later this tick and was already updated.
+                    TimeSpan diff = obj.ElapsedSinceUpdate(i_map, i_clock, i_timeDiff, i_maxCatchUp);
+                    if (diff <= TimeSpan.Zero)
+                        continue;
+                    if (obj is Creature creature && diff < Creature.IdleUpdateInterval && creature.CanDeferIdleUpdate())
+                        continue;
+                    obj.MarkUpdated(i_map, i_clock);
                     long started = System.Diagnostics.Stopwatch.GetTimestamp();
                     obj.Update(diff);
                     double elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
@@ -681,6 +682,9 @@ namespace Game.Maps
         }
 
         TimeSpan i_timeDiff;
+        Map i_map;
+        TimeSpan i_clock;
+        TimeSpan i_maxCatchUp;
     }
 
     public class PlayerWorker : Notifier

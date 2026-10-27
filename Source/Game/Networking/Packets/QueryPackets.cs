@@ -452,6 +452,13 @@ namespace Game.Networking.Packets
         public Array<int> QuestCompletionNPCs = new (100);
     }
 
+    class QueryQuestItemUsability : ClientPacket
+    {
+        public QueryQuestItemUsability(WorldPacket packet) : base(packet) { }
+
+        public override void Read() { }
+    }
+
     class QuestCompletionNPCResponse : ServerPacket
     {
         public QuestCompletionNPCResponse() : base(ServerOpcodes.QuestCompletionNpcResponse) { }

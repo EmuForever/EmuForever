@@ -576,6 +576,135 @@ namespace Game.Maps
                 if (bot.GetExactDist2dSq(observer) <= 150 * 150) return true;
             return false;
         }
+
+        bool IsBackgroundBot(Player player) => player.GetSession().IsServerControlled && !player.IsInCombat() &&
+            player.GetViewpoint() == null && !Observed(player);
+
+        // Sum of this map's update diffs. Objects remember it at their last update (WorldObject.ElapsedSinceUpdate),
+        // so an object whose cell was skipped for some ticks is updated with all the time it missed.
+        TimeSpan _updateClock;
+        internal TimeSpan UpdateClock => _updateClock;
+
+        // Background bots are updated most-starved first, with the time each has accumulated, until this
+        // tick's budget (MapUpdate.BotBudgetMS) is spent. A bot that has waited MapUpdate.BotMaxStalenessMS
+        // is updated whatever the budget. A fixed "every 250 ms" interval stops deferring anything once a
+        // tick takes longer than the interval, which is what made every tick take a second with 700 bots;
+        // the budget keeps the tick short however many bots there are, and only their update rate drops.
+        readonly List<Player> _backgroundBots = new();
+        static readonly Comparison<Player> MostStarvedFirst = (a, b) => b.PendingUpdateDiff.CompareTo(a.PendingUpdateDiff);
+        int _backgroundSeen, _backgroundUpdated;
+        double _backgroundWaitMs;
+        void UpdateBackgroundBots(Visitor gridVisitor, Visitor worldVisitor)
+        {
+            if (_backgroundBots.Count == 0)
+                return;
+
+            TimeSpan budget = WorldConfig.Values[WorldCfg.MapUpdateBotBudget].TimeSpan;
+            TimeSpan maxStaleness = WorldConfig.Values[WorldCfg.MapUpdateBotMaxStaleness].TimeSpan;
+            _backgroundBots.Sort(MostStarvedFirst);
+            _backgroundSeen += _backgroundBots.Count;
+
+            long started = System.Diagnostics.Stopwatch.GetTimestamp();
+            foreach (Player bot in _backgroundBots)
+            {
+                TimeSpan pending = bot.PendingUpdateDiff;
+                if (pending < UnobservedBotUpdateInterval)
+                    break;
+                if (pending < maxStaleness && System.Diagnostics.Stopwatch.GetElapsedTime(started) >= budget)
+                    break;
+                // An earlier bot's update can teleport or log out this one.
+                if (!bot.IsInWorld || bot.GetMap() != this)
+                    continue;
+
+                bot.PendingUpdateDiff = TimeSpan.Zero;
+                _backgroundWaitMs += pending.TotalMilliseconds;
+                ++_backgroundUpdated;
+                UpdatePlayerAndSurroundings(bot, pending, gridVisitor, worldVisitor);
+            }
+            _backgroundBots.Clear();
+        }
+
+        void UpdatePlayerAndSurroundings(Player player, TimeSpan playerDiff, Visitor grid_object_update, Visitor world_object_update)
+        {
+            long playerStarted = System.Diagnostics.Stopwatch.GetTimestamp();
+            double aiBefore = MapTickProfile.BotAiMs;
+            player.Update(playerDiff);
+            double playerMs = System.Diagnostics.Stopwatch.GetElapsedTime(playerStarted).TotalMilliseconds;
+            _playersMs += playerMs;
+            if (player.GetSession().IsServerControlled) { _botPlayersMs += playerMs; _botAiMs += MapTickProfile.BotAiMs - aiBefore; }
+            if (playerMs >= 100)
+                Log.outWarn(LogFilter.Server, $"Map {GetId()} slow player update: {player.GetName()} ({player.GetGUID().GetCounter()}) took {playerMs:F1} ms.");
+            if (!player.IsInWorld || player.GetMap() != this)
+                return;
+
+            long cellsStarted = System.Diagnostics.Stopwatch.GetTimestamp();
+            double creaturesBefore = MapTickProfile.CreatureMs, objectsBefore = MapTickProfile.GameObjectMs;
+            VisitNearbyCellsOf(player, grid_object_update, world_object_update);
+            double cellsMs = System.Diagnostics.Stopwatch.GetElapsedTime(cellsStarted).TotalMilliseconds;
+            _cellsMs += cellsMs;
+            _creaturesMs += MapTickProfile.CreatureMs - creaturesBefore; _gameObjectsMs += MapTickProfile.GameObjectMs - objectsBefore;
+            if (cellsMs >= 100)
+                Log.outWarn(LogFilter.Server, $"Map {GetId()} slow nearby cell updates: {player.GetName()} ({player.GetGUID().GetCounter()}) took {cellsMs:F1} ms.");
+
+            // If player is using far sight or mind vision, visit that object too
+            WorldObject viewPoint = player.GetViewpoint();
+            if (viewPoint != null)
+                VisitNearbyCellsOf(viewPoint, grid_object_update, world_object_update);
+
+            // Handle updates for creatures in combat with player and are more than 60 yards away
+            if (player.IsInCombat())
+            {
+                List<Unit> toVisit = new();
+                foreach (var pair in player.GetCombatManager().GetPvECombatRefs())
+                {
+                    Creature unit = pair.Value.GetOther(player).ToCreature();
+                    if (unit != null)
+                    {
+                        if (unit.GetMapId() == player.GetMapId() && !unit.IsWithinDistInMap(player, GetVisibilityRange(), false))
+                            toVisit.Add(unit);
+                    }
+                }
+
+                foreach (Unit unit in toVisit)
+                    VisitNearbyCellsOf(unit, grid_object_update, world_object_update);
+            }
+
+            { // Update any creatures that own auras the player has applications of
+                List<Unit> toVisit = new();
+                foreach (var pair in player.GetAppliedAuras())
+                {
+                    Unit caster = pair.Value.GetBase().GetCaster();
+                    if (caster != null)
+                    {
+                        if (!caster.IsPlayer() && !caster.IsWithinDistInMap(player, GetVisibilityRange(), false))
+                            toVisit.Add(caster);
+                    }
+                }
+                foreach (Unit unit in toVisit)
+                    VisitNearbyCellsOf(unit, grid_object_update, world_object_update);
+            }
+
+            { // Update player's summons
+                List<Unit> toVisit = new();
+
+                // Totems
+                foreach (ObjectGuid summonGuid in player.m_SummonSlot)
+                {
+                    if (!summonGuid.IsEmpty())
+                    {
+                        Creature unit = GetCreature(summonGuid);
+                        if (unit != null)
+                        {
+                            if (unit.GetMapId() == player.GetMapId() && !unit.IsWithinDistInMap(player, GetVisibilityRange(), false))
+                                toVisit.Add(unit);
+                        }
+                    }
+                }
+
+                foreach (Unit unit in toVisit)
+                    VisitNearbyCellsOf(unit, grid_object_update, world_object_update);
+            }
+        }
         double _playersMs, _botPlayersMs, _botAiMs, _cellsMs, _creaturesMs, _gameObjectsMs;
         void StallCheck(string step)
         {
@@ -603,7 +732,11 @@ namespace Game.Maps
                 Log.outInfo(LogFilter.Server, $"Map {GetId()} tick parts (ms/tick): player updates {Per(_playersMs)} (bots {Per(_botPlayersMs)}, of which bot AI {Per(_botAiMs)}), " +
                     $"nearby object updates {Per(_cellsMs)} (creatures {Per(_creaturesMs)}, gameobjects {Per(_gameObjectsMs)}); steps: " +
                     string.Join(", ", _phaseMs.Where(p => p.Value / _tickStatsCount >= 0.5).OrderByDescending(p => p.Value).Select(p => $"{p.Key} {Per(p.Value)}")));
+                if (_backgroundSeen != 0)
+                    Log.outInfo(LogFilter.Server, $"Map {GetId()} background bots: {(double)_backgroundSeen / _tickStatsCount:F0} per tick, " +
+                        $"{(double)_backgroundUpdated / _tickStatsCount:F1} updated per tick, every {(_backgroundUpdated == 0 ? 0 : _backgroundWaitMs / _backgroundUpdated):F0} ms on average.");
             }
+            _backgroundSeen = _backgroundUpdated = 0; _backgroundWaitMs = 0;
             _phaseMs.Clear(); _playersMs = _botPlayersMs = _botAiMs = _cellsMs = _creaturesMs = _gameObjectsMs = 0;
             _tickStatsStarted = System.Diagnostics.Stopwatch.GetTimestamp(); _tickStatsTotal = _tickStatsMax = 0; _tickStatsCount = 0;
         }
@@ -672,110 +805,42 @@ namespace Game.Maps
             // update active cells around players and active objects
             ResetMarkedCells();
 
-            var update = new UpdaterNotifier(diff);
+            _updateClock += diff;
+            var update = new UpdaterNotifier(diff, this, _updateClock, WorldConfig.Values[WorldCfg.MapUpdateBotMaxStaleness].TimeSpan * 2);
 
             var grid_object_update = new Visitor(update, GridMapTypeMask.AllGrid);
             var world_object_update = new Visitor(update, GridMapTypeMask.AllWorld);
 
-            // Real players' positions: a server-controlled player nobody is near, and out of combat, is updated
-            // on an interval with the accumulated time instead of on every tick.
+            // Real players' positions decide which bots are observed.
             _observerPositions.Clear();
             foreach (Player observer in m_activePlayers)
                 if (observer.IsInWorld && !observer.GetSession().IsServerControlled) _observerPositions.Add(observer.GetPosition());
 
+            // Simulation level of detail. Real players, bots near a real player and bots in combat are
+            // updated on every tick. Every other bot is a background bot: it is updated by
+            // UpdateBackgroundBots within a time budget, and the cells around it go with it.
+            _backgroundBots.Clear();
             for (var i = 0; i < m_activePlayers.Count; ++i)
             {
                 Player player = m_activePlayers[i];
                 if (!player.IsInWorld)
                     continue;
 
+                if (IsBackgroundBot(player))
+                {
+                    player.PendingUpdateDiff += diff;
+                    _backgroundBots.Add(player);
+                    continue;
+                }
+
                 TimeSpan playerDiff = diff + player.PendingUpdateDiff;
-                if (playerDiff < UnobservedBotUpdateInterval && player.GetSession().IsServerControlled && !player.IsInCombat() && !Observed(player))
-                    player.PendingUpdateDiff = playerDiff;
-                else
-                {
-                    player.PendingUpdateDiff = TimeSpan.Zero;
-                    // update players at tick
-                    long playerStarted = System.Diagnostics.Stopwatch.GetTimestamp();
-                    double aiBefore = MapTickProfile.BotAiMs;
-                    player.Update(playerDiff);
-                    double playerMs = System.Diagnostics.Stopwatch.GetElapsedTime(playerStarted).TotalMilliseconds;
-                    _playersMs += playerMs;
-                    if (player.GetSession().IsServerControlled) { _botPlayersMs += playerMs; _botAiMs += MapTickProfile.BotAiMs - aiBefore; }
-                    if (playerMs >= 100)
-                        Log.outWarn(LogFilter.Server, $"Map {GetId()} slow player update: {player.GetName()} ({player.GetGUID().GetCounter()}) took {playerMs:F1} ms.");
-                }
-
-                long cellsStarted = System.Diagnostics.Stopwatch.GetTimestamp();
-                double creaturesBefore = MapTickProfile.CreatureMs, objectsBefore = MapTickProfile.GameObjectMs;
-                VisitNearbyCellsOf(player, grid_object_update, world_object_update);
-                double cellsMs = System.Diagnostics.Stopwatch.GetElapsedTime(cellsStarted).TotalMilliseconds;
-                _cellsMs += cellsMs;
-                _creaturesMs += MapTickProfile.CreatureMs - creaturesBefore; _gameObjectsMs += MapTickProfile.GameObjectMs - objectsBefore;
-                if (cellsMs >= 100)
-                    Log.outWarn(LogFilter.Server, $"Map {GetId()} slow nearby cell updates: {player.GetName()} ({player.GetGUID().GetCounter()}) took {cellsMs:F1} ms.");
-
-                // If player is using far sight or mind vision, visit that object too
-                WorldObject viewPoint = player.GetViewpoint();
-                if (viewPoint != null)
-                    VisitNearbyCellsOf(viewPoint, grid_object_update, world_object_update);
-
-                // Handle updates for creatures in combat with player and are more than 60 yards away
-                if (player.IsInCombat())
-                {
-                    List<Unit> toVisit = new();
-                    foreach (var pair in player.GetCombatManager().GetPvECombatRefs())
-                    {
-                        Creature unit = pair.Value.GetOther(player).ToCreature();
-                        if (unit != null)
-                        {
-                            if (unit.GetMapId() == player.GetMapId() && !unit.IsWithinDistInMap(player, GetVisibilityRange(), false))
-                                toVisit.Add(unit);
-                        }
-                    }
-
-                    foreach (Unit unit in toVisit)
-                        VisitNearbyCellsOf(unit, grid_object_update, world_object_update);
-                }
-
-                { // Update any creatures that own auras the player has applications of
-                    List<Unit> toVisit = new();
-                    foreach (var pair in player.GetAppliedAuras())
-                    {
-                        Unit caster = pair.Value.GetBase().GetCaster();
-                        if (caster != null)
-                        {
-                            if (!caster.IsPlayer() && !caster.IsWithinDistInMap(player, GetVisibilityRange(), false))
-                                toVisit.Add(caster);
-                        }
-                    }
-                    foreach (Unit unit in toVisit)
-                        VisitNearbyCellsOf(unit, grid_object_update, world_object_update);
-                }
-
-                { // Update player's summons
-                    List<Unit> toVisit = new();
-
-                    // Totems
-                    foreach (ObjectGuid summonGuid in player.m_SummonSlot)
-                    {
-                        if (!summonGuid.IsEmpty())
-                        {
-                            Creature unit = GetCreature(summonGuid);
-                            if (unit != null)
-                            {
-                                if (unit.GetMapId() == player.GetMapId() && !unit.IsWithinDistInMap(player, GetVisibilityRange(), false))
-                                    toVisit.Add(unit);
-                            }
-                        }
-                    }
-
-                    foreach (Unit unit in toVisit)
-                        VisitNearbyCellsOf(unit, grid_object_update, world_object_update);
-                }
+                player.PendingUpdateDiff = TimeSpan.Zero;
+                UpdatePlayerAndSurroundings(player, playerDiff, grid_object_update, world_object_update);
             }
-
             StallCheck("Players");
+
+            UpdateBackgroundBots(grid_object_update, world_object_update);
+            StallCheck("BackgroundBots");
             for (var i = 0; i < m_activeNonPlayers.Count; ++i)
             {
                 WorldObject obj = m_activeNonPlayers[i];
@@ -2361,28 +2426,10 @@ namespace Game.Maps
             if (data == null)
                 return;
 
-            // Ordinary outdoor mobs and quest pickups participate without requiring
-            // thousands of spawn-group edits. Bosses/instances retain scripted timers.
-            bool ordinary=!Instanceable()&&obj is Creature creature&&
-                creature.GetCreatureTemplate().Classification==CreatureClassifications.Normal&&
-                creature.GetCreatureTemplate().Npcflag==NPCFlags1.None&&
-                creature.GetCreatureType() is not (CreatureType.Critter or CreatureType.NonCombatPet or CreatureType.Totem);
-            bool questObject=false;
-            if(!Instanceable()&&obj is GameObject go)
-            {
-                var info=go.GetGoInfo();
-                questObject=Global.ObjectMgr.GetGameObjectQuestItemList(go.GetEntry())?.Count>0||
-                    info.type==GameObjectTypes.Chest&&info.Chest.questID!=0||
-                    info.type==GameObjectTypes.Goober&&info.Goober.questID!=0||
-                    info.type==GameObjectTypes.Generic&&info.Generic.questID!=0;
-            }
-            if(!ordinary&&!questObject&&!data.spawnGroupData.flags.HasFlag(SpawnGroupFlags.DynamicSpawnRate))return;
-            int playerCount=0;
-            // Grid query at a respawn event, never a map-wide/per-tick scan. SI are
-            // native Players and intentionally count exactly like human players.
-            foreach(var player in obj.GetPlayerListInGrid(150))
-                if(player is Player nearby&&nearby.IsAlive()&&!nearby.IsGameMaster()&&obj.InSamePhase(nearby))++playerCount;
-            if (playerCount == 0)
+            if (!data.spawnGroupData.flags.HasFlag(SpawnGroupFlags.DynamicSpawnRate))
+                return;
+
+            if (!_zonePlayerCountMap.TryGetValue(obj.GetZoneId(), out int playerCount) || playerCount == 0)
                 return;
 
             float adjustFactor = WorldConfig.Values[type == SpawnObjectType.GameObject ? WorldCfg.RespawnDynamicRateGameobject : WorldCfg.RespawnDynamicRateCreature].Float / playerCount;
@@ -2394,8 +2441,7 @@ namespace Game.Maps
             if (respawnDelay <= timeMinimum)
                 return;
 
-            respawnDelay=(Seconds)PopulationRespawnPolicy.Scale(respawnDelay,playerCount,
-                WorldConfig.Values[type==SpawnObjectType.GameObject?WorldCfg.RespawnDynamicRateGameobject:WorldCfg.RespawnDynamicRateCreature].Float,timeMinimum);
+            respawnDelay = (Seconds)Math.Max((int)Math.Ceiling((int)respawnDelay * adjustFactor), (int)timeMinimum);
         }
 
         public bool ShouldBeSpawnedOnGridLoad<T>(long spawnId) { return ShouldBeSpawnedOnGridLoad(SpawnData.TypeFor<T>(), spawnId); }

@@ -2614,7 +2614,8 @@ namespace Game.Entities
         public UpdateFieldArray<VisibleItem> VisibleItems = new(19, 61, 62);
         public UpdateFieldArray<float> AvgItemLevel = new(6, 81, 82);
         public UpdateFieldArray<uint> Field_3120 = new(19, 88, 89);
-        static int changeMaskLength = 108;
+        public UpdateField<ulong> GuildClubMemberID = new(0, 108);
+        static int changeMaskLength = 109;
 
         public PlayerData() : base(0, TypeId.Player, changeMaskLength) { }
 
@@ -2671,7 +2672,7 @@ namespace Game.Entities
             data.WritePackedGuid(DuelArbiter);
             data.WritePackedGuid(WowAccount);
             data.WritePackedGuid(BnetAccount);
-            data.WriteUInt64(0); // GuildClubMemberID
+            data.WriteUInt64(GuildClubMemberID);
             data.WritePackedGuid(LootTargetGUID);
             data.WriteUInt32((uint)PlayerFlags.GetValue());
             data.WriteUInt32((uint)PlayerFlagsEx.GetValue());
@@ -2782,7 +2783,7 @@ namespace Game.Entities
 
         public void WriteUpdate(WorldPacket data, UpdateFieldFlag fieldVisibilityFlags, Player owner, Player receiver)
         {
-            UpdateMask allowedMaskForTarget = new(changeMaskLength, [0xFFFFFFFFu, 0xE0000007u, 0xFFFFFFFFu, 0x00000FFFu]);
+            UpdateMask allowedMaskForTarget = new(changeMaskLength, [0xFFFFFFFFu, 0xE0000007u, 0xFFFFFFFFu, 0x00001FFFu]);
             AppendAllowedFieldsMaskForFlag(allowedMaskForTarget, fieldVisibilityFlags);
             WriteUpdate(data, _changesMask & allowedMaskForTarget, false, owner, receiver);
         }
@@ -2795,7 +2796,7 @@ namespace Game.Entities
 
         public void FilterDisallowedFieldsMaskForFlag(UpdateMask changesMask, UpdateFieldFlag fieldVisibilityFlags)
         {
-            UpdateMask allowedMaskForTarget = new(changeMaskLength, [0xFFFFFFFFu, 0xE0000007u, 0xFFFFFFFFu, 0x00000FFFu]);
+            UpdateMask allowedMaskForTarget = new(changeMaskLength, [0xFFFFFFFFu, 0xE0000007u, 0xFFFFFFFFu, 0x00001FFFu]);
             AppendAllowedFieldsMaskForFlag(allowedMaskForTarget, fieldVisibilityFlags);
             changesMask.AND(allowedMaskForTarget);
         }
@@ -2806,6 +2807,7 @@ namespace Game.Entities
         static UpdateMask ToRefMask(UpdateMask ours)
         {
             UpdateMask r = new(RefChangeMaskLength);
+            if (ours[108]) { r.Set(0); r.Set(12); }
             if (ours[1]) { r.Set(0); r.Set(3); }
             if (ours[2]) { r.Set(0); r.Set(6); }
             if (ours[3]) { r.Set(0); r.Set(8); }
@@ -2936,6 +2938,8 @@ namespace Game.Entities
                 {
                     data.WritePackedGuid(BnetAccount);
                 }
+                if (changesMask[12])
+                    data.WriteUInt64(GuildClubMemberID);
                 if (changesMask[13])
                 {
                     data.WritePackedGuid(LootTargetGUID);
@@ -3108,6 +3112,7 @@ namespace Game.Entities
             ClearChangesMask(PlayerFlagsEx);
 
             ClearChangesMask(GuildRankID);
+            ClearChangesMask(GuildClubMemberID);
             ClearChangesMask(GuildDeleteDate);
             ClearChangesMask(GuildLevel);
             ClearChangesMask(NumBankSlots);

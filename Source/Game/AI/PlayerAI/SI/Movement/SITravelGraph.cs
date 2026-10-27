@@ -235,17 +235,17 @@ public static class SITravelGraphs
                 BuildSlot.Wait();
                 try
                 {
-                    Log.outInfo(LogFilter.Server,$"SI travel graph: building map {map} from {tiles.Length} mmap tiles (one-time, cached to {file}).");
+                    Log.outInfo(LogFilter.SI,$"SI travel graph: building map {map} from {tiles.Length} mmap tiles (one-time, cached to {file}).");
                     var watch=System.Diagnostics.Stopwatch.StartNew();
                     graph=Build(data,map,tiles);
                     graph.Save(file,signature);
-                    Log.outInfo(LogFilter.Server,$"SI travel graph: map {map} built in {watch.Elapsed.TotalSeconds:F0} s, {graph.NodeCount} nodes, {graph.EdgeCount} links.");
+                    Log.outInfo(LogFilter.SI,$"SI travel graph: map {map} built in {watch.Elapsed.TotalSeconds:F0} s, {graph.NodeCount} nodes, {graph.EdgeCount} links.");
                 }
                 finally{BuildSlot.Release();}
             }
             Ready[map]=graph;
         }
-        catch(Exception e){Log.outError(LogFilter.Server,$"SI travel graph: map {map} unavailable: {e.Message}");}
+        catch(Exception e){Log.outError(LogFilter.SI,$"SI travel graph: map {map} unavailable: {e.Message}");}
     }
 
     static (int X,int Y)? TileOf(string file)
@@ -277,7 +277,7 @@ public static class SITravelGraphs
             }
             return planner;
         },_=>{});
-        Log.outInfo(LogFilter.Server,$"SI travel graph: map {map} sampled {columns.Count} columns");
+        Log.outInfo(LogFilter.SI,$"SI travel graph: map {map} sampled {columns.Count} columns");
         var nodes=new List<Vector3>();var byCell=new Dictionary<long,List<int>>();
         foreach(var (cell,levels) in columns.OrderBy(c=>c.Cell))
         {
@@ -310,7 +310,7 @@ public static class SITravelGraphs
                     }
                 }
                 int finished=Interlocked.Increment(ref done);
-                if(finished%(Math.Max(1,order.Length/10))==0)Log.outInfo(LogFilter.Server,$"SI travel graph: map {map} links {finished*100/Math.Max(1,order.Length)}%");
+                if(finished%(Math.Max(1,order.Length/10))==0)Log.outInfo(LogFilter.SI,$"SI travel graph: map {map} links {finished*100/Math.Max(1,order.Length)}%");
             }
             return planner;
         },_=>{});

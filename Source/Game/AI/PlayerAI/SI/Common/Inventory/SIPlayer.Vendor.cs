@@ -29,9 +29,10 @@ namespace Game.AI
             return false;
         }
 
-        bool Junk(Item item) => item.GetQuality() == ItemQuality.Poor && item.GetTemplate().GetSellPrice() > 0 &&
-            !QuestNeedsItem(item.GetEntry()) && item.GetTemplate().GetStartQuest() == 0 &&
-            !Provision(item.GetTemplate(), false) && !Provision(item.GetTemplate(), true);
+        // Use the same disposition as bank/AH planning so white equipment is sold,
+        // while white materials, quest items, supplies and current upgrades are retained.
+        bool Junk(Item item) => SIInventoryPolicy.IsVendorQuality(item.GetTemplate().GetClass(), item.GetQuality()) &&
+            item.GetTemplate().GetSellPrice() > 0 && ItemDisposition(item) == SIItemDisposition.Vendor;
 
         bool HasJunk()
         {
@@ -93,6 +94,7 @@ namespace Game.AI
         bool VendorAt(Creature vendor, SIVendorPurpose purpose)
         {
             if (vendor == null) return false;
+            if (purpose is SIVendorPurpose.Bank or SIVendorPurpose.Auction) return StoreAt(vendor, purpose);
             me.SetSelection(vendor.GetGUID());
             if (!me.HasUnitState(UnitState.CannotTurn)) me.SetFacingToObject(vendor);
             if (me.GetNPCIfCanInteractWith(vendor.GetGUID(), NPCFlags1.Vendor | NPCFlags1.Repair, NPCFlags2.None) == null)
@@ -346,7 +348,7 @@ namespace Game.AI
             }
             if (Now < _nextVendorScan) return false;
             _nextVendorScan = Now + 1000;
-            bool urgent = NeedsVendor();
+            bool urgent = NeedsVendor() || me.GetFreeInventorySlotCount() == 0;
             // Routine upkeep waits until the objective the bot came here for is finished.
             if (!urgent && CommittedToObjective()) return false;
             bool ammunition = NeedsAmmunition();
@@ -373,6 +375,11 @@ namespace Game.AI
                     .OrderBy(me.GetDistance).FirstOrDefault()
             };
             SISpawn? spawn = merchant != null ? SpawnOf(merchant) : null;
+            if (!localSale && (spawn == null || !repair && !ammunition) &&
+                PlanStorageVisit(out SIVendorPurpose storagePurpose, out Creature storageNpc, out SISpawn? storageSpawn))
+            {
+                purpose = storagePurpose; merchant = storageNpc; spawn = storageSpawn;
+            }
             if (spawn == null && ammunition && !urgent && Now >= _nextAmmoVendorSearch && SIQuestKnowledge.IsBuilt)
             {
                 _nextAmmoVendorSearch = Now + 15000;
@@ -389,11 +396,11 @@ namespace Game.AI
                     .OrderBy(s => Distance(s.Position)).Where(s => SellsAmmo(s.Entry))
                     .Select(s => (SISpawn?)s).FirstOrDefault();
             }
-            if (spawn == null && urgent && SIQuestKnowledge.IsBuilt)
+            if (spawn == null && (NeedsVendor() || me.GetFreeInventorySlotCount() == 0 && junk) && SIQuestKnowledge.IsBuilt)
             {
                 // Configured bag pressure and durability are actual trip thresholds;
                 // local junk selling still happens opportunistically within 20 yards.
-                purpose = fundingRepair||BagPressure() ? SIVendorPurpose.Sell : SIVendorPurpose.Repair;
+                purpose = fundingRepair || BagPressure() || me.GetFreeInventorySlotCount() == 0 && junk ? SIVendorPurpose.Sell : SIVendorPurpose.Repair;
                 int[] entries = (purpose==SIVendorPurpose.Sell?Knowledge.Vendors:Knowledge.Repairers).Where(entry => purpose!=SIVendorPurpose.Sell ||
                     Global.ObjectMgr.GetCreatureTemplate(entry).Npcflag.HasFlag(NPCFlags1.Vendor) &&
                     !Global.ObjectMgr.GetCreatureTemplate(entry).FlagsExtra.HasFlag(CreatureFlagsExtra.NoSellVendor)).ToArray();
@@ -403,7 +410,8 @@ namespace Game.AI
             var task = new SITask { Kind = SITaskKind.Vendor, VendorPurpose = purpose, Destination = spawn, Target = merchant?.GetGUID() ?? ObjectGuid.Empty,
                 Creatures = new[] { spawn.Value.Entry }, Label = purpose switch
                 { SIVendorPurpose.Repair => "Repair equipment", SIVendorPurpose.Restock => "Restock food and drink",
-                  SIVendorPurpose.Ammunition => "Buy ammunition", _ => "Sell junk" } };
+                  SIVendorPurpose.Ammunition => "Buy ammunition", SIVendorPurpose.Bank => "Bank items for later",
+                  SIVendorPurpose.Auction => "List surplus items on the auction house", _ => "Sell junk" } };
             if (Blacklisted(task.Key)) return false;
             _suspendedTask = _task != null && !TaskDone(_task) ? _task : null;
             _suspendedTask?.Suspend(Now);

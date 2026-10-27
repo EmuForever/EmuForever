@@ -595,9 +595,22 @@ namespace Game.Entities
             //calculate miss Chance
             float missChance = victim.GetUnitMissChance();
 
-            // melee attacks while dual wielding have +19% Chance to miss
-            if (spellInfo == null && HaveOffhandWeapon() && !IsInFeralForm() && !HasAuraType(AuraType.IgnoreDualWieldHitPenalty))
+            // melee attacks while dual wielding have +19% Chance to miss (not the on next swing abilities, not ranged)
+            if (spellInfo == null && HaveOffhandWeapon() && attType != WeaponAttackType.RangedAttack && GetCurrentSpell(CurrentSpellTypes.Melee) == null
+                && !IsInFeralForm() && !HasAuraType(AuraType.IgnoreDualWieldHitPenalty))
                 missChance += 19.0f;
+
+            // Classic 1.60 (vanilla, VMaNGOS): 0.1% less miss per point of weapon skill above the victim's defense (0.2% when more than
+            // 10 below, 0.04% against players), creatures below level 10 are missed less (TC-forever)
+            int classicSkillDiff = GetClassicWeaponSkill(attType, victim) - victim.GetClassicDefenseSkill(this);
+            if (victim.IsPlayer())
+                missChance -= classicSkillDiff * 0.04f;
+            else if (classicSkillDiff < -10)
+                missChance -= classicSkillDiff * 0.2f;
+            else
+                missChance -= classicSkillDiff * 0.1f;
+            if (!victim.IsPlayer() && victim.GetLevel() < 10)
+                missChance *= victim.GetLevel() / 10.0f;
 
             // Spellmod from SpellModOp.HitChance
             float resistMissChance = 100.0f;
@@ -608,7 +621,7 @@ namespace Game.Entities
                     modOwner.ApplySpellMod(spellInfo, SpellModOp.HitChance, ref resistMissChance);
             }
 
-            missChance += resistMissChance - 100.0f;
+            missChance -= resistMissChance - 100.0f;
 
             if (attType == WeaponAttackType.RangedAttack)
                 missChance -= ModRangedHitChance;
@@ -622,7 +635,45 @@ namespace Game.Entities
             else
                 missChance -= victim.GetTotalAuraModifier(AuraType.ModAttackerMeleeHitChance);
 
-            return Math.Max(missChance, 0f);
+            // Classic 1.60 (vanilla, VMaNGOS): the miss chance is limited to 0..60%
+            return Math.Clamp(missChance, 0f, 60f);
+        }
+
+        // Classic 1.60 (vanilla) combat table: weapon skill of an attack. Players: skill of the weapon (with bonuses), feral forms and
+        // creatures: the maximum for the level (5 per level) (TC-forever)
+        public int GetClassicWeaponSkill(WeaponAttackType attType, Unit victim)
+        {
+            Player player = ToPlayer();
+            if (player != null)
+            {
+                if (player.IsInFeralForm())
+                    return GetMaxSkillValueForLevel(victim);
+
+                SkillType skill = SkillType.Unarmed;
+                Item weapon = player.GetWeaponForAttack(attType, true);
+                if (weapon != null)
+                    skill = weapon.GetTemplate().GetSkill();
+                else if (attType != WeaponAttackType.BaseAttack)
+                    return GetMaxSkillValueForLevel(victim);
+
+                int value = player.GetSkillValue(skill);
+                if (value != 0)
+                    return value;
+            }
+            return GetMaxSkillValueForLevel(victim);
+        }
+
+        // Classic 1.60 (vanilla) combat table: defense skill (players: with bonuses, creatures: 5 per level) (TC-forever)
+        public int GetClassicDefenseSkill(Unit attacker)
+        {
+            Player player = ToPlayer();
+            if (player != null)
+            {
+                int value = player.GetSkillValue(SkillType.Defense);
+                if (value != 0)
+                    return value;
+            }
+            return GetMaxSkillValueForLevel(attacker);
         }
 
         float GetUnitCriticalChanceDone(WeaponAttackType attackType)
@@ -680,15 +731,22 @@ namespace Game.Entities
         float GetUnitCriticalChanceAgainst(WeaponAttackType attackType, Unit victim)
         {
             float chance = GetUnitCriticalChanceDone(attackType);
+
+            // Classic 1.60 (vanilla): 0.04% crit per point of weapon skill above / below the victim's defense; against creatures with
+            // more defense than the attacker's (capped) skill 0.2% per point (TC-forever)
+            int weaponSkill = GetClassicWeaponSkill(attackType, victim);
+            int defense = victim.GetClassicDefenseSkill(this);
+            int skillDiff = weaponSkill - defense;
+            int cappedDiff = Math.Min(GetMaxSkillValueForLevel(victim), weaponSkill) - defense;
+            chance += (victim.IsPlayer() || skillDiff > 0) ? skillDiff * 0.04f : cappedDiff * 0.2f;
+            chance = Math.Max(chance, 0.0f);
+
             return victim.GetUnitCriticalChanceTaken(this, attackType, chance);
         }
         
         float GetUnitDodgeChance(WeaponAttackType attType, Unit victim)
         {
-            int levelDiff = victim.GetLevelForTarget(this) - GetLevelForTarget(victim);
-
             float chance = 0.0f;
-            float levelBonus = 0.0f;
             Player playerVictim = victim.ToPlayer();
             if (playerVictim != null)
                 chance = playerVictim.m_activePlayerData.DodgePercentage;
@@ -696,15 +754,17 @@ namespace Game.Entities
             {
                 if (!victim.IsTotem())
                 {
-                    chance = 3.0f;
+                    chance = 5.0f;  // Classic 1.60 (vanilla): creatures 5% (retail 3% + 1.5% per level above)
                     chance += victim.GetTotalAuraModifier(AuraType.ModDodgePercent);
-
-                    if (levelDiff > 0)
-                        levelBonus = 1.5f * levelDiff;
                 }
             }
 
-            chance += levelBonus;
+            // Classic 1.60 (vanilla): 0.1% (players: 0.04%) per point of weapon skill above / below the victim's maximum defense,
+            // creatures below level 10 dodge less (TC-forever)
+            int skillDiff = GetClassicWeaponSkill(attType, victim) - victim.GetMaxSkillValueForLevel(this);
+            chance -= skillDiff * (victim.IsPlayer() ? 0.04f : 0.1f);
+            if (!victim.IsPlayer() && victim.GetLevel() < 10)
+                chance *= victim.GetLevel() / 10.0f;
 
             // Reduce enemy dodge Chance by SPELL_AURA_MOD_COMBAT_RESULT_CHANCE
             chance += GetTotalAuraModifierByMiscValue(AuraType.ModCombatResultChance, (int)VictimState.Dodge);
@@ -722,10 +782,7 @@ namespace Game.Entities
 
         float GetUnitParryChance(WeaponAttackType attType, Unit victim)
         {
-            int levelDiff = victim.GetLevelForTarget(this) - GetLevelForTarget(victim);
-
             float chance = 0.0f;
-            float levelBonus = 0.0f;
             Player playerVictim = victim.ToPlayer();
             if (playerVictim != null)
             {
@@ -743,15 +800,27 @@ namespace Game.Entities
             {
                 if (!victim.IsTotem() && !victim.ToCreature().GetCreatureTemplate().FlagsExtra.HasAnyFlag(CreatureFlagsExtra.NoParry))
                 {
-                    chance = 6.0f;
+                    chance = 5.0f;  // Classic 1.60 (vanilla): creatures 5% (retail 6% + 1.5% per level above)
                     chance += victim.GetTotalAuraModifier(AuraType.ModParryPercent);
-
-                    if (levelDiff > 0)
-                        levelBonus = 1.5f * levelDiff;
                 }
             }
 
-            chance += levelBonus;
+            // Classic 1.60 (vanilla): players 0.04% per point of weapon skill difference; creatures 0.2% per point of the capped skill
+            // difference, 0.6% when more than 10 below; creatures below level 10 parry less (TC-forever)
+            if (chance > 0.0f)
+            {
+                int weaponSkill = GetClassicWeaponSkill(attType, victim);
+                int victimMaxSkill = victim.GetMaxSkillValueForLevel(this);
+                if (victim.IsPlayer())
+                    chance -= (weaponSkill - victimMaxSkill) * 0.04f;
+                else
+                {
+                    int cappedDiff = Math.Min(GetMaxSkillValueForLevel(victim), weaponSkill) - victimMaxSkill;
+                    chance -= cappedDiff * (cappedDiff < -10 ? 0.6f : 0.2f);
+                    if (victim.GetLevel() < 10)
+                        chance *= victim.GetLevel() / 10.0f;
+                }
+            }
 
             // Reduce parry Chance by attacker expertise rating
             if (IsTypeId(TypeId.Player))
@@ -770,10 +839,7 @@ namespace Game.Entities
 
         float GetUnitBlockChance(WeaponAttackType attType, Unit victim)
         {
-            int levelDiff = victim.GetLevelForTarget(this) - GetLevelForTarget(victim);
-
             float chance = 0.0f;
-            float levelBonus = 0.0f;
             Player playerVictim = victim.ToPlayer();
             if (playerVictim != null)
             {
@@ -788,15 +854,25 @@ namespace Game.Entities
             {
                 if (!victim.IsTotem() && !(victim.ToCreature().GetCreatureTemplate().FlagsExtra.HasAnyFlag(CreatureFlagsExtra.NoBlock)))
                 {
-                    chance = 3.0f;
+                    chance = 5.0f;  // Classic 1.60 (vanilla): creatures 5% (retail 3% + 1.5% per level above)
                     chance += victim.GetTotalAuraModifier(AuraType.ModBlockPercent);
-
-                    if (levelDiff > 0)
-                        levelBonus = 1.5f * levelDiff;
                 }
             }
 
-            chance += levelBonus;
+            // Classic 1.60 (vanilla): 0.1% (players: 0.04%) per point of weapon skill difference; creatures block at most 5% and less
+            // below level 10 (TC-forever)
+            if (chance > 0.0f)
+            {
+                int skillDiff = GetClassicWeaponSkill(attType, victim) - victim.GetMaxSkillValueForLevel(this);
+                chance -= skillDiff * (victim.IsPlayer() ? 0.04f : 0.1f);
+                if (!victim.IsPlayer())
+                {
+                    chance = Math.Min(chance, 5.0f);
+                    if (victim.GetLevel() < 10)
+                        chance *= victim.GetLevel() / 10.0f;
+                }
+            }
+
             return Math.Max(chance, 0.0f);
         }
 

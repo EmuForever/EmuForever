@@ -135,7 +135,6 @@ namespace Game.Entities
             return m_formation.CanLeaderStartMoving();
         }
 
-        bool _populationScaledRespawn;
         public void RemoveCorpse(bool setSpawnTime = true, bool destroyForNearbyPlayers = true)
         {
             if (GetDeathState() != DeathState.Corpse)
@@ -157,7 +156,7 @@ namespace Game.Entities
                     UpdateObjectVisibilityOnDestroy();
 
                 // Should get removed later, just keep "compatibility" with scripts
-                if (setSpawnTime&&!_populationScaledRespawn)
+                if (setSpawnTime)
                     m_respawnTime = (ServerTime)Time.Max(LoopTime.ServerTime + respawnDelay, m_respawnTime);
 
                 // if corpse was removed during falling, the falling will continue and override relocation to respawn position
@@ -194,7 +193,7 @@ namespace Game.Entities
                 // In case this is called directly and normal respawn timer not set
                 // Since this timer will be longer than the already present time it
                 // will be ignored if the correct place added a respawn timer
-                if (setSpawnTime&&!_populationScaledRespawn)
+                if (setSpawnTime)
                 {
                     TimeSpan respawnDelay = m_respawnDelay;
                     m_respawnTime = (ServerTime)Time.Max(LoopTime.ServerTime + respawnDelay, m_respawnTime);
@@ -430,8 +429,8 @@ namespace Game.Entities
         // same total time; only their granularity changes. A wandering creature's server position advances in
         // 300 ms steps, which clients never see (they animate the spline). Aggro is detected separately, by
         // relocation notifies, so a player walking up is still noticed at once.
+        // The time is measured by WorldObject.ElapsedSinceUpdate.
         public static readonly TimeSpan IdleUpdateInterval = TimeSpan.FromMilliseconds(300);
-        internal TimeSpan PendingUpdateDiff;
         internal bool CanDeferIdleUpdate() => IsInWorld && !IsInCombat() && GetVictim() == null &&
             !HasUnitState(UnitState.Evade | UnitState.Fleeing | UnitState.Confused | UnitState.Casting) &&
             GetCharmerOrOwnerGUID().IsEmpty() && !IsPet() && GetVehicleKit() == null && GetVehicle() == null &&
@@ -2048,15 +2047,13 @@ namespace Game.Entities
                 if (scalingMode > 0)
                     GetMap().ApplyDynamicModeRespawnScaling(this, m_spawnId, ref respawnDelay, scalingMode);
 
-                _populationScaledRespawn=respawnDelay<m_respawnDelay;
-                if(_populationScaledRespawn&&m_corpseRemoveTime>LoopTime.ServerTime+respawnDelay)m_corpseRemoveTime=LoopTime.ServerTime+respawnDelay;
                 // @todo remove the boss respawn time hack in a dynspawn follow-up once we have creature groups in instances
                 if (m_respawnCompatibilityMode)
                 {
                     if (IsDungeonBoss() && m_respawnDelay == TimeSpan.Zero)
                         m_respawnTime = ServerTime.Infinity; // never respawn in this instance
                     else
-                        m_respawnTime = LoopTime.ServerTime + respawnDelay + (_populationScaledRespawn?Seconds.Zero:m_corpseDelay);
+                        m_respawnTime = LoopTime.ServerTime + respawnDelay + m_corpseDelay;
                 }
                 else
                 {
@@ -2876,19 +2873,12 @@ namespace Game.Entities
                 return hasSkinningLoot;
             }
 
-            var previousRemoveTime=m_corpseRemoveTime;
             if (isFullySkinned())
                 m_corpseRemoveTime = now;
             else
                 m_corpseRemoveTime = now + (Seconds)(m_corpseDelay * decayRate);
 
-            if(_populationScaledRespawn)
-            {
-                // Looting/compatibility corpse cleanup must not restore the unscaled
-                // base delay after death already scheduled a population-based respawn.
-                if(m_corpseRemoveTime>previousRemoveTime)m_corpseRemoveTime=previousRemoveTime;
-            }
-            else m_respawnTime = (ServerTime)Time.Max(m_corpseRemoveTime + m_respawnDelay, m_respawnTime);
+            m_respawnTime = (ServerTime)Time.Max(m_corpseRemoveTime + m_respawnDelay, m_respawnTime);
         }        
 
         public override void SetInteractionAllowedWhileHostile(bool interactionAllowed)

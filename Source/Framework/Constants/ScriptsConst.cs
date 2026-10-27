@@ -68,6 +68,7 @@ namespace Framework.Constants
         EffectProc,
         EffectAfterProc,
         AfterProc,
+        Heartbeat,
         //Apply,
         //Remove
     }

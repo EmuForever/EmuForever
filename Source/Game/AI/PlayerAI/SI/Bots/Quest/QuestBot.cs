@@ -262,6 +262,8 @@ namespace Game.AI
                     SIVendorPurpose.Sell => !HasJunk(),
                     SIVendorPurpose.Repair => !NeedsRepair(),
                     SIVendorPurpose.Ammunition => !NeedsAmmunition(),
+                    SIVendorPurpose.Bank => StorageItems(SIVendorPurpose.Bank).Count == 0,
+                    SIVendorPurpose.Auction => StorageItems(SIVendorPurpose.Auction).Count == 0,
                     _ => !NeedsRestock()
                 };
                 default: return false;

@@ -376,7 +376,8 @@ namespace Game.Entities
         public static int SpellCriticalHealingBonus(Unit caster, SpellInfo spellProto, int damage, Unit victim)
         {
             // Calculate critical bonus
-            int crit_bonus = damage;
+            // Classic 1.60 (vanilla): heal crits heal for 150% (retail 200%); talents add to the 50% bonus (TC-forever)
+            int crit_bonus = damage / 2;
 
             // adds additional damage to critBonus (from talents)
             if (caster != null)
@@ -1198,7 +1199,9 @@ namespace Game.Entities
 
         public void EnergizeBySpell(Unit victim, SpellInfo spellInfo, int damage, PowerType powerType)
         {
-            if (victim is Player victimPlayer)
+            // Classic 1.60 (vanilla): only paying mana starts the five second rule (Spell.TakePower); receiving it does not (Judgement of
+            // Wisdom, Spiritual Attunement, Life Tap...), or a gain every few seconds would keep the window open (TC-forever)
+            if (powerType != PowerType.Mana && victim is Player victimPlayer)
             {
                 var powerTypeEntry = Global.DB2Mgr.GetPowerTypeEntry(powerType);
                 if (powerTypeEntry != null)
@@ -1640,8 +1643,8 @@ namespace Game.Entities
                 if (IsPlayer() && !procTarget.IsPlayer() &&
                     !(procTarget.IsTotem() && procTarget.ToTotem().GetOwner().IsPlayer()) && !procTarget.IsPet())
                 {
-                    // On melee based hit/miss/resist need update skill (for victim and attacker)
-                    if ((hitMask & (ProcFlagsHit.Normal | ProcFlagsHit.Miss | ProcFlagsHit.FullResist)) != 0)
+                    // On melee based hit/crit/miss/resist need update skill (for victim and attacker); Classic 1.60: crits train it too (TC-forever)
+                    if ((hitMask & (ProcFlagsHit.Normal | ProcFlagsHit.Critical | ProcFlagsHit.Miss | ProcFlagsHit.FullResist)) != 0)
                     {
                         if (!procTarget.IsPlayer() && !procTarget.IsCritter())
                             ToPlayer().UpdateCombatSkills(procTarget, attType, isVictim);
@@ -1820,7 +1823,7 @@ namespace Game.Entities
 
         public ushort GetMaxSkillValueForLevel(Unit target = null)
         {
-            return (ushort)(target != null ? GetLevelForTarget(target) : GetLevel() * 5);
+            return (ushort)((target != null ? GetLevelForTarget(target) : GetLevel()) * 5);
         }
 
         public Spell GetCurrentSpell(CurrentSpellTypes spellType)
@@ -1943,7 +1946,9 @@ namespace Game.Entities
         public static int SpellCriticalDamageBonus(Unit caster, SpellInfo spellProto, int damage, Unit victim = null)
         {
             // Calculate critical bonus
-            int crit_bonus = damage * 2;
+            // Classic 1.60 (vanilla): spell crits do 150% damage (retail 200%); talents such as Ice Shards or Ruin add to the 50% bonus
+            // below (TC-forever). Melee and ranged abilities do not come here (CalculateSpellDamageTaken), they keep 200%.
+            int crit_bonus = damage + damage / 2;
             float crit_mod = 0.0f;
 
             if (caster != null)
@@ -1953,7 +1958,8 @@ namespace Game.Entities
                 if (crit_bonus != 0)
                     MathFunctions.AddPct(ref crit_bonus, (int)crit_mod);
 
-                MathFunctions.AddPct(ref crit_bonus, victim.GetTotalAuraModifier(AuraType.ModCriticalDamageTakenFromCaster, aurEff =>
+                if (victim != null)
+                    MathFunctions.AddPct(ref crit_bonus, victim.GetTotalAuraModifier(AuraType.ModCriticalDamageTakenFromCaster, aurEff =>
                 {
                     return aurEff.GetCasterGUID() == caster.GetGUID();
                 }));

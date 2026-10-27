@@ -332,7 +332,7 @@ namespace Game
             if (battlefieldPort.AcceptedInvite && bgQueue.GetQueueId().TeamSize == 0)
             {
                 //if player is trying to enter Battleground(not arena!) and he has deserter debuff, we must just remove him from queue
-                if (!GetPlayer().IsDeserter())
+                if (GetPlayer().IsDeserter())
                 {
                     // send bg command result to show nice message
                     BattlefieldStatusFailed battlefieldStatus;
@@ -423,7 +423,7 @@ namespace Game
 
                 Log.outDebug(LogFilter.Battleground, 
                     $"Battleground: player {_player.GetName()} ({_player.GetGUID()}) " +
-                    $"left queue for bgtype { bg.GetTypeID()}, queue {bgQueueTypeId}.");
+                    $"left queue for bgtype {bgTypeId}, queue {bgQueueTypeId}.");
             }
         }
 

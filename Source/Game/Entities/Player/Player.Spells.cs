@@ -2814,8 +2814,8 @@ namespace Game.Entities
                             Milliseconds WeaponSpeed = GetBaseAttackTime(damageInfo.GetAttackType());
                             chance = GetPPMProcChance(WeaponSpeed, proto.SpellPPMRate, spellInfo);
                         }
-                        else if (chance > 100.0f)
-                            chance = GetWeaponProcChance();
+                        else if (chance > 100.0f || chance <= 0.0f)
+                            chance = GetWeaponProcChance(); // Classic 1.60: chance-on-hit spells with no chance in the data (Sulfuras, Jang'thraze, ...) use the weapon speed rate like vanilla
 
                         if (RandomHelper.randChance(chance) && Global.ScriptMgr.OnCastItemCombatSpell(this, damageInfo.GetVictim(), spellInfo, item))
                             CastSpell(damageInfo.GetVictim(), spellInfo.Id, item);

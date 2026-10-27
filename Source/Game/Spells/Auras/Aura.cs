@@ -2388,6 +2388,30 @@ namespace Game.Spells
             }
         }
 
+        public bool HasHeartbeatScripts()
+        {
+            foreach (var loadedScript in m_loadedScripts)
+                if (!loadedScript.OnHeartbeat.Empty())
+                    return true;
+            return false;
+        }
+
+        public void CallScriptHeartbeatHandlers()
+        {
+            foreach (var loadedScript in m_loadedScripts)
+            {
+                if (loadedScript.OnHeartbeat.Empty())
+                    continue;
+
+                loadedScript._PrepareScriptCall(AuraScriptHookType.Heartbeat);
+
+                foreach (var hook in loadedScript.OnHeartbeat)
+                    hook.Call();
+
+                loadedScript._FinishScriptCall();
+            }
+        }
+
         public void CallScriptEnterLeaveCombatHandlers(AuraApplication aurApp, bool isNowInCombat)
         {
             foreach (var loadedScript in m_loadedScripts)

@@ -158,6 +158,7 @@ namespace Game.Entities
         public bool Create(long guidlow, CharacterCreateInfo createInfo)
         {
             _Create(ObjectGuid.Create(HighGuid.Player, guidlow));
+            InitializeGuildClubMemberId();
 
             // Classic carries surname separately in character/name packets and the database.
             SetName(createInfo.Name);
@@ -3664,14 +3665,17 @@ namespace Game.Entities
             if (powerInfo == null)
                 return;
 
-            if (powerInfo.HasFlag(PowerTypeFlags.UseRegenInterrupt) && m_regenInterruptTimestamp + powerInfo.RegenInterruptTime >= LoopTime.ServerTime)
+            // Classic 1.60 (vanilla): mana follows only the five second rule below (TC-forever ClassicManaRegen.h). Spirit regeneration
+            // stops for 5 sec after mana is paid; the interrupted rate is the share of SPELL_AURA_MOD_MANA_REGEN_INTERRUPT (not zero).
+            // Receiving mana or leaving combat does not stop it, and combat itself does not interrupt it.
+            if (power != PowerType.Mana && powerInfo.HasFlag(PowerTypeFlags.UseRegenInterrupt) && m_regenInterruptTimestamp + powerInfo.RegenInterruptTime >= LoopTime.ServerTime)
                 return;
 
             float addvalue = 0;
 
             if (power == PowerType.Mana)
             {
-                if (IsPowerRegenInterruptedByMP5Rule())
+                if (IsPowerRegenInterruptedByMP5Rule() || HasAuraType(AuraType.InterruptRegen))
                     addvalue = (powerInfo.RegenCombat + m_unitData.PowerRegenInterruptedFlatModifier[powerIndex]) * 0.001f * RegenTimer;
                 else
                     addvalue = (powerInfo.RegenPeace + m_unitData.PowerRegenFlatModifier[powerIndex]) * 0.001f * RegenTimer;
@@ -5268,8 +5272,15 @@ namespace Game.Entities
         }
 
         //Guild
+        public void InitializeGuildClubMemberId()
+        {
+            ulong id = Game.Services.Classic.ClassicSocialSupport.CreateClubMemberId(GetGUID(), (uint)Global.WorldMgr.GetRealm().Id.Index);
+            SetUpdateFieldValue(m_values.ModifyValue(m_playerData).ModifyValue(m_playerData.GuildClubMemberID), id);
+        }
+
         public void SetInGuild(long guildId)
         {
+            InitializeGuildClubMemberId();
             if (guildId != 0)
             {
                 SetUpdateFieldValue(m_values.ModifyValue(m_unitData).ModifyValue(m_unitData.GuildGUID), ObjectGuid.Create(HighGuid.Guild, guildId));

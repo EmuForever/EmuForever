@@ -320,6 +320,10 @@ namespace Game
             SendPacket(response);
         }
 
+        // TC leaves this unhandled too (Handle_NULL); registered so the client's per-bag-update queries don't spam the console
+        [WorldPacketHandler(ClientOpcodes.QueryQuestItemUsability, Processing = PacketProcessing.Inplace)]
+        void HandleQueryQuestItemUsability(QueryQuestItemUsability packet) { }
+
         [WorldPacketHandler(ClientOpcodes.ItemTextQuery, Processing = PacketProcessing.Inplace)]
         void HandleItemTextQuery(ItemTextQuery packet)
         {

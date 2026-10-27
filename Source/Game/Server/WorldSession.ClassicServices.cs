@@ -162,7 +162,8 @@ namespace Game
             }
             if (hash == 0x94B94786 || hash == 0xE273DE0E)
             {
-                BnetCall result = ClassicSocialSupport.Handle(hash, method, _player != null, (ulong)(_player?.GetGuildId() ?? 0), request.Data);
+                BnetCall result = ClassicSocialSupport.Handle(hash, method, _player != null, ClassicSocialSupport.Snapshot(_player), request.Data);
+                foreach (var note in result.Notes) SendBnetNote(note);
                 SendClassicBnetResponse(request.Method, result.Status, result.Body);
                 return true;
             }

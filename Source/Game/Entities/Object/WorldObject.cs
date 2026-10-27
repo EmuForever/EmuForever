@@ -1046,6 +1046,26 @@ namespace Game.Entities
             m_Events.Update(diff);
         }
 
+        // The map's update clock (Map.UpdateClock) when the grid updater last updated this object.
+        Map _lastUpdateMap;
+        TimeSpan _lastUpdateClock;
+
+        // Time to update this object with: the map time since its last update, at most maxCatchUp (a grid that
+        // wakes after a long sleep does not replay it). An object new to this map gets the current tick's diff.
+        internal TimeSpan ElapsedSinceUpdate(Map map, TimeSpan clock, TimeSpan tickDiff, TimeSpan maxCatchUp)
+        {
+            if (_lastUpdateMap != map)
+                return tickDiff;
+            TimeSpan elapsed = clock - _lastUpdateClock;
+            return elapsed > maxCatchUp ? maxCatchUp : elapsed;
+        }
+
+        internal void MarkUpdated(Map map, TimeSpan clock)
+        {
+            _lastUpdateMap = map;
+            _lastUpdateClock = clock;
+        }
+
         public void SetIsStoredInWorldObjectGridContainer(bool on)
         {
             if (!IsInWorld)

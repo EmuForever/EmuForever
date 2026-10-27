@@ -1232,6 +1232,19 @@ namespace Game.Spells
                     break;
             }
 
+            // Classic 1.60 (game rule 112): combo points belong to one target. The client shows them and allows finishers only while
+            // UnitData ClassicComboTarget is the current target (official sniff: set when Sinister Strike awards the first point), and
+            // building points on another target starts over from zero (TC-forever)
+            if (power == PowerType.ComboPoints && unitTarget == unitCaster && unitCaster.IsPlayer())
+            {
+                Unit comboTarget = m_targets.GetUnitTarget();
+                if (comboTarget != null && comboTarget != unitCaster && unitCaster.GetClassicComboTarget() != comboTarget.GetGUID())
+                {
+                    unitCaster.SetPower(PowerType.ComboPoints, 0);
+                    unitCaster.SetClassicComboTarget(comboTarget.GetGUID());
+                }
+            }
+
             unitCaster.EnergizeBySpell(unitTarget, m_spellInfo, damage, power);
         }
 

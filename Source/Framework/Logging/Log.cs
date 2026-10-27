@@ -468,6 +468,7 @@ public enum LogFilter
     ServerLoading,
     ServiceProtobuf,
     Session,
+    SI,
     SessionRpc,
     Spells,
     SpellsPeriodic,

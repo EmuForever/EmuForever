@@ -463,6 +463,7 @@ namespace Game.Entities
         public ProcFlagsInit ProcAttacker { get; set; }
         public ProcFlagsInit ProcVictim { get; set; }
         public int CleanDamage { get; set; }        // Used only for rage calculation
+        public int RageGained { get; set; }
         public MeleeHitOutcome HitOutCome { get; set; }  // TODO: remove this field (need use TargetState)
     }
 

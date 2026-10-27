@@ -99,6 +99,21 @@ namespace Game.Entities
             base.Dispose();
         }
 
+        static readonly Milliseconds AuraHeartbeatInterval = (Milliseconds)5200; // TC HEARTBEAT_INTERVAL
+        Milliseconds _auraHeartbeatTimer = AuraHeartbeatInterval;
+
+        // TC Unit::TriggerAuraHeartbeat, script hook only (no heartbeat procs); a copy because hooks may add or remove auras
+        void TriggerAuraHeartbeat()
+        {
+            // most units have no aura with a heartbeat hook: check before copying the list
+            if (!m_appliedAuras.Values.Any(aurApp => aurApp.GetBase().HasHeartbeatScripts()))
+                return;
+
+            foreach (AuraApplication aurApp in m_appliedAuras.Values.ToList())
+                if (aurApp.GetRemoveMode() == AuraRemoveMode.None)
+                    aurApp.GetBase().CallScriptHeartbeatHandlers();
+        }
+
         public override void Update(TimeSpan diff)
         {
             // WARNING! Order of execution here is important, do not change.
@@ -109,6 +124,13 @@ namespace Game.Entities
                 return;
 
             _UpdateSpells((Milliseconds)diff);
+
+            _auraHeartbeatTimer -= (Milliseconds)diff;
+            while (_auraHeartbeatTimer <= Milliseconds.Zero)
+            {
+                _auraHeartbeatTimer += AuraHeartbeatInterval;
+                TriggerAuraHeartbeat();
+            }
 
             // If this is set during update SetCantProc(false) call is missing somewhere in the code
             // Having this would prevent spells from being proced, so let's crash
@@ -2216,6 +2238,9 @@ namespace Game.Entities
         public void SetBattlePetCompanionGUID(ObjectGuid guid) { SetUpdateFieldValue(m_values.ModifyValue(m_unitData).ModifyValue(m_unitData.BattlePetCompanionGUID), guid); }
         public ObjectGuid GetDemonCreatorGUID() { return m_unitData.DemonCreator; }
         public void SetDemonCreatorGUID(ObjectGuid guid) { SetUpdateFieldValue(m_values.ModifyValue(m_unitData).ModifyValue(m_unitData.DemonCreator), guid); }
+        // Classic: the unit the combo points belong to (TC UnitData::ClassicComboTarget)
+        public ObjectGuid GetClassicComboTarget() { return m_unitData.ComboTarget; }
+        public void SetClassicComboTarget(ObjectGuid guid) { SetUpdateFieldValue(m_values.ModifyValue(m_unitData).ModifyValue(m_unitData.ComboTarget), guid); }
         public Unit GetDemonCreator() => Global.ObjAccessor.GetUnit(this, GetDemonCreatorGUID());
         public Player GetDemonCreatorPlayer() => Global.ObjAccessor.GetPlayer(this, GetDemonCreatorGUID());
 
@@ -2701,7 +2726,6 @@ namespace Game.Entities
 
         public static int DealDamage(Unit attacker, Unit victim, int damage, CleanDamage cleanDamage = null, DamageEffectType damagetype = DamageEffectType.Direct, SpellSchoolMask damageSchoolMask = SpellSchoolMask.Normal, SpellInfo spellProto = null, bool durabilityLoss = true)
         {
-            int rage_damage = damage + (cleanDamage != null ? cleanDamage.absorbed_damage : 0);
 
             var damageDone = damage;
             var damageTaken = damage;
@@ -2810,33 +2834,9 @@ namespace Game.Entities
                 }
             }
 
-            // Rage from Damage made (only from direct weapon damage)
-            if (attacker != null && cleanDamage != null && damagetype == DamageEffectType.Direct && attacker != victim && attacker.GetPowerType() == PowerType.Rage)
-            {
-                if (cleanDamage.attackType == WeaponAttackType.BaseAttack || cleanDamage.attackType == WeaponAttackType.OffAttack)
-                {
-                    float weaponAttackTypeFactor = 3.5f;
-
-                if (cleanDamage.attackType == WeaponAttackType.OffAttack)
-                        weaponAttackTypeFactor /= 2.0f;
-
-                    int weaponSpeedHitFactor = (int)(attacker.GetBaseAttackTime(cleanDamage.attackType) / (float)Time.MillisecondsInSecond * weaponAttackTypeFactor);
-                    
-                    if (cleanDamage.hitOutCome == MeleeHitOutcome.Crit)
-                        weaponSpeedHitFactor *= 2;
-
-                    attacker.RewardRage(rage_damage, weaponSpeedHitFactor, true);
-                }
-            }
-
+            // Classic 1.60 (vanilla): rage from the damage dealt is given per swing (AttackerStateUpdate), not here (TC-forever)
             if (damageDone == 0)
-            {
-                // Rage from absorbed damage
-                if (cleanDamage != null && cleanDamage.absorbed_damage != 0 && victim.GetPowerType() == PowerType.Rage)
-                    victim.RewardRage(cleanDamage.absorbed_damage, 0, false);
-
                 return 0;
-            }
 
             int health = (int)victim.GetHealth();
 
@@ -3026,12 +3026,9 @@ namespace Game.Entities
                     }
                 }
 
-                // Rage from damage received
-                if (attacker != victim && victim.GetPowerType() == PowerType.Rage)
-                {
-                    rage_damage = damage + (cleanDamage != null ? cleanDamage.absorbed_damage : 0);
-                    victim.RewardRage(rage_damage, 0, false);
-                }
+                // Classic 1.60 (vanilla): rage from damage taken (TC-forever)
+                if (attacker != null && attacker != victim && damagetype != DamageEffectType.NoDamage && damageTaken != 0 && victim.GetPowerType() == PowerType.Rage)
+                    victim.RewardClassicRage(damageTaken, false);
 
                 if (attacker != null && attacker.IsPlayer())
                 {
@@ -3492,34 +3489,20 @@ namespace Game.Entities
             }
         }
 
-        public void RewardRage(int damage, int weaponSpeedHitFactor, bool attacker)
+        // Classic 1.60 (vanilla, VMaNGOS): rage = damage / conversion(level) * 7.5 when dealing, * 2.5 when taking damage; no weapon speed
+        // factor (TBC) (TC-forever). Returns the rage gained (x10).
+        public int RewardClassicRage(int damage, bool attacker)
         {
-            float addRage;
-            int level = GetLevel();
-
-            float rageconversion = (0.0091107836f * level * level) + 3.225598133f * level + 4.2652911f;
-
-            // Unknown if correct, but lineary adjust rage conversion above level 70
-            if (level > 70)
-                rageconversion += 13.27f * (level - 70);
-
+            float level = GetLevel();
+            float conversion = 0.0091107836f * level * level + 3.225598133f * level + 4.2652911f;
+            float addRage = damage / conversion * (attacker ? 7.5f : 2.5f);
             if (attacker)
-        {
-                addRage = (damage / rageconversion * 7.5f + weaponSpeedHitFactor) / 2;
+                MathFunctions.AddPct(ref addRage, GetTotalAuraModifier(AuraType.ModRageFromDamageDealt));
+            // Berserker Rage: "generating extra rage when taking damage"
+            else if (HasAura(18499))
+                addRage *= 2.0f;
 
-            // talent who gave more rage on attack
-            MathFunctions.AddPct(ref addRage, GetTotalAuraModifier(AuraType.ModRageFromDamageDealt));
-            }
-            else
-            {
-                addRage = damage / rageconversion * 2.5f;
-
-                // Berserker Rage effect
-                if (HasAura(18499))
-                    addRage *= 2.0f;
-            }
-
-            ModifyPower(PowerType.Rage, (int)(addRage * 10));
+            return ModifyPower(PowerType.Rage, (int)(addRage * 10), false);
         }
 
         public float GetPPMProcChance(Milliseconds WeaponSpeed, float PPM, SpellInfo spellProto)

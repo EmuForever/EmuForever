@@ -2,7 +2,7 @@ using System;
 
 namespace Game.AI
 {
-    public enum SIVendorPurpose { Sell, Repair, Restock, Ammunition }
+    public enum SIVendorPurpose { Sell, Repair, Restock, Ammunition, Bank, Auction }
 
     public static class SIVendorPolicy
     {

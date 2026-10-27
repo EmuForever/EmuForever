@@ -35,7 +35,12 @@ public sealed partial class SIPlayer
                 SITaskKind.TurnIn=>"Turn in quest",
                 SITaskKind.Objective=>"Execute quest objective",
                 SITaskKind.Train=>"Reach trainer and learn affordable spells",
-                SITaskKind.Vendor=>"Complete vendor interaction",
+                SITaskKind.Vendor=>_task.VendorPurpose switch
+                {
+                    SIVendorPurpose.Bank=>"Deposit saved items, then resume task",
+                    SIVendorPurpose.Auction=>"List surplus items, then resume task",
+                    _=>"Complete vendor interaction"
+                },
                 SITaskKind.Grind=>_goal=="quest"?$"Resume questing at level {_questGrindUntilLevel}":"Continue ordered grinding",
                 _=>_goal=="quest"?$"Scan local quests within {QuestPickupRadius:0} yards":"Continue "+_goal
             };

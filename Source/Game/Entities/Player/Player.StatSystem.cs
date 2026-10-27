@@ -1197,8 +1197,7 @@ namespace Game.Entities
             // flat = bonus from crit auras, pct = bonus from agility, combat rating = mods from items
             float value = GetBaseModValue(modGroup, BaseModType.FlatMod) + GetBaseModValue(modGroup, BaseModType.PctMod) + GetRatingBonusValue(combatRating);
 
-            // Modify crit from weapon skill and maximized defense skill of same level victim difference
-            value += (GetWeaponSkillValue(attType) - GetMaxSkillValueForLevel()) * 0.04f;
+            // Classic 1.60: the weapon skill term is applied per victim in Unit.GetUnitCriticalChanceAgainst (TC-forever)
 
             if (WorldConfig.Values[WorldCfg.StatsLimitsEnable].Bool)
                 value = value > WorldConfig.Values[WorldCfg.StatsLimitsCrit].Float ? WorldConfig.Values[WorldCfg.StatsLimitsCrit].Float : value;

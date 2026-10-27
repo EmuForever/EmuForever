@@ -2060,6 +2060,10 @@ namespace Framework.Constants
         NoResetTalentCost,
         /// <summary cref="int">int</summary>
         Numthreads,
+        /// <summary cref="TimeSpan">TimeSpan</summary>
+        MapUpdateBotBudget,
+        /// <summary cref="TimeSpan">TimeSpan</summary>
+        MapUpdateBotMaxStaleness,
         /// <summary cref="bool">bool</summary>
         OffhandCheckAtSpellUnlearn,
         /// <summary cref="Seconds">Seconds</summary>

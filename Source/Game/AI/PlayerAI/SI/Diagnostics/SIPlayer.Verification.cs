@@ -20,6 +20,48 @@ namespace Game.AI
             passed.AddRange(SIBehaviorVerification.Verify());
             static void Require(bool ok, string message) { if (!ok) throw new InvalidDataException(message); }
 
+            foreach (ItemQuality quality in new[] { ItemQuality.Poor, ItemQuality.Normal, ItemQuality.Uncommon, ItemQuality.Rare })
+            {
+                Require(SIInventoryPolicy.Disposition(ItemClass.Weapon, quality, true, false, false, false, true) == SIItemDisposition.Carry &&
+                    SIInventoryPolicy.Disposition(ItemClass.Armor, quality, false, true, false, false, true) == SIItemDisposition.Carry,
+                    "Protected quest/supply items or a current upgrade were removed from inventory.");
+            }
+            Require(SIInventoryPolicy.Disposition(ItemClass.Armor, ItemQuality.Uncommon, false, false, true, false, true) == SIItemDisposition.Bank &&
+                SIInventoryPolicy.Disposition(ItemClass.Weapon, ItemQuality.Rare, false, false, false, true, false) == SIItemDisposition.Bank &&
+                SIInventoryPolicy.Disposition(ItemClass.TradeGoods, ItemQuality.Normal, false, false, false, false, true) == SIItemDisposition.Auction &&
+                SIInventoryPolicy.Disposition(ItemClass.Armor, ItemQuality.Uncommon, false, false, false, false, true) == SIItemDisposition.Auction &&
+                SIInventoryPolicy.Disposition(ItemClass.Weapon, ItemQuality.Poor, false, false, false, false, true) == SIItemDisposition.Vendor,
+                "Later-use items were auctioned, surplus gear was not listed, or junk went to the AH.");
+            foreach (ItemClass itemClass in new[] { ItemClass.Weapon, ItemClass.Armor })
+            foreach (ItemQuality quality in new[] { ItemQuality.Poor, ItemQuality.Normal })
+            {
+                Require(SIInventoryPolicy.IsVendorQuality(itemClass, quality) &&
+                    SIInventoryPolicy.Disposition(itemClass, quality, false, false, false, false, true) == SIItemDisposition.Vendor &&
+                    SIInventoryPolicy.Disposition(itemClass, quality, false, false, true, true, false) == SIItemDisposition.Vendor,
+                    "Gray/white surplus equipment was banked or auctioned instead of vendored.");
+            }
+            foreach (ItemClass itemClass in new[] { ItemClass.TradeGoods, ItemClass.Gem, ItemClass.Recipe })
+                Require(!SIInventoryPolicy.IsVendorQuality(itemClass, ItemQuality.Normal) &&
+                    SIInventoryPolicy.Disposition(itemClass, ItemQuality.Normal, false, false, false, false, true) == SIItemDisposition.Auction &&
+                    SIInventoryPolicy.Disposition(itemClass, ItemQuality.Normal, true, false, false, false, true) == SIItemDisposition.Carry,
+                    "White materials/trade items were vendored, or protected materials were auctioned.");
+            Require(!SIInventoryPolicy.IsVendorQuality(ItemClass.Armor, ItemQuality.Uncommon) &&
+                !SIInventoryPolicy.IsVendorQuality(ItemClass.Weapon, ItemQuality.Rare),
+                "The white-gear rule expanded vendor sales to higher-quality equipment.");
+            Require(SIInventoryPolicy.ShouldVisit(10, true, true) && SIInventoryPolicy.ShouldVisit(0, false, true) &&
+                !SIInventoryPolicy.ShouldVisit(1, false, true) && !SIInventoryPolicy.ShouldVisit(0, true, false),
+                "Inventory service travel ignored proximity, full bags, or eligible stock.");
+            Require(SIInventoryPolicy.AuctionUnitPrice(0) == 100 && SIInventoryPolicy.AuctionUnitPrice(123) == 246 &&
+                SIInventoryPolicy.AuctionUnitPrice(long.MaxValue) == PlayerConst.MaxMoneyAmount &&
+                SIInventoryPolicy.CanPayDeposit(1000, 100, 400) && !SIInventoryPolicy.CanPayDeposit(1000, 100, 401) &&
+                !SIInventoryPolicy.CanPayDeposit(0, 0, 1) && !SIInventoryPolicy.CanPayDeposit(100, 100, 1),
+                "Auction pricing overflowed or deposits spent the repair/half-money reserve.");
+            var bankTask = new SITask { Kind = SITaskKind.Vendor, VendorPurpose = SIVendorPurpose.Bank };
+            var auctionTask = new SITask { Kind = SITaskKind.Vendor, VendorPurpose = SIVendorPurpose.Auction };
+            Require(bankTask.Key != auctionTask.Key && bankTask.Key != new SITask { Kind = SITaskKind.Vendor }.Key,
+                "A failed bank/AH visit blacklisted another inventory service.");
+            passed.Add("bank/AH item protection, later-use storage, surplus listings, full-bag trips, price/deposit limits and independent service retries");
+
             var unrelatedGrind = new SITask { Kind = SITaskKind.Grind, Score = -1000 };
             var questKill = new SITask { Kind = SITaskKind.Objective, Score = 20 };
             var questTurnIn = new SITask { Kind = SITaskKind.TurnIn, Score = 10 };

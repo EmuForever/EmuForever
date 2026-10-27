@@ -1527,6 +1527,10 @@ namespace Game.Spells
                 default:
                     break;
             }
+
+            // Classic 1.60: an active seal is what Judgement (20271, CasterAuraState 5) needs
+            if (ClassicSeals.IsSeal(Id))
+                _auraState = AuraStateType.Marked;
         }
 
         public SpellSpecificType GetSpellSpecific()

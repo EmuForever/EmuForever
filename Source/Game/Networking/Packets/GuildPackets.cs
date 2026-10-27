@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -1586,6 +1586,7 @@ namespace Game.Networking.Packets
             DungeonScore.Write(data);
             data.WriteUInt64(GuildClubMemberID);
             data.WriteUInt8(RaceID);
+            data.WriteUInt64(0); // Classic 1.60.1.70291+: extra member field before the season and name lengths.
             data.WriteInt32(TimerunningSeasonID);
 
             // Classic 1.60: the surname (9 bit length) follows the name

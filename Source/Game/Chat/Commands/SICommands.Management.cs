@@ -29,7 +29,7 @@ namespace Game.Chat.Commands
             if (now < _nextWork || !Work.TryDequeue(out var step)) return;
             _nextWork = now + 100;
             try { if (!step()) Work.Enqueue(step); }
-            catch (Exception error) { Log.outError(LogFilter.Server, $"SI management job failed: {error.Message}"); }
+            catch (Exception error) { Log.outError(LogFilter.SI, $"SI management job failed: {error.Message}"); }
         }
 
         internal static List<string> ParseArguments(string text)

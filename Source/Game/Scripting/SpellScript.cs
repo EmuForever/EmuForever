@@ -1260,6 +1260,7 @@ namespace Game.Scripting
         public delegate void AuraProcDelegate(ProcEventInfo info);
         public delegate void AuraEffectProcDelegate(AuraEffect aura, ProcEventInfo info);
         public delegate void AuraEnterLeaveCombatFnType(bool isNowInCombat);
+        public delegate void AuraHeartbeatFnType();
 
         public class CheckAreaTargetHandler
         {
@@ -1565,6 +1566,21 @@ namespace Game.Scripting
             public void Call(bool isNowInCombat)
             {
                 _callImpl(isNowInCombat);
+            }
+        }
+
+        public class HeartbeatHandler
+        {
+            AuraHeartbeatFnType _callImpl;
+
+            public HeartbeatHandler(AuraHeartbeatFnType callImpl)
+            {
+                _callImpl = callImpl;
+            }
+
+            public void Call()
+            {
+                _callImpl();
             }
         }
 
@@ -2046,6 +2062,12 @@ namespace Game.Scripting
         // example: OnEnterLeaveCombat += AuraEnterLeaveCombatFn(class::function)
         // where function is: void function (bool isNowInCombat);
         public List<EnterLeaveCombatHandler> OnEnterLeaveCombat = new();
+
+        // executed every unit heartbeat (5.2 sec, as TC) while the aura is applied; there is no current target application,
+        // use GetUnitOwner()
+        // example: OnHeartbeat += AuraHeartbeatFn(class::function)
+        // where function is: void function ();
+        public List<HeartbeatHandler> OnHeartbeat = new();
 
         // AuraScript interface - hook/effect execution manipulators
 
