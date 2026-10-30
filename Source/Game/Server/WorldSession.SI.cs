@@ -11,6 +11,15 @@ namespace Game
     public partial class WorldSession
     {
         public bool IsServerControlled { get; }
+        // Gameplay authorization is separate from the headless session's socket,
+        // visibility, login and clock handling. .si me keeps a normal client session.
+        public bool IsSIControlled => IsServerControlled || _player?.Controller != null;
+
+        internal static bool IsSelfSIClientInput(ClientOpcodes opcode) => opcode is
+            ClientOpcodes.CastSpell or ClientOpcodes.UseItem or ClientOpcodes.CancelCast or
+            ClientOpcodes.CancelChannelling or ClientOpcodes.CancelAutoRepeatSpell or
+            ClientOpcodes.AttackSwing or ClientOpcodes.AttackStop or ClientOpcodes.SetSelection or
+            ClientOpcodes.PetAction or ClientOpcodes.PetCastSpell or ClientOpcodes.GameObjUse;
         bool _siRegistered;
         CharacterCreateInfo _siCreateInfo;
         Action<ResponseCodes, ObjectGuid> _siCreateCompleted;

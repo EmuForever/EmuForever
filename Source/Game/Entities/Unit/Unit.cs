@@ -1373,8 +1373,8 @@ namespace Game.Entities
             if (ai != null)
             {
                 m_aiLocked = true;
-                ai.UpdateAI(diff);
-                m_aiLocked = false;
+                try { ai.UpdateAI(diff); }
+                finally { m_aiLocked = false; }
             }
         }
 

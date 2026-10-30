@@ -44,7 +44,7 @@ namespace Game
 
         internal void RespondToDuelForSI(bool accept)
         {
-            if(!IsServerControlled||GetPlayer()?.duel==null)return;
+            if(!IsSIControlled||GetPlayer()?.duel==null)return;
             if(accept)HandleDuelAccepted(GetPlayer().duel.Opponent.m_playerData.DuelArbiter);
             else HandleDuelCancelled();
         }

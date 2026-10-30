@@ -4,6 +4,7 @@
 using Framework.Constants;
 using Game.Entities;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Game.Maps
 {
@@ -187,15 +188,8 @@ namespace Game.Maps
             {
                 foreach (Corpse corpse in corpses)
                 {
+                    i_map.AddToGrid(corpse, new Cell(cellCoord));
                     corpse.AddToWorld();
-                    var cell = i_grid.GetGridCell(i_cell.GetCellX(), i_cell.GetCellY());
-                    if (corpse.IsStoredInWorldObjectGridContainer())
-                    {
-                        i_map.AddToGrid(corpse, new Cell(cellCoord));
-                        cell.AddWorldObject(corpse);
-                    }
-                    else
-                        cell.AddGridObject(corpse);
 
                     ++i_corpses;
                 }
@@ -207,6 +201,20 @@ namespace Game.Maps
         Grid i_grid;
 
         public int i_corpses;
+    }
+
+    // Detach persistent corpses before their grid containers are discarded.
+    class CorpseGridUnloader : Notifier
+    {
+        public override void Visit(IReadOnlyList<Corpse> objs)
+        {
+            // Removal mutates the visited cell's container.
+            foreach (var corpse in objs.ToArray())
+            {
+                corpse.RemoveFromWorld();
+                corpse.GetMap().RemoveFromGrid(corpse, corpse.GetCurrentCell());
+            }
+        }
     }
 
     //Stop the creatures before unloading the NGrid
@@ -264,7 +272,7 @@ namespace Game.Maps
             {
                 WorldObject obj = objs[i];
 
-                if (obj.IsTypeId(TypeId.Player))
+                if (obj.IsTypeId(TypeId.Player) || obj.IsTypeId(TypeId.Corpse))
                     continue;
 
                 obj.SetDestroyedObject(true);

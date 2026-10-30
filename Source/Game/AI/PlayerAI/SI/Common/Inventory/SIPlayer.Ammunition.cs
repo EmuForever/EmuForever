@@ -14,32 +14,17 @@ namespace Game.AI
         bool UsableAmmunition(ItemTemplate item) => item != null && item.GetClass() == ItemClass.Projectile &&
             me.CheckAmmoCompatibility(item) && me.CanUseAmmo(item.GetId()) == InventoryResult.Ok;
 
-        int AmmunitionCount()
-        {
-            int count = 0;
-            me.ForEachItem(ItemSearchLocation.Inventory, item =>
-            {
-                if (UsableAmmunition(item.GetTemplate())) count += (int)item.GetCount();
-                return true;
-            });
-            return count;
-        }
+        int AmmunitionCount() => InventoryCount(item => UsableAmmunition(item.GetTemplate()));
 
         void SelectAmmunition()
         {
-            if (!UsesAmmunition()) return;
-            if (me.GetItemCount(me.GetUsedAmmoId()) > 0 && UsableAmmunition(Global.ObjectMgr.GetItemTemplate(me.GetUsedAmmoId()))) return;
-            int selected = 0;
-            me.ForEachItem(ItemSearchLocation.Inventory, item =>
-            {
-                if (UsableAmmunition(item.GetTemplate())) selected = item.GetEntry();
-                return selected == 0;
-            });
-            if (selected != 0) me.SetAmmo(selected);
+            if (!UsesAmmunition() || SelectedAmmunitionReady()) return;
+            if (FirstInventoryItem(item => UsableAmmunition(item.GetTemplate())) is Item ammo) me.SetAmmo(ammo.GetEntry());
         }
 
-        bool HasAmmunition() => !UsesAmmunition() ||
+        bool SelectedAmmunitionReady() =>
             me.GetItemCount(me.GetUsedAmmoId()) > 0 && UsableAmmunition(Global.ObjectMgr.GetItemTemplate(me.GetUsedAmmoId()));
+        bool HasAmmunition() => !UsesAmmunition() || SelectedAmmunitionReady();
         bool NeedsAmmunition() => UsesAmmunition() && AmmunitionCount() < 40;
 
         (ItemTemplate Item, int Quantity) AmmunitionPurchase(int vendorEntry)
@@ -74,15 +59,15 @@ namespace Game.AI
             return true;
         }
 
-        void StopOutOfRangeHunterShots()
+        void StopInvalidRangedAttacks()
         {
-            if (me.GetClass() != Class.Hunter) return;
             Unit target = me.GetVictim();
             foreach (var kind in new[] { CurrentSpellTypes.AutoRepeat, CurrentSpellTypes.Generic })
             {
                 var cast = me.GetCurrentSpell(kind);
-                if (cast == null || !cast.m_spellInfo.IsRangedWeaponSpell()) continue;
-                if (target == null || HunterNeedsMelee(target) || cast.CheckUnitTargetRange(target) != SpellCastResult.SpellCastOk)
+                if (cast == null || kind == CurrentSpellTypes.Generic &&
+                    (me.GetClass() != Class.Hunter || !cast.m_spellInfo.IsRangedWeaponSpell())) continue;
+                if (target == null || !CombatSight(target) || me.IsWithinMeleeRange(target) || HunterNeedsMelee(target) || cast.CheckUnitTargetRange(target) != SpellCastResult.SpellCastOk)
                     me.InterruptSpell(kind);
             }
         }

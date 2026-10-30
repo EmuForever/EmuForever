@@ -38,6 +38,7 @@ namespace Game.Movement
         public AnimTierTransition animTier;
         public bool walk;
         public bool HasVelocity;
+        public Framework.Constants.UnitMoveType? SpeedType;
         public bool TransformForTransport;
 
         // Returns true to show that the arguments were configured correctly and MoveSpline initialization will succeed.

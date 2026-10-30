@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -615,7 +615,7 @@ namespace Game.Entities
                     $"Unit {charm.GetEntry()} is being charmed, " +
                     $"but it already has a charmer {charm.GetCharmerGUID()}");
 
-                charm.SetUpdateFieldValue(charm.m_values.ModifyValue(m_unitData).ModifyValue(m_unitData.CharmedBy), GetGUID());
+                charm.SetUpdateFieldValue(charm.m_values.ModifyValue(charm.m_unitData).ModifyValue(charm.m_unitData.CharmedBy), GetGUID());
                 charm.m_charmer = this;
 
                 _isWalkingBeforeCharm = charm.IsWalking();
@@ -643,7 +643,7 @@ namespace Game.Entities
                     $"Unit {charm.GetEntry()} is being uncharmed, " +
                     $"but it has another charmer {charm.GetCharmerGUID()}");
 
-                charm.SetUpdateFieldValue(charm.m_values.ModifyValue(m_unitData).ModifyValue(m_unitData.CharmedBy), ObjectGuid.Empty);
+                charm.SetUpdateFieldValue(charm.m_values.ModifyValue(charm.m_unitData).ModifyValue(charm.m_unitData.CharmedBy), ObjectGuid.Empty);
                 charm.m_charmer = null;
 
                 Player player = charm.GetCharmerOrOwnerPlayerOrPlayerItself();

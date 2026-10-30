@@ -102,7 +102,9 @@ namespace Game
         }
 
         [WorldPacketHandler(ClientOpcodes.AuctionConfirmCommoditiesPurchase)]
-        void HandleAuctionConfirmCommoditiesPurchase(AuctionConfirmCommoditiesPurchase confirmCommoditiesPurchase)
+        void HandleAuctionConfirmCommoditiesPurchase(AuctionConfirmCommoditiesPurchase packet) => ConfirmCommoditiesPurchase(packet);
+
+        void ConfirmCommoditiesPurchase(AuctionConfirmCommoditiesPurchase confirmCommoditiesPurchase, Action<bool> completed = null)
         {
             AuctionThrottleResult throttle = Global.AuctionHouseMgr.CheckThrottle(_player, confirmCommoditiesPurchase.TaintedBy.HasValue, AuctionCommand.PlaceBid);
             if (throttle.Throttled)
@@ -120,6 +122,7 @@ namespace Game
                 var buyerGuid = _player.GetGUID();
                 AddTransactionCallback(DB.Characters.AsyncCommitTransaction(trans)).AfterComplete(success =>
                 {
+                    completed?.Invoke(success);
                     if (GetPlayer() != null && GetPlayer().GetGUID() == buyerGuid)
                     {
                         if (success)
@@ -288,7 +291,9 @@ namespace Game
 
         // this function is called when client bids or buys out auction
         [WorldPacketHandler(ClientOpcodes.AuctionPlaceBid)]
-        void HandleAuctionPlaceBid(AuctionPlaceBid placeBid)
+        void HandleAuctionPlaceBid(AuctionPlaceBid packet) => PlaceAuctionBid(packet);
+
+        void PlaceAuctionBid(AuctionPlaceBid placeBid, Action<bool> completed = null)
         {
             AuctionThrottleResult throttle = Global.AuctionHouseMgr.CheckThrottle(_player, placeBid.TaintedBy.HasValue, AuctionCommand.PlaceBid);
             if (throttle.Throttled)
@@ -417,6 +422,7 @@ namespace Game
             var bidderGuid = player.GetGUID();
             AddTransactionCallback(DB.Characters.AsyncCommitTransaction(trans)).AfterComplete(success =>
             {
+                completed?.Invoke(success);
                 if (GetPlayer() != null && GetPlayer().GetGUID() == bidderGuid)
                 {
                     if (success)

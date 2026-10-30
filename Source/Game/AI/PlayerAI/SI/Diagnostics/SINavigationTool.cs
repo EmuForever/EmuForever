@@ -1,6 +1,7 @@
 using Game.AI.SIMovement;
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Numerics;
 
 namespace Game.AI
@@ -41,6 +42,89 @@ namespace Game.AI
             Console.WriteLine($"RESULT map {map}: {arrived}/{tried} arrived, {watch.Elapsed.TotalSeconds:F0} s");
         }
 
+        // Random routes walked with a replan partway through every leg (a moving target, a pull, a refreshed task),
+        // counting fresh legs that start by heading back the way the bot came: before and after the controller
+        // skips the corners it is already past.
+        public static void ReplanWalks(string data, int map, int count)
+        {
+            var graph = SITravelGraphs.Ensure(data, map);
+            if (graph == null) { Console.WriteLine("No travel graph."); return; }
+            var component = graph.Components();
+            var navigation = new SIWorldNavigation(data);
+            var random = new Random(4242);
+            int routes = 0, legs = 0, rawBack = 0, skippedBack = 0, farBack = 0;
+            while (routes < count)
+            {
+                int a = random.Next(graph.NodeCount), b = random.Next(graph.NodeCount);
+                if (graph.Degree(a) == 0 || component[a] != component[b]) continue;
+                float distance = Vector3.Distance(graph.Position(a), graph.Position(b));
+                if (distance < 300 || distance > 2000) continue;
+                ++routes;
+                var position = graph.Position(a) + new Vector3(random.NextSingle() * 16 - 8, random.NextSingle() * 16 - 8, 0);
+                var to = graph.Position(b);
+                Vector2? heading = null;
+                Vector3? via = null;
+                for (int leg = 0; leg < 200 && Vector3.Distance(position, to) > 8; ++leg)
+                {
+                    if (via is Vector3 waypoint && Vector3.Distance(position, waypoint) <= 8) via = null;
+                    var path = navigation.Find(new(map, position), new(map, to, true), () => false, default, new SIRouteHints(via, default));
+                    via = path.Waypoint;
+                    if (!path.Success || path.Points.Length < 2) break;
+                    var raw = path.Points.ToArray();
+                    if (heading is Vector2 previous)
+                    {
+                        ++legs;
+                        if (StartsBackwards(raw, previous)) ++rawBack;
+                        if (StartsBackwards(SIMovementRoute.SkipPassed(raw, (_, _) => true), previous))
+                        {
+                            ++skippedBack;
+                            // how far the new leg goes back against the old heading, within its first 60 yards
+                            float back = 0, along = 0;
+                            for (int i = 1; i < raw.Length && along < 60; ++i)
+                            {
+                                along += Vector3.Distance(raw[i - 1], raw[i]);
+                                back = Math.Max(back, -Vector2.Dot(new Vector2(raw[i].X - raw[0].X, raw[i].Y - raw[0].Y), previous));
+                            }
+                            if (back >= 20) ++farBack;
+                            if (skippedBack <= 25)
+                                Console.WriteLine($"  back {back:F0} yd at {position}, {Vector2.Distance(new(position.X, position.Y), new(to.X, to.Y)):F0} yd to go, " +
+                                    $"leg {raw.Length} points{(path.Complete ? " complete" : "")}{(path.Partial ? " partial" : "")}");
+                        }
+                    }
+                    // walk 60% of the leg, then plan again from there
+                    float length = 0;
+                    for (int i = 1; i < raw.Length; ++i) length += Vector3.Distance(raw[i - 1], raw[i]);
+                    if (length < 1) break;
+                    float target = path.Complete ? length : length * .6f, walked = 0;
+                    for (int i = 1; i < raw.Length; ++i)
+                    {
+                        float step = Vector3.Distance(raw[i - 1], raw[i]);
+                        if (walked + step >= target || i == raw.Length - 1)
+                        {
+                            position = Vector3.Lerp(raw[i - 1], raw[i], Math.Clamp((target - walked) / Math.Max(step, .001f), 0, 1));
+                            var direction = new Vector2(raw[i].X - raw[i - 1].X, raw[i].Y - raw[i - 1].Y);
+                            heading = direction.LengthSquared() > 0 ? Vector2.Normalize(direction) : heading;
+                            break;
+                        }
+                        walked += step;
+                    }
+                    if (path.Complete) break;
+                }
+            }
+            Console.WriteLine($"RESULT map {map}: {routes} routes, {legs} replanned legs; start backwards {rawBack} as planned, {skippedBack} after skipping passed corners, {farBack} of them 20+ yards");
+        }
+
+        static bool StartsBackwards(Vector3[] route, Vector2 heading)
+        {
+            for (int i = 1; i < route.Length; ++i)
+            {
+                var step = new Vector2(route[i].X - route[0].X, route[i].Y - route[0].Y);
+                if (step.Length() < 2) continue;
+                return Vector2.Dot(Vector2.Normalize(step), heading) < -.2f;
+            }
+            return false;
+        }
+
         // Walks a bot's legs from one point to another the way the controller does: each leg starts where
         // the previous one ended, until a leg reaches the destination or planning fails.
         public static bool Walk(string data, int map, Vector3 from, Vector3 to, bool heightKnown = true, bool verbose = false)
@@ -57,7 +141,7 @@ namespace Game.AI
                 if (!path.Success)
                 {
                     // The controller accepts the closest reachable point when it is this near.
-                    if (path.Error == "Destination is not reachable from here" && Vector3.Distance(position, to) <= 12)
+                    if (path.Error == SIGroundPath.UnreachableError && Vector3.Distance(position, to) <= 12)
                     { Console.WriteLine($"  arrived (closest reachable point) after {leg - 1} legs, {walked:F0} yd walked; {Vector3.Distance(position, to):F1} yd from target"); return true; }
                     Console.WriteLine($"  leg {leg}: FAILED at {position}: {path.Error}"); return false;
                 }

@@ -283,7 +283,7 @@ namespace Game
         [WorldPacketHandler(ClientOpcodes.SpiritHealerActivate)]
         void HandleSpiritHealerActivate(SpiritHealerActivate packet)
         {
-            if (IsServerControlled) return; // SI players never accept resurrection sickness.
+            if (IsSIControlled) return; // SI players never accept resurrection sickness.
 
             Creature unit = 
                 GetPlayer().GetNPCIfCanInteractWith(packet.Healer, NPCFlags1.SpiritHealer, NPCFlags2.None);

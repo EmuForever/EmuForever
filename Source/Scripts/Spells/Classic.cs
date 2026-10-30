@@ -504,17 +504,21 @@ namespace Scripts.Spells.Classic
 
         void HandleRemove(AuraEffect aurEff, AuraEffectHandleModes mode)
         {
+            // act once, on the first aura effect, whatever its index and type in this build's data
+            if (aurEff.GetEffIndex() != GetSpellInfo().GetEffects().First(effect => effect.IsAura()).EffectIndex)
+                return;
+
             if (GetTargetApplication().GetRemoveMode() != AuraRemoveMode.Expire)
                 return;
 
             Unit caster = GetCaster();
-            if (caster != null)
+            if (caster != null && caster.IsAlive() && GetTarget().IsAlive())
                 caster.CastSpell(GetTarget(), GetTameSpell(GetId()), new CastSpellExtraArgs(TriggerCastFlags.FullMask).SetOriginalCaster(caster.GetGUID()));
         }
 
         public override void Register()
         {
-            AfterEffectRemove.Add(new(HandleRemove, 1, AuraType.Dummy, AuraEffectHandleModes.Real));
+            AfterEffectRemove.Add(new(HandleRemove, SpellConst.EffectAll, AuraType.Any, AuraEffectHandleModes.Real));
         }
     }
 

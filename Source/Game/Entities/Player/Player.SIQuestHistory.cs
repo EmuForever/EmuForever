@@ -3,7 +3,8 @@ using System;
 
 namespace Game.Entities;
 
-public sealed partial class siPlayer
+// Persistent lifetime counters for either a headless SI character or .si me.
+public partial class Player
 {
     public long LifetimeQuestsCompleted { get; private set; }
     public long LifetimeQuestsFailed { get; private set; }
@@ -11,7 +12,7 @@ public sealed partial class siPlayer
     public long QuestHistorySince { get; private set; }
     bool _questHistoryLoaded;
 
-    void LoadQuestHistory()
+    internal void LoadQuestHistory()
     {
         var row=DB.Characters.Query("SELECT completed,failed,abandoned,tracked_since FROM character_si_quest_history WHERE guid={0}",GetGUID().GetCounter());
         if(!row.IsEmpty())

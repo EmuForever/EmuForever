@@ -46,7 +46,11 @@ class ConsoleAppender : Appender
                 {
                     if (entry.Flushed != null)
                     {
-                        try { formatter.Flush(); }
+                        try
+                        {
+                            formatter.Flush();
+                            Framework.Logging.ConsoleTimestamps.FlushInteractive();
+                        }
                         finally { entry.Flushed.TrySetResult(true); }
                         continue;
                     }
@@ -64,6 +68,7 @@ class ConsoleAppender : Appender
         thread.Start();
         // Let queued lines (a crash report, a shutdown message) reach the console before exit.
         AppDomain.CurrentDomain.ProcessExit += (_, _) => Flush();
+        Framework.Logging.ConsoleTimestamps.RestoreConsoleAfterFlush();
         return thread;
     }
 
@@ -77,6 +82,9 @@ class ConsoleAppender : Appender
 
     static void WriteConsole(ConsoleColor color, string text, bool newLine)
     {
+        if (Framework.Logging.ConsoleTimestamps.WriteInteractive(color, text, newLine))
+            return;
+
         try { Console.ForegroundColor = color; }
         catch (IOException) { /* Redirected output can still receive the text. */ }
 

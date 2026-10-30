@@ -1,6 +1,5 @@
-﻿using Framework.Constants;
+using Framework.Constants;
 using Game.Entities;
-using System;
 using System.Linq;
 
 namespace Game.AI
@@ -17,10 +16,13 @@ namespace Game.AI
         }
 
         public string Behavior { get; private set; } = "Starting";
-        public string Activity => _encounter.Active ? $"{_encounter.Stage}: {Resolve(_encounter.Target)?.GetName() ?? "target"}" : !_preparation.Complete ? $"Preparing: {_preparation.Stage}" : _task?.Label ?? Status;
+        public string Activity => _encounter.Active ? $"{_encounter.Stage}: {Resolve(_encounter.Target)?.GetName() ?? "target"}" : !_preparation.Complete ? $"Preparing: {_preparation.Stage}" : Behavior is "Party" or "Mailbox" ? Status : _task?.Label ?? Status;
 
         SIBehaviorResult TickCombatBehavior()
         {
+            Unit partyTarget = PartyAssistTarget();
+            if (_encounter.Active && !me.IsInCombat() && !PartyTargetAllowed(Resolve(_encounter.Target))) EndEncounter(false);
+            if (!_encounter.Active && partyTarget != null) BeginEncounter(partyTarget);
             Unit attacker = ActiveMobAttackers().Where(unit => CanFight(unit) && !HeldByMagePolymorph(unit)).FirstOrDefault();
             attacker ??= me.GetAttackers().FirstOrDefault(unit => CanFight(unit) && !HeldByMagePolymorph(unit));
             Unit current = Resolve(_encounter.Target);
@@ -58,8 +60,6 @@ namespace Game.AI
             {
                 case "quest":
                     if (!SIQuestKnowledge.IsBuilt) { Status = "Loading quest knowledge"; return SIBehaviorResult.Running; }
-                    EnsureQuestingArea();
-                    ReviewQuestReturnBatch();
                     // Complete local area planning before a finished individual objective
                     // can trigger a premature trip back to its nearby quest giver.
                     if (_workingQuestBatch && _task != null && TaskDone(_task)) Replan();
@@ -71,10 +71,20 @@ namespace Game.AI
                     bool interaction = NearbyQuestInteraction();
                     // Keep the pickup scan's short delay inside the collection phase.
                     if (interaction && (_task == null || TaskDone(_task))) return SIBehaviorResult.Running;
+                    // Targets of every accepted quest around the bot, before sweeping the current task's area.
+                    SelectNearbyQuestWork();
                     Quest();
                     return SIBehaviorResult.Running;
                 case "grind":
                     return TickGrindBehavior();
+                case "duel":
+                    return TickDuelGoalBehavior();
+                case "gather":
+                    return TickGatherGoal();
+                case "professions":
+                    return TickProfessionsBehavior();
+                case "social":
+                    return TickSocialBehavior();
                 case "follow": Follow(); return SIBehaviorResult.Running;
                 case "rest": Status = "Rested"; if (!_operatorControlled) _goal = "quest"; return SIBehaviorResult.Running;
                 case "guard":

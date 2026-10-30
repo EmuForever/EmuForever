@@ -110,6 +110,7 @@ namespace Game.Entities
             m_speed_rate[(int)mtype] = rate;
 
             PropagateSpeedChange();
+            RefreshSISplineSpeed(mtype);
 
             // Spline packets are for creatures and move_update are for players
             ServerOpcodes[,] moveTypeToOpcode = new ServerOpcodes[(int)UnitMoveType.Max, 3]
@@ -129,7 +130,8 @@ namespace Game.Entities
             {
                 // register forced speed changes for WorldSession.HandleForceSpeedChangeAck
                 // and do it only for real sent packets and use run for run/mounted as client expected
-                ++ToPlayer().m_forced_speed_changes[(int)mtype];
+                if(!ToPlayer().GetSession().IsServerControlled)
+                    ++ToPlayer().m_forced_speed_changes[(int)mtype];
 
                 if (!IsInCombat())
                 {
@@ -222,6 +224,11 @@ namespace Game.Entities
             if (!force && (!IsStopped() || !MoveSpline.Finalized()))
                 return;
 
+            // Facing is a stationary spline. Cache the interpolated position
+            // before choosing its endpoint; Launch already uses that position
+            // for its start, so an old endpoint creates a small backward move.
+            if(!MoveSpline.Finalized())UpdateSplinePosition();
+
             MoveSplineInit init = new(this);
             init.MoveTo(GetPositionX(), GetPositionY(), GetPositionZ(), false);
             if (GetTransport() != null)
@@ -242,6 +249,8 @@ namespace Game.Entities
             if (!force && (!IsStopped() || !MoveSpline.Finalized()))
                 return;
 
+            if(!MoveSpline.Finalized())UpdateSplinePosition();
+
             // @todo figure out under what conditions creature will move towards object instead of facing it where it currently is.
             MoveSplineInit init = new(this);
             init.MoveTo(GetPositionX(), GetPositionY(), GetPositionZ(), false);
@@ -259,6 +268,8 @@ namespace Game.Entities
             // do not face when already moving
             if (!force && (!IsStopped() || !MoveSpline.Finalized()))
                 return;
+
+            if(!MoveSpline.Finalized())UpdateSplinePosition();
 
             /// @todo figure out under what conditions creature will move towards object instead of facing it where it currently is.
             MoveSplineInit init = new(this);

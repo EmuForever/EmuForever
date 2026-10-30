@@ -94,6 +94,7 @@ namespace Game
 
             if (_player != null)
             {
+                _player.ReleaseSelfSIControl();
                 if (!_player.GetLootGUID().IsEmpty())
                     DoLootReleaseAll();
 
@@ -255,9 +256,9 @@ namespace Game
                     ProcessQueryCallbacks();
                     if (!forceExit && _player != null)
                     {
-                        if (_player.IsBeingTeleportedFar())
+                        if (_player.IsBeingTeleportedFar()&&!_player.HasPendingTeleportDispatch)
                             HandleMoveWorldportAck();
-                        else if (_player.IsBeingTeleportedNear())
+                        else if (_player.IsBeingTeleportedNear()&&!_player.HasPendingTeleportDispatch)
                             CompleteNearTeleport();
                         // Far transfers clear the visibility-ready flag, just as login does.
                         // A headless player must not wait for an acknowledgement it cannot send.
@@ -303,7 +304,8 @@ namespace Game
                                 }
                                 break;
                             }
-                            else if (_player.IsInWorld && AntiDOS.EvaluateOpcode(packet, currentTime))
+                            else if (_player.IsInWorld && AntiDOS.EvaluateOpcode(packet, currentTime) &&
+                                !(_player.IsSelfSIControlled && IsSelfSIClientInput((ClientOpcodes)packet.GetOpcode())))
                                 handler.Invoke(this, packet);
                             break;
                         case SessionStatus.LoggedinOrRecentlyLogout:
@@ -1043,7 +1045,7 @@ namespace Game
 
         bool IsConnectionIdle()
         {
-            return m_timeOutTime < LoopTime.ServerTime && !m_inQueue;
+            return _player?.IsSelfSIControlled!=true && m_timeOutTime < LoopTime.ServerTime && !m_inQueue;
         }
 
         public int GetRecruiterId() { return recruiterId; }

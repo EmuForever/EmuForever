@@ -5,7 +5,7 @@ using Framework;
 using System;
 using System.Diagnostics.CodeAnalysis;
 
-public readonly struct ServerTime : IParsable<ServerTime>, IComparable<ServerTime>
+public readonly struct ServerTime : IParsable<ServerTime>, IComparable<ServerTime>, IEquatable<ServerTime>
 {
     public readonly DateTime Data;
     public static readonly ServerTime Zero = new ServerTime(DateTime.MinValue);
@@ -174,7 +174,7 @@ public readonly struct ServerTime : IParsable<ServerTime>, IComparable<ServerTim
 
     public override bool Equals(object obj)
     {
-        return Data.Equals(obj);
+        return obj is ServerTime another && Equals(another);
     }
 
     public bool Equals(ServerTime another)

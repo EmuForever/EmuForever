@@ -255,7 +255,7 @@ namespace Game.Entities
             // Cooldowns
             pet.GetSpellHistory().WritePacket(petSpellsPacket);
 
-            SendPacket(petSpellsPacket);
+            SendPetBar(petSpellsPacket);
         }
 
         public ObjectGuid GetSummonedBattlePetGUID() => m_activePlayerData.SummonedBattlePetGUID;
@@ -413,6 +413,15 @@ namespace Game.Entities
 
             UpdateSkillEnchantments(skillId, value, new_value);
             UpdateCriteria(CriteriaType.SkillRaised, (long)skillId);
+            if(new_value>value)Controller?.ProfessionSkillAdvanced(skillId,value,new_value);
+            if(new_value>value&&!_session.IsServerControlled)
+            {
+                string name=legacySkill?.DisplayName?[_session.GetSessionDbcLocale()];
+                if(string.IsNullOrEmpty(name))name=legacySkill?.DisplayName?[Locale.enUS]??skillId.ToString();
+                ChatPkt message=new();
+                message.Initialize(ChatMsg.Skill,Language.Universal,this,this,$"Your skill in {name} has increased to {new_value}.");
+                SendPacket(message);
+            }
             Log.outDebug(LogFilter.Player, $"Player:UpdateSkillPro Chance={chance / 10.0f:F3}% taken");
             return true;
         }

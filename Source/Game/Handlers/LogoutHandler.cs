@@ -10,9 +10,18 @@ namespace Game
 {
     public partial class WorldSession
     {
+        internal bool PreventSIIdleLogout(bool idle)
+        {
+            if(!idle||_player?.IsSelfSIControlled!=true)return false;
+            _player.KeepSelfSIActive();
+            SetLogoutStartTime(ServerTime.Zero);
+            SendPacket(new LogoutCancelAck());
+            return true;
+        }
         [WorldPacketHandler(ClientOpcodes.LogoutRequest)]
         void HandleLogoutRequest(LogoutRequest logoutRequest)
         {
+            if(PreventSIIdleLogout(logoutRequest.IdleLogout))return;
             Player pl = GetPlayer();
             if (!GetPlayer().GetLootGUID().IsEmpty())
                 GetPlayer().SendLootReleaseAll();

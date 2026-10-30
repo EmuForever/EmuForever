@@ -1,6 +1,5 @@
 using Framework.Constants;
 using Game.Entities;
-using Game.DataStorage;
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -46,10 +45,8 @@ namespace Game.AI
         bool HasSomethingToLearn(int trainerEntry)
         {
             if (_trainingOffers == null || _trainingQueryLevel != me.GetLevel()) return false;
-            var template = Global.ObjectMgr.GetCreatureTemplate(trainerEntry);
-            if (template == null) return false;
-            CliDB.FactionTemplateStorage.TryGetValue(template.Faction, out var faction);
-            float discount = me.GetReputationPriceDiscount(faction);
+            if (Global.ObjectMgr.GetCreatureTemplate(trainerEntry) == null) return false;
+            float discount = PriceDiscount(trainerEntry);
             return SITrainerCatalog.ForCreature(trainerEntry, me.GetClass())
                 .Any(trainer => _trainingOffers.TryGetValue(trainer.Id, out var spells) && trainer.HasAffordableLesson(me, discount, spells));
         }
@@ -64,9 +61,11 @@ namespace Game.AI
                 Report("trainer_learned", $"Learned {learned} spell(s)");
             }
             Status = learned > 0 ? $"Learned {learned} new spell(s) from {trainer.GetName()}" : $"Nothing affordable to learn from {trainer.GetName()}";
-            if (HasSomethingToLearn(trainer.GetEntry())) return false;
-            return true;
+            return !HasSomethingToLearn(trainer.GetEntry());
         }
+
+        SITask TrainerTask(SITrainerTrip trip) => new() { Kind = SITaskKind.Train, Destination = trip.Trainer, Creatures = [trip.Trainer.Entry],
+            Label = (trip.Boarding.HasValue ? "Fly to " : "Visit ") + CreatureName(trip.Trainer.Entry) + " for confirmed available class spells" };
 
         void RefreshTrainingEntries()
         {
@@ -77,6 +76,7 @@ namespace Game.AI
 
         bool TickTrainerBehavior()
         {
+            if (_task != null && _task.Kind != SITaskKind.Train && SIServiceSelection.OwnsTrip(_task.Kind)) return false;
             if (_task?.Kind == SITaskKind.Train)
             {
                 _task.Resume(Now);
@@ -86,12 +86,7 @@ namespace Game.AI
                 {
                     _trainerTravelNeedsReplan=false;RefreshTrainingEntries();
                     var improved=ChooseTrainerTrip();
-                    if(improved!=null)
-                    {
-                        _trainerTrip=improved;
-                        SetTask(new SITask{Kind=SITaskKind.Train,Destination=improved.Trainer,Creatures=[improved.Trainer.Entry],
-                            Label=(improved.Boarding.HasValue?"Fly to ":"Visit ")+CreatureName(improved.Trainer.Entry)+" for confirmed available class spells"});
-                    }
+                    if(improved!=null){_trainerTrip=improved;SetTask(TrainerTask(improved));}
                 }
                 // A trainer commute must produce progress, not suspend its task
                 // deadline forever while a travel controller keeps running.
@@ -122,8 +117,9 @@ namespace Game.AI
             }
             _trainerTrip=null;
             // Local quest interactions precede starting a new, distant trainer trip.
-            if((_task?.Kind is SITaskKind.PickUp or SITaskKind.TurnIn) && !TaskDone(_task))return false;
-            if(CommittedToObjective())return false;
+            if(CommittedToJourney())return false;
+            if(!PartyFollowing && (_task?.Kind is SITaskKind.PickUp or SITaskKind.TurnIn) && !TaskDone(_task))return false;
+            if(!PartyFollowing && CommittedToObjective())return false;
             if (!SIQuestKnowledge.IsBuilt || Now < _nextTrainingScan || _trainingOffers == null || _trainingQueryLevel != me.GetLevel()) return false;
             _nextTrainingScan = Now + 15000;
             // Known/affordable class lessons cannot change while the spellbook and funds are unchanged.
@@ -132,8 +128,7 @@ namespace Game.AI
             if (_trainingEntries.Length == 0) return false;
             var trip=ChooseTrainerTrip();
             if(trip==null)return false;
-            var task = new SITask { Kind = SITaskKind.Train, Destination = trip.Trainer, Creatures = new[] { trip.Trainer.Entry },
-                Label = (trip.Boarding.HasValue?"Fly to ":"Visit ")+CreatureName(trip.Trainer.Entry)+" for confirmed available class spells" };
+            var task = TrainerTask(trip);
             _trainingReturnTask = _task != null && !TaskDone(_task) ? _task : null;
             _trainingReturnTask?.Suspend(Now);
             _trainerTrip=trip;_trainerFlightTaken=false;_trainerTravelNeedsReplan=false;

@@ -119,8 +119,10 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            _worldPacket.WriteBits(BeatenName.GetByteCount(), 6);
-            _worldPacket.WriteBits(WinnerName.GetByteCount(), 6);
+            // Forever client 70685 reader (wire 0x4D0020) uses two 24-bit
+            // UTF-8 byte lengths. The older Trinity 6-bit layout misaligns names.
+            _worldPacket.WriteBits(BeatenName.GetByteCount(), 24);
+            _worldPacket.WriteBits(WinnerName.GetByteCount(), 24);
             _worldPacket.WriteBit(Fled);
             _worldPacket.WriteUInt32(BeatenVirtualRealmAddress);
             _worldPacket.WriteUInt32(WinnerVirtualRealmAddress);

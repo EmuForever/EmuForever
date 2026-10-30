@@ -1576,38 +1576,33 @@ namespace Scripts.Spells.Azerite
     [Script]
     class spell_quest_taming_the_beast : AuraScript
     {
+        // Classic has no Burning Crusade rods: validating every rod's tame spell rejected the whole script, so no
+        // rod tamed anything. Each rod needs only its own.
         public override bool Validate(SpellInfo spellInfo)
         {
-            return ValidateSpellInfo(TamingTheBeastIds.IceClawBear1,
-                TamingTheBeastIds.LargeCragBoar1,
-                TamingTheBeastIds.SnowLeopard1,
-                TamingTheBeastIds.AdultPlainstrider1,
-                TamingTheBeastIds.PrairieStalker1,
-                TamingTheBeastIds.Swoop1,
-                TamingTheBeastIds.WebwoodLurker1,
-                TamingTheBeastIds.DireMottledBoar1,
-                TamingTheBeastIds.SurfCrawler1,
-                TamingTheBeastIds.ArmoredScorpid1,
-                TamingTheBeastIds.NightsaberStalker1,
-                TamingTheBeastIds.StrigidScreecher1,
-                TamingTheBeastIds.BarbedCrawler1,
-                TamingTheBeastIds.GreaterTimberstrider1,
-                TamingTheBeastIds.Nightstalker1,
-                TamingTheBeastIds.CrazedDragonhawk1,
-                TamingTheBeastIds.ElderSpringpaw1,
-                TamingTheBeastIds.Mistbat1
-           );
+            return ValidateSpellInfo(FinalSpell(spellInfo.Id));
         }
 
         void OnRemove(AuraEffect aurEff, AuraEffectHandleModes mode)
         {
+            // the Classic rods' aura is not always a Dummy on effect 1: act once, on the first aura effect
+            if (aurEff.GetEffIndex() != GetSpellInfo().GetEffects().Find(effect => effect.IsAura()).EffectIndex)
+                return;
+
             if (GetCaster() == null || !GetCaster().IsAlive() || !GetTarget().IsAlive())
                 return;
 
             if (GetTargetApplication().GetRemoveMode() != AuraRemoveMode.Expire)
                 return;
 
-            int finalSpellId = GetId() switch
+            int finalSpellId = FinalSpell(GetId());
+            if (finalSpellId != 0)
+                GetCaster().CastSpell(GetTarget(), finalSpellId, true);
+        }
+
+        static int FinalSpell(int rodSpellId)
+        {
+            return rodSpellId switch
             {
                 TamingTheBeastIds.IceClawBear => TamingTheBeastIds.IceClawBear1,
                 TamingTheBeastIds.LargeCragBoar => TamingTheBeastIds.LargeCragBoar1,
@@ -1629,14 +1624,11 @@ namespace Scripts.Spells.Azerite
                 TamingTheBeastIds.Mistbat => TamingTheBeastIds.Mistbat1,
                 _ => 0
             };
-
-            if (finalSpellId != 0)
-                GetCaster().CastSpell(GetTarget(), finalSpellId, true);
         }
 
         public override void Register()
         {
-            AfterEffectRemove.Add(new(OnRemove, 1, AuraType.Dummy, AuraEffectHandleModes.Real));
+            AfterEffectRemove.Add(new(OnRemove, SpellConst.EffectAll, AuraType.Any, AuraEffectHandleModes.Real));
         }
     }
 

@@ -938,9 +938,16 @@ namespace Game.Entities
 
         public void RewardQuest(Quest quest, LootItemType rewardType, int rewardId, WorldObject questGiver, bool announce = true)
         {
+            bool previous=IsCanDelayTeleport();
+            SetCanDelayTeleport(true);
+            try { RewardQuestCore(quest,rewardType,rewardId,questGiver,announce); }
+            finally { SetCanDelayTeleport(previous); }
+        }
+
+        void RewardQuestCore(Quest quest, LootItemType rewardType, int rewardId, WorldObject questGiver, bool announce)
+        {
             //this THING should be here to protect code from quest, which cast on player far teleport as a reward
             //should work fine, cause far teleport will be executed in Update()
-            SetCanDelayTeleport(true);
 
             var questId = quest.Id;
             var oldStatus = GetQuestStatus(questId);
@@ -1133,7 +1140,7 @@ namespace Game.Entities
             else if (quest.IsSeasonal())
                 SetSeasonalQuestStatus(questId);
 
-            if(this is siPlayer rewardedSI)rewardedSI.RecordQuestReward();
+            RecordQuestReward();
             RemoveActiveQuest(questId, false);
             if (quest.CanIncreaseRewardedQuestCounters())
                 SetRewardedQuest(questId);
@@ -1194,9 +1201,6 @@ namespace Game.Entities
             if (quest.HasAnyFlag(QuestFlags.UpdatePhaseshift))
                 updateVisibility = PhasingHandler.OnConditionChange(this, false);
 
-            //lets remove flag for delayed teleports
-            SetCanDelayTeleport(false);
-
             if (questGiver != null && questGiver.IsWorldObject())
             {
                 //For AutoSubmition was added plr case there as it almost same exclute AI script cases.
@@ -1251,7 +1255,7 @@ namespace Game.Entities
                         return;
                 }
 
-                if(this is siPlayer failedSI)failedSI.RecordQuestFailure();
+            RecordQuestFailure();
                 SetQuestStatus(questId, QuestStatus.Failed);
 
                 ushort log_slot = FindQuestSlot(questId);
@@ -1944,7 +1948,7 @@ namespace Game.Entities
             if (questStatus != null)
             {
                 // RewardQuest uses update=false; only removal without a reward is abandonment.
-                if(update&&this is siPlayer abandonedSI)abandonedSI.RecordQuestAbandonment();
+                if(update)RecordQuestAbandonment();
                 foreach (var objective in m_questObjectiveStatus.ToList())
                 {
                     if (objective.Value.QuestStatusPair.Status == questStatus)

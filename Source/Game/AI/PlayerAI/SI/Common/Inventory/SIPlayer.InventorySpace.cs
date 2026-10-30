@@ -10,19 +10,36 @@ namespace Game.AI
     {
         internal bool NeedsQuestLoot(int item) => QuestNeedsItem(item);
 
-        List<Item> DisposableJunk()
+        // Bag items (backpack and equipped bags) matching a filter.
+        List<Item> InventoryItems(Func<Item, bool> match)
         {
-            var junk = new List<Item>();
-            me.ForEachItem(ItemSearchLocation.Inventory, item =>
-            {
-                var template = item.GetTemplate();
-                if (item.GetQuality() == ItemQuality.Poor && !item.IsBag() && !item.IsInTrade() &&
-                    !template.HasFlag(ItemFlags.NoUserDestroy) && !QuestNeedsItem(item.GetEntry()) &&
-                    template.GetStartQuest() == 0 && !Provision(template, false) && !Provision(template, true)) junk.Add(item);
-                return true;
-            });
-            return junk.OrderBy(item => (long)item.GetTemplate().GetSellPrice() * item.GetCount()).ToList();
+            var items = new List<Item>();
+            me.ForEachItem(ItemSearchLocation.Inventory, item => { if (match(item)) items.Add(item); return true; });
+            return items;
         }
+
+        Item FirstInventoryItem(Func<Item, bool> match)
+        {
+            Item found = null;
+            me.ForEachItem(ItemSearchLocation.Inventory, item => { if (match(item)) found = item; return found == null; });
+            return found;
+        }
+
+        // Total stack count of the bag items matching a filter.
+        int InventoryCount(Func<Item, bool> match)
+        {
+            int count = 0;
+            me.ForEachItem(ItemSearchLocation.Inventory, item => { if (match(item)) count += (int)item.GetCount(); return true; });
+            return count;
+        }
+
+        List<Item> DisposableJunk() => InventoryItems(item =>
+        {
+            var template = item.GetTemplate();
+            return item.GetQuality() == ItemQuality.Poor && !item.IsBag() && !item.IsInTrade() &&
+                !template.HasFlag(ItemFlags.NoUserDestroy) && !QuestNeedsItem(item.GetEntry()) &&
+                template.GetStartQuest() == 0 && !Provision(template, false) && !Provision(template, true);
+        }).OrderBy(item => (long)item.GetTemplate().GetSellPrice() * item.GetCount()).ToList();
 
         bool CanMakeSourceItemSpace(Quest quest) => quest.SourceItemId > 0 && QuestLogCount() < SharedConst.MaxQuestLogSize &&
             me.CanStoreNewItem(ItemPos.Undefined, out _, quest.SourceItemId, Math.Max(1, quest.SourceItemIdCount)) == InventoryResult.InvFull &&

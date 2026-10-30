@@ -1797,7 +1797,7 @@ namespace Game.Chat
                 if (handler.HasLowerSecurity(target, ObjectGuid.Empty))
                     return false;
 
-                if (target.IsBeingTeleported())
+                if (target.IsBeingTeleported() && target.Controller==null && !target.GetSession().IsServerControlled)
                 {
                     handler.SendSysMessage(CypherStrings.IsTeleported, nameLink);
 
@@ -1856,15 +1856,20 @@ namespace Game.Chat
                     target.SendSysMessage(CypherStrings.SummonedBy, handler.PlayerLink(_player.GetName()));
 
                 // stop flight if need
-                if (_player.IsInFlight())
-                    _player.FinishTaxiFlight();
-                else
-                    _player.SaveRecallPosition(); // save only in non-flight case
-
                 // before GM
                 float x, y, z;
                 _player.GetClosePoint(out x, out y, out z, target.GetCombatReach());
-                target.TeleportTo(_player.GetMapId(), x, y, z, target.GetOrientation(), 0, map.GetInstanceId());
+                if(target.Controller!=null||target.GetSession().IsServerControlled)
+                {
+                    target.RequestOperatorTeleport(new WorldLocation(_player.GetMapId(),x,y,z,target.GetOrientation()),map.GetInstanceId(),_player.GetGUID());
+                    return true;
+                }
+                if(target.IsInFlight())target.FinishTaxiFlight();else target.SaveRecallPosition();
+                if(!target.TeleportTo(_player.GetMapId(), x, y, z, target.GetOrientation(), 0, map.GetInstanceId()))
+                {
+                    handler.SendSysMessage("Summon rejected by the destination's normal map/instance rules.");
+                    return false;
+                }
                 PhasingHandler.InheritPhaseShift(target, _player);
                 target.UpdateObjectVisibility();
             }

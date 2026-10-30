@@ -118,6 +118,7 @@ namespace Game.Entities
 
         public override void Dispose()
         {
+            DisposeSIController();
             m_clientGUIDs.Clear();
             m_visibleTransports.Clear();
             // Note: buy back item already deleted from DB when player was saved
@@ -348,7 +349,25 @@ namespace Game.Entities
             if (!IsInWorld)
                 return;
 
+            try
+            {
+                if(ProcessOperatorTeleport())PendingUpdateDiff+=diff;
+                else UpdatePlayerState(diff);
+            }
+            finally
+            {
+                SetCanDelayTeleport(false);
+                DispatchDelayedTeleport();
+            }
+        }
+
+        void UpdatePlayerState(TimeSpan diff)
+        {
+
+            UpdateSelfSIControl();
+            Game.Chat.Commands.SICommands.UpdateTravelMarkers(this,diff);
             UpdateLegacyProgress();
+            SendPendingPetBar();
 
             // undelivered mail
             if (m_nextMailDelivereTime != ServerTime.Zero && m_nextMailDelivereTime <= LoopTime.ServerTime)
@@ -370,8 +389,8 @@ namespace Game.Entities
 
             //used to implement delayed far teleports
             SetCanDelayTeleport(true);
-            base.Update(diff);
-            SetCanDelayTeleport(false);
+            try { base.Update(diff); }
+            finally { SetCanDelayTeleport(false); }
 
             // Unit::Update updates the spell history and spell states. We can now check if we can launch another pending cast.
             if (CanExecutePendingSpellCastRequest())
@@ -399,7 +418,9 @@ namespace Game.Entities
                 }
             }
 
-            AIUpdateTick(diff);
+            SetCanDelayTeleport(true);
+            try { AIUpdateTick(diff); }
+            finally { SetCanDelayTeleport(false); }
 
             // Update items that have just a limited lifetime
             TimeSpan elapsed = now - m_Last_tick;
@@ -583,10 +604,8 @@ namespace Game.Entities
                     m_hostileReferenceCheckTimer -= diff;
             }
 
-            //we should execute delayed teleports only for alive(!) players
-            //because we don't want player's ghost teleported from graveyard
-            if (IsHasDelayedTeleport() && IsAlive())
-                TeleportTo(teleportDest, m_teleport_options);
+            // Delayed teleports dispatch at the outer update boundary, even if
+            // an AI/script update fails, with their destination instance intact.
         }
 
         public override void SetDeathState(DeathState s)
@@ -683,6 +702,7 @@ namespace Game.Entities
             // cleanup
             if (IsInWorld)
             {
+                Game.Chat.Commands.SICommands.ClearTravelMarkers(this);
                 // Release charmed creatures, unsummon totems and remove pets/guardians
                 StopCastingCharm();
                 StopCastingBindSight();
@@ -806,7 +826,15 @@ namespace Game.Entities
         public void InitTaxiNodesForLevel() { m_taxi.InitTaxiNodesForLevel(GetRace(), GetClass(), GetLevel()); }
 
         //Cheat Commands
-        public bool GetCommandStatus(PlayerCommandStates command) { return (_activeCheats & command) != 0; }
+        public bool GetCommandStatus(PlayerCommandStates command)
+        {
+            // SI control uses ordinary spell rules even when .si me took over
+            // an operator with spell cheats enabled. Keep the stored flags so
+            // returning to manual control restores the operator's settings.
+            var active = Controller == null ? _activeCheats : _activeCheats &
+                ~(PlayerCommandStates.Cooldown | PlayerCommandStates.Casttime | PlayerCommandStates.Power);
+            return (active & command) != 0;
+        }
         public void SetCommandStatusOn(PlayerCommandStates command) { _activeCheats |= command; }
         public void SetCommandStatusOff(PlayerCommandStates command) { _activeCheats &= ~command; }
 
@@ -1105,7 +1133,7 @@ namespace Game.Entities
 
         public void SendRemoveControlBar()
         {
-            SendPacket(new PetSpells());
+            SendEmptyPetBar();
         }
 
         public void SetBattlePetData(BattlePet pet = null)
@@ -1215,7 +1243,7 @@ namespace Game.Entities
             if (!charm.IsTypeId(TypeId.Player))
                 charm.GetSpellHistory().WritePacket(petSpells);
 
-            SendPacket(petSpells);
+            SendPetBar(petSpells);
         }
 
         public void PossessSpellInitialize()
@@ -1242,7 +1270,7 @@ namespace Game.Entities
             // Cooldowns
             charm.GetSpellHistory().WritePacket(petSpellsPacket);
 
-            SendPacket(petSpellsPacket);
+            SendPetBar(petSpellsPacket);
         }
 
         public void VehicleSpellInitialize()
@@ -1290,7 +1318,7 @@ namespace Game.Entities
             // Cooldowns
             vehicle.GetSpellHistory().WritePacket(petSpells);
 
-            SendPacket(petSpells);
+            SendPetBar(petSpells);
         }
 
         //Currency
@@ -2004,6 +2032,10 @@ namespace Game.Entities
 
             if (m_vehicle != null)
                 ExitVehicle();
+
+            bool spellTeleport=options.HasAnyFlag(TeleportToOptions.Spell);
+            Controller?.PrepareForTeleport(!spellTeleport || GetMapId()!=mapid ||
+                instanceId.HasValue&&GetInstanceId()!=instanceId.Value || GetExactDistSq(x,y,z)>1600,!spellTeleport);
 
             // reset movement flags at teleport, because player will continue move with these flags after teleport
             SetUnitMovementFlags(GetUnitMovementFlags() & MovementFlag.MaskHasPlayerStatusOpcode);
@@ -4824,7 +4856,7 @@ namespace Game.Entities
 
             if (pet.IsControlled())
             {
-                SendPacket(new PetSpells());
+                SendEmptyPetBar();
 
                 if (GetGroup() != null)
                     SetGroupUpdateFlag(GroupUpdateFlags.Pet);
@@ -5420,6 +5452,7 @@ namespace Game.Entities
 
         public void ToggleAFK()
         {
+            if(IsSelfSIControlled&&!IsAFK())return;
             if (IsAFK())
                 RemovePlayerFlag(PlayerFlags.AFK);
             else
@@ -6301,7 +6334,9 @@ namespace Game.Entities
         {
             // updates visibility of all objects around point of view for current player
             using var notifier = new VisibleNotifier(this);
-            Cell.VisitAllObjects(seerView, notifier, GetSightRange());
+            // a viewpoint that left the world (a mind-controlled creature's corpse despawned) falls back to the player
+            WorldObject viewpoint = seerView != null && seerView.IsInWorld && seerView.GetMap() == GetMap() ? seerView : this;
+            Cell.VisitAllObjects(viewpoint, notifier, GetSightRange());
             notifier.SendToSelf();   // send gathered data
         }
 
@@ -6674,8 +6709,8 @@ namespace Game.Entities
             if (isAddonMessage)
                 return;
 
-            if (!GetSession().IsServerControlled && target is siPlayer autonomous)
-                autonomous.Controller?.ReceivedWhisper(GetGUID());
+            if (!GetSession().IsSIControlled)
+                target.Controller?.ReceivedWhisper(GetGUID());
 
             data.Initialize(ChatMsg.WhisperInform, language, target, target, text);
             SendPacket(data);
@@ -7610,6 +7645,8 @@ namespace Game.Entities
             // a player can never client control nothing
             Cypher.Assert(target != null);
 
+            if (target == this && IsSelfSIControlled) allowMove = false;
+
             // don't allow possession to be overridden
             if (target.HasUnitState(UnitState.Charmed) && (GetGUID() != target.GetCharmerGUID()))
             {
@@ -7641,6 +7678,7 @@ namespace Game.Entities
             }
 
             SetMovedUnit(target);
+            if (target == this && IsSelfSIControlled) m_playerMovingMe = null;
         }
 
         public Item GetWeaponForAttack(WeaponAttackType attackType, bool useable = false)

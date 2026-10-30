@@ -183,6 +183,9 @@ namespace Game.Collision
 
         public void EnableCollision(bool enable) { _collisionEnabled = enable; }
         public bool IsCollisionEnabled() { return _collisionEnabled; }
+        public GameObjectCollisionSnapshot? Snapshot(PhaseShift phase,float radius=.5f,float height=1.8f)=>
+            _collisionEnabled&&iModel!=null&&owner.IsSpawned()&&owner.IsInPhase(phase)
+                ?new(iModel,iPos,iInvRot,iInvScale,iBound,radius,height):null;
         public bool IsMapObject() { return isWmo; }
         public byte GetNameSetId() { return owner.GetNameSetId(); }
         

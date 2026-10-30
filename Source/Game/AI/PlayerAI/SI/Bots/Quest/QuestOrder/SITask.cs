@@ -1,14 +1,12 @@
-using Framework.Constants;
 using Game.DataStorage;
 using Game.Entities;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
 
 namespace Game.AI
 {
-    public enum SITaskKind { PickUp, TurnIn, Objective, Train, Vendor, Grind }
+    public enum SITaskKind { PickUp, TurnIn, Objective, Train, Vendor, Grind, ProfessionTrain, Gather }
 
     // One unit of work chosen by the planner (HB QuestOrder node, generated from the database instead of a profile).
     public sealed class SITask

@@ -1,4 +1,3 @@
-using Game.AI;
 using System;
 using System.Linq;
 
@@ -16,10 +15,6 @@ namespace Game.Entities
             return first.Length is >= 2 and <= 12 && first.All(char.IsAsciiLetter) ? first : name;
         }
 
-        public SIPlayer Controller { get; private set; }
-        public string NavigationMode { get; internal set; } = "Not requested";
-        public bool NavigationBlocked { get; internal set; }
-
         public siPlayer(WorldSession session) : base(session)
         {
             if (!session.IsServerControlled)
@@ -28,17 +23,8 @@ namespace Game.Entities
 
         internal void InitializeController()
         {
-            LoadQuestHistory();
             GetSession().CompleteSIActiveMoverInitialization();
-            Controller = new SIPlayer(this);
-            SetAI(Controller);
-            Controller.Start();
-        }
-
-        public override void Dispose()
-        {
-            Controller?.Dispose();
-            base.Dispose();
+            InitializeSIController();
         }
     }
 }

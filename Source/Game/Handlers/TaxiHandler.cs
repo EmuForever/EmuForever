@@ -214,7 +214,7 @@ namespace Game
         internal bool TakeFlightForSI(Creature master,IReadOnlyList<int> nodes,long reservedMoney=0)
         {
             var player=GetPlayer();
-            if(!IsServerControlled||player==null||master==null||nodes.Count<2||nodes.Count>256||
+            if(!IsSIControlled||player==null||master==null||nodes.Count<2||nodes.Count>256||
                 player.GetNPCIfCanInteractWith(master.GetGUID(),NPCFlags1.FlightMaster,NPCFlags2.None)!=master)return false;
             int source=Global.ObjectMgr.GetNearestTaxiNode(master.GetPosition3D(),master.GetMapId(),player.GetTeam());
             if(source==0||nodes[0]!=source)return false;

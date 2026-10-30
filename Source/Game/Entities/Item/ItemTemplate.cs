@@ -6,6 +6,7 @@ using Game.DataStorage;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace Game.Entities
@@ -275,7 +276,55 @@ namespace Game.Entities
         public int GetRequiredSpell() { return ExtendedData.RequiredAbility; }
         public int GetRequiredReputationFaction() { return ExtendedData.MinFactionID; }
         public ReputationRank GetRequiredReputationRank() { return ExtendedData.MinReputation; }
-        public int GetResistance(SpellSchools school) { return 0; } // no Resistances column in 1.60.1 ItemSparse
+        // 1.60.1 ItemSparse has no resistance columns. Physical armor is derived from the item's level, quality,
+        // armor type and slot, as the client tooltip does; magic resistances are not item data in this client.
+        public int GetResistance(SpellSchools school) { return school == SpellSchools.Normal ? GetArmor() : 0; }
+
+        static Dictionary<int, ItemArmorTotalRecord> _armorTotals;
+        static Dictionary<int, ItemArmorShieldRecord> _armorShields;
+
+        // Tooltip armor of an armor piece or shield (TrinityCore ItemTemplate::GetArmor). The total/shield tables
+        // are keyed by their ItemLevel column; concurrent first use builds the same lookup twice, harmlessly.
+        public int GetArmor()
+        {
+            if (GetClass() != ItemClass.Armor)
+                return 0;
+            int quality = (int)(GetQuality() == ItemQuality.Heirloom ? ItemQuality.Rare : GetQuality());
+            if (quality > (int)ItemQuality.Artifact)
+                return 0;
+            int level = GetItemLevel();
+            var subclass = GetSubClass().Armor;
+            if (subclass == ItemSubClassArmor.Shield)
+            {
+                _armorShields ??= ByItemLevel(CliDB.ItemArmorShieldStorage.Values, record => record.ItemLevel);
+                return _armorShields.TryGetValue(level, out var shield) ? (int)(shield.Quality[quality] + 0.5f) : 0;
+            }
+            if (subclass < ItemSubClassArmor.Cloth || subclass > ItemSubClassArmor.Plate)
+                return 0;
+            _armorTotals ??= ByItemLevel(CliDB.ItemArmorTotalStorage.Values, record => record.ItemLevel);
+            // Retail keys quality multipliers by item level; this client ships one row for every level.
+            var armorQuality = CliDB.ItemArmorQualityStorage.LookupByKey(level) ?? CliDB.ItemArmorQualityStorage.Values.FirstOrDefault();
+            var location = CliDB.ArmorLocationStorage.LookupByKey((int)(GetInventoryType() == InventoryType.Robe ? InventoryType.Chest : GetInventoryType()));
+            if (armorQuality == null || location == null || !_armorTotals.TryGetValue(level, out var total))
+                return 0;
+            float perLevel, modifier;
+            switch (subclass)
+            {
+                case ItemSubClassArmor.Cloth: perLevel = total.Cloth; modifier = location.Clothmodifier; break;
+                case ItemSubClassArmor.Leather: perLevel = total.Leather; modifier = location.Leathermodifier; break;
+                case ItemSubClassArmor.Mail: perLevel = total.Mail; modifier = location.Chainmodifier; break;
+                default: perLevel = total.Plate; modifier = location.Platemodifier; break;
+            }
+            return (int)(armorQuality.QualityMod[quality] * perLevel * modifier + 0.5f);
+        }
+
+        static Dictionary<int, T> ByItemLevel<T>(IEnumerable<T> records, Func<T, int> level)
+        {
+            var map = new Dictionary<int, T>();
+            foreach (var record in records)
+                map.TryAdd(level(record), record);
+            return map;
+        }
         public int GetMaxCount() { return ExtendedData.MaxCount; }
         public byte GetContainerSlots() { return ExtendedData.ContainerSlots; }
         public ItemModType GetStatModifierBonusStat(int index) { Cypher.Assert(index < ItemConst.MaxStats); return ExtendedData.StatModifierBonusStat(index); }

@@ -206,7 +206,7 @@ namespace Game.Entities
 
         void _RewardPlayer(Player player, bool isDungeon)
         {
-            if (player is siPlayer autonomous) autonomous.Controller?.ConfirmKill(_victim);
+            player.Controller?.ConfirmKill(_victim);
             // 4. Reward player.
             if (!_isBattleground)
             {

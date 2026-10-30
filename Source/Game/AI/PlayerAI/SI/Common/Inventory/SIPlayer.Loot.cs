@@ -9,17 +9,17 @@ namespace Game.AI
     {
         readonly Dictionary<ObjectGuid, long> _looted = new();
         readonly SISkippedTargets _failedLoot=new();
+        readonly SILootAttempt _lootAttempt = new();
         ObjectGuid _lootTarget;
         long _nextLoot;
-        int _lootFailures;
         long _lootAnimationUntil, _lootMoneyBefore;
         int _lootItemsBefore;
 
         void CloseLootAnimation()
         {
-            if (_lootAnimationUntil == 0) return;
+            if (_lootAnimationUntil == 0 && me.GetLootGUID().IsEmpty() && !me.HasUnitFlag(UnitFlags.Looting) && me.GetAELootView().Count == 0) return;
             _lootAnimationUntil = 0;
-            me.GetSession().DoLootReleaseAll();
+            me.GetSession().CloseLootForSI();
         }
 
         bool TickLootAnimation()
@@ -28,24 +28,34 @@ namespace Game.AI
             if (!me.IsAlive() || me.IsInCombat() || me.IsBeingTeleported() || _goal == "pause")
             { CloseLootAnimation(); return false; }
             if (Now < _lootAnimationUntil) { Behavior = "Loot"; _task?.Suspend(Now); return true; }
-            me.GetSession().LootOpenViewForSI();
-            CloseLootAnimation();
+            try { me.GetSession().LootOpenViewForSI(); }
+            finally { CloseLootAnimation(); }
             if (ItemsLooted > _lootItemsBefore || me.GetMoney() > _lootMoneyBefore)
-            { _lootFailures = 0; NoteGameplayProgress(); EquipUpgrades(); }
-            else if (++_lootFailures >= 1)
-            {
-                _failedLoot.Add(_lootTarget);
-                Report("loot_failed", "Core could not transfer the remaining loot; skipping this corpse.");
-            }
+            { NoteGameplayProgress(); EquipUpgrades(); }
+            else SkipUnlootableCorpse(_lootTarget);
             return false;
+        }
+
+        void SkipUnlootableCorpse(ObjectGuid corpse)
+        {
+            _failedLoot.Add(corpse);
+            Report("loot_failed", "Core could not transfer the remaining loot; skipping this corpse.");
         }
 
         SIBehaviorResult LootCorpse(Creature corpse)
         {
             if (corpse == null || corpse.IsAlive() || !me.IsAllowedToLoot(corpse)) return SIBehaviorResult.Success;
-            if (me.IsInCombat()) return SIBehaviorResult.Running;
+            // A corpse must not retain the encounter while the player needs to
+            // respond to combat. It can be considered again after combat ends.
+            if (me.IsInCombat()) { CloseLootAnimation(); return SIBehaviorResult.Success; }
             if (_failedLoot.Contains(corpse.GetGUID()) || _looted.GetValueOrDefault(corpse.GetGUID()) > Now) return SIBehaviorResult.Success;
-            if (_lootTarget != corpse.GetGUID()) { _lootTarget = corpse.GetGUID(); _lootFailures = 0; _nextLoot = 0; }
+            if (_lootAttempt.Expired(corpse.GetGUID(), Now))
+            {
+                CloseLootAnimation(); CancelTravel(); _failedLoot.Add(corpse.GetGUID());
+                Report("loot_failed", "Corpse approach/loot exceeded twenty seconds; skipping this corpse.");
+                return SIBehaviorResult.Failure;
+            }
+            if (_lootTarget != corpse.GetGUID()) { _lootTarget = corpse.GetGUID(); _nextLoot = 0; }
             SIBehaviorResult approach = MoveWithin(corpse, SharedConst.InteractionDistance - 1.5f, "Looting " + corpse.GetName());
             if (approach == SIBehaviorResult.Failure) { _failedLoot.Add(corpse.GetGUID()); return approach; }
             if (approach != SIBehaviorResult.Success || Now < _nextLoot) return SIBehaviorResult.Running;
@@ -56,23 +66,16 @@ namespace Game.AI
             me.GetSession().LootForSI(corpse);
             if (!me.GetLootGUID().IsEmpty())
             { _lootAnimationUntil = Now + 750; Status = "Looting " + corpse.GetName(); return SIBehaviorResult.Running; }
-            ++_lootFailures;
             if (!me.IsAllowedToLoot(corpse))
             { _looted[corpse.GetGUID()] = Now + 30000; Status = "Looted " + corpse.GetName(); return SIBehaviorResult.Success; }
-            if (_lootFailures >= 1)
-            {
-                _failedLoot.Add(corpse.GetGUID());
-                Report("loot_failed", "Core could not transfer the remaining loot; skipping this corpse.");
-                return SIBehaviorResult.Failure;
-            }
-            Status = "Looting " + corpse.GetName();
-            return SIBehaviorResult.Running;
+            SkipUnlootableCorpse(corpse.GetGUID());
+            return SIBehaviorResult.Failure;
         }
 
         bool TryLoot()
         {
-            if (me.IsInCombat() || _goal is not ("quest" or "grind" or "guard")) return false;
-            foreach (ObjectGuid guid in _looted.Where(pair => pair.Value <= Now).Select(pair => pair.Key).ToArray()) _looted.Remove(guid);
+            if (me.IsInCombat() || _goal is not ("quest" or "grind" or "guard" or "gather" or "professions")) return false;
+            PruneExpired(_looted);
             Creature corpse = NearbyCreatures(40).Where(creature => !creature.IsAlive() && !_failedLoot.Contains(creature.GetGUID()) && me.IsAllowedToLoot(creature) &&
                 _looted.GetValueOrDefault(creature.GetGUID()) <= Now && !IsLearnedRouteBlocked(creature.GetPosition())).OrderBy(me.GetExactDist).FirstOrDefault();
             if (corpse == null) return false;

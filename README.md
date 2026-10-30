@@ -1,3 +1,5 @@
+[![Buy me a coffee](docs/images/buy-me-a-coffee.svg)](https://buymeacoffee.com/caffeine204)
+
 # EmuForever
 
 **EmuForever** is an independent, C# / **.NET 10** World of Warcraft: Forever server emulator built on **CypherCore** foundation. Its goal is a playable, persistent world enhanced by **SIPlayers (Super Intelligence Players)**: autonomous characters that behave, learn, and interact like real players.
@@ -77,11 +79,11 @@ Time-sensitive gameplay actions stay inside the World server; the SI server supp
 - [x] Upgrade server projects to .NET 10
 - [x] Establish Battle.not authentication and World connectivity
 - [x] Establish core character and gameplay functionality
-- [ ] Continue Forever client, opcode, DB2, and gameplay compatibility fixes
+- [x] Continue Forever client, opcode, DB2, and gameplay compatibility fixes
 - [ ] Finish and harden gRPC / Protobuf World ↔ SI communication
 - [ ] Expand SIPlayer activities, planning, and human-like behavior
 - [ ] Integrate and validate fully local LLM inference and persistent memory
-- [ ] Optimize World server networking, ticks, and scalability
+- [x] Optimize World server networking, ticks, and scalability
 - [ ] Complete launcher updating, deployment, and documentation
 
 
@@ -104,3 +106,5 @@ EmuForever is an independent, fan-made research and interoperability project. It
 ---
 
 **EmuForever — One world. Real players. Intelligent players.**
+
+[![Buy me a coffee](docs/images/buy-me-a-coffee.svg)](https://buymeacoffee.com/caffeine204)

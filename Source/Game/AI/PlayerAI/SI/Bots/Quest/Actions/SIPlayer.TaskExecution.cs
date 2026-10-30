@@ -1,5 +1,4 @@
 using Framework.Constants;
-using Game.DataStorage;
 using Game.Entities;
 using System;
 using System.Collections.Generic;
@@ -8,20 +7,15 @@ using System.Numerics;
 
 namespace Game.AI
 {
-    // Server port of the corresponding CopilotBuddy quest behavior; database/range orders replace profiles.
+    // Executing the selected task: quest objectives, NPC visits (quest givers, trainers, merchants) and rewards.
     public sealed partial class SIPlayer
     {
-        // --- Execution -------------------------------------------------------------------------------
-
         void Quest()
         {
             if (_task?.Kind == SITaskKind.Grind)
             {
-                if(!QuestNeedsLevelGrinding()){SetTask(null);_nextReplan=0;}
-                else
-                {
-                if (Now < _nextReplan) { Grind(_task); return; }
-                }
+                if (!QuestNeedsLevelGrinding()) { SetTask(null); _nextReplan = 0; }
+                else if (Now < _nextReplan) { Grind(_task); return; }
             }
             if (!SIQuestKnowledge.IsBuilt) Status = "Loading quest knowledge";
             // An empty result must obey its retry deadline too; otherwise every idle bot
@@ -29,8 +23,7 @@ namespace Game.AI
             if (Now >= _nextReplan || _task != null && TaskDone(_task)) Replan();
             if (_task == null)
             {
-                if(!QuestNeedsLevelGrinding())
-                {Status=QuestWaitStatus();return;}
+                if (!QuestNeedsLevelGrinding()) { Status = QuestWaitStatus(); return; }
                 SITask grind = GrindTask();
                 if (grind == null) { Status = "Questing: " + _questSearchSummary; return; }
                 SetTask(grind);
@@ -74,12 +67,15 @@ namespace Game.AI
         {
             if (task.Destination is not SISpawn spawn) return FailInteractionTask(task, "NPC destination is missing.");
             WorldObject target = task.Target.IsEmpty() ? null : Global.ObjAccessor.GetWorldObject(me, task.Target);
-            // Re-resolve while travelling: a spawn coordinate is only a hint. A
-            // dead/despawned NPC must not pin us while another matching one is alive.
+            bool pinnedService=SIServiceSelection.OwnsTrip(task.Kind);
+            // Service travel owns one selected spawn until it succeeds or fails.
+            // Quest relations may resolve another suitable live giver nearby.
             if(target!=null&&(!target.IsInWorld||target is Creature dead&&!dead.IsAlive()||target is GameObject gone&&!gone.IsSpawned()))
             {target=null;task.Target=ObjectGuid.Empty;task.ApproachStartedAt=null;}
             if(target==null)
                 target=FindLive(task.Creatures,task.Objects,_settings.TargetSearchRadius,live=>
+                    pinnedService?(live is Creature chosen&&(spawn.SpawnId!=0?chosen.GetSpawnId()==spawn.SpawnId:
+                        Vector3.Distance(V(live.GetPosition()),spawn.Position)<=3)):
                     task.Kind==SITaskKind.PickUp?OffersQuest(live,task.Quest.Id):
                     task.Kind==SITaskKind.TurnIn?QuestGiverHasWork(live,true):true);
             if (target == null)
@@ -130,6 +126,8 @@ namespace Game.AI
                 return FailInteractionTask(task, "NPC approach timed out, including an unusable interaction at close range.");
             if (approach == SIBehaviorResult.Failure) return FailInteractionTask(task, "No safe interaction approach.");
             if (approach != SIBehaviorResult.Success) return SIBehaviorResult.Running;
+            if(task.Kind==SITaskKind.Vendor&&_vendorRetryAt.GetValueOrDefault(target.GetGUID())>Now)
+                return FailInteractionTask(task,"Merchant interaction is unavailable; deferring this vendor instead of waiting at the NPC.");
             SIBehaviorResult result = task.Interaction.Tick(() =>
             {
                 bool success;
@@ -138,8 +136,9 @@ namespace Game.AI
                     case SITaskKind.PickUp: success = AcceptQuest(target, task.Quest); break;
                     case SITaskKind.TurnIn: success = TurnInQuest(target, task.Quest); break;
                     case SITaskKind.Train: success = TrainAt(target as Creature); break;
+                    case SITaskKind.ProfessionTrain: success = ProfessionTrainAt(target as Creature); break;
                     case SITaskKind.Vendor:
-                        if (_vendorRetryAt.GetValueOrDefault(target.GetGUID()) > Now) return SIBehaviorResult.Running;
+                        if (task.VendorPurpose == SIVendorPurpose.Auction) return AuctionAt(target as Creature, task);
                         success = VendorAt(target as Creature, task.VendorPurpose); break;
                     case SITaskKind.Objective: success = BuyObjectiveItem(target as Creature, task); break;
                     default: success = false; break;
@@ -173,9 +172,7 @@ namespace Game.AI
             return SIBehaviorResult.Failure;
         }
 
-        static bool OffersQuest(WorldObject giver, int quest) => giver.IsCreature()
-            ? Global.ObjectMgr.GetCreatureQuestRelations(giver.GetEntry()).HasQuest(quest)
-            : Global.ObjectMgr.GetGOQuestRelations(giver.GetEntry()).HasQuest(quest);
+        static bool OffersQuest(WorldObject giver, int quest) => QuestRelations(giver).HasQuest(quest);
 
         WorldObject FindLive(int[] creatures, int[] objects, float range, Func<WorldObject, bool> filter = null)
         {
@@ -203,7 +200,7 @@ namespace Game.AI
         // the same NPC cannot complete this action or latch its interaction as successful.
         bool AcceptQuest(WorldObject giver, Quest quest)
         {
-            if (me.GetExactDist(giver)>QuestPickupRadius || !MayPickUpLocalQuest(quest) ||
+            if (me.GetExactDist(giver)>QuestPickupRadius || me.GetZoneId()!=0&&QuestPointZone(V(giver.GetPosition()))!=me.GetZoneId() || !MayPickUpLocalQuest(quest) ||
                 !MayRetryQuestInteraction(quest.Id, giver.GetGUID())) return false;
             if (!me.GetSession().AcceptQuestForSI(giver, quest, out string reason))
             {

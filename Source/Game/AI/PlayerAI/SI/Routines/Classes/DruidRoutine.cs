@@ -12,7 +12,7 @@ namespace Game.AI
         {
             Enemy("pull", 90, SICombatCondition.Pull, "wrath", "moonfire"),
             Self("defense", 125, SICombatCondition.Combat | SICombatCondition.LowHealth, "barkskin", "survival instincts"),
-            Self("healing", 115, SICombatCondition.LowHealth | SICombatCondition.Caster, "swiftmend", "regrowth", "healing touch", "rejuvenation"),
+            Self("healing", 115, SICombatCondition.LowHealth | SICombatCondition.Caster, "rejuvenation", "swiftmend", "regrowth", "healing touch"),
             Self("bear heal", 110, SICombatCondition.LowHealth | SICombatCondition.Bear, "frenzied regeneration"),
             Self("cleanse", 105, SICombatCondition.SelfDebuff | SICombatCondition.Caster, "remove corruption", "abolish poison", "cure poison", "remove curse"),
             Buff("mark", 90, "mark of the wild", "gift of the wild"),

@@ -6,6 +6,7 @@ using MySqlConnector;
 using System.Net;
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
+Framework.Logging.ConsoleTimestamps.Enable();
 Console.Title = "Battle.not Server";
 
 System.Globalization.CultureInfo.DefaultThreadCurrentCulture = System.Globalization.CultureInfo.InvariantCulture;

@@ -20,7 +20,7 @@ namespace Game.AI
             return auctionable ? SIItemDisposition.Auction : SIItemDisposition.Bank;
         }
 
-        public static bool ShouldVisit(uint freeSlots, bool nearby, bool hasItems) => hasItems && (nearby || freeSlots == 0);
+        public static bool ShouldVisit(uint freeSlots, bool nearby, bool hasItems,int reserveSlots=0) => hasItems && (nearby || freeSlots <= Math.Max(0,reserveSlots));
 
         // Deterministic asking price until market valuation is available: twice vendor value,
         // with a one-silver minimum per item. Both AH packet types use copper.

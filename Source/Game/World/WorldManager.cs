@@ -724,6 +724,10 @@ namespace Game
             Log.outInfo(LogFilter.ServerLoading, "Loading Quests...");
             Global.ObjectMgr.LoadQuests();
 
+            Log.outInfo(LogFilter.ServerLoading, "Loading UI map quest lines and quests...");
+            Global.ObjectMgr.LoadUiMapQuestLines();
+            Global.ObjectMgr.LoadUiMapQuests();
+
             Log.outInfo(LogFilter.ServerLoading, "Checking Quest Disables");
             Global.DisableMgr.CheckQuestDisables();                           // must be after loading quests
 

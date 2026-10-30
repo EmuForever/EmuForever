@@ -82,8 +82,19 @@ namespace Game.Networking.Packets
             _worldPacket.WriteUInt8(Flag);
             _worldPacket.WriteUInt8((byte)ReactState);
 
-            foreach (var actionButton in ActionButtons)
-                _worldPacket.WriteUInt32(actionButton.PackedData);
+            // Always 10 buttons, zero when unset: the "remove control bar" packet sends none, like TrinityCore's zeroed array.
+            uint Button(int i) => i < ActionButtons.Count ? ActionButtons[i].PackedData : 0;
+            for (int i = 0; i < SharedConst.ActionBarIndexMax; ++i)
+                _worldPacket.WriteUInt32(Button(i));
+
+            // Classic 1.60 reads 18 action button slots before the counts (official sniff of a 70291 hunter pet: the 10
+            // buttons, then attack / follow / move / first slot, 0x16000000, the three reactions). With only 10 the client
+            // read the counts and spells as buttons (TrinityCore-forever).
+            foreach (int i in new[] { 0, 1, 2, 3 })
+                _worldPacket.WriteUInt32(Button(i));
+            _worldPacket.WriteInt32(0x16000000);
+            foreach (int i in new[] { 7, 8, 9 })
+                _worldPacket.WriteUInt32(Button(i));
 
             _worldPacket.WriteInt32(Actions.Count);
             _worldPacket.WriteInt32(Cooldowns.Count);

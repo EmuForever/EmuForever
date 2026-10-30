@@ -507,6 +507,12 @@ namespace Game
             return _itemsByAuctionId.LookupByKey(auctionId);
         }
 
+        // Read-only candidate discovery. SI purchases still use the ordinary quote/
+        // buyout handlers, which revalidate ownership, price, funds and delivery.
+        public IEnumerable<AuctionPosting> GetBuyoutAuctionsFor(Player buyer) => _itemsByAuctionId.Values.Where(auction =>
+            auction.EndTime > LoopTime.ServerTime && auction.BuyoutPrice > 0 && auction.Item != null &&
+            auction.Owner != buyer.GetGUID() && auction.OwnerAccount != buyer.GetSession().GetAccountGUID());
+
         public void AddAuction(SQLTransaction trans, AuctionPosting auction)
         {
             AuctionsBucketKey key = AuctionsBucketKey.ForItem(auction.Item);
@@ -833,7 +839,7 @@ namespace Game
             if (!_buckets.TryGetValue(AuctionsBucketKey.ForCommodity(itemTemplate), out AuctionsBucketData bucket))
                 return Enumerable.Empty<AuctionPosting>();
 
-            return bucket.Auctions.Where(auction => auction.IsCommodity()
+            return bucket.Auctions.Where(auction => auction.IsCommodity() && auction.EndTime > LoopTime.ServerTime
                 && auction.Owner != player.GetGUID() && auction.OwnerAccount != player.GetSession().GetAccountGUID());
         }
 

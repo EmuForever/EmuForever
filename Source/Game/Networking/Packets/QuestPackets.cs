@@ -8,6 +8,33 @@ using System.Collections.Generic;
 
 namespace Game.Networking.Packets
 {
+    // TrinityCore QuestPackets: one signed map ID in, three counted uint32 lists out.
+    public sealed class UiMapQuestLinesRequest : ClientPacket
+    {
+        public UiMapQuestLinesRequest(WorldPacket packet) : base(packet) { }
+        public override void Read() { UiMapID = _worldPacket.ReadInt32(); }
+        public int UiMapID;
+    }
+
+    public sealed class UiMapQuestLinesResponse : ServerPacket
+    {
+        public UiMapQuestLinesResponse() : base(ServerOpcodes.UiMapQuestLinesResponse, ConnectionType.Instance) { }
+        public int UiMapID;
+        public List<uint> QuestLineXQuestIDs = new();
+        public List<uint> QuestIDs = new();
+        public List<uint> QuestLineIDs = new();
+        public override void Write()
+        {
+            _worldPacket.WriteInt32(UiMapID);
+            _worldPacket.WriteUInt32((uint)QuestLineXQuestIDs.Count);
+            _worldPacket.WriteUInt32((uint)QuestIDs.Count);
+            _worldPacket.WriteUInt32((uint)QuestLineIDs.Count);
+            foreach (uint id in QuestLineXQuestIDs) _worldPacket.WriteUInt32(id);
+            foreach (uint id in QuestIDs) _worldPacket.WriteUInt32(id);
+            foreach (uint id in QuestLineIDs) _worldPacket.WriteUInt32(id);
+        }
+    }
+
     public class QuestGiverStatusQuery : ClientPacket
     {
         public QuestGiverStatusQuery(WorldPacket packet) : base(packet) { }

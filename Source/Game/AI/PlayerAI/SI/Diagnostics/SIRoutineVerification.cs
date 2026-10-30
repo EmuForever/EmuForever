@@ -88,21 +88,9 @@ namespace Game.AI
                 new SITask { Kind = SITaskKind.Vendor, VendorPurpose = SIVendorPurpose.Restock }.Key,
                 "Failed selling blacklisted another purpose at the same merchant.");
             passed.Add("vendor unit pricing/budget/packet bounds, repair threshold and separate sell/repair/restock identity");
-            Check(!SIVendorPolicy.ShouldSell(0, 16, true, false, 2) &&
-                SIVendorPolicy.ShouldSell(7, 16, true, true, 2) &&
-                SIVendorPolicy.ShouldSell(15, 16, true, true, 2) &&
-                !SIVendorPolicy.ShouldSell(7, 16, true, false, 2) &&
-                !SIVendorPolicy.ShouldSell(0, 16, false, true, 2) &&
-                SIVendorPolicy.ShouldSell(31, 32, true, true, 2) &&
-                SIVendorPolicy.ShouldSell(4, 16, true, true, 2) &&
-                SIVendorPolicy.ShouldSell(8, 32, true, true, 2) &&
-                SIVendorPolicy.ShouldSell(9, 32, true, true, 20) &&
-                !SIVendorPolicy.ShouldSell(0, 0, true, true, 2) &&
-                !SIVendorPolicy.ShouldSell(0, 32, true, false, 2),
-                "Optional junk sales require a nearby vendor and at least 75 percent bag occupancy.");
-            Check(!SIVendorPolicy.ShouldLeaveForRepair(0, 0) && !SIVendorPolicy.ShouldLeaveForRepair(0, 5) &&
-                !SIVendorPolicy.ShouldLeaveForRepair(4, 5) && SIVendorPolicy.ShouldLeaveForRepair(5, 5) &&
-                SIVendorPolicy.ShouldLeaveForRepair(1, 1), "Repair travel began before every durability item was broken.");
+            Check(SIVendorPolicy.ShouldSell(16, true, true) && !SIVendorPolicy.ShouldSell(16, true, false) &&
+                !SIVendorPolicy.ShouldSell(16, false, true) && !SIVendorPolicy.ShouldSell(0, true, true),
+                "Optional junk sales require junk, a nearby vendor and bags to sell from.");
             Check(SITrainerPolicy.NeedsQuery(1, 0) && !SITrainerPolicy.NeedsQuery(2, 2) &&
                 SITrainerPolicy.NeedsQuery(3, 2) && SITrainerPolicy.NeedsQuery(4, 3) && SITrainerPolicy.NeedsQuery(5, 4),
                 "Trainer availability must query each new level, including odd levels, without repeating a completed query.");

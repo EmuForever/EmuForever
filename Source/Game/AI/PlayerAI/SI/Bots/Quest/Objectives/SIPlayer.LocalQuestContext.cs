@@ -30,4 +30,9 @@ public sealed partial class SIPlayer
         _nextNearbyQuestScan=0;_nextReplan=0;_nextQuestLevelCheck=0;
         _nextLevelGapScan=0;
     }
+    void ResetQuestingArea()
+    {
+        _authorizedQuestZoneTrips.Clear();_questPointZones.Clear();
+        _questPickupAnchor=null;_workingQuestBatch=false;_nextNearbyQuestScan=0;
+    }
 }

@@ -27,7 +27,7 @@ namespace Game.Movement
             args.flags.SetUnsetFlag(SplineFlag.Steering, unit.HasNpcFlag2(NPCFlags2.Steering));
         }
 
-        UnitMoveType SelectSpeedType(MovementFlag moveFlags)
+        public static UnitMoveType SelectSpeedType(MovementFlag moveFlags)
         {
             if (moveFlags.HasAnyFlag(MovementFlag.Flying))
             {
@@ -91,7 +91,14 @@ namespace Game.Movement
             move_spline.onTransport = transport;
 
             MovementFlag moveFlags = unit.m_movementInfo.GetMovementFlags();
-            if (!args.flags.HasFlag(SplineFlag.Backward))
+            bool facingOnly=args.path.Count==2&&args.facing.type!=MonsterMoveType.Normal&&Vector3.DistanceSquared(args.path[0],args.path[1])<.01f;
+            if(facingOnly)
+            {
+                args.path[1]=args.path[0];
+                args.flags.SetUnsetFlag(SplineFlag.SmoothGroundPath,false);
+                moveFlags&=~MovementFlag.MaskMoving;
+            }
+            else if (!args.flags.HasFlag(SplineFlag.Backward))
                 moveFlags = (moveFlags & ~MovementFlag.Backward) | MovementFlag.Forward;
             else
                 moveFlags = (moveFlags & ~MovementFlag.Forward) | MovementFlag.Backward;
@@ -109,7 +116,8 @@ namespace Game.Movement
                 else
                     moveFlagsForSpeed &= ~MovementFlag.Walking;
 
-                args.velocity = unit.GetSpeed(SelectSpeedType(moveFlagsForSpeed));
+                args.SpeedType = SelectSpeedType(moveFlagsForSpeed);
+                args.velocity = unit.GetSpeed(args.SpeedType.Value);
                 Creature creature = unit.ToCreature();
                 if (creature != null)
                 {
@@ -282,7 +290,9 @@ namespace Game.Movement
 
         public void SetCyclic() { args.flags.SetUnsetFlag(SplineFlag.Cyclic); }
 
-        public void SetVelocity(Speed vel) { args.velocity = vel; args.HasVelocity = true; }
+        public void SetVelocity(Speed vel) { args.velocity = vel; args.HasVelocity = true; args.SpeedType=null; }
+
+        public void SetVelocity(Speed vel, UnitMoveType speedType) { SetVelocity(vel); args.SpeedType=speedType; }
 
         void SetBackward() { args.flags.SetUnsetFlag(SplineFlag.Backward); }
 

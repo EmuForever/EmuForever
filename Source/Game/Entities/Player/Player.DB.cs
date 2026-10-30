@@ -3793,7 +3793,7 @@ namespace Game.Entities
 
             // Pure SI history must survive logout during a pending far transfer,
             // even when location serialization is deliberately deferred below.
-            if(this is siPlayer autonomous)autonomous.AppendQuestHistory(characterTransaction);
+            AppendQuestHistory(characterTransaction);
 
             //lets allow only players in world to be saved
             if (IsBeingTeleportedFar())

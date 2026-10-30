@@ -415,9 +415,7 @@ namespace Game.Entities
 
         public Cell GetCurrentCell()
         {
-            if (currentCell == null)
-                Log.outError(LogFilter.Server, "Calling currentCell  but its null");
-
+            // A location, or a corpse whose grid is not loaded, has no grid membership.
             return currentCell;
         }
         public void SetCurrentCell(Cell cell) { currentCell = cell; }

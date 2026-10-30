@@ -23,10 +23,56 @@ public sealed class SITravelGraph
     readonly int[] _edgeStart,_edgeTo;
     readonly float[] _edgeCost;
     readonly Dictionary<long,int[]> _cells;
+    Vector3[] _anchors;
+    SITravelGraph _generated;
+    int _editRevision;
+    SITravelBlacklist _blacklist;
+    public int Revision => _editRevision+(_blacklist?.Revision ?? 0);
+    public bool IsBlacklisted(int node) => _blacklist?.Nodes.Contains(node) == true;
+    public void LoadBlacklist(string data) => _blacklist = new(data, Map, _anchors);
+    public bool SetBlacklisted(int node, bool value) => (_blacklist ?? throw new InvalidOperationException("Travel blacklist is not loaded")).Set(node, value);
+    public IEnumerable<int> NearbyNodes(Vector3 point,float radius,int limit=100) => Enumerable.Range(0,NodeCount)
+        .Where(n=>Vector3.DistanceSquared(point,_nodes[n])<=radius*radius)
+        .OrderBy(n=>Vector3.DistanceSquared(point,_nodes[n])).ThenBy(n=>n).Take(limit);
+    public IEnumerable<int> BlacklistedNodes => _blacklist == null ? Enumerable.Empty<int>() : _blacklist.Nodes.OrderBy(n=>n);
+    public bool BlacklistedWaypoint(Vector3 point) => _blacklist?.Nodes.Any(n=>Vector3.DistanceSquared(point,_nodes[n])<=4) == true;
     public int NodeCount=>_nodes.Length;
     public int EdgeCount=>_edgeTo.Length/2;
     public Vector3 Position(int node)=>_nodes[node];
+    public Vector3 SourcePosition(int node)=>_anchors[node];
+    public bool IsMoved(int node)=>_nodes[node]!=_anchors[node];
+    public bool UsableWaypoint(Vector3 point)=>Near(point,2,8).Any(n=>Vector3.DistanceSquared(point,_nodes[n])<.0001f);
     public int Degree(int node)=>_edgeStart[node+1]-_edgeStart[node];
+    // Prefer a sensible valley/road detour over climbing and descending a
+    // mountain. A graph marker is a floor sample, not permission to climb it.
+    public static float TerrainCost(Vector3 from,Vector3 to,float length)=>Math.Max(length,Vector3.Distance(from,to))+6*Math.Abs(to.Z-from.Z);
+    public float RouteCost(Vector3 start,Vector3 goal,IReadOnlyList<int> route)
+    {
+        if(route.Count==0)return float.PositiveInfinity;
+        float cost=TerrainCost(start,_nodes[route[0]],Vector3.Distance(start,_nodes[route[0]]))*2.5f;
+        for(int i=1;i<route.Count;++i)
+        {
+            int a=route[i-1],b=route[i];
+            int edge=Array.IndexOf(_edgeTo,b,_edgeStart[a],_edgeStart[a+1]-_edgeStart[a]);
+            if(edge<0)return float.PositiveInfinity;
+            cost+=TerrainCost(_nodes[a],_nodes[b],_edgeCost[edge]);
+        }
+        return cost+TerrainCost(_nodes[route[^1]],goal,Vector3.Distance(_nodes[route[^1]],goal));
+    }
+    internal void ContinueEditsFrom(SITravelGraph previous,string data)
+    {
+        // Live snapshots keep the same node identities. Share blacklist state so
+        // a ban arriving while geometry is rebuilt cannot be lost at publication.
+        _blacklist=previous._blacklist??new(data,Map,_anchors);
+        _editRevision=previous._editRevision+1;
+    }
+    internal SITravelGraph Edited(Vector3[] anchors,Vector3[] positions,List<(int A,int B,float Cost)> edges)=>
+        new(Map,positions,edges){_anchors=anchors,_generated=_generated};
+    internal IEnumerable<(int A,int B,float Cost)> Links()
+    {
+        for(int a=0;a<_nodes.Length;++a)for(int e=_edgeStart[a];e<_edgeStart[a+1];++e)
+            if(_edgeTo[e]>a)yield return(a,_edgeTo[e],_edgeCost[e]);
+    }
     // Connected component of every node, for offline tests.
     public int[] Components()
     {
@@ -45,7 +91,7 @@ public sealed class SITravelGraph
 
     public SITravelGraph(int map,Vector3[] nodes,List<(int A,int B,float Cost)> edges)
     {
-        Map=map;_nodes=nodes;
+        Map=map;_nodes=nodes;_anchors=nodes;_generated=this;
         var degree=new int[nodes.Length+1];
         foreach(var (a,b,_) in edges){++degree[a];++degree[b];}
         _edgeStart=new int[nodes.Length+1];
@@ -60,8 +106,8 @@ public sealed class SITravelGraph
         _cells=Enumerable.Range(0,nodes.Length).Where(i=>_edgeStart[i+1]>_edgeStart[i])
             .GroupBy(i=>Key(Cell(nodes[i].X),Cell(nodes[i].Y))).ToDictionary(g=>g.Key,g=>g.ToArray());
     }
-    static int Cell(float value)=>(int)MathF.Floor(value/Spacing);
-    static long Key(int x,int y)=>((long)x<<32)|(uint)y;
+    internal static int Cell(float value)=>(int)MathF.Floor(value/Spacing);
+    internal static long Key(int x,int y)=>((long)x<<32)|(uint)y;
 
     // Connected nodes near a point, nearest first. Height differences count triple so that the floor
     // the point is actually on wins over a tunnel or a roof directly above or below it.
@@ -75,6 +121,7 @@ public sealed class SITravelGraph
             if(!_cells.TryGetValue(Key(x,y),out var nodes))continue;
             foreach(int node in nodes)
             {
+                if(IsBlacklisted(node))continue;
                 var p=_nodes[node];float flat=Vector2.Distance(new(p.X,p.Y),new(point.X,point.Y));
                 if(flat>radius)continue;
                 found.Add((node,flat+3*Math.Abs(p.Z-point.Z)));
@@ -109,8 +156,10 @@ public sealed class SITravelGraph
     }
 
     // Waypoints from near the start to near the goal, or null when they are not connected.
-    public List<int> Route(Vector3 start,Vector3 goal,IReadOnlySet<int> rejected)
+    // Penalty multiplies the cost of entering a node, for finding alternative routes.
+    public List<int> Route(Vector3 start,Vector3 goal,IReadOnlySet<int> rejected,IReadOnlyDictionary<int,float> penalty=null)
     {
+        if(_blacklist?.Nodes.Count>0)rejected=rejected.Concat(_blacklist.Nodes).ToHashSet();
         var sources=Endpoints(start,rejected);
         var targets=Endpoints(goal,rejected).ToHashSet();
         if(sources.Count==0||targets.Count==0)return null;
@@ -120,18 +169,19 @@ public sealed class SITravelGraph
         foreach(int source in sources)
         {
             // Reaching a source is not verified; a far one is a guess, so it has to earn its place.
-            float g=Vector3.Distance(start,_nodes[source])*2.5f;
+            float g=TerrainCost(start,_nodes[source],Vector3.Distance(start,_nodes[source]))*2.5f;
             cost[source]=g;parent[source]=-1;open.Enqueue(source,g+Heuristic(source));
         }
         var closed=new HashSet<int>();
-        while(open.TryDequeue(out int node,out _))
+        int bestTarget=-1;float bestCost=float.PositiveInfinity;
+        while(open.TryDequeue(out int node,out float estimate))
         {
+            if(estimate>=bestCost)break;
             if(!closed.Add(node))continue;
             if(targets.Contains(node))
             {
-                var path=new List<int>();
-                for(int at=node;at!=-1;at=parent[at])path.Add(at);
-                path.Reverse();return path;
+                float total=cost[node]+TerrainCost(_nodes[node],goal,Vector3.Distance(_nodes[node],goal));
+                if(total<bestCost){bestCost=total;bestTarget=node;}
             }
             if(closed.Count>200000)return null;
             float g=cost[node];
@@ -139,16 +189,20 @@ public sealed class SITravelGraph
             {
                 int next=_edgeTo[e];
                 if(closed.Contains(next)||rejected.Contains(next))continue;
-                float candidate=g+_edgeCost[e];
+                float candidate=g+TerrainCost(_nodes[node],_nodes[next],_edgeCost[e])*(penalty!=null&&penalty.TryGetValue(next,out float factor)?factor:1);
                 if(cost.TryGetValue(next,out float known)&&known<=candidate)continue;
                 cost[next]=candidate;parent[next]=node;open.Enqueue(next,candidate+Heuristic(next));
             }
         }
-        return null;
+        if(bestTarget<0)return null;
+        var path=new List<int>();
+        for(int at=bestTarget;at!=-1;at=parent[at])path.Add(at);
+        path.Reverse();return path;
     }
 
     public void Save(string file,string signature)
     {
+        if(_generated!=this){_generated.Save(file,signature);return;}
         Directory.CreateDirectory(Path.GetDirectoryName(file));
         string temporary=file+".tmp";
         using(var writer=new BinaryWriter(File.Create(temporary)))
@@ -188,6 +242,7 @@ public static class SITravelGraphs
     const int MinimumTiles=100;
     static readonly ConcurrentDictionary<int,SITravelGraph> Ready=new();
     static readonly ConcurrentDictionary<int,byte> Started=new();
+    static readonly ConcurrentDictionary<int,object> EditGates=new();
     static readonly SemaphoreSlim BuildSlot=new(1,1);
     public static string Statistics=>Ready.IsEmpty?"SI travel graph: none loaded":
         "SI travel graph: "+string.Join(", ",Ready.Values.OrderBy(g=>g.Map).Select(g=>$"map {g.Map} {g.NodeCount} nodes/{g.EdgeCount} links"))+
@@ -221,6 +276,29 @@ public static class SITravelGraphs
     static string Signature(string[] tiles)=>
         $"{tiles.Length}:{tiles.Sum(t=>new FileInfo(t).Length)}:{tiles.Select(t=>File.GetLastWriteTimeUtc(t).Ticks).DefaultIfEmpty().Max()}";
     public static string GraphFile(string data,int map)=>Path.Combine(data,"navigation",$"si-travel-{map:D4}.bin");
+    public static int Revision(int map) => Ready.TryGetValue(map,out var graph) ? graph.Revision : 0;
+
+    static Func<Vector3,Vector3,float> Connections(string data,int map)
+    {
+        var planner=new SINavMeshPlanner(data);
+        return (a,b)=>
+        {
+            float length=planner.Connect(map,a,b,Vector3.Distance(a,b)*2.5f+20,out bool water);
+            return length*(water?1.6f:1);
+        };
+    }
+
+    public static SITravelGraph Move(string data,SITravelGraph graph,int node,Vector3 position)
+    {
+        lock(EditGates.GetOrAdd(graph.Map,_=>new object()))
+        {
+            if(Ready.TryGetValue(graph.Map,out var current)&&current!=graph)
+                throw new InvalidOperationException("This road graph changed during the command; retry with its current point.");
+            var next=SITravelPointMoves.Move(data,graph,node,position,Connections(data,graph.Map));
+            Ready[graph.Map]=next;
+            return next;
+        }
+    }
 
     static void LoadOrBuild(string data,int map)
     {
@@ -243,6 +321,8 @@ public static class SITravelGraphs
                 }
                 finally{BuildSlot.Release();}
             }
+            graph=SITravelPointMoves.Load(data,graph,Connections(data,map));
+            graph.LoadBlacklist(data);
             Ready[map]=graph;
         }
         catch(Exception e){Log.outError(LogFilter.SI,$"SI travel graph: map {map} unavailable: {e.Message}");}
@@ -316,7 +396,7 @@ public static class SITravelGraphs
         },_=>{});
         return new SITravelGraph(map,nodes.ToArray(),edges.ToList());
     }
-    static int Cell(float value)=>(int)MathF.Floor(value/SITravelGraph.Spacing);
-    static long Key(int x,int y)=>((long)x<<32)|(uint)y;
+    static int Cell(float value)=>SITravelGraph.Cell(value);
+    static long Key(int x,int y)=>SITravelGraph.Key(x,y);
     static long CellKey(Vector3 p)=>Key(Cell(p.X),Cell(p.Y));
 }

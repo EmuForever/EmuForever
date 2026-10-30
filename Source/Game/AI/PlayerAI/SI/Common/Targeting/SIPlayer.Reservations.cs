@@ -3,14 +3,11 @@ using System;
 
 namespace Game.AI
 {
-    // Short target leases shared by all bots (no two bots pull the same creature or use the same object),
-    // plus each character's stable target preferences.
+    // Short target leases shared by all bots (no two bots pull the same creature or use the same object).
     public sealed partial class SIPlayer
     {
         SIQuestReservationKey? _reservedQuestTarget;
         long _nextReservationPrune;
-        SITargetPreference _targetPreference;
-        SITargetPreference TargetPreference => _targetPreference ??= new SITargetPreference(me.GetGUID().GetCounter() > 0 ? (ulong)me.GetGUID().GetCounter() : 1);
 
         static long SharedNow => Environment.TickCount64;
 

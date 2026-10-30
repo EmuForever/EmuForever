@@ -39,9 +39,6 @@ public sealed class SIProgressWatchdog
         _minimumAdvance = minimumAdvance;
     }
 
-    public long TaskAge(long now) => _tracking ? Math.Max(0, now - _startedAt) : 0;
-    public long NoAdvanceAge(long now) => _tracking ? Math.Max(0, now - _lastAdvancedAt) : 0;
-
     public SITravelProgress Observe(int map, Vector3 position, Vector3 destination,
         long now, float arrivalDistance = 2, bool suspended = false)
     {

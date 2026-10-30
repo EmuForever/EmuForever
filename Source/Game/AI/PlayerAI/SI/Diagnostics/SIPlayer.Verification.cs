@@ -62,37 +62,19 @@ namespace Game.AI
                 "A failed bank/AH visit blacklisted another inventory service.");
             passed.Add("bank/AH item protection, later-use storage, surplus listings, full-bag trips, price/deposit limits and independent service retries");
 
-            var unrelatedGrind = new SITask { Kind = SITaskKind.Grind, Score = -1000 };
-            var questKill = new SITask { Kind = SITaskKind.Objective, Score = 20 };
-            var questTurnIn = new SITask { Kind = SITaskKind.TurnIn, Score = 10 };
-            Require(ChooseQuestTask(Array.Empty<SITask>()) == null && ChooseQuestTask(new[] { unrelatedGrind }) == null &&
-                ChooseQuestTask(new[] { unrelatedGrind, questKill }) == questKill &&
-                ChooseQuestTask(new[] { questKill, questTurnIn }) == questTurnIn,
-                "Quest mode picked unrelated grinding, lost a kill-count objective, or ignored task priority.");
-            passed.Add("quest-only task selection (empty, unrelated grind, quest kill objective, turn-in)");
-
-            var apples = new SITask { Kind = SITaskKind.Objective, Score = 3 };
-            var scorpids = new SITask { Kind = SITaskKind.Objective, Score = 20 };
-            var distantQuest = new SITask { Kind = SITaskKind.Objective, Score = 500 };
-            var firstReturn = new SITask { Kind = SITaskKind.TurnIn, Score = 5 };
-            var secondReturn = new SITask { Kind = SITaskKind.TurnIn, Score = 25 };
-            var villageDelivery = new SITask { Kind = SITaskKind.TurnIn, Score = 1000 };
-            float WorkDistance(SITask task) => task.Score;
-            bool InArea(SITask task) => task == apples || task == scorpids || task == firstReturn || task == secondReturn;
-            Require(SIQuestBatchPolicy.Choose(new[] { apples, scorpids, firstReturn }, WorkDistance, InArea, false) == apples &&
-                SIQuestBatchPolicy.Choose(new[] { scorpids, firstReturn }, WorkDistance, InArea, false) == scorpids &&
-                SIQuestBatchPolicy.Choose(new[] { firstReturn, distantQuest }, WorkDistance, InArea, false) == firstReturn &&
-                SIQuestBatchPolicy.Choose(new[] { apples, firstReturn, secondReturn }, WorkDistance, InArea, true) == firstReturn &&
-                SIQuestBatchPolicy.Choose(new[] { apples, secondReturn }, WorkDistance, InArea, true) == secondReturn &&
-                SIQuestBatchPolicy.Choose(new[] { apples, scorpids }, WorkDistance, InArea, false) == apples &&
-                SIQuestBatchPolicy.Choose(new[] { scorpids, villageDelivery }, WorkDistance, InArea, true) == scorpids &&
-                SIQuestBatchPolicy.Choose(new[] { firstReturn, villageDelivery }, WorkDistance, InArea, true) == firstReturn &&
-                SIQuestBatchPolicy.Choose(new[] { villageDelivery }, WorkDistance, InArea, true) == villageDelivery,
-                "Area batching returned after one quest, skipped another local objective, or abandoned the remaining turn-ins.");
-            Require(SIQuestBatchPolicy.NearbyCost(5, true) < SIQuestBatchPolicy.NearbyCost(3, false) &&
-                SIQuestBatchPolicy.NearbyCost(25, true) > SIQuestBatchPolicy.NearbyCost(10, false),
-                "A needed apple at the player's feet lost to another pull, or gathering caused a large detour past closer quest work.");
-            passed.Add("shared quest areas: gather between pulls, finish local objectives, grouped turn-ins, then the next work area");
+            var questKill = new SITask { Kind = SITaskKind.Objective };
+            var nearTurnIn = new SITask { Kind = SITaskKind.TurnIn };
+            var farTurnIn = new SITask { Kind = SITaskKind.TurnIn };
+            var distantKill = new SITask { Kind = SITaskKind.Objective };
+            var accepted = new Dictionary<SITask, long> { [questKill] = 2, [nearTurnIn] = 3, [farTurnIn] = 1, [distantKill] = 1 };
+            var yards = new Dictionary<SITask, float> { [questKill] = 40, [nearTurnIn] = 100, [farTurnIn] = 900, [distantKill] = 600 };
+            Require(SIQuestOrderPolicy.Choose(Array.Empty<SITask>(), t => accepted[t], t => yards[t]) == null &&
+                SIQuestOrderPolicy.Choose(new[] { new SITask { Kind = SITaskKind.Grind } }, t => 0, t => 0) == null &&
+                SIQuestOrderPolicy.Choose(new[] { questKill, nearTurnIn, farTurnIn }, t => accepted[t], t => yards[t]) == nearTurnIn &&
+                SIQuestOrderPolicy.Choose(new[] { questKill, farTurnIn, distantKill }, t => accepted[t], t => yards[t]) == questKill &&
+                SIQuestOrderPolicy.Choose(new[] { farTurnIn, distantKill }, t => accepted[t], t => yards[t]) == distantKill,
+                "Quest order left local work for a distant quest, ran back to a far turn-in, or picked unrelated grinding.");
+            passed.Add("quest order: local turn-ins, local objectives, then the nearest remaining work; never unrelated grinding");
 
             foreach (int level in new[] { 1, 5, 10, 40, 80 })
             {
@@ -104,12 +86,7 @@ namespace Game.AI
                     "Quest abandonment boundary must be five levels below, not four.");
             }
             Require(SIQuestPolicy.Eligible(1, 2, 1), "Level-one starter cannot accept Cutting Teeth after the introductory turn-in.");
-            Require(ChooseQuestTask(new[] { questTurnIn, questKill }, task => task == questKill) == questKill &&
-                SIQuestPolicy.MayYield(SITaskKind.Objective, 121, 60) && SIQuestPolicy.MayYield(SITaskKind.TurnIn, 121, 60) &&
-                !SIQuestPolicy.MayYield(SITaskKind.Objective, 60, 60) && !SIQuestPolicy.MayYield(SITaskKind.PickUp, 200, 60) &&
-                !SIQuestPolicy.MayYield(SITaskKind.Vendor, 200, 60),
-                "Local quest work did not beat a distant score, or preempted a committed local/NPC action.");
-            passed.Add("quest level bounds, five-level abandonment and local-work priority without interaction churn");
+            passed.Add("quest level bounds and five-level abandonment");
 
 
 
@@ -129,8 +106,8 @@ namespace Game.AI
                 !WithinQuestPickupArea(pickupAnchor, new Position(100, 0, 0)) &&
                 !WithinQuestPickupArea(null, new Position()),
                 "Quest pickup radius drifted with movement to the next giver or accepted an unset anchor.");
-            Require(MustEscape(.20f, true, false) && MustEscape(.1f, true, true) &&
-                !MustEscape(.201f, true, false) && !MustEscape(.8f, true, true) && !MustEscape(.1f, false, true),
+            Require(MustEscape(.20f, true) && MustEscape(.1f, true) &&
+                !MustEscape(.201f, true) && !MustEscape(.8f, true) && !MustEscape(.1f, false),
                 "Escape was triggered above critical health, by recovery alone, or outside combat.");
             passed.Add("local quest batches and critical-health escape (fixed radius, batch completion, 20% threshold, recovery alone)");
 
@@ -237,7 +214,7 @@ namespace Game.AI
             Require(!SICorpseRecovery.CanFinishCorpseRun(100) && !SICorpseRecovery.CanFinishCorpseRun(29999) &&
                 SICorpseRecovery.CanFinishCorpseRun(30000) && SICorpseRecovery.CanFinishCorpseRun(60000),
                 "Corpse reclaim skipped its wait or required an invented walking distance at a nearby graveyard.");
-            Require(MustEscape(.2f, true, false) && !MustEscape(.8f, true, true) && !MustEscape(.9f, true, false) && !MustEscape(.1f, false, false),
+            Require(MustEscape(.2f, true) && !MustEscape(.8f, true) && !MustEscape(.9f, true) && !MustEscape(.1f, false),
                 "Emergency survival did not protect low health or interrupted recovery.");
             passed.Add("corpse recovery, reclaim run and emergency escape");
 
@@ -271,11 +248,12 @@ namespace Game.AI
                     rule.Alternatives.All(name => name == name.Trim().ToLowerInvariant())), $"{cls} combat rules are empty or not normalized spell names.");
             passed.Add("class priorities and combat rule conditions (10 classes)");
 
-            var style = new SITargetPreference(42);
-            Require(style.Seed != new SITargetPreference(43).Seed && style.Seed == new SITargetPreference(42).Seed,
+            var style = new SIMovement.SIHumanMovementStyle(42);
+            Require(style.Seed != new SIMovement.SIHumanMovementStyle(43).Seed && style.Seed == new SIMovement.SIHumanMovementStyle(42).Seed,
                 "Target preference must be stable per character.");
             Require(style.TargetCost(7, 0, 10) < style.TargetCost(7, 0, 100), "Target jitter outweighed distance.");
-            Require(RouteCell(0, new Position(1, 1, 0)) != RouteCell(1, new Position(1, 1, 0)), "Blocked routes crossed maps.");
+            var blocks = new SIDestinationBlocks(); blocks.Block(0, new Vector3(1, 1, 0), 0);
+            Require(blocks.Contains(0, new Vector3(1, 1, 0), 1) && !blocks.Contains(1, new Vector3(1, 1, 0), 1), "Blocked routes crossed maps.");
             passed.Add("target preferences and map-specific blocked destinations");
             // Quest reservations between SI players.
             var key = new SIQuestReservationKey(0, 0, false, new ObjectGuid(0x0800000000000000, 900001));
@@ -337,10 +315,6 @@ namespace Game.AI
                 finally { release.Set(); }
             }
             passed.Add("blocked SI diagnostic output cannot stall gameplay; bounded queue retains message order");
-            Require(SIPullSafety.RecoveryReady(90, 60, true) && SIPullSafety.RecoveryReady(91, 61, true) && SIPullSafety.RecoveryReady(91, 0, false) &&
-                !SIPullSafety.RecoveryReady(89, 61, true) && !SIPullSafety.RecoveryReady(91, 59, true),
-                "Ordinary recovery waits for full resources after pull readiness, or resumes before ready.");
-            passed.Add("ordinary recovery ends at combat readiness; mana-free classes do not wait for mana");
             return passed;
         }
     }

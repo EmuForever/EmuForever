@@ -135,6 +135,7 @@ namespace Game.Entities
         }
 
         internal int Id => _id;
+        internal IReadOnlyList<TrainerSpell> Spells => _spells;
 
         // Spells this player could buy now (same checks as the trainer list and TeachSpell), cheapest first.
         public List<TrainerSpell> GetTeachableSpells(Player player)

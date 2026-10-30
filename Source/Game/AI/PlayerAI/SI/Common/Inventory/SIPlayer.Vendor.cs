@@ -16,6 +16,7 @@ namespace Game.AI
         long _nextVendorScan, _nextEquipCheck, _nextStartItemCheck;
         SITask _suspendedTask;
         readonly Dictionary<ObjectGuid, long> _vendorRetryAt = new();
+        long _nextProvisionVendorSearch;
 
         bool QuestNeedsItem(int item)
         {
@@ -31,15 +32,12 @@ namespace Game.AI
 
         // Use the same disposition as bank/AH planning so white equipment is sold,
         // while white materials, quest items, supplies and current upgrades are retained.
-        bool Junk(Item item) => SIInventoryPolicy.IsVendorQuality(item.GetTemplate().GetClass(), item.GetQuality()) &&
-            item.GetTemplate().GetSellPrice() > 0 && ItemDisposition(item) == SIItemDisposition.Vendor;
+        // Without an auction house nearby, auction surplus is sold to a merchant too (see ItemDisposition).
+        bool Junk(Item item) => item.GetTemplate().GetSellPrice() > 0 &&
+            (SIInventoryPolicy.IsVendorQuality(item.GetTemplate().GetClass(), item.GetQuality()) || !AuctionHouseNearby()) &&
+            ItemDisposition(item) == SIItemDisposition.Vendor;
 
-        bool HasJunk()
-        {
-            bool found = false;
-            me.ForEachItem(ItemSearchLocation.Inventory, item => { found = Junk(item); return !found; });
-            return found;
-        }
+        bool HasJunk() => FirstInventoryItem(Junk) != null;
 
         bool NeedsRepair()
         {
@@ -49,18 +47,6 @@ namespace Game.AI
                 if (item != null && item.m_itemData.MaxDurability > 0 && SIVendorPolicy.RepairNeeded(item.m_itemData.Durability,item.m_itemData.MaxDurability,_settings.MinDurability)) return true;
             }
             return false;
-        }
-
-        bool AllEquipmentRed()
-        {
-            int repairable = 0, broken = 0;
-            for (byte slot = EquipmentSlot.Start; slot < EquipmentSlot.End; ++slot)
-            {
-                Item item = me.GetItemByPos(slot);
-                if (item == null || item.m_itemData.MaxDurability == 0) continue;
-                ++repairable; if (item.IsBroken()) ++broken;
-            }
-            return SIVendorPolicy.ShouldLeaveForRepair(broken, repairable);
         }
 
         long RepairCost(Creature vendor = null)
@@ -77,8 +63,12 @@ namespace Game.AI
                 ? weapon.CalculateDurabilityRepairCost(vendor == null ? 1 : me.GetReputationPriceDiscount(vendor)) : RepairCost(vendor);
         }
         bool CanAffordRepair(Creature vendor = null) => me.GetMoney() >= RequiredRepairCost(vendor);
+        // Money the bot may spend on lessons, supplies and bank slots: repairs come first.
+        long SpareMoney() => Math.Max(0, me.GetMoney() - RequiredRepairCost());
+        // The reputation price modifier at a vendor or trainer entry, before it is met in the world.
+        float PriceDiscount(int creatureEntry) =>
+            me.GetReputationPriceDiscount(CliDB.FactionTemplateStorage.LookupByKey(Global.ObjectMgr.GetCreatureTemplate(creatureEntry)?.Faction ?? 0));
         bool FundingRepair() => SIVendorPolicy.ShouldFundRepair(NeedsRepair(), RequiredRepairCost(), me.GetMoney(), HasJunk());
-        bool BrokenMainHand() => me.GetItemByPos(EquipmentSlot.MainHand)?.IsBroken() == true;
         int TotalInventorySlots()
         {
             int slots = me.GetInventorySlotCount();
@@ -88,15 +78,19 @@ namespace Game.AI
         }
         bool BagPressure()=>SIVendorPolicy.BagPressure(me.GetFreeInventorySlotCount(),_settings.MinFreeBagSlots,HasJunk());
         bool NeedsVendor() => NeedsRepair() && (CanAffordRepair() || HasJunk()) || BagPressure();
-        bool NeedsRestock() => me.GetFreeInventorySlotCount() != 0 && (_settings.FoodAmount > 0 && SupplyCount(false) == 0 ||
-            me.GetMaxPower(PowerType.Mana) > 0 && _settings.DrinkAmount > 0 && SupplyCount(true) == 0);
+        int ProvisionTarget(bool drink) => SIProvisionPolicy.Target(me.GetClass(), drink,
+            drink ? _settings.DrinkAmount : _settings.FoodAmount, _settings.MageFoodAmount, _settings.MageDrinkAmount);
+        bool NeedsRestock() => me.GetFreeInventorySlotCount() != 0 && (SIProvisionPolicy.Low(SupplyCount(false), ProvisionTarget(false)) ||
+            me.GetMaxPower(PowerType.Mana) > 0 && SIProvisionPolicy.Low(SupplyCount(true), ProvisionTarget(true)));
+        bool RecoverySupplyTrip => _task?.Kind == SITaskKind.Vendor && _task.VendorPurpose == SIVendorPurpose.Restock;
 
         bool VendorAt(Creature vendor, SIVendorPurpose purpose)
         {
             if (vendor == null) return false;
-            if (purpose is SIVendorPurpose.Bank or SIVendorPurpose.Auction) return StoreAt(vendor, purpose);
-            me.SetSelection(vendor.GetGUID());
-            if (!me.HasUnitState(UnitState.CannotTurn)) me.SetFacingToObject(vendor);
+            if (purpose is SIVendorPurpose.Bank or SIVendorPurpose.Withdraw) return BankAt(vendor);
+            if (purpose == SIVendorPurpose.Supplies) return BuyProfessionSupplies(vendor);
+            if (purpose == SIVendorPurpose.Auction) return false; // AuctionAt owns its queued world-thread actions.
+            FaceTarget(vendor);
             if (me.GetNPCIfCanInteractWith(vendor.GetGUID(), NPCFlags1.Vendor | NPCFlags1.Repair, NPCFlags2.None) == null)
             {
                 Status = me.GetSession().DescribeSIInteractionFailure(vendor);
@@ -133,10 +127,8 @@ namespace Game.AI
 
         int SellJunk(Creature vendor)
         {
-            var junk = new List<Item>();
-            me.ForEachItem(ItemSearchLocation.Inventory, item => { if (Junk(item)) junk.Add(item); return true; });
             int sold = 0;
-            foreach (Item item in junk)
+            foreach (Item item in InventoryItems(Junk))
             {
                 int entry = item.GetEntry();
                 if (me.GetSession().SellItemForSI(vendor, item))
@@ -168,22 +160,27 @@ namespace Game.AI
             return success;
         }
 
-        (ItemTemplate Item, int Quantity) ProvisionPurchase(Creature vendor, bool drink)
+        (ItemTemplate Item, int Quantity) ProvisionPurchase(Creature vendor, bool drink) => ProvisionPurchase(vendor.GetEntry(), vendor, drink);
+
+        // The best usable food or drink a vendor entry stocks, and how many to buy. Limited stock is
+        // only known for a live vendor; a database-only entry assumes it is in stock.
+        (ItemTemplate Item, int Quantity) ProvisionPurchase(int vendorEntry, Creature vendor, bool drink)
         {
-            int needed = (drink ? _settings.DrinkAmount : _settings.FoodAmount) - SupplyCount(drink);
+            int needed = ProvisionTarget(drink) - SupplyCount(drink);
             if (needed <= 0) return default;
-            VendorItemData items = Global.ObjectMgr.GetNpcVendorItemList(vendor.GetEntry());
+            VendorItemData items = Global.ObjectMgr.GetNpcVendorItemList(vendorEntry);
+            if (items == null) return default;
+            long spendable = Math.Max(0, me.GetMoney() - RepairCost()); // full repair, not just the weapon
             ItemTemplate best = null;
             int quantity = 0;
-            for (int slot = 0; items != null && slot < items.GetItemCount(); ++slot)
+            for (int slot = 0; slot < items.GetItemCount(); ++slot)
             {
                 VendorItem entry = items.GetItem(slot);
                 ItemTemplate template = entry != null && entry.Type == ItemVendorType.Item && entry.ExtendedCost == 0
                     ? Global.ObjectMgr.GetItemTemplate(entry.item) : null;
                 if (template == null || !Provision(template, drink) || me.CanUseItem(template) != InventoryResult.Ok) continue;
-                long spendable = Math.Max(0, me.GetMoney() - RepairCost());
                 int available = SIVendorPolicy.PurchaseQuantity(needed, template.GetBuyCount(), template.GetBuyPrice(), spendable);
-                if (entry.maxcount != 0) available = (int)Math.Min(available, vendor.GetVendorItemCurrentCount(entry));
+                if (vendor != null && entry.maxcount != 0) available = (int)Math.Min(available, vendor.GetVendorItemCurrentCount(entry));
                 if (available == 0) continue;
                 if (best == null || template.GetBaseRequiredLevel() > best.GetBaseRequiredLevel()) { best = template; quantity = available; }
             }
@@ -193,9 +190,14 @@ namespace Game.AI
         bool CanRestockAt(Creature vendor) => ProvisionPurchase(vendor, false).Quantity > 0 ||
             me.GetMaxPower(PowerType.Mana) > 0 && ProvisionPurchase(vendor, true).Quantity > 0;
 
+        // A vendor entry worth a restock trip: it sells whichever of food or drink is actually low.
+        bool RestocksLowSupplies(int vendorEntry) =>
+            SIProvisionPolicy.Low(SupplyCount(false), ProvisionTarget(false)) && ProvisionPurchase(vendorEntry, null, false).Quantity > 0 ||
+            me.GetMaxPower(PowerType.Mana) > 0 && SIProvisionPolicy.Low(SupplyCount(true), ProvisionTarget(true)) && ProvisionPurchase(vendorEntry, null, true).Quantity > 0;
+
         static bool Provision(ItemTemplate template, bool drink)
         {
-            if (template.GetClass() != ItemClass.Consumable) return false;
+            if (!SIProvisionPolicy.FoodOrDrink(template.GetClass(), template.GetSubClass().Consumable)) return false;
             foreach (ItemEffectRecord effect in template.Effects)
             {
                 if (effect.TriggerType != ItemSpelltriggerType.OnUse) continue;
@@ -210,8 +212,7 @@ namespace Game.AI
         bool BuyObjectiveItem(Creature vendor, SITask task)
         {
             if (vendor == null) return false;
-            me.SetSelection(vendor.GetGUID());
-            if (!me.HasUnitState(UnitState.CannotTurn)) me.SetFacingToObject(vendor);
+            FaceTarget(vendor);
             int item = task.Objective.Objective.ObjectID;
             int before = (int)me.GetItemCount(item);
             int need = task.Objective.Objective.Amount - before;
@@ -227,14 +228,7 @@ namespace Game.AI
             return bought > 0;
         }
 
-        // Rough item value: level and quality dominate, stats break ties.
-        static float ItemScore(ItemTemplate template)
-        {
-            if (template == null) return 0;
-            float stats = 0;
-            for (int i = 0; i < ItemConst.MaxStats; ++i) stats += Math.Max(0, (int)template.GetStatModifierBonusAmount(i));
-            return template.GetItemLevel() + (int)template.GetQuality() * 4 + stats * .5f;
-        }
+        static float ItemScore(ItemTemplate template) => SIItemValue.Score(template);
 
         static byte[] SlotsFor(InventoryType type) => type switch
         {
@@ -268,12 +262,11 @@ namespace Game.AI
         {
             if (Now < _nextEquipCheck || me.IsInCombat()) return;
             _nextEquipCheck = Now + 5000;
-            var candidates = new List<Item>();
-            me.ForEachItem(ItemSearchLocation.Inventory, item =>
+            var candidates = InventoryItems(item =>
             {
                 ItemTemplate template = item.GetTemplate();
-                if (template.GetInventoryType() != InventoryType.NonEquip && me.CanUseItem(template) == InventoryResult.Ok) candidates.Add(item);
-                return true;
+                return template.GetInventoryType() != InventoryType.NonEquip && template.GetTotemCategory()==0 && !item.IsInTrade()&&!item.IsBroken()&&me.CanUseItem(item) == InventoryResult.Ok&&
+                    me.CanEquipItem(ItemSlot.Null,out ItemPos _,item,!item.IsBag())==InventoryResult.Ok;
             });
             foreach (Item item in candidates.OrderByDescending(item => ItemScore(item.GetTemplate())).Take(6))
             {
@@ -286,8 +279,15 @@ namespace Game.AI
                 }
                 if (template.GetInventoryType() == InventoryType.Weapon2Hand && me.GetItemByPos(EquipmentSlot.OffHand) != null &&
                     me.GetItemByPos(EquipmentSlot.OffHand).GetTemplate().GetInventoryType() == InventoryType.Shield) continue;
-                if (ItemScore(template) <= EquippedScore(template) + 1) continue;
-                if (me.GetSession().EquipForSI(item))
+                byte? upgradeSlot=null;
+                foreach(byte slot in SlotsFor(template.GetInventoryType()).OrderBy(s=>ItemScore(me.GetItemByPos(s)?.GetTemplate())))
+                {
+                    if(me.CanEquipItem(slot,out ItemPos destination,item,true)!=InventoryResult.Ok||destination.Slot!=slot)continue;
+                    float replaced=ItemScore(me.GetItemByPos(destination)?.GetTemplate());
+                    if(template.GetInventoryType()==InventoryType.Weapon2Hand)replaced+=ItemScore(me.GetItemByPos(EquipmentSlot.OffHand)?.GetTemplate());
+                    if(ItemScore(template)>replaced+SIItemValue.UpgradeMargin){upgradeSlot=slot;break;}
+                }
+                if (upgradeSlot.HasValue&&me.GetSession().EquipForSI(item,upgradeSlot.Value))
                     Report("equipped", $"Equipped {template.GetName()}");
             }
         }
@@ -299,31 +299,42 @@ namespace Game.AI
             if (Now < _nextStartItemCheck || me.IsInCombat()) return;
             if (_goal != "quest" || !CollectingQuestBatch()) return;
             _nextStartItemCheck = Now + 10000;
-            var starters = new List<Item>();
-            me.ForEachItem(ItemSearchLocation.Inventory, item => { if (item.GetTemplate().GetStartQuest() != 0) starters.Add(item); return true; });
-            foreach (Item item in starters)
+            foreach (Item item in InventoryItems(item => item.GetTemplate().GetStartQuest() != 0))
             {
                 Quest quest = Global.ObjectMgr.GetQuestTemplate(item.GetTemplate().GetStartQuest());
-                if (quest == null || me.GetQuestStatus(quest.Id) != QuestStatus.None || !me.CanTakeQuest(quest, false) || !me.CanAddQuest(quest, false)) continue;
+                if (quest == null || CollectsCloth(quest) || me.GetQuestStatus(quest.Id) != QuestStatus.None || !me.CanTakeQuest(quest, false) || !me.CanAddQuest(quest, false)) continue;
                 int entry = item.GetEntry();
                 // The item is the quest giver: the core destroys it unless the quest needs it.
                 me.AddQuestAndCheckCompletion(quest, item);
                 if (me.GetQuestStatus(quest.Id) == QuestStatus.None) continue;
+                RecordQuestAcceptance(quest);
                 ++QuestsAccepted;
                 Report("quest_accepted", quest.LogTitle);
             }
         }
 
-        Creature NearbySellingVendor() => NearbyCreatures(20)
-            .Where(c => c.IsAlive() && SIVendorPolicy.LocalSaleRange(me.GetExactDist(c)) && c.HasNpcFlag(NPCFlags1.Vendor) && !me.IsHostileTo(c) && !c.IsHostileTo(me) &&
-                !c.GetCreatureTemplate().FlagsExtra.HasFlag(CreatureFlagsExtra.NoSellVendor) && me.CanSeeOrDetect(c, distanceCheck: true) &&
-                VendorAvailable(c, SIVendorPurpose.Sell))
+        Creature NearbySellingVendor() => NearestMerchant(20, NPCFlags1.Vendor, SIVendorPurpose.Sell,
+            c => SIVendorPolicy.LocalSaleRange(me.GetExactDist(c)) && !c.GetCreatureTemplate().FlagsExtra.HasFlag(CreatureFlagsExtra.NoSellVendor));
+
+        // The closest live, friendly, visible merchant with this service that is not on retry or blacklisted.
+        Creature NearestMerchant(float range, NPCFlags1 service, SIVendorPurpose purpose, Func<Creature, bool> offers) =>
+            NearbyCreatures(range).Where(c => c.IsAlive() && c.HasNpcFlag(service) && !me.IsHostileTo(c) && !c.IsHostileTo(me) &&
+                VendorAvailable(c, purpose) && offers(c) && me.CanSeeOrDetect(c, distanceCheck: true))
             .OrderBy(me.GetExactDist).FirstOrDefault();
+
+        // The nearest database spawn of a vendor entry that stocks what this trip needs, each entry checked once.
+        SISpawn? NearestStockingVendor(SIVendorPurpose purpose, Func<int, bool> stocks)
+        {
+            var known = new Dictionary<int, bool>();
+            return ServiceSpawns(Knowledge.Vendors, SITaskKind.Vendor, purpose)
+                .Where(s => known.TryGetValue(s.Entry, out bool cached) ? cached : known[s.Entry] = stocks(s.Entry))
+                .Select(s => (SISpawn?)s).FirstOrDefault();
+        }
 
         bool VendorAvailable(Creature vendor, SIVendorPurpose purpose)
         {
             SISpawn spawn = SpawnOf(vendor);
-            return _vendorRetryAt.GetValueOrDefault(vendor.GetGUID()) <= Now && SpawnAvailable(spawn) && !IsLearnedRouteBlocked(vendor.GetPosition()) &&
+            return SocialServiceAllowed(spawn) && _vendorRetryAt.GetValueOrDefault(vendor.GetGUID()) <= Now && SpawnAvailable(spawn) && !IsLearnedRouteBlocked(vendor.GetPosition()) &&
                 !Blacklisted(new SITask { Kind = SITaskKind.Vendor, VendorPurpose = purpose, Destination = spawn }.Key);
         }
 
@@ -334,12 +345,7 @@ namespace Game.AI
             if (_task?.Kind == SITaskKind.Vendor)
             {
                 _task.Resume(Now);
-                if (TaskDone(_task))
-                {
-                    SITask resume = _suspendedTask; _suspendedTask = null;
-                    SetTask(resume); _nextReplan = 0; return true;
-                }
-                if (VisitNpc(_task) == SIBehaviorResult.Failure)
+                if (TaskDone(_task) || VisitNpc(_task) == SIBehaviorResult.Failure)
                 {
                     SITask resume = _suspendedTask; _suspendedTask = null;
                     SetTask(resume); _nextReplan = 0;
@@ -348,34 +354,32 @@ namespace Game.AI
             }
             if (Now < _nextVendorScan) return false;
             _nextVendorScan = Now + 1000;
-            bool urgent = NeedsVendor() || me.GetFreeInventorySlotCount() == 0;
+            bool urgent = NeedsVendor() || StoragePressure() || NeedsRestock();
             // Routine upkeep waits until the objective the bot came here for is finished.
-            if (!urgent && CommittedToObjective()) return false;
+            if (!urgent && (CommittedToJourney() || !PartyFollowing && CommittedToObjective())) return false;
             bool ammunition = NeedsAmmunition();
             bool repair = NeedsRepair() && CanAffordRepair();
             bool fundingRepair = FundingRepair();
             bool junk = HasJunk();
             Creature localSeller = junk ? NearbySellingVendor() : null;
-            bool localSale = SIVendorPolicy.ShouldSell(me.GetFreeInventorySlotCount(), TotalInventorySlots(), junk,
-                localSeller != null, _settings.MinFreeBagSlots);
+            bool localSale = SIVendorPolicy.ShouldSell(TotalInventorySlots(), junk, localSeller != null);
             if(!localSale&&MaintainConjuredSupplies())return true;
             SIVendorPurpose purpose = localSale
                 ? SIVendorPurpose.Sell : ammunition ? SIVendorPurpose.Ammunition : repair ? SIVendorPurpose.Repair : NeedsRestock() ? SIVendorPurpose.Restock : SIVendorPurpose.Sell;
             Creature merchant = purpose switch
             {
                 SIVendorPurpose.Sell => localSeller,
-                SIVendorPurpose.Ammunition => NearbyCreatures(QuestPickupRadius).Where(c => c.IsAlive() && c.HasNpcFlag(NPCFlags1.Vendor) &&
-                    !me.IsHostileTo(c) && !c.IsHostileTo(me) && VendorAvailable(c, purpose) && AmmunitionPurchase(c.GetEntry()).Quantity > 0 &&
-                    me.CanSeeOrDetect(c, distanceCheck: true)).OrderBy(me.GetDistance).FirstOrDefault(),
-                SIVendorPurpose.Repair => NearbyCreatures(QuestPickupRadius).Where(c => c.IsAlive() && c.HasNpcFlag(NPCFlags1.Repair) &&
-                    !me.IsHostileTo(c) && !c.IsHostileTo(me) && VendorAvailable(c, purpose) && CanAffordRepair(c) && me.CanSeeOrDetect(c, distanceCheck: true))
-                    .OrderBy(me.GetDistance).FirstOrDefault(),
-                _ => NearbyCreatures(QuestPickupRadius).Where(c => c.IsAlive() && c.HasNpcFlag(NPCFlags1.Vendor) &&
-                    !me.IsHostileTo(c) && !c.IsHostileTo(me) && VendorAvailable(c, purpose) && CanRestockAt(c) && me.CanSeeOrDetect(c, distanceCheck: true))
-                    .OrderBy(me.GetDistance).FirstOrDefault()
+                SIVendorPurpose.Ammunition => NearestMerchant(QuestPickupRadius, NPCFlags1.Vendor, purpose, c => AmmunitionPurchase(c.GetEntry()).Quantity > 0),
+                SIVendorPurpose.Repair => NearestMerchant(QuestPickupRadius, NPCFlags1.Repair, purpose, CanAffordRepair),
+                _ => NearestMerchant(QuestPickupRadius, NPCFlags1.Vendor, purpose, CanRestockAt)
             };
             SISpawn? spawn = merchant != null ? SpawnOf(merchant) : null;
-            if (!localSale && (spawn == null || !repair && !ammunition) &&
+            if (spawn == null && purpose == SIVendorPurpose.Restock && Now >= _nextProvisionVendorSearch && SIQuestKnowledge.IsBuilt)
+            {
+                _nextProvisionVendorSearch = Now + 15000;
+                spawn = NearestStockingVendor(SIVendorPurpose.Restock, RestocksLowSupplies);
+            }
+            if (!localSale && (spawn == null || !repair && !ammunition && purpose != SIVendorPurpose.Restock) &&
                 PlanStorageVisit(out SIVendorPurpose storagePurpose, out Creature storageNpc, out SISpawn? storageSpawn))
             {
                 purpose = storagePurpose; merchant = storageNpc; spawn = storageSpawn;
@@ -384,17 +388,7 @@ namespace Game.AI
             {
                 _nextAmmoVendorSearch = Now + 15000;
                 purpose = SIVendorPurpose.Ammunition;
-                var purchases = new Dictionary<int, bool>();
-                bool SellsAmmo(int entry)
-                {
-                    if (!purchases.TryGetValue(entry, out bool sells)) purchases[entry] = sells = AmmunitionPurchase(entry).Quantity > 0;
-                    return sells;
-                }
-                spawn = Knowledge.Spawns(Knowledge.Vendors, Array.Empty<int>(), me.GetMapId())
-                    .Where(s => SpawnAvailable(s) && FriendlyTemplate(s.Entry) && !IsLearnedRouteBlocked(P(s.Position)))
-                    .Where(s => !Blacklisted(new SITask { Kind = SITaskKind.Vendor, VendorPurpose = purpose, Destination = s }.Key))
-                    .OrderBy(s => Distance(s.Position)).Where(s => SellsAmmo(s.Entry))
-                    .Select(s => (SISpawn?)s).FirstOrDefault();
+                spawn = NearestStockingVendor(purpose, entry => AmmunitionPurchase(entry).Quantity > 0);
             }
             if (spawn == null && (NeedsVendor() || me.GetFreeInventorySlotCount() == 0 && junk) && SIQuestKnowledge.IsBuilt)
             {
@@ -404,7 +398,7 @@ namespace Game.AI
                 int[] entries = (purpose==SIVendorPurpose.Sell?Knowledge.Vendors:Knowledge.Repairers).Where(entry => purpose!=SIVendorPurpose.Sell ||
                     Global.ObjectMgr.GetCreatureTemplate(entry).Npcflag.HasFlag(NPCFlags1.Vendor) &&
                     !Global.ObjectMgr.GetCreatureTemplate(entry).FlagsExtra.HasFlag(CreatureFlagsExtra.NoSellVendor)).ToArray();
-                spawn = NearestSpawn(entries, Array.Empty<int>(), true);
+                spawn = NearestServiceSpawn(entries, SITaskKind.Vendor, purpose);
             }
             if (spawn == null || !urgent && purpose == SIVendorPurpose.Sell && !localSale) return false;
             var task = new SITask { Kind = SITaskKind.Vendor, VendorPurpose = purpose, Destination = spawn, Target = merchant?.GetGUID() ?? ObjectGuid.Empty,

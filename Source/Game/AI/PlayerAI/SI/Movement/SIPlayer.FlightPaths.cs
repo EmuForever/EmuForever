@@ -11,7 +11,8 @@ public sealed partial class SIPlayer
     readonly Dictionary<ObjectGuid,long> _flightRetry=new();
     bool TickFlightPaths()
     {
-        if(_goal is not ("quest" or "grind")||me.IsInCombat()||me.IsInFlight())return false;
+        if(!WorkingGoal||me.IsInCombat()||me.IsInFlight())return false;
+        if(CommittedToJourney())return false;
         if(_flightMaster.IsEmpty()&&CommittedToObjective())return false;
         Creature master=_flightMaster.IsEmpty()?null:ObjectAccessor.GetCreature(me,_flightMaster);
         if(master==null&&Now>=_nextFlightScan)

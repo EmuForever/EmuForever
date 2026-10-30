@@ -10,8 +10,5 @@ namespace Game.AI
         public static bool Eligible(int playerLevel, int questLevel, int minimumLevel) =>
             !TooLow(playerLevel, questLevel) && !TooHigh(playerLevel, questLevel, minimumLevel);
 
-        // Only distant quest travel can yield to local work. Interactions and local objectives keep ownership.
-        public static bool MayYield(SITaskKind kind, float remaining, float localRadius) =>
-            kind is SITaskKind.Objective or SITaskKind.TurnIn && remaining > localRadius * 2;
     }
 }

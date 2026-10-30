@@ -12,12 +12,23 @@ namespace Game.AI
         long _nextMaintenance, _nextPreparationAction;
         readonly int[] _supplyAttempts = new int[2];
         int _createdItem, _createdBefore;
+        int _createdSupplyKind;
         long _createdAt;
         bool _preparationStockChecked;
         ObjectGuid _preparationMerchant;
         int _preparationPurchaseFailures;
         bool _makingSupplies;
         long _nextSupplyCheck;
+
+        bool TryRecoverySupplies()
+        {
+            bool missing = me.GetHealthPct() < SIProvisionPolicy.HealthThreshold(me.GetClass()) &&
+                ProvisionTarget(false) > 0 && SupplyCount(false) == 0 ||
+                me.GetMaxPower(PowerType.Mana) > 0 && me.GetPowerPct(PowerType.Mana) < SIProvisionPolicy.RecoveredMana(me.GetClass()) &&
+                ProvisionTarget(true) > 0 && SupplyCount(true) == 0;
+            if (!missing) return false;
+            return MaintainConjuredSupplies() || TickVendorBehavior();
+        }
 
         void BeginPreparation()
         {
@@ -31,6 +42,7 @@ namespace Game.AI
 
         bool MaintainConjuredSupplies()
         {
+            if (me.IsInCombat() || HasUsefulRecoveryAura()) return false;
             if (!_makingSupplies)
             {
                 if (!NeedsRestock() || Now < _nextSupplyCheck) return false;
@@ -66,16 +78,7 @@ namespace Game.AI
             }
         }
 
-        int SupplyCount(bool drink)
-        {
-            int count = 0;
-            me.ForEachItem(ItemSearchLocation.Inventory, item =>
-            {
-                if (Provision(item.GetTemplate(), drink)) count += (int)item.GetCount();
-                return true;
-            });
-            return count;
-        }
+        int SupplyCount(bool drink) => InventoryCount(item => Provision(item.GetTemplate(), drink) && me.CanUseItem(item) == InventoryResult.Ok);
 
         SIBehaviorResult PrepareSupplies()
         {
@@ -85,10 +88,7 @@ namespace Game.AI
             {
                 _preparationStockChecked = true;
                 // Startup shopping is optional and local. Never cross the zone for food before questing.
-                _preparationMerchant = NearbyCreatures(QuestPickupRadius)
-                    .Where(c => c.IsAlive() && c.HasNpcFlag(NPCFlags1.Vendor) && !me.IsHostileTo(c) && !c.IsHostileTo(me) &&
-                        me.CanSeeOrDetect(c, distanceCheck: true) && CanRestockAt(c))
-                    .OrderBy(me.GetDistance).Select(c => c.GetGUID()).FirstOrDefault();
+                _preparationMerchant = NearestMerchant(QuestPickupRadius, NPCFlags1.Vendor, SIVendorPurpose.Restock, CanRestockAt)?.GetGUID() ?? ObjectGuid.Empty;
             }
             if (_preparationMerchant.IsEmpty() || Resolve(_preparationMerchant) is not Creature merchant) return SIBehaviorResult.Success;
             SIBehaviorResult approach = MoveWithin(merchant, 3.5f, "Preparing food and drink", npcInteraction: true);
@@ -112,14 +112,19 @@ namespace Game.AI
             if (_createdItem != 0)
             {
                 if (me.GetItemCount(_createdItem) <= _createdBefore && Now - _createdAt < 5000) return SIBehaviorResult.Running;
+                if (me.GetItemCount(_createdItem) > _createdBefore) _supplyAttempts[_createdSupplyKind] = 0;
+                else ++_supplyAttempts[_createdSupplyKind];
                 _createdItem = 0;
             }
+            if (me.IsNonMeleeSpellCast(false, skipAutorepeat: true)) return SIBehaviorResult.Running;
             bool manaUser = me.GetMaxPower(PowerType.Mana) > 0;
-            for (int kind = 0; kind < (manaUser ? 2 : 1); ++kind)
+            // Make a drink first when mana is low so food conjuration cannot
+            // consume the mana needed to create the first usable water.
+            foreach (int kind in manaUser && me.GetPowerPct(PowerType.Mana) < 75 ? new[] { 1, 0 } : manaUser ? new[] { 0, 1 } : new[] { 0 })
             {
                 bool drink = kind == 1;
                 int have = SupplyCount(drink);
-                if (have >= (drink ? _settings.DrinkAmount : _settings.FoodAmount) || _supplyAttempts[kind] >= 3 || me.GetFreeInventorySlotCount() == 0) continue;
+                if (have >= ProvisionTarget(drink) || _supplyAttempts[kind] >= 3 || me.GetFreeInventorySlotCount() == 0) continue;
                 // Restrict to direct conjuration: exclude rituals, portals, tradeskills and consumable reagents.
                 SpellInfo spell = _knownSpells.FirstOrDefault(info => SpellName(info).StartsWith("conjure ", StringComparison.Ordinal) &&
                     info.GetEffects().Any(effect => effect.Effect == SpellEffectName.CreateItem && effect.ItemType != 0 &&
@@ -127,10 +132,10 @@ namespace Game.AI
                         template.GetBaseRequiredLevel() <= me.GetLevel() && Provision(template, drink)));
                 if (spell == null) continue;
                 if (me.GetSpellHistory().HasGlobalCooldown(spell)) return SIBehaviorResult.Running;
-                ++_supplyAttempts[kind];
                 int itemId = spell.GetEffects().First(effect => effect.Effect == SpellEffectName.CreateItem && effect.ItemType != 0).ItemType;
                 int before = (int)me.GetItemCount(itemId);
-                if (!Cast(spell, me)) continue;
+                if (!Cast(spell, me)) { ++_supplyAttempts[kind]; continue; }
+                _createdSupplyKind = kind;
                 _createdItem = itemId; _createdBefore = before; _createdAt = Now;
                 _nextPreparationAction = Now + 1600;
                 return SIBehaviorResult.Running;

@@ -29,13 +29,12 @@ namespace Game.AI
                 Creature approachTarget = null;
                 Creature rejected = null;
                 string rejectedReason = null;
-                float bestDistance = float.MaxValue;
+                // Current attackers first, then nearest; the first one that may be fought is taken.
                 foreach (Creature creature in NearbyCreatures(_settings.TargetSearchRadius)
                     .Where(creature => task.Creatures.Contains(creature.GetEntry()) && creature.IsAlive())
                     .OrderBy(creature => me.GetAttackers().Contains(creature) ? -1 : me.GetExactDist(creature)))
                 {
-                    if (!task.Creatures.Contains(creature.GetEntry()) || !creature.IsAlive() || !ObjectiveRetryReady(quest, id, creature.GetGUID()) ||
-                        IsLearnedRouteBlocked(creature.GetPosition())) continue;
+                    if (!ObjectiveRetryReady(quest, id, creature.GetGUID()) || IsLearnedRouteBlocked(creature.GetPosition())) continue;
                     if (talk && !me.IsHostileTo(creature))
                     {
                         if (!me.CanSeeOrDetect(creature, distanceCheck: true)) continue;
@@ -73,14 +72,9 @@ namespace Game.AI
                         if (rejected == null || me.GetDistance(creature) < me.GetDistance(rejected)) { rejected = creature; rejectedReason = reason; }
                         continue;
                     }
-                    float distance = me.GetDistance(creature) + (attacking ? -100 : 0);
-                    if (distance < bestDistance && (attacking || ReserveQuestTarget(creature.GetGUID())))
-                    { bestDistance = distance; enemy = creature; break; }
+                    if (attacking || ReserveQuestTarget(creature.GetGUID())) { enemy = creature; break; }
                 }
-                if (enemy != null && (me.GetAttackers().Contains(enemy) || ReserveQuestTarget(enemy.GetGUID())))
-                {
-                    BeginEncounter(enemy); TickEncounter(); return;
-                }
+                if (enemy != null) { BeginEncounter(enemy); TickEncounter(); return; }
                 if(approachTarget!=null)
                 {
                     me.SetSelection(approachTarget.GetGUID());
@@ -151,13 +145,7 @@ namespace Game.AI
         bool UseQuestItemOnTarget(SITask task)
         {
             if (task.Quest == null || task.Objective == null || task.Quest.SourceItemId == 0 || me.IsNonMeleeSpellCast(false, skipAutorepeat: true)) return false;
-            Item item = null;
-            me.ForEachItem(ItemSearchLocation.Inventory, candidate =>
-            {
-                if (candidate.GetEntry() != task.Quest.SourceItemId) return true;
-                item = candidate;
-                return false;
-            });
+            Item item = FirstInventoryItem(candidate => candidate.GetEntry() == task.Quest.SourceItemId);
             if (item == null || me.CanUseItem(item) != InventoryResult.Ok) return false;
             int quest = task.Quest.Id, objective = task.Objective.Objective.Id;
             foreach (var effect in item.GetEffects().Where(value => value.TriggerType == ItemSpelltriggerType.OnUse))
@@ -180,7 +168,7 @@ namespace Game.AI
                 if (target == null)
                 {
                     if (unitTarget || objectTarget || me.IsInCombat() || task.Hotspots.Count == 0 ||
-                        task.Hotspots.Min(point => Vector3.Distance(V(me.GetPosition()), point)) > 8) continue;
+                        task.Hotspots.Min(point => Vector3.Distance(Here, point)) > 8) continue;
                     target = me;
                     if (_objectiveRetryAt.GetValueOrDefault((quest, -objective, target.GetGUID())) > Now) continue;
                 }
@@ -209,8 +197,7 @@ namespace Game.AI
         void SkipObjective(int quest, int objective, WorldObject target, string reason, bool blocked)
         {
             if (_objectiveRetryAt.Count >= 512)
-                foreach (var key in _objectiveRetryAt.Where(pair => pair.Value <= Now).Select(pair => pair.Key).ToArray())
-                    _objectiveRetryAt.Remove(key);
+                PruneExpired(_objectiveRetryAt);
             _objectiveRetryAt[(quest, objective, target.GetGUID())] = Now + (blocked ? SIDestinationBlocks.Duration : 30000);
             if (blocked) RememberBlockedRoute(target.GetPosition(), reason);
             Report("quest_task_failed", reason);

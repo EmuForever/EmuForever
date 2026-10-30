@@ -19,6 +19,8 @@ namespace WorldServer
     {
         static void Main(string[] args)
         {
+            Framework.Logging.ConsoleTimestamps.Enable();
+
             //Set Culture
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
             Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
@@ -51,6 +53,13 @@ namespace WorldServer
             if (args.Length == 4 && args[0] == "--si-walk-random")
             {
                 Game.AI.SINavigationTool.RandomWalks(args[1], int.Parse(args[2]), int.Parse(args[3]));
+                Environment.Exit(0);
+            }
+
+            // --si-walk-replan <dataDir> <map> <count>: random routes replanned mid-leg; counts legs that turn back.
+            if (args.Length == 4 && args[0] == "--si-walk-replan")
+            {
+                Game.AI.SINavigationTool.ReplanWalks(args[1], int.Parse(args[2]), int.Parse(args[3]));
                 Environment.Exit(0);
             }
 

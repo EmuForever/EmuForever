@@ -1,5 +1,4 @@
 using Framework.Constants;
-using Game.Entities;
 using Game.Movement;
 using System;
 using System.Numerics;
@@ -39,8 +38,8 @@ public sealed partial class SIPlayer
             bool water=SwimmingSurface(origin)&&SwimmingSurface(end);
             if(!water)
             {
-                float floor=me.GetMap().GetHeight(me.GetPhaseShift(),end.X,end.Y,origin.Z+1,true,3);
-                if(!float.IsFinite(floor)||floor<-10000||Math.Abs(floor-origin.Z)>.7f)continue;
+                float floor=FloorNear(new(end.X,end.Y,origin.Z),1,2);
+                if(float.IsNaN(floor)||Math.Abs(floor-origin.Z)>.7f)continue;
                 end.Z=floor;
             }
             bool clear=true;var previous=origin;
@@ -49,16 +48,15 @@ public sealed partial class SIPlayer
                 var point=Vector3.Lerp(origin,end,step/4f);
                 if(!water)
                 {
-                    float floor=me.GetMap().GetHeight(me.GetPhaseShift(),point.X,point.Y,point.Z+1,true,3);
-                    if(!float.IsFinite(floor)||floor<-10000||Math.Abs(floor-point.Z)>.5f){clear=false;break;}
+                    float floor=FloorNear(point,1,2);
+                    if(float.IsNaN(floor)||Math.Abs(floor-point.Z)>.5f){clear=false;break;}
                 }
                 clear=MovementSight(previous,point)&&me.GetMap().IsInLineOfSight(me.GetPhaseShift(),previous.X,previous.Y,previous.Z+1.8f,
                     point.X,point.Y,point.Z+1.8f,LineOfSightChecks.All,ModelIgnoreFlags.Nothing);
                 previous=point;
             }
             if(!clear)continue;
-            CancelAheadMovement();_pathCancel?.Cancel();_pathCancel?.Dispose();_pathCancel=null;_planning=null;_route=[];
-            me.GetMotionMaster().Clear();me.StopMoving();
+            CancelPlanning();HaltSpline();
             var move=new MoveSplineInit(me);move.MovebyPath([Here,end]);move.SetUncompressed();move.SetWalk(true);
             if(move.Launch()<=0)continue;
             _previousRecoveryStart=origin;

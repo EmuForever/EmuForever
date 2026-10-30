@@ -246,6 +246,7 @@ namespace Game
         [WorldPacketHandler(ClientOpcodes.LootRelease)]
         void HandleLootRelease(LootRelease packet)
         {
+            if(GetPlayer().IsSelfSIControlled)return;
             // cheaters can modify lguid to prevent correct apply loot release code and re-loot
             // use internal stored guid
             Loot loot = GetPlayer().GetLootByWorldObjectGUID(packet.Unit);

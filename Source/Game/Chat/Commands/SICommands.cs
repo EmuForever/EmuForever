@@ -244,13 +244,20 @@ namespace Game.Chat.Commands
             string target = TargetText(a);
             if (target.Equals("all", StringComparison.OrdinalIgnoreCase))
             {
-                ++_spawnGeneration;
+                SpawnQueue.CancelAll();
                 var sessions = Global.WorldMgr.GetAllSessions().Where(s => s.IsServerControlled).ToArray();
                 foreach (var session in sessions) session.KickPlayer("SI despawn all requested");
-                h.SendSysMessage($"Saved logout queued for {sessions.Length} SI sessions.");
+                h.SendSysMessage($"Pending SI logins cancelled; saved logout queued for {sessions.Length} SI sessions.");
                 return;
             }
-            siPlayer p = Find(h, target); p.GetSession().KickPlayer("siPlayer despawn requested");
+            Player p = Find(h, target);
+            if (p.IsSelfSIControlled)
+            {
+                p.RequestSelfSIControl(false);
+                h.SendSysMessage($"SI control release queued for {p.GetName()}.");
+                return;
+            }
+            p.GetSession().KickPlayer("siPlayer despawn requested");
             h.SendSysMessage($"Saved logout queued for {p.GetName()}.");
         });
         [Command("info", Permission, true)]
@@ -260,7 +267,12 @@ namespace Game.Chat.Commands
             ObjectGuid guid = ResolveTarget(h, target);
             var c = Global.CharacterCacheStorage.GetCharacterCacheByGuid(guid);
             if (c == null || c.IsDeleted) throw new InvalidOperationException("SI character not found.");
-            siPlayer p = Global.ObjAccessor.FindConnectedPlayer(guid) as siPlayer;
+            Player p = Global.ObjAccessor.FindConnectedPlayer(guid);
+            if(p?.Controller!=null)
+            {
+                p.Controller.RequestPlayerInfo(line=>h.SendSysMessage(line));
+                return;
+            }
             h.SendSysMessage($"{c.Name} {c.Surname}: character {guid.GetCounter()}, account {unchecked((uint)c.AccountId)}, level {c.Level}, {(p == null ? "offline" : "online")}.");
             if(p!=null)
             {
@@ -268,9 +280,7 @@ namespace Game.Chat.Commands
                     if(p.GetQuestSlotQuestId(slot)!=0&&p.GetQuestStatus(p.GetQuestSlotQuestId(slot)) is QuestStatus.Incomplete or QuestStatus.Complete)++active;
                 h.SendSysMessage($"Level {p.GetLevel()}; experience {p.GetXP()}/{p.GetXPForNextLevel()}; active quests: {active}; lifetime rewarded: {p.LifetimeQuestsCompleted}; failed: {p.LifetimeQuestsFailed}; abandoned: {p.LifetimeQuestsAbandoned}. Outcome tracking since {DateTimeOffset.FromUnixTimeSeconds(p.QuestHistorySince):u}; earlier rewarded IDs included.");
             }
-            if(p?.Controller!=null)h.SendSysMessage($"Last behavior: {p.Controller.LastBehaviorState}; next expected: {p.Controller.NextExpectedState}; free bag slots: {p.GetFreeInventorySlotCount()}.");
-            if(p?.Controller!=null)h.SendSysMessage("Effective SI settings: "+p.Controller.EffectiveSettings);
-            else
+            if(p==null)
             {
                 var saved=DB.Characters.Query("SELECT c.level,c.xp,(SELECT COUNT(*) FROM character_queststatus q WHERE q.guid=c.guid AND q.status IN (1,3)),COALESCE(h.completed,(SELECT COUNT(*) FROM character_queststatus_rewarded r WHERE r.guid=c.guid)),COALESCE(h.failed,0),COALESCE(h.abandoned,0) FROM characters c LEFT JOIN character_si_quest_history h ON h.guid=c.guid WHERE c.guid={0}",guid.GetCounter());
                 if(!saved.IsEmpty())h.SendSysMessage($"Level {saved.Read<int>(0)}; experience {saved.Read<int>(1)}/{Global.ObjectMgr.GetXPForLevel(saved.Read<int>(0))}; active quests: {saved.Read<long>(2)}; recorded lifetime rewarded/failed/abandoned: {saved.Read<long>(3)}/{saved.Read<long>(4)}/{saved.Read<long>(5)}.");
@@ -282,7 +292,7 @@ namespace Game.Chat.Commands
         static bool Status(CommandHandler h, StringArguments a) => Run(h, () =>
         {
             string target = TargetText(a);
-            if (!target.Equals("all", StringComparison.OrdinalIgnoreCase) && (target.Length != 0 || !SelectedSI(h).IsEmpty())) { ShowInfo(h, target); return; }
+            if (!target.Equals("all", StringComparison.OrdinalIgnoreCase) && (target.Length != 0 || !SelectedSI(h).IsEmpty() || h.GetSession()?.GetPlayer()?.IsSelfSIControlled == true)) { ShowInfo(h, target); return; }
             var sessions = Global.WorldMgr.GetAllSessions().Where(s => s.IsServerControlled).ToArray();
             h.SendSysMessage($"SI: {BotAccounts().Count} bot accounts, {sessions.Count(s => s.GetPlayer() != null)} online, {sessions.Count(s => s.PlayerLoading())} loading.");
             h.SendSysMessage(Game.AI.SIMovement.SIMovementRuntime.Statistics);
@@ -307,7 +317,7 @@ namespace Game.Chat.Commands
         });
         static bool Order(CommandHandler h, string name, string action) => Run(h, () =>
         {
-            siPlayer p = Find(h, name);
+            Player p = Find(h, name);
             if (p.Controller == null) throw new InvalidOperationException("The SI controller is not ready.");
             ObjectGuid target = ObjectGuid.Empty;
             if (action is "follow" or "attack" or "teleport")
@@ -323,7 +333,12 @@ namespace Game.Chat.Commands
                         || !p.CanSeeOrDetect(unit, distanceCheck: true) || !p.IsValidAttackTarget(unit))
                         throw new InvalidOperationException("Select a living hostile creature visible to that SI player.");
                 }
-                if (action == "teleport" && p.IsBeingTeleported()) throw new InvalidOperationException("That SI player is already transferring.");
+                if(action=="teleport")
+                {
+                    p.RequestOperatorTeleport(new WorldLocation(issuer),issuer.GetInstanceId(),issuer.GetGUID());
+                    h.SendSysMessage($"{p.GetName()}: teleport requested with priority over SI work.");
+                    return;
+                }
             }
             p.Controller.Order(action, target); h.SendSysMessage($"{p.GetName()}: {action} requested.");
         });
@@ -335,6 +350,14 @@ namespace Game.Chat.Commands
         static bool Grind(CommandHandler h, StringArguments a) => Order(h, TargetText(a), "grind");
         [Command("attack", Permission, true)]
         static bool Attack(CommandHandler h, StringArguments a) => Order(h, TargetText(a), "attack");
+        [Command("duel", Permission, true)]
+        static bool Duel(CommandHandler h, StringArguments a) => Order(h, TargetText(a), "duel");
+        [Command("gather", Permission, true)]
+        static bool Gather(CommandHandler h, StringArguments a) => Order(h, TargetText(a), "gather");
+        [Command("professions", Permission, true)]
+        static bool Professions(CommandHandler h, StringArguments a) => Order(h, TargetText(a), "professions");
+        [Command("social", Permission, true)]
+        static bool Social(CommandHandler h, StringArguments a) => Order(h, TargetText(a), "social");
         [Command("pause", Permission, true)]
         static bool Pause(CommandHandler h, StringArguments a) => Order(h, TargetText(a), "pause");
         [Command("resume", Permission, true)]
@@ -351,7 +374,7 @@ namespace Game.Chat.Commands
         static bool ExplicitOrder(CommandHandler h, StringArguments a)
         {
             string[] words = TargetText(a).Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (words.Length < 1 || words[^1] is not ("follow" or "guard" or "grind" or "attack" or "pause" or "resume" or "quest" or "rest" or "save" or "teleport")) return false;
+            if (words.Length < 1 || words[^1] is not ("follow" or "guard" or "grind" or "duel" or "gather" or "professions" or "social" or "attack" or "pause" or "resume" or "quest" or "rest" or "save" or "teleport")) return false;
             return Order(h, string.Join(' ', words[..^1]), words[^1]);
         }
         [Command("", Permission, true)]
@@ -359,19 +382,27 @@ namespace Game.Chat.Commands
         static bool Help(CommandHandler h)
         {
             h.SendSysMessage(".si create random <horde|alliance> [count=1, max=1000]; .si create \"first surname\" <race> <class>.");
+            h.SendSysMessage(".si me [on|off]: toggle SI control of your logged-in character; off returns manual control. No target or separate bot login is needed.");
             h.SendSysMessage(".si spawn|despawn all; .si spawncount <1-10000>; .si delete [GUID|\"name\"]; .si rename [GUID|\"name\"] <random|\"first surname\">.");
             h.SendSysMessage(".si quest|grind|pause|resume|follow|guard|attack|rest|save|teleport|info [GUID|\"name\"]; .si list [all]; .si status [all].");
+            h.SendSysMessage(".si nav show spawns selectable point NPCs; .si nav info|ban|unban|move uses your selected marker. Chickens = enabled; cows = blacklisted. Bans and moves are permanent. Use .si nav help for arguments.");
             h.SendSysMessage("An SI target takes priority over a supplied GUID/name. With it selected: .si quest; .si rename random; .si rename \"first surname\". Explicit all applies to the roster. Online renames save and relog the bot.");
             return true;
         }
         static string TargetText(StringArguments a) => string.Join(' ', ParseArguments(a.GetString()));
-        static siPlayer Find(CommandHandler h, string target) => Global.ObjAccessor.FindConnectedPlayer(ResolveTarget(h, target)) as siPlayer
-            ?? throw new InvalidOperationException("That SI player is offline or does not exist. Spawn it first.");
+        static Player Find(CommandHandler h, string target)
+        {
+            Player player = Global.ObjAccessor.FindConnectedPlayer(ResolveTarget(h, target));
+            return player != null && (player is siPlayer || player.Controller != null) ? player :
+                throw new InvalidOperationException("That SI player is offline or uncontrolled. Use .si spawn, or .si me for your own character.");
+        }
         static ObjectGuid SelectedSI(CommandHandler h) => h.GetSelectedPlayer() is siPlayer selected ? selected.GetGUID() : ObjectGuid.Empty;
         static ObjectGuid ResolveTarget(CommandHandler h, string identifier)
         {
             ObjectGuid selected = SelectedSI(h);
-            return !selected.IsEmpty() ? selected : ResolveCharacter(identifier);
+            if (!selected.IsEmpty()) return selected;
+            Player issuer = h.GetSession()?.GetPlayer();
+            return string.IsNullOrWhiteSpace(identifier) && issuer?.IsSelfSIControlled == true ? issuer.GetGUID() : ResolveCharacter(identifier);
         }
         static ObjectGuid ResolveCharacter(string identifier)
         {

@@ -40,6 +40,8 @@ namespace Game.Movement
             splineIsFacingOnly = args.path.Count == 2 && args.facing.type != MonsterMoveType.Normal && ((args.path[1] - args.path[0]).Length() < 0.1f);
 
             velocity = args.velocity;
+            SpeedType=args.SpeedType;
+            Walking=args.walk;
 
             // Check if its a stop spline
             if (args.flags.HasFlag(SplineFlag.Done))
@@ -104,7 +106,7 @@ namespace Game.Movement
             // TODO: what to do in such cases? problem is in input data (all points are at same coords)
             if (spline.Length() < 1)
             {
-                Log.outError(LogFilter.Unit, 
+                if(!splineIsFacingOnly)Log.outError(LogFilter.Unit,
                     "MoveSpline.init_spline: zero length spline, wrong input data?");
                 
                 spline.Set_length(spline.Last(), (Milliseconds)(spline.IsCyclic() ? 1000 : 1));
@@ -121,6 +123,20 @@ namespace Game.Movement
         }
 
         public Vector3[] GetPath() { return spline.GetPoints(); }
+        public UnitMoveType? SpeedType { get; private set; }
+        public bool Walking { get; private set; }
+        public Vector3[] RemainingPath()
+        {
+            if(!Initialized()||Finalized())return [];
+            var position=ComputePosition();
+            var path=new List<Vector3>{new(position.X,position.Y,position.Z)};
+            for(int i=point_Idx+1;i<=spline.Last();++i)
+            {
+                var point=spline.GetPoint(i);
+                if(Vector3.DistanceSquared(path[^1],point)>=.01f)path.Add(point);
+            }
+            return path.ToArray();
+        }
         public Milliseconds TimePassed() { return time_passed; }
 
         public Milliseconds Duration() { return spline.Length(); }

@@ -16,7 +16,7 @@ namespace Game.AI
             _searchedAreas.GetValueOrDefault(SearchAreaKey(task, me.GetMapId(), point)) <= Now;
         void RememberSearchedArea(SITask task, Vector3 point)
         {
-            foreach (var key in _searchedAreas.Where(pair => pair.Value <= Now).Select(pair => pair.Key).ToArray()) _searchedAreas.Remove(key);
+            PruneExpired(_searchedAreas);
             _searchedAreas[SearchAreaKey(task.Key, me.GetMapId(), point)] = Now + 90000;
         }
         void Sweep(SITask task, string detail = null)

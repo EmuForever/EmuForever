@@ -15,6 +15,20 @@ namespace Game
 {
     public partial class WorldSession
     {
+        [WorldPacketHandler(ClientOpcodes.UiMapQuestLinesRequest, Processing = PacketProcessing.Inplace)]
+        void HandleUiMapQuestLinesRequest(UiMapQuestLinesRequest packet)
+        {
+            if (!CliDB.UiMapStorage.ContainsKey(packet.UiMapID)) return;
+            SendPacket(Game.Quests.QuestMapAvailability.Build(packet.UiMapID,
+                Global.ObjectMgr.GetUiMapQuestLinesList(packet.UiMapID), Global.ObjectMgr.GetUiMapQuestsList(packet.UiMapID),
+                Global.DB2Mgr.GetQuestsForQuestLine, id =>
+                {
+                    Quest quest = Global.ObjectMgr.GetQuestTemplate(id);
+                    return quest == null ? default : new Game.Quests.QuestMapQuestState(true,
+                        _player.CanTakeQuest(quest, false), _player.GetQuestRewardStatus(id));
+                }));
+        }
+
         [WorldPacketHandler(ClientOpcodes.QuestGiverStatusQuery, Processing = PacketProcessing.Inplace)]
         void HandleQuestgiverStatusQuery(QuestGiverStatusQuery packet)
         {

@@ -1566,6 +1566,8 @@ namespace Framework.Constants
         DontResetPeriodicTimer = 0x20000,   //! Will allow periodic aura timers to keep ticking (instead of resetting)
         DontReportCastError = 0x40000,   //! Will Return SpellFailedDontReport In Checkcast Functions
         FullMask = 0x0007FFFF, //! Used when doing CastSpell with triggered == true
+        // Validation overrides or silent cast errors alone do not make a cast a proc.
+        IsTriggeredMask = FullMask & ~(IgnorePowerAndReagentCost | IgnoreCastInProgress | IgnoreShapeshift | DontReportCastError),
 
         // debug flags (used with .cast triggered commands)
         IgnoreEquippedItemRequirement = 0x80000, //! Will ignore equipped item requirements
@@ -1617,7 +1619,7 @@ namespace Framework.Constants
         Unk16 = 0x8000,
         Unk17 = 0x10000,
         AdjustMissile = 0x20000,
-        NoGCD = 0x40000, // no GCD for spell casts from charm/summon (vehicle spells is an example)
+        FromClient = 0x40000, // Ordinary player action; also used for explicit SI player actions.
         VisualChain = 0x80000,
         Unk21 = 0x100000,
         RuneList = 0x200000,

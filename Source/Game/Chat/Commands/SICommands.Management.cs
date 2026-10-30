@@ -18,12 +18,13 @@ namespace Game.Chat.Commands
         static readonly AsyncCallbackProcessor<TransactionCallback> Transactions = new();
         static readonly HashSet<ObjectGuid> Editing = new();
         static long _nextWork;
-        static int _spawnGeneration;
+        static readonly SISpawnQueueState SpawnQueue = new();
 
         // Called between session and map updates. Bulk requests advance one bounded
         // operation at a time; database callbacks also run on the world thread.
         internal static void Update()
         {
+            Game.AI.SIAuctionWork.Update();
             Transactions.ProcessReadyCallbacks();
             long now = Environment.TickCount64;
             if (now < _nextWork || !Work.TryDequeue(out var step)) return;
@@ -80,7 +81,16 @@ namespace Game.Chat.Commands
             Race.Undead => new[] { Class.Warrior, Class.Rogue, Class.Priest, Class.Mage, Class.Warlock },
             Race.Tauren => new[] { Class.Warrior, Class.Hunter, Class.Shaman, Class.Druid },
             Race.Troll => new[] { Class.Warrior, Class.Hunter, Class.Rogue, Class.Priest, Class.Shaman, Class.Mage },
+            Race.SkyborneAlliance => new[] { Class.Warrior, Class.Hunter, Class.Rogue, Class.Mage, Class.Druid },
+            Race.SkyborneHorde => new[] { Class.Warrior, Class.Hunter, Class.Rogue, Class.Shaman, Class.Druid },
             _ => Array.Empty<Class>()
+        };
+
+        internal static Race[] RandomCreationRaces(Team team) => team switch
+        {
+            Team.Horde => new[] { Race.Orc, Race.Undead, Race.Tauren, Race.Troll, Race.SkyborneHorde },
+            Team.Alliance => new[] { Race.Human, Race.Dwarf, Race.NightElf, Race.Gnome, Race.SkyborneAlliance },
+            _ => Array.Empty<Race>()
         };
 
         static (string First, string Surname) RandomName(Race race, Gender gender, ObjectGuid own = default)
@@ -103,17 +113,18 @@ namespace Game.Chat.Commands
         static void QueueRandomCreation(CommandHandler h, IReadOnlyList<string> words)
         {
             var (team, total) = RandomCreationOptions(words);
-            Race[] races = team == Team.Horde ? new[] { Race.Orc, Race.Undead, Race.Tauren, Race.Troll }
-                : new[] { Race.Human, Race.Dwarf, Race.NightElf, Race.Gnome };
+            Race[] races = RandomCreationRaces(team);
             races = races.Where(race => ClassicClasses(race).Any(cls => Global.ObjectMgr.GetPlayerInfo(race, cls) != null)).ToArray();
-            if (races.Length == 0) throw new InvalidOperationException("No supported Vanilla race/class combinations for that faction.");
+            if (races.Length == 0) throw new InvalidOperationException("No supported Classic/Forever race/class combinations for that faction.");
             int remaining = total, active = 0, created = 0, failed = 0;
+            var createdByRace = races.ToDictionary(race => race, _ => 0);
             Work.Enqueue(() =>
             {
                 if (remaining == 0)
                 {
                     if (active != 0) return false;
-                    h.SendSysMessage($"SI random {team}: created {created}/{total}, failed {failed}.");
+                    h.SendSysMessage($"SI random {team}: created {created}/{total}, failed {failed}. Races: " +
+                        string.Join(", ", createdByRace.Select(pair => $"{pair.Key}: {pair.Value}")));
                     return true;
                 }
                 if (active >= 2) return false;
@@ -129,7 +140,7 @@ namespace Game.Chat.Commands
                     try
                     {
                         CreateNamed(h, (name.First + " " + name.Surname).Trim(), race.ToString(), cls.ToString(), gender,
-                            success => { --active; if (success) ++created; else ++failed; });
+                            success => { --active; if (success) { ++created; ++createdByRace[race]; } else ++failed; });
                     }
                     catch { --active; throw; }
                 }
@@ -141,27 +152,59 @@ namespace Game.Chat.Commands
 
         static void QueueSpawnAll(CommandHandler h)
         {
-            int generation = ++_spawnGeneration;
-            var accounts = BotAccounts();
-            if (accounts.Count == 0) { h.SendSysMessage("No known SI characters."); return; }
-            using SQLResult rows = DB.Characters.Query("SELECT guid FROM characters WHERE deleteInfos_Name IS NULL AND account IN (" +
-                string.Join(',', accounts.Keys.Select(id => unchecked((uint)id))) + ") ORDER BY guid");
-            var pending = new Queue<ObjectGuid>();
-            if (!rows.IsEmpty()) do { pending.Enqueue(ObjectGuid.Create(HighGuid.Player, rows.Read<long>(0))); } while (rows.NextRow());
-            int total = pending.Count, spawned = 0, skipped = 0, failed = 0;
-            Work.Enqueue(() =>
+            if (!SpawnQueue.TryBeginAll(out long generation))
+            { h.SendSysMessage("SI spawn all is already pending; continuing that batch."); return; }
+            bool queued = false;
+            try
             {
-                if (generation != _spawnGeneration) { h.SendSysMessage("Pending SI spawn-all request cancelled."); return true; }
-                if (!pending.TryDequeue(out var guid))
-                { h.SendSysMessage($"SI spawn all: {spawned} login(s) queued, {skipped} already online/loading, {failed} failed."); return true; }
-                var character = Global.CharacterCacheStorage.GetCharacterCacheByGuid(guid);
-                if (character == null || character.IsDeleted || Editing.Contains(guid)) { ++skipped; return false; }
-                if (Global.WorldMgr.FindSession(character.AccountId) != null) { ++skipped; return false; }
-                try { SpawnCharacter(h, guid); ++spawned; }
-                catch (Exception error) { ++failed; h.SendSysMessage($"SI spawn {guid.GetCounter()}: {error.Message}"); }
-                return false;
-            });
-            h.SendSysMessage($"Queued spawn all for {total} known SI characters; existing online/loading sessions are skipped.");
+                var accounts = BotAccounts();
+                if (accounts.Count == 0) { h.SendSysMessage("No known SI characters."); return; }
+                using SQLResult rows = DB.Characters.Query("SELECT guid FROM characters WHERE deleteInfos_Name IS NULL AND account IN (" +
+                    string.Join(',', accounts.Keys.Select(id => unchecked((uint)id))) + ") ORDER BY guid");
+                var pending = new Queue<ObjectGuid>();
+                var selectedAccounts = new HashSet<int>();
+                int spawned = 0, skipped = 0, failed = 0;
+                if (!rows.IsEmpty()) do
+                {
+                    var guid = ObjectGuid.Create(HighGuid.Player, rows.Read<long>(0));
+                    var character = Global.CharacterCacheStorage.GetCharacterCacheByGuid(guid);
+                    if (character == null || character.IsDeleted || Editing.Contains(guid) || !selectedAccounts.Add(character.AccountId)) { ++skipped; continue; }
+                    var session = Global.WorldMgr.FindSession(character.AccountId);
+                    if (SISpawnQueueState.SessionAction(session != null, session?.IsServerControlled == true,
+                        session?.PlayerDisconnected() == true, true) == SISpawnSessionAction.Skip) { ++skipped; continue; }
+                    pending.Enqueue(guid);
+                } while (rows.NextRow());
+                if (pending.Count == 0)
+                { h.SendSysMessage($"SI spawn all: no eligible offline characters; {skipped} already online/loading or unavailable."); return; }
+                int total = pending.Count;
+                long logoutDeadline = Environment.TickCount64 + 60000;
+                Work.Enqueue(() =>
+                {
+                    try
+                    {
+                        if (!SpawnQueue.IsCurrent(generation)) { SpawnQueue.CompleteAll(generation); return true; }
+                        if (!pending.TryDequeue(out var guid))
+                        {
+                            SpawnQueue.CompleteAll(generation);
+                            h.SendSysMessage($"SI spawn all: {spawned} login(s) queued, {skipped} already online/loading or unavailable, {failed} failed."); return true;
+                        }
+                        var character = Global.CharacterCacheStorage.GetCharacterCacheByGuid(guid);
+                        if (character == null || character.IsDeleted || Editing.Contains(guid)) { ++skipped; return false; }
+                        var session = Global.WorldMgr.FindSession(character.AccountId);
+                        var action = SISpawnQueueState.SessionAction(session != null, session?.IsServerControlled == true,
+                            session?.PlayerDisconnected() == true, Environment.TickCount64 < logoutDeadline);
+                        if (action == SISpawnSessionAction.WaitForLogout) { pending.Enqueue(guid); return false; }
+                        if (action == SISpawnSessionAction.Skip) { ++skipped; return false; }
+                        try { SpawnCharacter(h, guid); ++spawned; }
+                        catch (Exception error) { ++failed; h.SendSysMessage($"SI spawn {guid.GetCounter()}: {error.Message}"); }
+                        return false;
+                    }
+                    catch { SpawnQueue.CompleteAll(generation); throw; }
+                });
+                queued = true;
+                h.SendSysMessage($"Queued spawn all for {total} eligible SI characters; closing SI sessions are allowed to finish logout first.");
+            }
+            finally { if (!queued) SpawnQueue.CompleteAll(generation); }
         }
 
         internal static int SpawnCountArgument(string text)
@@ -198,10 +241,11 @@ namespace Game.Chat.Commands
                 {
                     if (selectedAccounts.Add(Global.CharacterCacheStorage.GetCharacterCacheByGuid(guid).AccountId)) pending.Enqueue(guid);
                 }
-                int generation = _spawnGeneration, spawned = 0, failed = 0;
+                long generation = SpawnQueue.Generation;
+                int spawned = 0, failed = 0;
                 Work.Enqueue(() =>
                 {
-                    if (generation != _spawnGeneration) { h.SendSysMessage("Pending SI spawncount request cancelled."); return true; }
+                    if (!SpawnQueue.IsCurrent(generation)) return true;
                     if (spawned == requested || !pending.TryDequeue(out var guid))
                     {
                         h.SendSysMessage($"SI spawncount: {spawned}/{requested} random offline character login(s) queued; {failed} failed." +

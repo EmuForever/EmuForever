@@ -7,7 +7,7 @@ namespace Game.AI
         public static bool Important(string type) => type is "trainer_query_failed" or "idle_recovery" or "slow_update" or
             "corpse_recovery_fallback" or "engaged_task_replaced" or "recovery_blocked" or "preparation_supply_failed" or
             "navigation_overlap_recovery" or "navigation_blocked" or "navigation_failed" or "interaction_failed" or "loot_failed" or
-            "combat_failed" or "cast_rejected" or "quest_target_blocked" or "quest_task_failed";
+            "combat_failed" or "cast_rejected" or "quest_target_blocked" or "quest_task_failed" or "bank_withdraw_blocked";
     }
 
     // The compiler skips interpolation arguments altogether for routine events.

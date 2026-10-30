@@ -2,17 +2,16 @@ using System;
 
 namespace Game.AI
 {
-    public enum SIVendorPurpose { Sell, Repair, Restock, Ammunition, Bank, Auction }
+    public enum SIVendorPurpose { Sell, Repair, Restock, Ammunition, Bank, Auction, Supplies, Withdraw }
 
     public static class SIVendorPolicy
     {
         public static bool ShouldFundRepair(bool repairNeeded, long repairCost, long money, bool hasJunk) =>
             repairNeeded && repairCost > money && hasJunk;
-        public static bool ShouldSell(uint freeSlots, int totalSlots, bool hasJunk, bool vendorInRange, int reserveSlots) =>
+        public static bool ShouldSell(int totalSlots, bool hasJunk, bool vendorInRange) =>
             hasJunk && vendorInRange && totalSlots > 0;
         public static bool BagPressure(uint freeSlots,int reserveSlots,bool hasJunk)=>hasJunk&&reserveSlots>0&&freeSlots<=reserveSlots;
         public static bool LocalSaleRange(float distance)=>float.IsFinite(distance)&&distance>=0&&distance<=20;
-        public static bool ShouldLeaveForRepair(int broken, int repairable) => repairable > 0 && broken == repairable;
 
         // The core's BuyItemFromVendorSlot takes item units. Template price is for BuyCount units.
         // Keep half the character's money for repairs/training and never exceed the packet byte count.

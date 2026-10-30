@@ -1,4 +1,3 @@
-using Framework.Constants;
 using System.Numerics;
 
 namespace Game.AI
@@ -22,6 +21,7 @@ namespace Game.AI
             // Rest, casts, combat and corpse reclaim are owned waits. Task selection
             // alone is not progress: selecting the same impossible task cannot reset this.
             if (_operatorControlled || !me.IsAlive() || me.IsInCombat() || me.IsBeingTeleported() ||
+                PartyFollowing && !PartyErrand ||
                 !_preparation.Complete || _encounter.Active || _recovering || _resting ||
                 me.IsNonMeleeSpellCast(false, skipAutorepeat: true) ||
                 NavigationPending || Now - _lastMotionProgress < 45000 || Now - _lastActionProgress < 45000)

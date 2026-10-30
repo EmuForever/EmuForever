@@ -1,4 +1,4 @@
-﻿using Framework.Constants;
+using Framework.Constants;
 using Game.Entities;
 using Game.Spells;
 using System;
@@ -69,18 +69,18 @@ namespace Game.AI
         static bool HasNamedAura(Unit target, string name) =>
             target.GetAppliedAuras().Any(pair => SpellName(pair.Value.GetBase().GetSpellInfo()) == name);
 
-        static bool IsHeal(SpellInfo spell) => spell.GetEffects().Any(effect => effect.Effect is SpellEffectName.Heal or SpellEffectName.HealMaxHealth ||
-            effect.IsAura(AuraType.PeriodicHeal));
+        static bool IsHeal(SpellInfo spell) => !WarlockRoutine.IsHealthFunnel(spell) &&
+            spell.GetEffects().Any(effect => effect.Effect is SpellEffectName.Heal or SpellEffectName.HealMaxHealth ||
+                effect.IsAura(AuraType.PeriodicHeal));
         static bool IsShield(SpellInfo spell) => spell.GetEffects().Any(effect => effect.IsAura(AuraType.SchoolAbsorb));
-        static bool IsDamage(SpellInfo spell) =>
-            spell.GetEffects().Any(effect => effect.Effect is SpellEffectName.SchoolDamage or SpellEffectName.HealthLeech or
-                SpellEffectName.WeaponDamageNoSchool or SpellEffectName.WeaponPercentDamage or SpellEffectName.WeaponDamage or
-                SpellEffectName.NormalizedWeaponDmg || effect.IsAura(AuraType.PeriodicDamage) || effect.IsAura(AuraType.PeriodicLeech)) &&
+        static bool DirectDamageEffect(SpellEffectInfo effect) => effect.Effect is SpellEffectName.SchoolDamage or SpellEffectName.HealthLeech or
+            SpellEffectName.WeaponDamageNoSchool or SpellEffectName.WeaponPercentDamage or SpellEffectName.WeaponDamage or SpellEffectName.NormalizedWeaponDmg;
+        static bool DamageEffect(SpellEffectInfo effect) => DirectDamageEffect(effect) ||
+            effect.IsAura(AuraType.PeriodicDamage) || effect.IsAura(AuraType.PeriodicLeech);
+        // Single-target damage only: area spells would pull everything around the target.
+        static bool IsDamage(SpellInfo spell) => spell.GetEffects().Any(DamageEffect) &&
             !spell.GetEffects().Any(effect => effect.HasRadius(SpellTargetIndex.TargetA) || effect.HasRadius(SpellTargetIndex.TargetB));
-
-        static bool HasDirectDamage(SpellInfo spell) => spell.GetEffects().Any(effect => effect.Effect is
-            SpellEffectName.SchoolDamage or SpellEffectName.HealthLeech or SpellEffectName.WeaponDamageNoSchool or
-            SpellEffectName.WeaponPercentDamage or SpellEffectName.WeaponDamage or SpellEffectName.NormalizedWeaponDmg);
+        static bool HasDirectDamage(SpellInfo spell) => spell.GetEffects().Any(DirectDamageEffect);
 
         // Fireball/Regrowth/Judgement can be used again while their secondary aura persists.
         // Pure aura actions and explicit DoT rules still wait for the aura to expire.
@@ -89,10 +89,7 @@ namespace Game.AI
 
         float DamageScore(SIClassStrategy strategy, SpellInfo spell)
         {
-            float damage = spell.GetEffects().Where(effect => effect.Effect is SpellEffectName.SchoolDamage or SpellEffectName.HealthLeech or
-                SpellEffectName.WeaponDamageNoSchool or SpellEffectName.WeaponPercentDamage or SpellEffectName.WeaponDamage or
-                SpellEffectName.NormalizedWeaponDmg || effect.IsAura(AuraType.PeriodicDamage) || effect.IsAura(AuraType.PeriodicLeech))
-                .Sum(effect => Math.Max(1, Math.Abs(effect.CalcValue(me))));
+            float damage = spell.GetEffects().Where(DamageEffect).Sum(effect => Math.Max(1, Math.Abs(effect.CalcValue(me))));
             float castSeconds = spell.CastTimeEntry != null ? spell.CastTimeEntry.Base / 1000f : 0;
             float score = damage / Math.Max(1, castSeconds + 1.5f);
             if ((spell.SchoolMask & strategy.PreferredSchool) != 0) score *= 1.2f;
@@ -151,23 +148,27 @@ namespace Game.AI
         // Ordinary CheckCast validates power, cooldown, reagents, range, sight and the spell's target.
         bool Cast(SpellInfo spell, Unit target)
         {
+            if (WarlockRoutine.IsHealthFunnel(spell) && !CanHealthFunnelAt(target)) return false;
             if (spell != null && spell.IsRangedWeaponSpell() && HunterNeedsMelee(target)) return false;
             if (spell == null || target == null || !me.IsAlive() || me.IsNonMeleeSpellCast(false, skipAutorepeat: true) || !me.HasSpell(spell.Id) ||
                 me.GetSpellHistory().HasGlobalCooldown(spell) || !me.GetSpellHistory().IsReady(spell) || !CanResourceCast(spell)) return false;
             if (BreaksMagePolymorph(spell, target)) return false;
+            if (target != me && !spell.HasAttribute(SpellAttr2.IgnoreLineOfSight) && !CombatSight(target)) return false;
             if (spell.GetEffects().All(effect => effect.IsAura()) && target.HasAura(spell.Id, me.GetGUID())) return false;
             Spell cast = new(me, spell, TriggerCastFlags.None);
             if (cast.CheckUnitTargetRange(target) != SpellCastResult.SpellCastOk) return false;
-            if (spell.CastTimeEntry != null && spell.CastTimeEntry.Base > 0 && me.IsMoving() &&
-                cast.CheckPetCast(target) is SpellCastResult.SpellCastOk or SpellCastResult.Moving or SpellCastResult.UnitNotInfront)
+            bool castTime = spell.CastTimeEntry != null && spell.CastTimeEntry.Base > 0;
+            SpellCastResult check = cast.CheckPetCast(target);
+            // A cast-time spell that only fails because the bot is walking stops the walk and checks again.
+            if (castTime && me.IsMoving() && check is SpellCastResult.SpellCastOk or SpellCastResult.Moving or SpellCastResult.UnitNotInfront)
             {
                 me.GetMotionMaster().Clear();
                 me.StopMoving();
+                check = cast.CheckPetCast(target);
             }
-            SpellCastResult check = cast.CheckPetCast(target);
             if (check == SpellCastResult.NotStanding && target == me && !HasUsefulRecoveryAura())
             {
-                me.SetStandState(UnitStandStateType.Stand);
+                StandUp();
                 check = cast.CheckPetCast(target);
             }
             if (check == SpellCastResult.UnitNotInfront && !me.HasUnitState(UnitState.CannotTurn))
@@ -185,12 +186,30 @@ namespace Game.AI
                 }
                 return false;
             }
-            if (spell.CastTimeEntry != null && spell.CastTimeEntry.Base > 0) me.StopMoving();
-            if (me.GetStandState() != UnitStandStateType.Stand) me.SetStandState(UnitStandStateType.Stand);
+            if (castTime) me.StopMoving();
+            StandUp();
             DoCastAtTarget((cast, target));
             _nextRoutineAction = Now + 250;
             _lastRoutineSpell = spell;
             return true;
+        }
+
+        bool CanHealthFunnelAt(Unit target)
+        {
+            Pet pet = me.GetPet();
+            return target != null && target == pet && me.IsAlive() &&
+                WarlockRoutine.CanHealthFunnel(pet != null, pet?.IsAlive() == true,
+                    pet?.GetHealthPct() / 100f ?? 1, me.GetHealthPct() / 100f);
+        }
+
+        void StopUnsafeHealthFunnel()
+        {
+            if (me.GetClass() != Class.Warlock) return;
+            Spell channel = me.GetCurrentSpell(CurrentSpellTypes.Channeled);
+            if (channel == null || !WarlockRoutine.IsHealthFunnel(channel.GetSpellInfo())) return;
+            Pet pet = me.GetPet();
+            if (!CanHealthFunnelAt(pet) || channel.m_targets.GetUnitTargetGUID() != pet.GetGUID())
+                me.InterruptSpell(CurrentSpellTypes.Channeled);
         }
 
         bool TryClassAction(SICombatActionStage stage, Unit enemy = null)
@@ -232,8 +251,7 @@ namespace Game.AI
                 _classRetryAt[(rule.Name, target.GetGUID())] = Now + 750;
             }
             if (_classRetryAt.Count > 512)
-                foreach (var key in _classRetryAt.Where(pair => pair.Value < Now).Select(pair => pair.Key).ToArray())
-                    _classRetryAt.Remove(key);
+                PruneExpired(_classRetryAt);
             return false;
         }
 
@@ -253,12 +271,26 @@ namespace Game.AI
         // Long-lived maintenance auras only; short cooldown defensives and heals belong to combat/recovery.
         static bool IsMaintenanceBuff(SpellInfo spell) => spell.IsPositive() && !spell.IsChanneled() &&
             !IsHeal(spell) && !IsShield(spell) &&
-            (spell.GetDuration() < 0 || spell.GetDuration() >= 300000) &&
+            SISelfBuffPolicy.Sustainable(spell.GetDuration(), spell.GetRecoveryTime(), spell.ProcCharges) &&
             spell.GetEffects().Count > 0 && spell.GetEffects().All(effect => effect.IsAura()) &&
             !spell.HasAura(AuraType.Mounted) && !spell.HasAura(AuraType.ModShapeshift) && !spell.HasAura(AuraType.ModStealth);
 
         // Out-of-combat maintenance: one successful cast per tick, through normal spell validation.
         long _nextBuffAction;
+        bool ConflictsWithActiveBuff(SpellInfo spell) => me.GetAppliedAuras().Any(pair =>
+        {
+            var active=pair.Value.GetBase();
+            var info=active.GetSpellInfo();
+            if(spell.IsAuraExclusiveBySpecificWith(info)||spell.IsAuraExclusiveBySpecificPerCasterWith(info))return true;
+            var rule=Global.SpellMgr.CheckSpellGroupStackRules(spell,info);
+            return rule is SpellGroupStackRule.Exclusive or SpellGroupStackRule.ExclusiveHighest ||
+                rule==SpellGroupStackRule.ExclusiveFromSameCaster && active.GetCasterGUID()==me.GetGUID();
+        });
+        // Learned long-lived self buffs that the class routine does not manage and that are missing now.
+        // Mutually exclusive armor, seals, blessings, aspects, etc. never replace one another.
+        IEnumerable<SpellInfo> MissingMaintenanceBuffs() => _knownSpells.Where(spell => IsMaintenanceBuff(spell) &&
+            !ClassRoutine.ManagedBuffs.Contains(SpellName(spell)) && !HasCurrentBuff(me, SpellName(spell)) && !ConflictsWithActiveBuff(spell));
+
         bool SelfBuffsPending()
         {
             var facts=ClassCombatFacts(null);
@@ -269,14 +301,7 @@ namespace Game.AI
                 if(rule.Alternatives.Any(name=>HasCurrentBuff(me,name)))continue;
                 if(rule.Alternatives.Any(name=>_classSpells.ContainsKey(name)))return true;
             }
-            var managed=ClassRoutine.Rules.Where(rule=>rule.MissingAura).SelectMany(rule=>rule.Alternatives).ToHashSet(StringComparer.Ordinal);
-            foreach(var spell in _knownSpells)
-            {
-                if(!IsMaintenanceBuff(spell)||managed.Contains(SpellName(spell))||HasCurrentBuff(me,SpellName(spell)))continue;
-                if(!me.GetAppliedAuras().Any(pair=>spell.IsAuraExclusiveBySpecificWith(pair.Value.GetBase().GetSpellInfo())||
-                    spell.IsAuraExclusiveBySpecificPerCasterWith(pair.Value.GetBase().GetSpellInfo())))return true;
-            }
-            return false;
+            return MissingMaintenanceBuffs().Any();
         }
 
         bool Buff()
@@ -291,17 +316,9 @@ namespace Game.AI
             if (TryClassAction(SICombatActionStage.PreCombatBuff))
             { _nextBuffAction = Now + 1600; return true; }
 
-            var managed = ClassRoutine.Rules.Where(rule => rule.MissingAura)
-                .SelectMany(rule => rule.Alternatives).ToHashSet(StringComparer.Ordinal);
-            foreach (SpellInfo spell in _knownSpells)
-            {
-                if (!IsMaintenanceBuff(spell) || managed.Contains(SpellName(spell)) || HasCurrentBuff(me, SpellName(spell))) continue;
-                // Keep mutually exclusive armor, seals, blessings, aspects, etc. from replacing one another.
-                if (me.GetAppliedAuras().Any(pair => spell.IsAuraExclusiveBySpecificWith(pair.Value.GetBase().GetSpellInfo()) ||
-                    spell.IsAuraExclusiveBySpecificPerCasterWith(pair.Value.GetBase().GetSpellInfo()))) continue;
+            foreach (SpellInfo spell in MissingMaintenanceBuffs())
                 if (Cast(spell, me))
                 { _nextBuffAction = Now + 1600; return true; }
-            }
             return false;
         }
 
@@ -407,25 +424,26 @@ namespace Game.AI
             // encounter's earlier range observation. Recheck before attacks,
             // including pet commands, rather than repeatedly casting from here.
             float range=CombatApproachRange(target,_encounter.ForceMelee);
-            bool sight=me.IsWithinLOSInMap(target);
+            bool sight=CombatSight(target);
             if(me.GetExactDist(target)>range||!sight)
-                return Travel(target.GetPosition(),"Getting into attack range",sight?range:.5f,destinationTolerance:1);
+                return ApproachInRange(target,range,sight,"Getting into attack range");
             CommandPetAttack(target);
             // Auto Shot is a persistent auto-repeat, not a cast that should freeze
             // the combat routine. Cancel it before considering close-range attacks.
-            if (HunterNeedsMelee(target)) me.InterruptSpell(CurrentSpellTypes.AutoRepeat);
+            if (HunterNeedsMelee(target) || me.IsWithinMeleeRange(target)) me.InterruptSpell(CurrentSpellTypes.AutoRepeat);
             if (me.IsNonMeleeSpellCast(false, skipAutorepeat: true)) return SIBehaviorResult.Running;
-            if (me.GetStandState() != UnitStandStateType.Stand) me.SetStandState(UnitStandStateType.Stand);
-            if (me.IsMounted()) me.RemoveAurasByType(AuraType.Mounted);
-            if (!me.HasUnitState(UnitState.CannotTurn)) me.SetFacingToObject(target);
-            me.SetSelection(target.GetGUID());
+            StandUp(); Dismount();
+            FaceTarget(target);
             me.Attack(target, true);
             if (me.GetVictim() != target) return SIBehaviorResult.Failure;
-            bool ranged = !ActiveClassStrategy().Melee && !HunterNeedsMelee(target) && me.GetItemByPos(EquipmentSlot.Ranged) != null;
+            bool ranged = SICombatSpacing.RangedAutoAttack(ActiveClassStrategy().Melee, HunterNeedsMelee(target),
+                me.GetItemByPos(EquipmentSlot.Ranged) != null, me.IsWithinMeleeRange(target));
             SetIsRangedAttacker(ranged);
             if (!ranged && me.GetClass() == Class.Hunter) me.InterruptSpell(CurrentSpellTypes.AutoRepeat);
-            SIRoutineExecution.Fight(me.IsInCombat(), stage => TickRoutinePhase(stage, target));
+            // Take an available close-range swing before starting another cast.
+            // Starting a cast first could suppress this fallback on every tick.
             me.DoMeleeAttackIfReady();
+            SIRoutineExecution.Fight(me.IsInCombat(), stage => TickRoutinePhase(stage, target));
             DoAutoAttackIfReady();
             return SIBehaviorResult.Running;
         }
@@ -445,6 +463,13 @@ namespace Game.AI
             if (me.IsNonMeleeSpellCast(false, skipAutorepeat: true) || stage != SICombatActionStage.Reaction &&
                 (Now < _nextRoutineAction || _lastRoutineSpell != null && me.GetSpellHistory().HasGlobalCooldown(_lastRoutineSpell)))
                 return SIBehaviorResult.Running;
+            // On trivial creatures try ready instant damage before the class
+            // opener/rotation can commit to a long cast. The normal cast gate
+            // still decides range, resources, cooldowns and target legality.
+            if(target!=null&&(stage is SICombatActionStage.Pull or SICombatActionStage.Combat)&&
+                SIInstantAttackPolicy.Prefer(me.GetLevel(),target.GetLevel(),target is Creature))
+                foreach(var spell in OffensiveSpells(target).Where(SIInstantAttackPolicy.Instant))
+                    if(Cast(spell,target))return SIBehaviorResult.Running;
             bool acted = stage switch
             {
                 SICombatActionStage.Rest => Recuperate() || Rest(),

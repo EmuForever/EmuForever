@@ -1,9 +1,7 @@
 using Framework.Constants;
 using Game.Entities;
-using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
-using System.Linq;
 
 namespace Game.AI
 {
@@ -41,7 +39,7 @@ namespace Game.AI
             while (replies++ < 8 && _whisperSenders.TryDequeue(out ObjectGuid sender))
             {
                 Player recipient = Global.ObjAccessor.FindConnectedPlayer(sender);
-                if (recipient == null || recipient.GetSession().IsServerControlled) continue;
+                if (recipient == null || recipient.GetSession().IsSIControlled) continue;
                 me.Whisper(WhisperStatus(me.GetMapId(), me.GetPosition(), _goal, Activity,
                     me.GetRewardedQuestCount(), QuestsCompleted, Kills), Language.Universal, recipient);
             }

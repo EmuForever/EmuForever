@@ -1,6 +1,5 @@
 using Framework.Constants;
 using System;
-using System.Collections.Generic;
 
 namespace Game.AI
 {
@@ -17,7 +16,7 @@ namespace Game.AI
         PetDead = 524288, PetHurt = 1048576, Fear = 2097152, Rooted = 4194304,
         HighRage = 8388608, SelfDebuff = 16777216, EnemyBuff = 33554432,
         Cat = 67108864, Bear = 134217728, Caster = 268435456,
-        Energy = 536870912
+        Energy = 536870912, PetCriticalHealth = 1073741824
     }
 
     public enum SICombatActionTarget { Enemy, Self, Pet }
@@ -48,6 +47,8 @@ namespace Game.AI
             if (Has(SICombatCondition.RootedEnemy) && !RootedEnemy || Has(SICombatCondition.Multiple) && Attackers < 3) return false;
             if (Has(SICombatCondition.PetAbsent) && HasPet || Has(SICombatCondition.PetDead) && !PetDead) return false;
             if (Has(SICombatCondition.PetHurt) && (!HasPet || PetDead || PetHealth >= .6f)) return false;
+            if (Has(SICombatCondition.PetCriticalHealth) &&
+                (!HasPet || PetDead || !(PetHealth > 0 && PetHealth < .25f))) return false;
             if (Has(SICombatCondition.Fear) && !Feared || Has(SICombatCondition.Rooted) && !Rooted) return false;
             if (Has(SICombatCondition.HighRage) && Rage < 500 || Has(SICombatCondition.Energy) && Energy < 45) return false;
             if (Has(SICombatCondition.SelfDebuff) && !SelfDebuff || Has(SICombatCondition.EnemyBuff) && !EnemyBuff) return false;
@@ -113,8 +114,6 @@ namespace Game.AI
     {
         public const float MinimumHealth = .9f;
         public const float MinimumMana = .6f;
-        public static bool RecoveryReady(float healthPercent, float manaPercent, bool usesMana) =>
-            healthPercent / 100 >= MinimumHealth && (!usesMana || manaPercent / 100 >= MinimumMana);
         public static SIPullAssessment Assess(int playerLevel, int creatureLevel,
             CreatureClassifications classification, float health, float mana, bool usesMana,
             int additionalThreats, bool learnedDanger, bool recovering, bool questTarget = false)

@@ -21,7 +21,6 @@ namespace Game.AI
         readonly Dictionary<long, long> _missingSpawns = new();
         readonly Dictionary<ObjectGuid, long> _usedObjects = new();
         readonly Dictionary<(int Quest, int Objective, ObjectGuid Target), long> _objectiveRetryAt = new();
-        int _activeQuest, _activeObjective;
         long _nextNearbyQuestScan;
         long _nextQuestLevelCheck;
         Position _questPickupAnchor;
@@ -40,7 +39,7 @@ namespace Game.AI
             return CanCollectQuestBatch(pending, _workingQuestBatch);
         }
 
-        public string Plan => _task?.Label ?? "none";
+        public string Plan => PartyFollowing && !PartyErrand ? Status : _auctionMailDestination.HasValue ? "Collect auction purchases" : _task?.Label ?? "none";
 
         static SIQuestKnowledge Knowledge => SIQuestKnowledge.Instance;
 
@@ -84,12 +83,13 @@ namespace Game.AI
             if (Now < _nextQuestLevelCheck) return;
             _nextQuestLevelCheck = Now + 5000;
             foreach (var (_, quest) in QuestLog().ToArray())
-                if (me.GetQuestStatus(quest.Id)==QuestStatus.Incomplete&&SIQuestPolicy.TooLow(me.GetLevel(), QuestLevel(quest)))
+                if(CollectsCloth(quest))AbandonQuest(quest,"Cloth collection quests are excluded from SI questing");
+                else if (me.GetQuestStatus(quest.Id)==QuestStatus.Incomplete&&SIQuestPolicy.TooLow(me.GetLevel(), QuestLevel(quest)))
                     AbandonQuest(quest, $"Quest level {QuestLevel(quest)} is at least five below player level {me.GetLevel()}");
             // Keep higher-level quests in the log for later, but never pursue them now.
-            if (_task?.Quest is Quest current && !QuestLevelEligible(current)) { SetTask(null); _nextReplan = 0; }
-            if (_suspendedTask?.Quest is Quest suspended && !QuestLevelEligible(suspended)) _suspendedTask = null;
-            if (_trainingReturnTask?.Quest is Quest trainingReturn && !QuestLevelEligible(trainingReturn)) _trainingReturnTask = null;
+            if (_task?.Quest is Quest current && me.GetQuestStatus(current.Id)!=QuestStatus.Complete && !QuestLevelEligible(current)) { SetTask(null); _nextReplan = 0; }
+            if (_suspendedTask?.Quest is Quest suspended && me.GetQuestStatus(suspended.Id)!=QuestStatus.Complete && !QuestLevelEligible(suspended)) _suspendedTask = null;
+            if (_trainingReturnTask?.Quest is Quest trainingReturn && me.GetQuestStatus(trainingReturn.Id)!=QuestStatus.Complete && !QuestLevelEligible(trainingReturn)) _trainingReturnTask = null;
         }
 
         string QuestWaitStatus()
@@ -122,13 +122,15 @@ namespace Game.AI
         bool SpawnAvailable(SISpawn spawn) => !_missingSpawns.TryGetValue(spawn.SpawnId * 2 + (spawn.GameObject ? 1 : 0), out long until) || until <= Now;
         void MarkMissing(SISpawn spawn, long milliseconds) => _missingSpawns[spawn.SpawnId * 2 + (spawn.GameObject ? 1 : 0)] = Now + milliseconds;
 
-        SISpawn? NearestSpawn(IEnumerable<int> creatures, IEnumerable<int> objects, bool friendly)
+        SISpawn? NearestSpawn(IEnumerable<int> creatures, IEnumerable<int> objects, bool friendly,Func<SISpawn,bool> allowed=null)
         {
             SISpawn? best = null;
             float bestDistance = float.MaxValue;
             foreach (SISpawn spawn in Knowledge.Spawns(creatures, objects, me.GetMapId()))
             {
+                if(allowed!=null&&!allowed(spawn))continue;
                 if (!SpawnAvailable(spawn) || IsLearnedRouteBlocked(P(spawn.Position))) continue;
+                if (!SocialServiceAllowed(spawn)) continue;
                 if (friendly && !spawn.GameObject && !FriendlyTemplate(spawn.Entry)) continue;
                 float distance = Distance(spawn.Position);
                 if (distance < bestDistance) { bestDistance = distance; best = spawn; }
@@ -143,14 +145,12 @@ namespace Game.AI
             return count;
         }
 
-        bool WantsQuest(Quest quest)
-        {
-            return QuestRejection(quest) == null;
-        }
+        bool WantsQuest(Quest quest) => QuestRejection(quest) == null;
 
         string QuestRejection(Quest quest)
         {
             if (quest == null) return "Missing quest template";
+            if(CollectsCloth(quest))return "Cloth collection quests are excluded";
             if (_abandonedQuests.Contains(quest.Id)) return "Previously abandoned after repeated failures";
             if (me.GetQuestStatus(quest.Id) != QuestStatus.None) return "Already accepted or rewarded";
             // The core hides disabled quests from givers; planning a trip for one loops at the NPC.
@@ -193,6 +193,7 @@ namespace Game.AI
         }
         bool NearbyQuestInteraction()
         {
+            if(CommittedToJourney())return false;
             if(me.IsInCombat()||_encounter.Active||Now<_nextNearbyQuestScan)return false;
             if(CommittedToObjective())return false;
             if(_task!=null&&!TaskDone(_task)&&(_task.Kind is SITaskKind.PickUp or SITaskKind.TurnIn or SITaskKind.Train or SITaskKind.Vendor))return false;
@@ -202,12 +203,12 @@ namespace Game.AI
             // Most nearby objects offer no quests at all; reject them by entry before the
             // visibility, faction and route checks, which dominated this scan's cost.
             var givers=NearbyCreatures(QuestPickupRadius).Cast<WorldObject>().Concat(NearbyObjects(QuestPickupRadius))
-                .Where(g=>OffersQuests(g)&&me.GetExactDist(g)<=QuestPickupRadius&&me.CanSeeOrDetect(g,distanceCheck:false)&&!me.IsHostileTo(g)&&
+                .Where(g=>OffersQuests(g)&&(me.GetZoneId()==0||QuestPointZone(V(g.GetPosition()))==me.GetZoneId())&&me.GetExactDist(g)<=QuestPickupRadius&&me.CanSeeOrDetect(g,distanceCheck:false)&&!me.IsHostileTo(g)&&
                     SpawnAvailable(SpawnOf(g))&&!IsLearnedRouteBlocked(g.GetPosition())&&
                     (g is not Creature c||c.IsAlive())&&(g is not GameObject o||o.IsSpawned())).OrderBy(me.GetDistance);
             foreach(var giver in givers)
             {
-                var offers=giver.IsCreature()?Global.ObjectMgr.GetCreatureQuestRelations(giver.GetEntry()):Global.ObjectMgr.GetGOQuestRelations(giver.GetEntry());
+                var offers=QuestRelations(giver);
                 int id=offers.FirstOrDefault(id=>offers.HasQuest(id)&&MayRetryQuestInteraction(id,giver.GetGUID())&&
                     MayPickUpLocalQuest(Global.ObjectMgr.GetQuestTemplate(id))&&
                     (!collecting||WithinQuestPickupArea(_questPickupAnchor,giver.GetPosition(),QuestPickupRadius)));
@@ -224,13 +225,16 @@ namespace Game.AI
         SISpawn SpawnOf(WorldObject target) => new(me.GetMapId(), V(target.GetPosition()),
             target is Creature creature ? creature.GetSpawnId() : target.ToGameObject().GetSpawnId(), target.GetEntry(), target is GameObject);
 
+        // Quests a creature or object starts, or (involved) finishes.
+        static QuestRelationResult QuestRelations(WorldObject giver, bool involved = false) => giver.IsCreature()
+            ? (involved ? Global.ObjectMgr.GetCreatureQuestInvolvedRelations(giver.GetEntry()) : Global.ObjectMgr.GetCreatureQuestRelations(giver.GetEntry()))
+            : (involved ? Global.ObjectMgr.GetGOQuestInvolvedRelations(giver.GetEntry()) : Global.ObjectMgr.GetGOQuestRelations(giver.GetEntry()));
+
         bool QuestGiverHasWork(WorldObject giver, bool turnIn)
         {
-            var quests = giver.IsCreature()
-                ? (turnIn ? Global.ObjectMgr.GetCreatureQuestInvolvedRelations(giver.GetEntry()) : Global.ObjectMgr.GetCreatureQuestRelations(giver.GetEntry()))
-                : (turnIn ? Global.ObjectMgr.GetGOQuestInvolvedRelations(giver.GetEntry()) : Global.ObjectMgr.GetGOQuestRelations(giver.GetEntry()));
+            var quests = QuestRelations(giver, turnIn);
             return quests.Any(id => quests.HasQuest(id) && MayRetryQuestInteraction(id, giver.GetGUID()) && (turnIn
-                ? me.GetQuestStatus(id) == QuestStatus.Complete && QuestLevelEligible(Global.ObjectMgr.GetQuestTemplate(id))
+                ? me.GetQuestStatus(id) == QuestStatus.Complete && !CollectsCloth(Global.ObjectMgr.GetQuestTemplate(id))
                 : WantsQuest(Global.ObjectMgr.GetQuestTemplate(id))));
         }
 
@@ -250,7 +254,7 @@ namespace Game.AI
             switch (task.Kind)
             {
                 case SITaskKind.PickUp: return me.GetQuestStatus(task.Quest.Id) != QuestStatus.None || !WantsQuest(task.Quest);
-                case SITaskKind.TurnIn: return !QuestLevelEligible(task.Quest) || me.GetQuestStatus(task.Quest.Id) != QuestStatus.Complete;
+                case SITaskKind.TurnIn: return CollectsCloth(task.Quest) || me.GetQuestStatus(task.Quest.Id) != QuestStatus.Complete;
                 case SITaskKind.Objective:
                     ushort slot = me.FindQuestSlot(task.Quest.Id);
                     return !QuestLevelEligible(task.Quest) || slot >= SharedConst.MaxQuestLogSize || me.GetQuestStatus(task.Quest.Id) != QuestStatus.Incomplete ||
@@ -263,9 +267,11 @@ namespace Game.AI
                     SIVendorPurpose.Repair => !NeedsRepair(),
                     SIVendorPurpose.Ammunition => !NeedsAmmunition(),
                     SIVendorPurpose.Bank => StorageItems(SIVendorPurpose.Bank).Count == 0,
-                    SIVendorPurpose.Auction => StorageItems(SIVendorPurpose.Auction).Count == 0,
+                    SIVendorPurpose.Auction => false, // A nearby AH visit may be buying only; execute it once.
+                    SIVendorPurpose.Supplies or SIVendorPurpose.Withdraw => false,
                     _ => !NeedsRestock()
                 };
+                case SITaskKind.ProfessionTrain: return task.InteractionCompleted;
                 default: return false;
             }
         }
@@ -280,13 +286,11 @@ namespace Game.AI
         List<SITask> Candidates()
         {
             var tasks = new List<SITask>();
-            int map = me.GetMapId();
-            int level = me.GetLevel();
 
             // Turn-ins.
-            foreach (var (slot, quest) in QuestLog())
+            foreach (var (_, quest) in QuestLog())
             {
-                if (!QuestLevelEligible(quest) || me.GetQuestStatus(quest.Id) != QuestStatus.Complete) continue;
+                if (CollectsCloth(quest) || me.GetQuestStatus(quest.Id) != QuestStatus.Complete) continue;
                 SISpawn? ender = NearestSpawn(Knowledge.CreatureEnders(quest.Id), Knowledge.ObjectEnders(quest.Id), true);
                 if (ender == null) continue;
                 tasks.Add(new SITask { Kind = SITaskKind.TurnIn, Quest = quest, Destination = ender,
@@ -297,7 +301,7 @@ namespace Game.AI
             // Objectives of quests in the log.
             foreach (var (slot, quest) in QuestLog())
             {
-                if (!QuestLevelEligible(quest) || me.GetQuestStatus(quest.Id) != QuestStatus.Incomplete) continue;
+                if (CollectsCloth(quest)||!QuestLevelEligible(quest) || me.GetQuestStatus(quest.Id) != QuestStatus.Incomplete) continue;
                 SIQuestPlan plan = Knowledge.Plan(quest);
                 foreach (SIObjectivePlan objective in plan.Objectives)
                 {
@@ -312,7 +316,7 @@ namespace Game.AI
 
             // Upkeep is owned by TickVendorBehavior: bag pressure must not add a
             // cross-zone vendor destination to an otherwise local quest plan.
-            tasks.RemoveAll(task => Blacklisted(task.Key));
+            tasks.RemoveAll(task => Blacklisted(task.Key)||!QuestDestinationAllowed(task));
             return tasks;
         }
 
@@ -335,6 +339,7 @@ namespace Game.AI
                         objects.AddRange(objective.Objects);
                         break;
                     case SIObjectiveSource.Vendor:
+                        if(!SIProfessionBatchPolicy.VendorAllowed(objective.Objective.ObjectID))break;
                         if (nearbyTarget != null) break;
                         SISpawn? vendor = NearestSpawn(objective.Vendors, Array.Empty<int>(), true);
                         if (vendor != null)
@@ -345,11 +350,9 @@ namespace Game.AI
                 }
             var task = new SITask { Kind = SITaskKind.Objective, Quest = quest, Objective = objective,
                 Creatures = creatures.Distinct().ToArray(), Objects = objects.Distinct().ToArray() };
-            bool needsEnemy = objective.Sources.Any(source => source is SIObjectiveSource.Kill or SIObjectiveSource.CreatureDrop) &&
-                !objective.Sources.Contains(SIObjectiveSource.UseItem);
+            bool killSource = objective.Sources.Any(source => source is SIObjectiveSource.Kill or SIObjectiveSource.CreatureDrop);
             var points = Knowledge.Spawns(task.Creatures, task.Objects, me.GetMapId()).Where(SpawnAvailable)
-                .Where(spawn => !needsEnemy || spawn.GameObject || SpawnCanProvideEnemy(spawn))
-                .Where(spawn=>spawn.GameObject||!objective.Sources.Any(source=>source is SIObjectiveSource.Kill or SIObjectiveSource.CreatureDrop)||SpawnCanProvideEnemy(spawn))
+                .Where(spawn => spawn.GameObject || !killSource || SpawnCanProvideEnemy(spawn))
                 .Where(spawn=>!spawn.GameObject||me.GetMap().GetGameObjectBySpawnId(spawn.SpawnId)?.IsSpawned()!=false)
                 .Select(spawn=>KnownObjectivePosition(spawn)).ToList();
             // Spawn tables guide travel; visible creatures also supply work (including event/manual spawns).
@@ -370,8 +373,11 @@ namespace Game.AI
                     objective.Sources.Any(source => source is SIObjectiveSource.Explore or SIObjectiveSource.UseItem) ? poi : points;
             }
             if (points.Count == 0) return null;
-            var hotspots = points.Where(point => SearchAreaAvailable(task.Key, point) && !IsLearnedRouteBlocked(P(point))).Distinct().OrderBy(Distance).Take(32).ToList();
+            var hotspots = points.Where(point => SearchAreaAvailable(task.Key, point) && !IsLearnedRouteBlocked(P(point))).Distinct().OrderBy(Distance).ToList();
             if (hotspots.Count == 0) return null;
+            var local=hotspots.Where(p=>QuestPointZone(p)==me.GetZoneId()).ToList();
+            if(local.Count>0)hotspots=local;
+            hotspots=hotspots.Take(32).ToList();
             // One area at a time: the hotspots near the closest one.
             float nearest = hotspots.Min(Distance);
             task.Hotspots = hotspots.Where(point => Distance(point) <= nearest + 350).OrderBy(Distance).Take(16).ToList();
@@ -399,10 +405,10 @@ namespace Game.AI
 
         void Replan()
         {
+            if(CommittedToJourney())return;
             _nextReplan=Now;
-            foreach(var key in _taskBlacklist.Where(p=>p.Value<=Now).Select(p=>p.Key).ToArray())_taskBlacklist.Remove(key);
-            foreach(var key in _missingSpawns.Where(p=>p.Value<=Now).Select(p=>p.Key).ToArray())_missingSpawns.Remove(key);
-            if(_task!=null&&!TaskDone(_task)&&!Blacklisted(_task.Key)&&(_task.Kind is SITaskKind.PickUp or SITaskKind.Train or SITaskKind.Vendor))return;
+            PruneExpired(_taskBlacklist);PruneExpired(_missingSpawns);
+            if(_task!=null&&!TaskDone(_task)&&!Blacklisted(_task.Key)&&(_task.Kind==SITaskKind.PickUp||SIServiceSelection.OwnsTrip(_task.Kind)))return;
             if(CommittedToObjective())
             {
                 // Keep the work area current (live spawns move, searched areas expire) without changing the task.
@@ -410,10 +416,8 @@ namespace Game.AI
                 if(fresh!=null)Refresh(_task,fresh);
                 return;
             }
-            var primary=QuestLog().Where(q=>me.GetQuestStatus(q.Quest.Id) is QuestStatus.Incomplete or QuestStatus.Complete)
-                .OrderBy(q=>QuestAcceptanceOrder(q.Quest)).Select(q=>q.Quest).FirstOrDefault();
             var best=SIQuestOrderPolicy.Choose(Candidates(),task=>task.Quest==null?long.MaxValue:QuestAcceptanceOrder(task.Quest),TaskDistance,
-                primary==null?long.MinValue:QuestAcceptanceOrder(primary),_settings.TargetSearchRadius);
+                _settings.TargetSearchRadius,TaskInCurrentZone);
             // Keep usable accepted work first, even when an older quest is gated.
             // Only an empty accepted-work plan may search the database's next giver.
             if(best==null&&(_task==null||TaskDone(_task)))best=NextAvailableQuest();
@@ -435,7 +439,8 @@ namespace Game.AI
             {
                 var quest=Global.ObjectMgr.GetQuestTemplate(id);
                 if(quest==null||!QuestLevelEligible(quest)||me.GetQuestStatus(id)!=QuestStatus.None)continue;
-                var spawn=NearestSpawn(Knowledge.CreatureStarters(id),Knowledge.ObjectStarters(id),true);
+                var spawn=NearestSpawn(Knowledge.CreatureStarters(id),Knowledge.ObjectStarters(id),true,
+                    s=>me.GetZoneId()==0||QuestPointZone(s.Position)==me.GetZoneId());
                 if(spawn==null||Distance(spawn.Value.Position)>=nearest||!WantsQuest(quest))continue;
                 var candidate=new SITask{Kind=SITaskKind.PickUp,Quest=quest,Destination=spawn,
                     Creatures=Knowledge.CreatureStarters(id),Objects=Knowledge.ObjectStarters(id),Label="Travel to next available quest: "+quest.LogTitle};
@@ -446,9 +451,6 @@ namespace Game.AI
             return best;
         }
 
-        static SITask ChooseQuestTask(IEnumerable<SITask> candidates, Func<SITask, bool> local = null) =>
-            SIQuestBatchPolicy.Choose(candidates, task => task.Score, local ?? (_ => false), false);
-
         static void Refresh(SITask current, SITask fresh)
         {
             current.Destination = fresh.Destination;
@@ -458,6 +460,7 @@ namespace Game.AI
 
         void SetTask(SITask task)
         {
+            if(!ReferenceEquals(_task,task))ReleaseJourney();
             // An engaged objective should only give way when it is done, released, or for urgent upkeep.
             if (task != null && !ReferenceEquals(task, _task) && _task?.Engaged == true && !TaskDone(_task) && !Blacklisted(_task.Key))
                 Report("engaged_task_replaced", $"{_task.Label} replaced by {task.Label}");
@@ -465,8 +468,9 @@ namespace Game.AI
             CancelTravel();
             ReleaseQuestTarget();
             _task = task;
-            _activeQuest = task?.Quest?.Id ?? 0;
-            _activeObjective = task?.Objective?.Objective.Id ?? 0;
+            AuthorizeQuestTravel(task);
+            if (task != null && _goal == "social") { _socialWalkDestination = null; _socialTravellingToCity = false; }
+            if (task != null && SIServiceSelection.OwnsTrip(task.Kind)) MarkPartyErrand();
             if (task == null) return;
             task.Resume(Now);
             if (!task.Started)

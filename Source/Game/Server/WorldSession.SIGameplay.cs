@@ -10,7 +10,7 @@ namespace Game
     {
         internal void AcceptPartyInviteForSI()
         {
-            if (!IsServerControlled || _player?.GetGroupInvite() is not { } group ||
+            if (!IsSIControlled || _player?.GetGroupInvite() is not { } group ||
                 group.GetLeaderGUID() == _player.GetGUID()) return;
             HandlePartyInviteResponse(new PartyInviteResponse(null) { Accept = true, PartyIndex = group.GetGroupCategory() });
         }
@@ -18,7 +18,7 @@ namespace Game
         internal bool PetAttackForSI(Unit target)
         {
             Pet pet = _player?.GetPet();
-            if (!IsServerControlled || pet == null || !pet.IsAlive() || !pet.IsAIEnabled() || target == null ||
+            if (!IsSIControlled || pet == null || !pet.IsAlive() || !pet.IsAIEnabled() || target == null ||
                 pet.GetOwnerGUID() != _player.GetGUID() || !_player.IsValidAttackTarget(target)) return false;
             ConfigureSIPetAutocasts(pet, pet.GetMap().GetDifficultyID());
             HandlePetActionHelper(pet, pet.GetGUID(), (int)CommandStates.Attack, ActiveStates.Command, target.GetGUID(), 0, 0, 0);
@@ -42,7 +42,7 @@ namespace Game
         internal void PetFollowForSI(ObjectGuid previousTarget)
         {
             Pet pet = _player?.GetPet();
-            if (!IsServerControlled || pet?.IsAlive() != true || pet.GetOwnerGUID() != _player.GetGUID() ||
+            if (!IsSIControlled || pet?.IsAlive() != true || pet.GetOwnerGUID() != _player.GetGUID() ||
                 pet.GetVictim()?.GetGUID() != previousTarget) return;
             HandlePetActionHelper(pet, pet.GetGUID(), (int)CommandStates.Follow, ActiveStates.Command, ObjectGuid.Empty, 0, 0, 0);
         }
@@ -51,7 +51,7 @@ namespace Game
         // and the cast spends charges/stacks and applies the normal cooldown.
         internal bool UseItemForSI(Item item, int spellId, WorldObject target = null)
         {
-            if (!IsServerControlled || item == null || _player == null) return false;
+            if (!IsSIControlled || item == null || _player == null) return false;
             SpellInfo spellInfo = Global.SpellMgr.GetSpellInfo(spellId, _player.GetMap().GetDifficultyID());
             if (spellInfo == null || !_player.CanRequestSpellCast(spellInfo, _player)) return false;
             var request = new SpellCastRequestPkt
@@ -89,7 +89,7 @@ namespace Game
         // Same validation as CMSG_SELL_ITEM (vendor interaction range, sellable, buyback).
         internal bool SellItemForSI(Creature vendor, Item item)
         {
-            if (!IsServerControlled || vendor == null || item == null) return false;
+            if (!IsSIControlled || vendor == null || item == null) return false;
             ObjectGuid guid = item.GetGUID();
             long money = _player.GetMoney();
             HandleSellItem(new SellItem(null) { VendorGUID = vendor.GetGUID(), ItemGUID = item.GetGUID(), Amount = item.GetCount() });
@@ -105,11 +105,11 @@ namespace Game
         internal bool AcceptQuestForSI(WorldObject giver, Quest quest, out string failure)
         {
             failure = null;
-            if (!IsServerControlled || giver == null || quest == null) { failure = "Invalid quest interaction"; return false; }
+            if (!IsSIControlled || giver == null || quest == null) { failure = "Invalid quest interaction"; return false; }
             if (!_player.CanInteractWithQuestGiver(giver)) { failure = DescribeSIInteractionFailure(giver); return false; }
             if (!giver.HasQuest(quest.Id)) { failure = "NPC no longer offers this quest"; return false; }
-            if (_player is siPlayer sourcePlayer && quest.SourceItemId > 0 && _player.FindQuestSlot(0) < SharedConst.MaxQuestLogSize && _player.CanTakeQuest(quest, false))
-                sourcePlayer.Controller.EnsureQuestItemSpace(quest.SourceItemId, System.Math.Max(1, quest.SourceItemIdCount), true);
+            if (_player.Controller != null && quest.SourceItemId > 0 && _player.FindQuestSlot(0) < SharedConst.MaxQuestLogSize && _player.CanTakeQuest(quest, false))
+                _player.Controller.EnsureQuestItemSpace(quest.SourceItemId, System.Math.Max(1, quest.SourceItemIdCount), true);
             if (!_player.CanTakeQuest(quest, false) || !_player.CanAddQuest(quest, false)) { failure = "Quest prerequisites or inventory/log space rejected acceptance"; return false; }
             HandleQuestgiverAcceptQuest(new QuestGiverAcceptQuest(null) { QuestGiverGUID = giver.GetGUID(), QuestID = quest.Id });
             if (_player.GetQuestStatus(quest.Id) is QuestStatus.Incomplete or QuestStatus.Complete) return true;
@@ -120,7 +120,7 @@ namespace Game
         internal bool RewardQuestForSI(WorldObject giver, Quest quest, LootItemType type, int reward, out string failure)
         {
             failure = null;
-            if (!IsServerControlled || giver == null || quest == null) { failure = "Invalid reward interaction"; return false; }
+            if (!IsSIControlled || giver == null || quest == null) { failure = "Invalid reward interaction"; return false; }
             if (!_player.CanInteractWithQuestGiver(giver)) { failure = DescribeSIInteractionFailure(giver); return false; }
             HandleQuestgiverRequestReward(new QuestGiverRequestReward(null) { QuestGiverGUID = giver.GetGUID(), QuestID = quest.Id });
             if (!_player.CanRewardQuest(quest, type, reward, false)) { failure = "Quest objectives, required items, or reward inventory space rejected turn-in"; return false; }
@@ -139,20 +139,27 @@ namespace Game
         // CMSG_AREA_TRIGGER as the client sends it on entering a trigger (radius checked by the handler).
         internal void AreaTriggerForSI(int triggerId)
         {
-            if (IsServerControlled) HandleAreaTrigger(new AreaTriggerPkt(null) { AreaTriggerID = triggerId, Entered = true, FromClient = true });
+            if (IsSIControlled) HandleAreaTrigger(new AreaTriggerPkt(null) { AreaTriggerID = triggerId, Entered = true, FromClient = true });
         }
 
         // CMSG_QUEST_LOG_REMOVE_QUEST (abandon): source items, timers and quest items handled as for a client.
         internal void AbandonQuestForSI(ushort slot)
         {
-            if (IsServerControlled && slot < SharedConst.MaxQuestLogSize) HandleQuestLogRemoveQuest(new QuestLogRemoveQuest(null) { Entry = (byte)slot });
+            if (IsSIControlled && slot < SharedConst.MaxQuestLogSize) HandleQuestLogRemoveQuest(new QuestLogRemoveQuest(null) { Entry = (byte)slot });
         }
 
         // CMSG_AUTO_EQUIP_ITEM from the item's current bag position.
-        internal bool EquipForSI(Item item)
+        internal bool EquipForSI(Item item,byte requestedSlot=ItemSlot.Null)
         {
-            if (!IsServerControlled || item == null || !item.InventoryPosition.IsInventoryPos) return false;
+            if (!IsSIControlled || item == null || !item.InventoryPosition.IsInventoryPos || item.IsInTrade() || item.IsBroken() ||
+                _player.CanUseItem(item)!=InventoryResult.Ok || _player.CanEquipItem(requestedSlot,out ItemPos destination,item,!item.IsBag())!=InventoryResult.Ok) return false;
             ObjectGuid guid = item.GetGUID();
+            if(requestedSlot!=ItemSlot.Null)
+            {
+                if(!destination.IsEquipmentPos)return false;
+                _player.SwapItem(item.InventoryPosition,destination);
+                return _player.GetItemByPos(destination)?.GetGUID()==guid;
+            }
             var packet = new AutoEquipItem(null) { Inv = new InvUpdate { Items = new() { item.InventoryPosition } },
                 Slot = item.InventorySlot, PackSlot = item.InventoryBagSlot };
             HandleAutoEquipItem(packet);
@@ -163,7 +170,7 @@ namespace Game
         // CMSG_BUY_ITEM by vendor list position; the core checks price, reputation, stock and bag space.
         internal bool BuyItemForSI(Creature vendor, int itemId, byte count)
         {
-            if (!IsServerControlled || vendor == null) return false;
+            if (!IsSIControlled || vendor == null || !Game.AI.SIProfessionBatchPolicy.VendorAllowed(itemId)) return false;
             VendorItemData items = Global.ObjectMgr.GetNpcVendorItemList(vendor.GetEntry());
             for (int slot = 0; items != null && slot < items.GetItemCount(); ++slot)
             {
@@ -180,7 +187,7 @@ namespace Game
         // CMSG_REPAIR_ITEM (all) with the reputation discount.
         internal bool RepairForSI(Creature vendor)
         {
-            if (!IsServerControlled || vendor == null) return false;
+            if (!IsSIControlled || vendor == null) return false;
             Creature npc = _player.GetNPCIfCanInteractWith(vendor.GetGUID(), NPCFlags1.Repair, NPCFlags2.None);
             if (npc == null) return false;
             long money = _player.GetMoney();
@@ -195,7 +202,7 @@ namespace Game
         // CMSG_TRAINER_BUY_SPELL for every spell the trainer can teach now and the player can afford.
         internal int TrainForSI(Creature trainer)
         {
-            if (!IsServerControlled || trainer == null) return 0;
+            if (!IsSIControlled || trainer == null) return 0;
             Creature npc = _player.GetNPCIfCanInteractWith(trainer.GetGUID(), NPCFlags1.Trainer, NPCFlags2.None);
             if (npc == null) return 0;
             int learned = 0;
@@ -212,25 +219,35 @@ namespace Game
 
         internal void UseObjectForSI(GameObject obj)
         {
-            if (IsServerControlled) HandleGameObjectUse(new GameObjUse(null) { Guid = obj.GetGUID() });
+            if (IsSIControlled) HandleGameObjectUse(new GameObjUse(null) { Guid = obj.GetGUID() });
         }
         internal void TalkForSI(Creature creature)
         {
-            if (!IsServerControlled) return;
+            if (!IsSIControlled) return;
             HandleGossipHello(new Hello(null) { Unit = creature.GetGUID() });
         }
+        Emote? _siLootPreviousEmote;
+        internal void BeginSILootAnimation()
+        {
+            if(!IsSIControlled||_player.GetAELootView().Count==0||!_player.IsAlive()||_player.IsInCombat())return;
+            _siLootPreviousEmote??=_player.GetEmoteState();
+            _player.SetEmoteState(Emote.StateLoot);
+        }
+
         internal void LootForSI(Creature creature)
         {
-            if (!IsServerControlled) return;
+            if (!IsSIControlled) return;
             _player.SetSelection(creature.GetGUID());
             if (!_player.HasUnitState(UnitState.CannotTurn)) _player.SetFacingToObject(creature);
+            if(_player.IsMounted())_player.RemoveAurasByType(AuraType.Mounted);
             HandleLoot(new LootUnit(null) { Unit = creature.GetGUID() });
+            BeginSILootAnimation();
             // The controller leaves the native loot view open for an animation tick
             // before transferring/releasing it, so nearby clients see UnitFlags.Looting.
         }
         internal void LootOpenViewForSI()
         {
-            if (!IsServerControlled || !_player.IsAlive() || _player.IsInCombat()) return;
+            if (!IsSIControlled || !_player.IsAlive() || _player.IsInCombat()) return;
             var views = _player.GetAELootView().Values.ToArray();
             foreach (var loot in views)
             {
@@ -243,31 +260,48 @@ namespace Game
                 }
                 // Required quest items get first use of space, before ordinary loot can
                 // fill the slot that was just cleared for them.
-                foreach (int slot in slots.OrderBy(slot => _player is siPlayer bot &&
-                    loot.LootItemInSlot(slot, _player) is { } candidate && bot.Controller.NeedsQuestLoot(candidate.itemid) ? 0 : 1))
+                foreach (int slot in slots.OrderBy(slot => _player.Controller != null &&
+                    loot.LootItemInSlot(slot, _player) is { } candidate && _player.Controller.NeedsQuestLoot(candidate.itemid) ? 0 : 1))
                 {
                     var item = loot.LootItemInSlot(slot, _player);
                     if (item == null || item.is_looted) continue;
-                    if (_player is siPlayer bot && bot.Controller.NeedsQuestLoot(item.itemid) &&
-                        !bot.Controller.EnsureQuestItemSpace(item.itemid, item.count)) continue;
+                    if (_player.Controller != null && _player.Controller.NeedsQuestLoot(item.itemid) &&
+                        !_player.Controller.EnsureQuestItemSpace(item.itemid, item.count)) continue;
                     int entry = item.itemid, before = _player.GetItemCount(entry);
                     var packet = new LootItemPkt(null);
                     packet.Loot.Add(new LootRequest { Object = loot.GetGUID(), LootListID = (byte)slot });
                     HandleAutostoreLootItem(packet);
                     int gained = _player.GetItemCount(entry) - before;
-                    if (gained > 0 && _player is siPlayer si) si.Controller.ConfirmLoot(entry, gained, loot.GetOwnerGUID());
+                    if (gained > 0) _player.Controller?.ConfirmLoot(entry, gained, loot.GetOwnerGUID());
                 }
             }
             long money = _player.GetMoney();
             if (views.Length != 0) HandleLootMoney(new LootMoney(null));
-            if (_player.GetMoney() > money && _player is siPlayer player)
-                player.Controller.ConfirmMoney(_player.GetMoney() - money);
+            if (_player.GetMoney() > money)
+                _player.Controller?.ConfirmMoney(_player.GetMoney() - money);
             foreach (var loot in views) DoLootRelease(loot);
+        }
+
+        internal void CloseLootForSI()
+        {
+            if (!IsSIControlled) return;
+            try{foreach (var loot in _player.GetAELootView().Values.ToArray()) DoLootRelease(loot);}
+            finally
+            {
+                if(_siLootPreviousEmote.HasValue&&_player.GetEmoteState()==Emote.StateLoot)
+                    _player.SetEmoteState(_siLootPreviousEmote.Value);
+                _siLootPreviousEmote=null;
+            }
+            if (_player.GetAELootView().Count == 0)
+            {
+                _player.SetLootGUID(ObjectGuid.Empty);
+                _player.RemoveUnitFlag(UnitFlags.Looting);
+            }
         }
 
         internal bool DestroyJunkForSI(Item item)
         {
-            if (!IsServerControlled || item == null || _player.GetItemByPos(item.InventoryPosition) != item ||
+            if (!IsSIControlled || item == null || _player.GetItemByPos(item.InventoryPosition) != item ||
                 !item.InventoryPosition.IsInventoryPos || item.IsBag() || item.IsInTrade() ||
                 item.GetQuality() != ItemQuality.Poor || item.GetTemplate().HasFlag(ItemFlags.NoUserDestroy)) return false;
             ObjectGuid guid = item.GetGUID();

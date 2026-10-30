@@ -122,14 +122,14 @@ namespace Game.Chat
                 Console.Beep();
 
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write("Cypher>> ");
+            Framework.Logging.ConsoleTimestamps.WritePrompt("Cypher>> ");
 
             var handler = new ConsoleHandler();
             while (!Global.WorldMgr.IsStopped)
             {
-                handler.ParseCommands(Console.ReadLine());
+                handler.ParseCommands(Framework.Logging.ConsoleTimestamps.ReadLine());
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Cypher>> ");
+                Framework.Logging.ConsoleTimestamps.WritePrompt("Cypher>> ");
             }
         }
 

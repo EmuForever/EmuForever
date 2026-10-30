@@ -9,8 +9,8 @@ using System.Numerics;
 
 namespace Game.AI.SIMovement;
 
-// SI-only Detour filter. Steep ground and water are allowed but cost more, so they are used only
-// when nothing else connects. Hostile aggro circles are a cost, never a hard rejection: a route that
+// SI-only Detour filter. Ground that the mesh marks too steep for players is never walkable.
+// Hostile aggro circles are a cost, never a hard rejection: a route that
 // has to pass a camp is still a route.
 public sealed class SINavFilter : Detour.dtQueryFilter
 {
@@ -33,17 +33,11 @@ public sealed class SINavFilter : Detour.dtQueryFilter
     }
     public SINavFilter()
     {
-        setIncludeFlags((ushort)(NavTerrainFlag.Ground|NavTerrainFlag.GroundSteep|NavTerrainFlag.Water));
-        setExcludeFlags((ushort)NavTerrainFlag.MagmaSlime);
+        setIncludeFlags((ushort)(NavTerrainFlag.Ground|NavTerrainFlag.Water));
+        setExcludeFlags((ushort)(NavTerrainFlag.MagmaSlime|NavTerrainFlag.GroundSteep));
         setAreaCost((int)NavArea.Ground,1);
         setAreaCost((int)NavArea.GroundSteep,4);
         setAreaCost((int)NavArea.Water,2);
-    }
-    public string Blockage(Vector3 from,Vector3 to)
-    {
-        foreach(var threat in Threats)if(threat.Blocks(from,to,Origin))
-            return threat.CreatureAggro?"Route enters a hostile aggro radius":"Route intersects a known obstacle";
-        return null;
     }
 }
 
@@ -207,14 +201,47 @@ public sealed class SINavMeshPlanner
         if(Detour.dtStatusFailed(status)||corners<1)return -1;
         float length=Vector3.Distance(a,na);var previous=na;
         for(int i=0;i<corners;++i){var corner=new Vector3(straight[i*3+2],straight[i*3],straight[i*3+1]);length+=Vector3.Distance(previous,corner);previous=corner;}
-        return length<=maximumLength?length:-1;
+        if(length>maximumLength)return -1;
+        // A funnel alone can hide a steep detail triangle between its corners.
+        // Graph connectivity must obey the same walking checks as actual legs.
+        var surface=Smooth(scene,na,nb,polys,(int)count,()=>false,maximumLength,out bool reached);
+        if(surface==null)surface=Corners(scene,na,nb,polys,(int)count,maximumLength,out reached);
+        return reached&&SurfaceWalkable(scene,surface,out _,out _,Water(scene,pa))?length:-1;
     }
 
     // Plan far enough to see around terrain, but publish shorter legs so moving targets, threats and
     // task changes are picked up; the controller prefetches the next leg from this one's end.
     public const float LegLength=120;
 
+    // A disconnected walking route stays disconnected; retrying with steep terrain
+    // allowed made the server spline climb slopes a client-controlled player slides off.
     public SIGroundPath Plan(SIPathPosition from,SIPathPosition to,Func<bool> cancelled,float limit,float legLength=LegLength)
+        => PlanOnFilter(from,to,cancelled,limit,legLength);
+
+    // A corridor rejected for a too-steep stretch is searched again with that spot made expensive, so Detour
+    // finds the road around a hillside instead of the bot climbing it. Mesh polygons only know "steep" above
+    // 55 degrees, while players stop walking at about 50. With no gentler way, the route still fails.
+    const int SteepDetours=3;
+    const float SteepAvoidRadius=5;
+    Vector3? _steepAt;
+    SIGroundPath PlanOnFilter(SIPathPosition from,SIPathPosition to,Func<bool> cancelled,float limit,float legLength)
+    {
+        var baseline=Filter.Threats;var origin=Filter.Origin;var avoided=ImmutableArray.CreateBuilder<SITravelThreat>();
+        try
+        {
+            for(int attempt=0;;++attempt)
+            {
+                _steepAt=null;
+                var path=PlanCorridor(from,to,cancelled,limit,legLength);
+                if(path.Success||_steepAt is not Vector3 at||attempt>=SteepDetours)return path;
+                avoided.Add(new SITravelThreat(at,SteepAvoidRadius,false));
+                Filter.Use(baseline.AddRange(avoided),origin);
+            }
+        }
+        finally{if(avoided.Count>0)Filter.Use(baseline,origin);}
+    }
+
+    SIGroundPath PlanCorridor(SIPathPosition from,SIPathPosition to,Func<bool> cancelled,float limit,float legLength)
     {
         if(!from.Valid||!to.Valid||from.MapId!=to.MapId)return SIGroundPath.Failed("Destination is on another map");
         float flat=Vector2.Distance(new(from.Point.X,from.Point.Y),new(to.Point.X,to.Point.Y));
@@ -249,18 +276,99 @@ public sealed class SINavMeshPlanner
         if(points==null)points=Corners(scene,startPoint,target,polys,count,legLength,out reached);
         if(points.Count==0)return SIGroundPath.Failed("No walkable route");
         var route=new List<Vector3>{from.Point};
-        foreach(var point in points)if(Vector3.DistanceSquared(route[^1],point)>.01f)route.Add(point);
+        foreach(var point in points)
+        {
+            if(route.Count==1 && point==startPoint && SIWalkingSurface.InitialFloorCorrection(from.Point,point))continue;
+            if(Vector3.DistanceSquared(route[^1],point)>.01f)route.Add(point);
+        }
         if(route.Count<2)
         {
             // Already standing on the closest reachable point.
             if(!partial)return new([from.Point,from.Point]){Complete=true};
-            return SIGroundPath.Failed("Destination is not reachable from here");
+            return SIGroundPath.Failed(SIGroundPath.UnreachableError);
         }
         if(partial&&reached&&Vector2.Distance(new(route[^1].X,route[^1].Y),new(from.Point.X,from.Point.Y))<2)
-            return SIGroundPath.Failed("Destination is not reachable from here");
+            return SIGroundPath.Failed(SIGroundPath.UnreachableError);
         float length=0;for(int i=1;i<route.Count;++i)length+=Vector3.Distance(route[i-1],route[i]);
         var prefix=SIMovementRoute.Prefix(route,legLength);
+        string failure=WalkingFailure(scene,prefix,pa);
+        if(failure!=null)return SIGroundPath.Failed(failure);
         return new(prefix.ToImmutableArray()){Complete=!partial&&reached&&length<=legLength+.01f,Partial=partial};
+    }
+
+    // Why a walker could not follow these corners, or null when it can. A too-steep spot is kept in _steepAt.
+    string WalkingFailure(Scene scene,Vector3[] prefix,ulong startPoly)
+    {
+        bool waterStart=Water(scene,startPoly);
+        for(int i=1;i<prefix.Length;++i)
+            if(!(i==1?SIWalkingSurface.SafeFirstStep(prefix[0],prefix[1]):SIWalkingSurface.SafeStep(prefix[i-1],prefix[i])) && !(i==1&&waterStart))
+            {
+                _steepAt=Vector3.Lerp(prefix[i-1],prefix[i],.5f);
+                return $"Route exceeds player walking slope or step height: {prefix[i-1]} to {prefix[i]}";
+            }
+        if(SurfaceWalkable(scene,prefix,out string surfaceFailure,out var steep,waterStart))return null;
+        _steepAt=steep;
+        return surfaceFailure;
+    }
+
+    bool SurfaceWalkable(Scene scene,IReadOnlyList<Vector3> path,out string failure,out Vector3? steep,bool waterStart=false)
+    {
+        failure="Route has no supported floor";steep=null;
+        if(path.Count<2)return false;
+        bool Sample(Vector3 point,bool allowWater,out Vector3 floor,out bool water)
+        {
+            ulong poly=0;var nearest=new float[3];floor=default;water=false;
+            uint status=scene.Query.findNearestPoly(Mesh(point),[.2f,2,.2f],Filter,ref poly,ref nearest);
+            if((Detour.dtStatusFailed(status)||poly==0)&&allowWater)
+            {
+                // Water mesh lives at the surface. A submerged swimmer may
+                // approach it vertically; this never authorizes a ground climb.
+                status=scene.Query.findNearestPoly(Mesh(point),[.2f,60,.2f],Filter,ref poly,ref nearest);
+                if(Detour.dtStatusFailed(status)||poly==0||!Water(scene,poly))return false;
+            }
+            if(Detour.dtStatusFailed(status)||poly==0)return false;
+            floor=World(nearest);water=Water(scene,poly);
+            return Vector2.Distance(new(point.X,point.Y),new(floor.X,floor.Y))<=.25f;
+        }
+        // A walker standing just off the mesh (beside an NPC behind a counter) steps onto it at the snapped start,
+        // the same allowance Snap gives the corridor search.
+        int begin=1;
+        if(!Sample(path[0],waterStart,out var previous,out bool wasWater))
+        {
+            if(path.Count<3||Vector2.Distance(new(path[0].X,path[0].Y),new(path[1].X,path[1].Y))>3||
+                !Sample(path[1],waterStart,out previous,out wasWater))return false;
+            begin=2;
+        }
+        // The first yards leave the walker's own spot and share its start correction (SafeFirstStep).
+        float startAllowance=SIWalkingSurface.StartCorrection,walked=0;var last=path[begin-1];
+        // Slope is judged over the last DetailWindow yards: a sustained incline over the walking limit fails, a lone
+        // sub-yard bump on an ordinary ramp does not (judging each sample alone stranded bots on the only ramp off
+        // a plateau). A single sample may still never be steeper than the mesh's own steep limit.
+        var samples=new List<(float Along,Vector3 Floor)>{(0,previous)};int anchor=0;
+        for(int i=begin;i<path.Count;++i)
+        {
+            int count=Math.Max(1,(int)MathF.Ceiling(Vector3.Distance(path[i-1],path[i])));
+            for(int step=1;step<=count;++step)
+            {
+                var point=Vector3.Lerp(path[i-1],path[i],step/(float)count);
+                walked+=Vector2.Distance(new(last.X,last.Y),new(point.X,point.Y));last=point;
+                if(!Sample(point,wasWater,out var floor,out bool water))
+                {failure=$"Route has no supported detail floor at {point}";return false;}
+                if(water&&wasWater){samples.Clear();samples.Add((walked,floor));anchor=0;}
+                else
+                {
+                    samples.Add((walked,floor));
+                    while(anchor+1<samples.Count-1&&samples[anchor+1].Along<=walked-SIWalkingSurface.DetailWindow)++anchor;
+                    float excess=Math.Max(SIWalkingSurface.DetailExcess(samples[anchor].Floor,floor),
+                        SIWalkingSurface.DetailExcess(previous,floor,SIWalkingSurface.MeshSteepSlope));
+                    if(excess>0&&walked<=SIWalkingSurface.StartCorrectionLength&&excess<=startAllowance){startAllowance-=excess;excess=0;}
+                    if(excess>0||Math.Abs(floor.Z-point.Z)>1.5f)
+                    {failure=$"Route crosses an unwalkable detail slope: {previous} to {floor} (path {point})";steep=floor;return false;}
+                }
+                previous=floor;wasWater=water;
+            }
+        }
+        return true;
     }
 
     // TrinityCore's FindSmoothPath: walk the corridor in short steps on the detail surface, so every
@@ -299,7 +407,7 @@ public sealed class SINavMeshPlanner
             if(endOfPath&&InRange(iter,steer,.3f,1.5f))
             {
                 iter=target;
-                var last=World(iter);walked+=Vector3.Distance(result[^1],last);result.Add(last);
+                result.Add(World(iter));
                 reached=true;break;
             }
             if(offMesh&&InRange(iter,steer,.3f,1.5f))
@@ -402,7 +510,7 @@ public sealed class SINavMeshPlanner
 // Routes on a worker. Short trips are one navmesh query. Long trips are routed over the map's travel
 // graph (a road network of verified walkable links) and walked as a series of navmesh legs toward
 // graph waypoints, like turn-by-turn directions.
-public sealed class SIWorldNavigation
+public sealed partial class SIWorldNavigation
 {
     readonly string _data;readonly float _max;
     readonly SINavMeshPlanner _planner;
@@ -416,7 +524,7 @@ public sealed class SIWorldNavigation
     // Offline diagnostics only.
     public static Action<string> Trace;
 
-    public SIGroundPath Find(SIPathPosition from,SIPathPosition to,Func<bool> cancelled,ImmutableArray<SITravelThreat> threats=default)
+    SIGroundPath FindGround(SIPathPosition from,SIPathPosition to,Func<bool> cancelled,ImmutableArray<SITravelThreat> threats,SIRouteHints hints)
     {
         _planner.Filter.Use(threats,from.Point);
         try
@@ -426,7 +534,15 @@ public sealed class SIWorldNavigation
             var graph=SITravelGraphs.Get(_data,from.MapId);
             if(flat>DirectRange&&graph!=null)
             {
-                var leg=GraphLeg(graph,from,to,cancelled);
+                // Keep walking to the waypoint already chosen. Re-deciding the route from every point
+                // along a leg made bots turn round between two waypoints.
+                if(hints.Via is Vector3 via&&graph.UsableWaypoint(via)&&!SIMovementRoute.ReachedTravelWaypoint(from.Point,via))
+                {
+                    var onward=_planner.Plan(from,new(from.MapId,via),cancelled,_max,WaypointLeg);
+                    if(onward.Success&&!onward.Partial&&Vector3.Distance(onward.Points[^1],from.Point)>3)
+                        return RoadWaypoint(onward,via);
+                }
+                var leg=GraphLeg(graph,from,to,cancelled,hints.Interests.IsDefault?[]:hints.Interests);
                 if(leg!=null)return leg;
             }
             if(flat<=_max)
@@ -435,15 +551,13 @@ public sealed class SIWorldNavigation
                 if(direct.Success&&!direct.Partial)return direct;
                 // Close on the map but not connected locally (the far side of a gorge, the floor below a
                 // ledge): the road network may know the way round.
-                if(graph!=null&&flat<=DirectRange&&flat>20&&GraphLeg(graph,from,to,cancelled) is SIGroundPath around)return around;
-                if(graph!=null&&flat>30&&Stranded(direct,from)&&Hop(graph,from) is SIGroundPath hop)return hop;
+                if(graph!=null&&flat<=DirectRange&&flat>20&&GraphLeg(graph,from,to,cancelled,hints.Interests.IsDefault?[]:hints.Interests) is SIGroundPath around)return around;
                 if(direct.Success||flat<=DirectRange)return direct;
             }
             // No graph route (still building, or disconnected): head straight for the target and let the
             // next leg continue from wherever this one ends.
             var toward=flat>DirectRange?Vector3.Lerp(from.Point,to.Point,DirectRange/flat):to.Point;
             var leg2=_planner.Plan(from,new(to.MapId,toward,false,DirectRange*.5f),cancelled,_max);
-            if(graph!=null&&Stranded(leg2,from)&&Hop(graph,from) is SIGroundPath stepOff)return stepOff;
             return leg2.Success?leg2 with{Complete=false}:leg2;
         }
         catch(OperationCanceledException){throw;}
@@ -451,30 +565,75 @@ public sealed class SIWorldNavigation
         {return SIGroundPath.Failed(e.Message);}
     }
 
-    // The start is on a scrap of mesh with no way off it (a rock top, a ledge it fell onto).
-    static bool Stranded(SIGroundPath path,SIPathPosition from)=>
-        path.Error=="Destination is not reachable from here"||path.Success&&path.Partial&&Vector3.Distance(path.Points[^1],from.Point)<5;
-    // Step straight to an adjacent connected node; short enough to be stepping off, not walking through.
-    static SIGroundPath Hop(SITravelGraph graph,SIPathPosition from)
+    // Terrain cost chooses a sensible route. Useful stops may justify an alternative
+    // within the detour allowance, but do not erase the cost of mountain climbing.
+    const float InterestReach=60,DetourFactor=1.4f,DetourSlack=150;
+    List<int> SmartRoute(SITravelGraph graph,Vector3 from,Vector3 to,HashSet<int> rejected,ImmutableArray<SITravelInterest> interests)
     {
-        if(graph.Hop(from.Point,25,8) is not int node)return null;
-        var target=graph.Position(node);
-        if(Vector3.Distance(target,from.Point)<1.5f)return null;
-        return new SIGroundPath([from.Point,target]){Complete=false};
+        var shortest=graph.Route(from,to,rejected);
+        if(shortest==null||interests.Length==0)return shortest;
+        var candidates=new List<List<int>>{shortest};
+        var penalty=new Dictionary<int,float>();
+        for(int alternative=0;alternative<2;++alternative)
+        {
+            // Penalise the routes found so far, so the next search finds a genuinely different road.
+            foreach(int node in candidates[^1])penalty[node]=penalty.GetValueOrDefault(node,1)*1.8f;
+            var other=graph.Route(from,to,rejected,penalty);
+            if(other==null)break;
+            var nodes=other.ToHashSet();
+            if(candidates.All(known=>known.Count(nodes.Contains)<.7f*Math.Max(known.Count,other.Count)))candidates.Add(other);
+        }
+        float Length(List<int> route)
+        {
+            float length=Vector3.Distance(from,graph.Position(route[0]))+Vector3.Distance(graph.Position(route[^1]),to);
+            for(int i=1;i<route.Count;++i)length+=Vector3.Distance(graph.Position(route[i-1]),graph.Position(route[i]));
+            return length;
+        }
+        float Worth(List<int> route)
+        {
+            float worth=0;
+            foreach(var interest in interests)
+            {
+                var previous=from;
+                foreach(int node in route.Append(-1))
+                {
+                    var point=node<0?to:graph.Position(node);
+                    if(SegmentDistance(interest.Position,previous,point)<=InterestReach){worth+=interest.Worth;break;}
+                    previous=point;
+                }
+            }
+            return worth;
+        }
+        float limit=Length(shortest)*DetourFactor+DetourSlack;
+        return candidates.Select(route=>(Route:route,Length:Length(route))).Where(c=>c.Length<=limit)
+            .OrderBy(c=>graph.RouteCost(from,to,c.Route)-Worth(c.Route)).First().Route;
     }
 
-    SIGroundPath GraphLeg(SITravelGraph graph,SIPathPosition from,SIPathPosition to,Func<bool> cancelled)
+    static float SegmentDistance(Vector3 point,Vector3 a,Vector3 b)
+    {
+        if(Math.Abs(point.Z-a.Z)>40&&Math.Abs(point.Z-b.Z)>40)return float.MaxValue;
+        var p=new Vector2(point.X,point.Y);var start=new Vector2(a.X,a.Y);var edge=new Vector2(b.X,b.Y)-start;
+        float t=edge.LengthSquared()<.0001f?0:Math.Clamp(Vector2.Dot(p-start,edge)/edge.LengthSquared(),0,1);
+        return Vector2.Distance(p,start+edge*t);
+    }
+
+    SIGroundPath GraphLeg(SITravelGraph graph,SIPathPosition from,SIPathPosition to,Func<bool> cancelled,ImmutableArray<SITravelInterest> interests)
     {
         var rejected=new HashSet<int>();
         for(int attempt=0;attempt<4;++attempt)
         {
             if(cancelled())throw new OperationCanceledException();
-            var route=graph.Route(from.Point,to.Point,rejected);
+            var route=SmartRoute(graph,from.Point,to.Point,rejected,interests);
             if(route==null||route.Count==0)return null;
+            // The route starts at the node nearest the start, which is usually the one just walked past.
+            // Never aim back at a node the start is already beyond along the route.
+            int first=0;
+            while(first+1<route.Count&&SIMovementRoute.Passed(from.Point,graph.Position(route[first]),graph.Position(route[first+1]),
+                Vector3.Distance(graph.Position(route[first]),graph.Position(route[first+1]))+30,25))++first;
             // Aim for the furthest waypoint within reach along the route; consecutive waypoints are
             // verified as connected, so the mesh can always walk the stretch between them.
-            int chosen=0;float along=Vector3.Distance(from.Point,graph.Position(route[0]));
-            for(int i=1;i<route.Count;++i)
+            int chosen=first;float along=Vector3.Distance(from.Point,graph.Position(route[first]));
+            for(int i=first+1;i<route.Count;++i)
             {
                 along+=Vector3.Distance(graph.Position(route[i-1]),graph.Position(route[i]));
                 if(along>WaypointReach)break;
@@ -487,22 +646,29 @@ public sealed class SIWorldNavigation
                 var direct=_planner.Plan(from,to,cancelled,_max);
                 if(direct.Success&&!direct.Partial)return direct;
             }
-            // Standing on that waypoint already: aim one further.
-            if(Vector3.Distance(from.Point,graph.Position(route[chosen]))<8)
+            // A road instruction is complete within twenty yards. Skip any
+            // clustered graph points already inside that radius as well.
+            while(SIMovementRoute.ReachedTravelWaypoint(from.Point,graph.Position(route[chosen])))
             {
                 if(chosen+1>=route.Count)return null;
                 ++chosen;
             }
             var waypoint=graph.Position(route[chosen]);
-            // Walk all the way to the waypoint: stopping short lets the next leg pick a different route
-            // from a point between nodes, and the bot can swing back and forth between two of them.
+            // Keep the chosen road direction until its arrival radius, then let
+            // the next leg continue without visiting the exact graph coordinate.
             var leg=_planner.Plan(from,new(from.MapId,waypoint),cancelled,_max,WaypointLeg);
             Trace?.Invoke($"    route {route.Count} nodes, start {graph.Position(route[0])}, waypoint {chosen} {waypoint}: {(leg.Success?(leg.Partial?"partial":"ok"):leg.Error)} end {(leg.Success?leg.Points[^1]:default)}");
             if(leg.Success&&!leg.Partial&&Vector3.Distance(leg.Points[^1],from.Point)>3)
-                return leg with{Complete=false};
+                return RoadWaypoint(leg,waypoint);
             // That waypoint is not reachable from here (another floor, a fenced pen): route around it.
-            rejected.Add(route[0]);if(chosen!=0)rejected.Add(route[chosen]);
+            rejected.Add(route[first]);if(chosen!=first)rejected.Add(route[chosen]);
         }
         return null;
     }
+
+    static SIGroundPath RoadWaypoint(SIGroundPath path,Vector3 waypoint) => path with
+    {
+        Points=SIMovementRoute.ApproachTravelWaypoint(path.Points,waypoint).ToImmutableArray(),
+        Complete=false,Waypoint=waypoint
+    };
 }

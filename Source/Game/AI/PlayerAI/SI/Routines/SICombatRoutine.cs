@@ -9,9 +9,20 @@ namespace Game.AI
     {
         public abstract Class Class { get; }
         public abstract IReadOnlyList<SICombatRule> Rules { get; }
-        public IEnumerable<SICombatRule> ForStage(SICombatActionStage stage) => Rules
-            .Where(rule => rule.Stage == stage || stage == SICombatActionStage.CombatBuff && rule.Stage == SICombatActionStage.PreCombatBuff)
-            .OrderByDescending(rule => rule.Priority);
+        // Rules are static per class: the per-stage order and the managed buff names are computed once.
+        // Concurrent first use from two map threads computes the same values, so no lock is needed.
+        SICombatRule[][] _stages;
+        HashSet<string> _managedBuffs;
+        public IReadOnlyList<SICombatRule> ForStage(SICombatActionStage stage)
+        {
+            _stages ??= Enum.GetValues<SICombatActionStage>().Select(s => Rules
+                .Where(rule => rule.Stage == s || s == SICombatActionStage.CombatBuff && rule.Stage == SICombatActionStage.PreCombatBuff)
+                .OrderByDescending(rule => rule.Priority).ToArray()).ToArray();
+            return _stages[(int)stage];
+        }
+        // Spell names a MissingAura rule maintains; generic buff upkeep leaves them to the routine.
+        public IReadOnlySet<string> ManagedBuffs => _managedBuffs ??=
+            Rules.Where(rule => rule.MissingAura).SelectMany(rule => rule.Alternatives).ToHashSet(StringComparer.Ordinal);
 
         protected static SICombatRule Enemy(string name, int priority, SICombatCondition when, params string[] alternatives) =>
             new(name, priority, SICombatActionTarget.Enemy, when, alternatives, Stage: StageFor(when, false));
@@ -26,7 +37,7 @@ namespace Game.AI
         {
             if ((conditions & (SICombatCondition.Fear | SICombatCondition.Rooted | SICombatCondition.CastingEnemy |
                 SICombatCondition.SelfDebuff | SICombatCondition.EnemyBuff)) != 0) return SICombatActionStage.Reaction;
-            if ((conditions & (SICombatCondition.LowHealth | SICombatCondition.CriticalHealth | SICombatCondition.PetHurt)) != 0)
+            if ((conditions & (SICombatCondition.LowHealth | SICombatCondition.CriticalHealth | SICombatCondition.PetHurt | SICombatCondition.PetCriticalHealth)) != 0)
                 return SICombatActionStage.Heal;
             if ((conditions & (SICombatCondition.PetAbsent | SICombatCondition.PetDead)) != 0) return SICombatActionStage.PreCombatBuff;
             if ((conditions & SICombatCondition.Pull) != 0) return self ? SICombatActionStage.PullBuff : SICombatActionStage.Pull;

@@ -1,11 +1,11 @@
 using Framework.Constants;
-using Game.Entities;
 using System.Linq;
 
 namespace Game.AI;
 public sealed partial class SIPlayer
 {
     bool _siDuelActive;
+    long? _duelBuffBlockedAt;
     public static bool MayAcceptDuel(bool paused,bool dangerous)=>paused||!dangerous;
 
     bool TickDuel()
@@ -15,7 +15,7 @@ public sealed partial class SIPlayer
         {
             if(_siDuelActive)
             {
-                EndEncounter(false);CancelTravel();_siDuelActive=false;
+                EndEncounter(false);CancelTravel();_siDuelActive=false;_duelRequestedAt=0;_duelBuffBlockedAt=null;
                 _task?.Resume(Now);_preparation.Resume(Now);_nextReplan=0;
             }
             return false;
@@ -24,16 +24,18 @@ public sealed partial class SIPlayer
         if(!_siDuelActive)
         {
             _siDuelActive=true;
+            _duelBuffBlockedAt=null;
             CancelTravel();EndEncounter(false);_task?.Suspend(Now);_preparation.Pause(Now);
         }
         Behavior="Duel";
         if(duel.State==DuelState.Challenged)
         {
+            if(TickOwnDuelRequest(duel))return true;
             bool danger=NearbyCreatures(_settings.TargetSearchRadius).Any(c=>c.IsAlive()&&
                 me.IsValidAttackTarget(c)&&me.CanSeeOrDetect(c,distanceCheck:false));
-            if(!MayAcceptDuel(_goal=="pause",danger))
+            if(!MayAcceptDuel(_goal is "pause" or "duel",danger))
             {
-                me.Say("Dangerious creatures around, i do not want to chance dying. It's a rough run back for me.",Language.Universal);
+                me.Say("Dangerous creatures around, I do not want to chance dying. It's a rough run back for me.",Language.Universal);
                 me.GetSession().RespondToDuelForSI(false);Status="Declined unsafe duel";return true;
             }
             if(me.IsInCombat())
@@ -48,20 +50,30 @@ public sealed partial class SIPlayer
             // buffs exist. Never accept just because a preparation timer expired.
             if(SelfBuffsPending())
             {
-                if(Buff()){Status="Applying all self-buffs before duel";return true;}
+                if(Buff()){_duelBuffBlockedAt=null;Status="Applying all self-buffs before duel";return true;}
                 // A warrior cannot regenerate the rage for a shout by sitting.
                 // Use the learned native resource ability, then recover its HP
                 // cost after the buffs have actually been applied.
                 if(me.GetClass()==Class.Warrior&&_knownSpells.FirstOrDefault(s=>SpellName(s)=="bloodrage") is { } bloodrage&&Cast(bloodrage,me))
-                {Status="Generating rage for duel self-buffs";return true;}
+                {_duelBuffBlockedAt=null;Status="Generating rage for duel self-buffs";return true;}
                 if(me.GetClass()==Class.Druid&&me.GetShapeshiftForm()!=ShapeShiftForm.None)
                 {me.RemoveAurasByType(AuraType.ModShapeshift);Status="Returning to caster form for duel self-buffs";return true;}
-                if(!DuelResourcesFull())RecoverForDuel();
+                if(!DuelResourcesFull()){_duelBuffBlockedAt=null;RecoverForDuel();}
+                else
+                {
+                    _duelBuffBlockedAt??=Now;
+                    if(SISelfBuffPolicy.DuelBlocked(Now,_duelBuffBlockedAt.Value))
+                    {
+                        me.GetSession().RespondToDuelForSI(false);
+                        Status="Duel declined: a required self-buff could not be applied";
+                        Report("duel_buff_blocked",Status);return true;
+                    }
+                }
                 Status="Waiting to finish self-buffs before duel";return true;
             }
             if(!DuelResourcesFull())
             {RecoverForDuel();Status="Recovering to full health and mana before duel";return true;}
-            if(me.GetStandState()!=UnitStandStateType.Stand)me.SetStandState(UnitStandStateType.Stand);
+            StandUp();
             _resting=false;_recovering=false;
             me.GetSession().RespondToDuelForSI(true);Status="Accepted duel";return true;
         }
@@ -87,6 +99,6 @@ public sealed partial class SIPlayer
         if(TryRecoveryConsumable(fullRecovery:true))return;
         if(me.GetHealth()<me.GetMaxHealth())
             foreach(var spell in _knownSpells.Where(IsHeal))if(Cast(spell,me))return;
-        if(me.GetStandState()!=UnitStandStateType.Sit)me.SetStandState(UnitStandStateType.Sit);
+        SitDown();
     }
 }

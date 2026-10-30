@@ -4048,12 +4048,26 @@ namespace Game.Spells
             caster.SendPacket(packet);
         }
 
+        SpellCastFlags CastOriginFlags()
+        {
+            SpellCastFlags flags=SpellCastFlags.None;
+            bool triggered=IsTriggered();
+            // SI supplies player input on the server. Its ordinary mounts,
+            // recipes and other actions need the same client presentation as
+            // a player request, without pretending a client request arrived.
+            if(m_fromClient||(m_caster.ToPlayer()?.Controller!=null&&!triggered&&m_triggeredByAuraSpell==null))
+                flags|=SpellCastFlags.FromClient;
+            if(((triggered&&!m_spellInfo.IsAutoRepeatRangedSpell())||m_triggeredByAuraSpell!=null)&&!m_fromClient)
+                flags|=SpellCastFlags.Pending;
+            return flags;
+        }
+
         void SendSpellStart()
         {
             if (!IsNeedSendToClient())
                 return;
 
-            SpellCastFlags castFlags = SpellCastFlags.HasTrajectory;
+            SpellCastFlags castFlags = SpellCastFlags.HasTrajectory | CastOriginFlags();
             uint schoolImmunityMask = 0;
             ulong mechanicImmunityMask = 0;
             Unit unitCaster = m_caster.ToUnit();
@@ -4066,17 +4080,11 @@ namespace Game.Spells
             if (schoolImmunityMask != 0 || mechanicImmunityMask != 0)
                 castFlags |= SpellCastFlags.Immunity;
 
-            if (((IsTriggered() && !m_spellInfo.IsAutoRepeatRangedSpell()) || m_triggeredByAuraSpell != null) && !m_fromClient)
-                castFlags |= SpellCastFlags.Pending;
-
             if (m_spellInfo.HasAttribute(SpellAttr0.UsesRangedSlot) || m_spellInfo.HasAttribute(SpellAttr10.UsesRangedSlotCosmeticOnly) || m_spellInfo.HasAttribute(SpellCustomAttributes.NeedsAmmoData))
                 castFlags |= SpellCastFlags.Projectile;
 
             if ((m_caster.IsTypeId(TypeId.Player) || (m_caster.IsTypeId(TypeId.Unit) && m_caster.ToCreature().IsPet())) && m_powerCost.Any(cost => cost.Power != PowerType.Health))
                 castFlags |= SpellCastFlags.PowerLeftSelf;
-
-            if (HasPowerTypeCost(PowerType.RuneBlood) || HasPowerTypeCost(PowerType.RuneUnholy)|| HasPowerTypeCost(PowerType.RuneFrost))
-                castFlags |= SpellCastFlags.NoGCD; // not needed, but Blizzard sends it
 
             if (m_spellInfo.HasAttribute(SpellAttr8.HealPrediction) && m_casttime != 0 && m_caster.IsUnit())
                 castFlags |= SpellCastFlags.HealPrediction;
@@ -4169,11 +4177,7 @@ namespace Game.Spells
 
             Log.outDebug(LogFilter.Spells, $"Sending SMSG_SPELL_GO id={m_spellInfo.Id}");
 
-            SpellCastFlags castFlags = SpellCastFlags.Unk9;
-
-            // triggered spells with spell visual != 0
-            if (((IsTriggered() && !m_spellInfo.IsAutoRepeatRangedSpell()) || m_triggeredByAuraSpell != null) && !m_fromClient)
-                castFlags |= SpellCastFlags.Pending;
+            SpellCastFlags castFlags = SpellCastFlags.Unk9 | CastOriginFlags();
 
             if (m_spellInfo.HasAttribute(SpellAttr0.UsesRangedSlot)
                 || m_spellInfo.HasAttribute(SpellAttr10.UsesRangedSlotCosmeticOnly)
@@ -4193,7 +4197,6 @@ namespace Game.Spells
                 && (HasPowerTypeCost(PowerType.RuneBlood) || HasPowerTypeCost(PowerType.RuneUnholy) || HasPowerTypeCost(PowerType.RuneFrost))
                 && !_triggeredCastFlags.HasAnyFlag(TriggerCastFlags.IgnorePowerAndReagentCost))
             {
-                castFlags |= SpellCastFlags.NoGCD;                   // same as in SMSG_SPELL_START
                 castFlags |= SpellCastFlags.RuneList;                    // rune cooldowns list
             }
 
@@ -4202,9 +4205,6 @@ namespace Game.Spells
 
             if (m_targets.HasTraj())
                 castFlags |= SpellCastFlags.AdjustMissile;
-
-            if (m_spellInfo.StartRecoveryTime == 0)
-                castFlags |= SpellCastFlags.NoGCD;
 
             SpellGo packet = new();
             SpellCastData castData = packet.Cast;
@@ -8355,6 +8355,11 @@ namespace Game.Spells
             if (target.IsCreature() && target.ToCreature().CanIgnoreLineOfSightWhenCastingOnMe())
                 return true;
 
+            // CheckCast runs both when preparation begins and just before launch.
+            // An SI target may enter terrain cover between controller updates.
+            if (!IsTriggered() && source == m_caster && source.ToPlayer()?.Controller is { } controller && target.ToUnit() is { } unitTarget)
+                return controller.CombatSight(unitTarget);
+
             WorldObject src = targetAsSourceLocation ? target : source;
             WorldObject dst = targetAsSourceLocation ? source : target;
             return src.IsWithinLOSInMap(dst, LineOfSightChecks.All, ignoreFlags);
@@ -8610,7 +8615,10 @@ namespace Game.Spells
             m_timer = m_casttime > 0 ? m_casttime : Milliseconds.Zero;
         }
 
-        public bool IsTriggered() { return _triggeredCastFlags.HasAnyFlag(TriggerCastFlags.FullMask); }
+        public bool IsTriggered()
+        {
+            return (!m_fromClient&&_triggeredCastFlags.HasAnyFlag(TriggerCastFlags.IsTriggeredMask))||!m_originalCastId.IsEmpty();
+        }
         public bool IsTriggeredByAura(SpellInfo auraSpellInfo) { return (auraSpellInfo == m_triggeredByAuraSpell); }
         public bool IsIgnoringCooldowns() { return _triggeredCastFlags.HasAnyFlag(TriggerCastFlags.IgnoreSpellAndCategoryCD); }
         

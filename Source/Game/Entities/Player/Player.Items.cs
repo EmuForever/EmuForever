@@ -4843,7 +4843,7 @@ namespace Game.Entities
 
         public void AutoSelectAmmo()
         {
-            bool preferDrawable = _session != null && _session.IsServerControlled;
+            bool preferDrawable = _session != null && _session.IsSIControlled;
             int current = GetUsedAmmoId();
             if (current != 0 && GetItemCount(current) != 0
                 && IsAmmoUsableWithRangedWeapon(Global.ObjectMgr.GetItemTemplate(current))
@@ -6251,7 +6251,10 @@ namespace Game.Entities
             packet.Acquired = true; // false == No Loot (this too^^)
             packet.AELooting = aeLooting;
             loot.BuildLootResponse(packet, this);
-            SendPacket(packet);
+            // The self-SI owns transfer/release after its animation tick. A loot
+            // window on a client with movement control revoked can close itself
+            // before then and destroy the native view the AI is about to use.
+            if(!IsSelfSIControlled)SendPacket(packet);
 
             // add 'this' player as one of the players that are looting 'loot'
             loot.OnLootOpened(GetMap(), GetGUID());

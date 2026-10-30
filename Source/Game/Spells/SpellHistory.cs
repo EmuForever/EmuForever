@@ -163,7 +163,8 @@ namespace Game.Spells
             {
                 if (pair.Value.CooldownEnd < now)
                 {
-                    _categoryCooldowns.Remove(pair.Value.CategoryId);
+                    // A shared category can outlast this spell, or now belong
+                    // to a later cast. Its own deadline is cleaned above.
                     _spellCooldowns.Remove(pair.Key);
                 }
             }
@@ -203,10 +204,12 @@ namespace Game.Spells
                 }
             }
 
-            if (spellInfo.IsCooldownStartedOnEvent() || spellInfo.IsPassive())
+            if (spellInfo.IsPassive())
                 return;
 
-            StartCooldown(spellInfo, itemId, spell);
+            // Cooldown on event (Presence of Mind, Nature's Swiftness, ...): held until the effect is used up,
+            // then started by SendCooldownEvent. Holding it keeps the spell unusable meanwhile, as TrinityCore does.
+            StartCooldown(spellInfo, itemId, spell, spellInfo.IsCooldownStartedOnEvent());
         }
 
         public bool IsReady(SpellInfo spellInfo, int itemId = 0)
@@ -468,7 +471,23 @@ namespace Game.Spells
 
             // start cooldowns at server side, if any
             if (startCooldown)
+            {
                 StartCooldown(spellInfo, itemId, spell);
+                // The Classic client does not start the timer from SMSG_COOLDOWN_EVENT alone (the packet log shows it
+                // arriving for Presence of Mind with no cooldown on the action bar); give it the remaining time too.
+                if (player != null && _spellCooldowns.TryGetValue(spellInfo.Id, out CooldownEntry started) && !started.OnHold)
+                {
+                    TimeSpan remaining = started.CooldownEnd - LoopTime.ServerTime;
+                    if (remaining.TotalMilliseconds > 0)
+                    {
+                        SpellCooldownPkt spellCooldown = new();
+                        spellCooldown.Caster = _owner.GetGUID();
+                        spellCooldown.Flags = SpellCooldownFlags.None;
+                        spellCooldown.SpellCooldowns.Add(new SpellCooldownStruct(spellInfo.Id, (Milliseconds)remaining));
+                        player.SendPacket(spellCooldown);
+                    }
+                }
+            }
         }
 
         public void AddCooldown(int spellId, int itemId, TimeSpan cooldownDuration)

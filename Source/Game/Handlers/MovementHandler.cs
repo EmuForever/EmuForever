@@ -55,6 +55,7 @@ namespace Game
 
         void HandleMovementOpcode(ClientOpcodes opcode, MovementInfo movementInfo)
         {
+            if (_player.IsSelfSIControlled) return;
             Unit mover = GetPlayer().GetUnitBeingMoved();
             Player plrMover = mover.ToPlayer();
 
@@ -242,7 +243,7 @@ namespace Game
             Player player = GetPlayer();
 
             // ignore unexpected far teleports
-            if (!player.IsBeingTeleportedFar())
+            if (!player.IsBeingTeleportedFar()||player.HasPendingTeleportDispatch)
                 return;
 
             bool seamlessTeleport = player.IsBeingTeleportedSeamlessly();
@@ -475,9 +476,9 @@ namespace Game
         [WorldPacketHandler(ClientOpcodes.MoveTeleportAck, Processing = PacketProcessing.ThreadSafe)]
         void HandleMoveTeleportAck(MoveTeleportAck packet)
         {
-            Player plMover = GetPlayer().GetUnitBeingMoved().ToPlayer();
+            Player plMover = GetPlayer().GetUnitBeingMoved()?.ToPlayer();
 
-            if (plMover == null || !plMover.IsBeingTeleportedNear())
+            if (plMover == null || !plMover.IsBeingTeleportedNear()||plMover.HasPendingTeleportDispatch)
                 return;
 
             if (packet.MoverGUID != plMover.GetGUID())
@@ -488,8 +489,8 @@ namespace Game
 
         void CompleteNearTeleport()
         {
-            Player plMover = GetPlayer().GetUnitBeingMoved().ToPlayer();
-            if (plMover == null || !plMover.IsBeingTeleportedNear())
+            Player plMover = IsServerControlled ? GetPlayer() : GetPlayer().GetUnitBeingMoved()?.ToPlayer();
+            if (plMover == null || !plMover.IsBeingTeleportedNear()||plMover.HasPendingTeleportDispatch)
                 return;
 
             plMover.SetSemaphoreTeleportNear(false);
@@ -619,7 +620,8 @@ namespace Game
         [WorldPacketHandler(ClientOpcodes.SetActiveMover)]
         void HandleSetActiveMover(SetActiveMover packet)
         {
-            if (GetPlayer().IsInWorld)
+            // Under .si me the server owns movement, so the client correctly reports that it moves nothing.
+            if (GetPlayer().IsInWorld && !_player.IsSelfSIControlled)
             {
                 if (_player.GetUnitBeingMoved().GetGUID() != packet.ActiveMover)
                 {
@@ -634,6 +636,7 @@ namespace Game
         [WorldPacketHandler(ClientOpcodes.MoveKnockBackAck, Processing = PacketProcessing.ThreadSafe)]
         void HandleMoveKnockBackAck(MoveKnockBackAck movementAck)
         {
+            if (_player.IsSelfSIControlled) return;
             GetPlayer().ValidateMovementInfo(movementAck.Ack.Status);
 
             if (GetPlayer().GetUnitBeingMoved().GetGUID() != movementAck.Ack.Status.Guid)

@@ -18,13 +18,14 @@ using Game.Scripting;
 using Game.Spells;
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace Game
 {
-    public sealed class ObjectManager : Singleton<ObjectManager>
+    public sealed partial class ObjectManager : Singleton<ObjectManager>
     {
         ObjectManager() { }
 
@@ -870,6 +871,7 @@ namespace Game
             RelativeTime oldMSTime = Time.NowRelative;
 
             GraveyardStorage.Clear();                                  // need for reload case
+            _missingGraveyardLinks.Clear();
 
             //                                         0       1         2
             SQLResult result = DB.World.Query("SELECT ID, GhostZone, 0 FROM graveyard_zone"); // no faction column in the 1.60.1 world DB
@@ -973,27 +975,38 @@ namespace Game
             if (zoneId == 0)
             {
                 if (pos.Z > -500)
-                {
                     Log.outError(LogFilter.Server, 
                         $"ZoneId not found for map {MapId} coords ({pos.X}, {pos.Y}, {pos.Z}).");
-                    return GetDefaultGraveyard(team);
-                }
+                return GetDefaultGraveyard(team);
             }
 
-            var graveyard = GetClosestGraveyardInZone(location, team, conditionObject, zoneId);
-            var zoneEntry = CliDB.AreaTableStorage.LookupByKey(zoneId);
-            var parentEntry = CliDB.AreaTableStorage.LookupByKey(zoneEntry.ParentAreaID);
+            return GetClosestGraveyardForZone(location, team, conditionObject, zoneId);
+        }
 
-            while (graveyard == null && parentEntry != null)
+        readonly ConcurrentDictionary<(int Map, int Zone, Team Team), byte> _missingGraveyardLinks = new();
+
+        WorldSafeLocsEntry GetClosestGraveyardForZone(WorldLocation location, Team team, WorldObject conditionObject, int zoneId)
+        {
+            // A child area may intentionally inherit its parent's graveyard links.
+            // Only use the faction fallback after exhausting that chain.
+            var visited = new HashSet<int>();
+            for (int areaId = zoneId; areaId != 0 && visited.Add(areaId);)
             {
-                graveyard = GetClosestGraveyardInZone(location, team, conditionObject, parentEntry.Id);
-                if (graveyard == null && parentEntry.ParentAreaID != 0)
-                    parentEntry = CliDB.AreaTableStorage.LookupByKey(parentEntry.ParentAreaID);
-                else // nothing found, cant look further, give up.
-                    parentEntry = null;
+                var graveyard = GetClosestGraveyardInZone(location, team, conditionObject, areaId);
+                if (graveyard != null)
+                    return graveyard;
+
+                areaId = CliDB.AreaTableStorage.LookupByKey(areaId)?.ParentAreaID ?? 0;
             }
 
-            return graveyard;
+            if (CliDB.MapStorage.LookupByKey(location.GetMapId())?.IsBattlegroundOrArena == true)
+                return null;
+
+            if (zoneId != 0 && _missingGraveyardLinks.TryAdd((location.GetMapId(), zoneId, team), 0))
+                Log.outError(LogFilter.Sql,
+                    $"Table `graveyard_zone` incomplete: Zone {zoneId} Team {team} has no usable linked graveyard in its area or parent areas; using the faction default.");
+
+            return GetDefaultGraveyard(team);
         }
 
         WorldSafeLocsEntry GetClosestGraveyardInZone(WorldLocation location, Team team, WorldObject conditionObject, int zoneId)
@@ -1012,17 +1025,8 @@ namespace Game
 
             ConditionSourceInfo conditionSource = new(conditionObject);
 
-            // not need to check validity of map object; MapId _MUST_ be valid here
-            if (range.Empty() && !mapEntry.IsBattlegroundOrArena)
-            {
-                if (zoneId != 0) // zone == 0 can't be fixed, used by bliz for bugged zones
-                {
-                    Log.outError(LogFilter.Sql,
-                        $"Table `game_graveyard_zone` incomplete: " +
-                        $"Zone {zoneId} Team {team} does not have a linked graveyard.");
-                }
-                return GetDefaultGraveyard(team);
-            }
+            if (range.Empty() || mapEntry == null)
+                return null;
 
             // at corpse map
             bool foundNear = false;
@@ -1031,7 +1035,7 @@ namespace Game
 
             // at entrance map for corpse map
             bool foundEntr = false;
-            //float distEntr = 10000;
+            float distEntr = float.MaxValue;
             WorldSafeLocsEntry entryEntr = null;
 
             // some where other
@@ -1043,7 +1047,7 @@ namespace Game
                 if (entry == null)
                 {
                     Log.outError(LogFilter.Sql, 
-                        $"Table `game_graveyard_zone` has record " +
+                        $"Table `graveyard_zone` has record " +
                         $"for not existing graveyard (WorldSafeLocs.dbc id) {data.SafeLocId}, skipped.");
                     continue;
                 }
@@ -1100,15 +1104,10 @@ namespace Game
                     //And we don't care about the value itself, we compare the results
                     float dist2 = Vector2.DistanceSquared(entryLocPosition, mapCorpsePosition);
 
-                    if (foundEntr)
-                    {
-                        //distEntr = 0.0f;
-                        entryEntr = entry;
-                    }
-                    else
+                    if (!foundEntr || dist2 < distEntr)
                     {
                         foundEntr = true;
-                        //distEntr = 0.0f;
+                        distEntr = dist2;
                         entryEntr = entry;
                     }
                 }
