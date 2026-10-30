@@ -1,4 +1,6 @@
-[![Buy me a coffee](docs/images/buy-me-a-coffee.svg)](https://buymeacoffee.com/caffeine204)
+<a href="https://buymeacoffee.com/caffeine204">
+  <img src="https://www.owlstown.com/assets/icons/bmc-yellow-button-941f96a1.png" width="200" alt="Buy me a coffee">
+</a>
 
 # EmuForever
 
@@ -107,4 +109,6 @@ EmuForever is an independent, fan-made research and interoperability project. It
 
 **EmuForever — One world. Real players. Intelligent players.**
 
-[![Buy me a coffee](docs/images/buy-me-a-coffee.svg)](https://buymeacoffee.com/caffeine204)
+<a href="https://buymeacoffee.com/caffeine204">
+  <img src="https://www.owlstown.com/assets/icons/bmc-yellow-button-941f96a1.png" width="200" alt="Buy me a coffee">
+</a>
