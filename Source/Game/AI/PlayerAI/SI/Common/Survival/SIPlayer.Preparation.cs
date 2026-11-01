@@ -88,7 +88,7 @@ namespace Game.AI
             {
                 _preparationStockChecked = true;
                 // Startup shopping is optional and local. Never cross the zone for food before questing.
-                _preparationMerchant = NearestMerchant(QuestPickupRadius, NPCFlags1.Vendor, SIVendorPurpose.Restock, CanRestockAt)?.GetGUID() ?? ObjectGuid.Empty;
+                _preparationMerchant = NearestMerchant(ProvisionScanRange, NPCFlags1.Vendor, SIVendorPurpose.Restock, CanRestockAt)?.GetGUID() ?? ObjectGuid.Empty;
             }
             if (_preparationMerchant.IsEmpty() || Resolve(_preparationMerchant) is not Creature merchant) return SIBehaviorResult.Success;
             SIBehaviorResult approach = MoveWithin(merchant, 3.5f, "Preparing food and drink", npcInteraction: true);

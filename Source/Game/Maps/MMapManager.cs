@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -118,7 +118,7 @@ namespace Game
 
             // get this mmap data
             MMapData mmap = loadedMMaps[mapId];
-            Cypher.Assert(mmap.navMesh != null);
+            Forever.Assert(mmap.navMesh != null);
 
             // check if we already have this tile loaded
             uint packedGridPos = PackTileID(x, y);
@@ -256,7 +256,7 @@ namespace Game
                 Log.outError(LogFilter.Maps, 
                     $"MMAP:unloadMap: Could not unload " +
                     $"{mapId:D4}{x:D2}{y:D2}.mmtile from navmesh");
-                Cypher.Assert(false);
+                Forever.Assert(false);
             }
             else
             {

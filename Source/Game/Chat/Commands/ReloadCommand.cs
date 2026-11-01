@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -215,14 +215,14 @@ namespace Game.Chat
 
                 if (result.IsEmpty())
                 {
-                    handler.SendSysMessage(CypherStrings.CommandCreaturetemplateNotfound, entry);
+                    handler.SendSysMessage(ForeverStrings.CommandCreaturetemplateNotfound, entry);
                     continue;
                 }
 
                 CreatureTemplate cInfo = Global.ObjectMgr.GetCreatureTemplate(entry);
                 if (cInfo == null)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandCreaturestorageNotfound, entry);
+                    handler.SendSysMessage(ForeverStrings.CommandCreaturestorageNotfound, entry);
                     continue;
                 }
 
@@ -247,11 +247,11 @@ namespace Game.Chat
             return true;
         }
 
-        [Command("trinity_string", RBACPermissions.CommandReloadCypherString, true)]
-        static bool HandleReloadCypherStringCommand(CommandHandler handler)
+        [Command("trinity_string", RBACPermissions.CommandReloadForeverString, true)]
+        static bool HandleReloadForeverStringCommand(CommandHandler handler)
         {
             Log.outInfo(LogFilter.Server, "Re-Loading trinity_string Table!");
-            Global.ObjectMgr.LoadCypherStrings();
+            Global.ObjectMgr.LoadForeverStrings();
             handler.SendGlobalGMSysMessage("DB table `trinity_string` reloaded.");
             return true;
         }
@@ -955,7 +955,7 @@ namespace Game.Chat
                 HandleReloadAccessRequirementCommand(handler);
                 HandleReloadMailLevelRewardCommand(handler);
                 HandleReloadReservedNameCommand(handler);
-                HandleReloadCypherStringCommand(handler);
+                HandleReloadForeverStringCommand(handler);
                 HandleReloadGameTeleCommand(handler);
 
                 HandleReloadCreatureMovementOverrideCommand(handler);

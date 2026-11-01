@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -691,7 +691,7 @@ namespace Game.Networking
             // RBAC must be loaded before adding session to check for skip queue permission
             _worldSession.GetRBACData().LoadFromDBCallback(result);
 
-            await Task.Delay(2500); // I assume everything happens faster than trinitycore so we move up to 2.5sec to allow launcher to finish. This is a hack fix and launcher should inform server when client is patched fully.
+            await Task.Delay(2500); // I assume everything happens faster than emuforever so we move up to 2.5sec to allow launcher to finish. This is a hack fix and launcher should inform server when client is patched fully.
 
             SendPacket(new EnterEncryptedMode(_encryptKey, true));
         }

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Game.Entities;
@@ -165,9 +165,9 @@ namespace Game
 
         public void RegisterTrackedObject(int phaseId, ObjectGuid phaseOwner, WorldObject obj)
         {
-            Cypher.Assert(phaseId != 0);
-            Cypher.Assert(!phaseOwner.IsEmpty());
-            Cypher.Assert(obj != null);
+            Forever.Assert(phaseId != 0);
+            Forever.Assert(!phaseOwner.IsEmpty());
+            Forever.Assert(obj != null);
 
             _playerData[phaseOwner].RegisterTrackedObject(phaseId, obj);
         }

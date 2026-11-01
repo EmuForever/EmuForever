@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -66,7 +66,7 @@ namespace Game
             Player player = GetPlayer();
             if (player.GetLevel() < WorldConfig.Values[WorldCfg.MailLevelReq].Int32)
             {
-                SendNotification(CypherStrings.MailSenderReq, WorldConfig.Values[WorldCfg.MailLevelReq].Int32);
+                SendNotification(ForeverStrings.MailSenderReq, WorldConfig.Values[WorldCfg.MailLevelReq].Int32);
                 return;
             }
 
@@ -172,7 +172,7 @@ namespace Game
 
                 if (receiverLevel < WorldConfig.Values[WorldCfg.MailLevelReq].Int32)
                 {
-                    SendNotification(CypherStrings.MailReceiverReq, WorldConfig.Values[WorldCfg.MailLevelReq].Int32);
+                    SendNotification(ForeverStrings.MailReceiverReq, WorldConfig.Values[WorldCfg.MailLevelReq].Int32);
                     return;
                 }
 
@@ -488,7 +488,7 @@ namespace Game
                             sender_accId = Global.CharacterCacheStorage.GetCharacterAccountIdByGuid(sender_guid);
 
                             if (!Global.CharacterCacheStorage.GetCharacterNameByGuid(sender_guid, out sender_name))
-                                sender_name = Global.ObjectMgr.GetCypherString(CypherStrings.Unknown);
+                                sender_name = Global.ObjectMgr.GetForeverString(ForeverStrings.Unknown);
                         }
 
                         Log.outCommand(GetAccountId(), 

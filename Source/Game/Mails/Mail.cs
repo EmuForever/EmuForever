@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -76,7 +76,7 @@ namespace Game.Mails
             m_receiver = receiver;
             m_receiver_lowguid = receiver_lowguid;
 
-            Cypher.Assert(receiver == null || receiver.GetGUID().GetCounter() == receiver_lowguid);
+            Forever.Assert(receiver == null || receiver.GetGUID().GetCounter() == receiver_lowguid);
         }
 
         public MailReceiver(Player receiver, ObjectGuid receiverGuid)
@@ -84,7 +84,7 @@ namespace Game.Mails
             m_receiver = receiver;
             m_receiver_lowguid = receiverGuid.GetCounter();
 
-            Cypher.Assert(receiver == null || receiver.GetGUID() == receiverGuid);
+            Forever.Assert(receiver == null || receiver.GetGUID() == receiverGuid);
         }
 
         public Player GetPlayer() { return m_receiver; }

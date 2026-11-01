@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Configuration;
@@ -807,8 +807,8 @@ namespace Game.DungeonFinding
                         if (it2.Value.lockStatus == LfgLockStatusType.RaidLocked && isContinue)
                         {
                             LFGDungeonData dungeon = GetLFGDungeon(dungeonId);
-                            Cypher.Assert(dungeon != null);
-                            Cypher.Assert(player != null);
+                            Forever.Assert(dungeon != null);
+                            Forever.Assert(player != null);
                             MapDb2Entries entries = new(dungeon.map, dungeon.difficulty);
                             InstanceLock playerBind = Global.InstanceLockMgr.FindActiveInstanceLock(guid, entries);
                             if (playerBind != null)
@@ -934,7 +934,7 @@ namespace Game.DungeonFinding
                             dpsPlayers.Add(guid);
                             break;
                         default:
-                            Cypher.Assert(false, $"Invalid LFG role {it.Value.role}");
+                            Forever.Assert(false, $"Invalid LFG role {it.Value.role}");
                             break;
                     }
                 }
@@ -948,7 +948,7 @@ namespace Game.DungeonFinding
 
             // Set the dungeon difficulty
             LFGDungeonData dungeon = GetLFGDungeon(proposal.dungeonId);
-            Cypher.Assert(dungeon != null);
+            Forever.Assert(dungeon != null);
 
             Group grp = !proposal.group.IsEmpty() ? Global.GroupMgr.GetGroupByGUID(proposal.group) : null;
             foreach (var pguid in players)
@@ -1592,7 +1592,7 @@ namespace Game.DungeonFinding
 
         public bool IsVoteKickActive(ObjectGuid gguid)
         {
-            Cypher.Assert(gguid.IsParty());
+            Forever.Assert(gguid.IsParty());
 
             bool active = GroupsStore[gguid].IsVoteKickActive();
             Log.outInfo(LogFilter.Lfg, $"Group: {gguid}, Active: {active}");
@@ -1768,7 +1768,7 @@ namespace Game.DungeonFinding
 
         void SetVoteKick(ObjectGuid gguid, bool active)
         {
-            Cypher.Assert(gguid.IsParty());
+            Forever.Assert(gguid.IsParty());
 
             var data = GroupsStore[gguid];
             Log.outInfo(LogFilter.Lfg, 

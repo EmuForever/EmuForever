@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -234,12 +234,12 @@ namespace Game
                     Global.ObjectMgr.GetTaxiPath(nodes[i-1],nodes[i],out int path,out uint fare);
                     if(path==0||!CliDB.TaxiPathNodesByPath.TryGetValue(path,out var points)||points.Length<2||points.Any(p=>p==null))return false;
                     rawFare+=fare;
-                    ulong legFare=player.ApplyClassicLegacyPriceMod((ulong)Math.Ceiling(fare*discount),4);
+                    ulong legFare=player.ApplyClassicLegacyPriceMod((ulong)Math.Ceiling(fare*discount),Game.Systems.Legacy.LegacyEffectEngine.FlightPathPriceType);
                     paidByLeg=legFare>ulong.MaxValue-paidByLeg?ulong.MaxValue:paidByLeg+legFare;
                 }
             }
             if(rawFare>uint.MaxValue||reservedMoney<0||reservedMoney>player.GetMoney())return false;
-            ulong actualFare=Math.Max(paidByLeg,player.ApplyClassicLegacyPriceMod((ulong)Math.Ceiling(rawFare*discount),4));
+            ulong actualFare=Math.Max(paidByLeg,player.ApplyClassicLegacyPriceMod((ulong)Math.Ceiling(rawFare*discount),Game.Systems.Legacy.LegacyEffectEngine.FlightPathPriceType));
             if(actualFare>(ulong)(player.GetMoney()-reservedMoney))return false;
             // Native activation owns payment, mounts, packets and taxi movement.
             bool activated=player.ActivateTaxiPathTo(new List<int>(nodes),master);

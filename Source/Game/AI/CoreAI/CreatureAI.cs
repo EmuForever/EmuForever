@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -317,13 +317,13 @@ namespace Game.AI
             return true;
         }
 
-        public CypherStrings VisualizeBoundary(TimeSpan duration, Unit owner = null, bool fill = false)
+        public ForeverStrings VisualizeBoundary(TimeSpan duration, Unit owner = null, bool fill = false)
         {
             if (owner == null)
                 return 0;
 
             if (_boundary.Empty())
-                return CypherStrings.CreatureMovementNotBounded;
+                return ForeverStrings.CreatureMovementNotBounded;
 
             List<KeyValuePair<int, int>> Q = new();
             List<KeyValuePair<int, int>> alreadyChecked = new();
@@ -337,7 +337,7 @@ namespace Game.AI
                 {
                     startPosition = me.GetHomePosition();
                     if (!IsInBoundary(startPosition)) // fall back to creature home position
-                        return CypherStrings.CreatureNoInteriorPointFound;
+                        return ForeverStrings.CreatureNoInteriorPointFound;
                 }
             }
             float spawnZ = startPosition.GetPositionZ() + SharedConst.BoundaryVisualizeSpawnHeight;
@@ -387,7 +387,7 @@ namespace Game.AI
                     Q.Remove(front);
                 }
             }
-            return boundsWarning ? CypherStrings.CreatureMovementMaybeUnbounded : 0;
+            return boundsWarning ? ForeverStrings.CreatureMovementMaybeUnbounded : 0;
         }
 
         public bool IsInBoundary(Position who = null)

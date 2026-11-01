@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -57,21 +57,21 @@ namespace Game.Chat.Commands
             Player chr = handler.GetSelectedPlayer();
             if (chr == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
             if (reveal)
             {
-                handler.SendSysMessage(CypherStrings.YouSetExploreAll, handler.GetNameLink(chr));
+                handler.SendSysMessage(ForeverStrings.YouSetExploreAll, handler.GetNameLink(chr));
                 if (handler.NeedReportToTarget(chr))
-                    chr.SendSysMessage(CypherStrings.YoursExploreSetAll, handler.GetNameLink());
+                    chr.SendSysMessage(ForeverStrings.YoursExploreSetAll, handler.GetNameLink());
             }
             else
             {
-                handler.SendSysMessage(CypherStrings.YouSetExploreNothing, handler.GetNameLink(chr));
+                handler.SendSysMessage(ForeverStrings.YouSetExploreNothing, handler.GetNameLink(chr));
                 if (handler.NeedReportToTarget(chr))
-                    chr.SendSysMessage(CypherStrings.YoursExploreSetNothing, handler.GetNameLink());
+                    chr.SendSysMessage(ForeverStrings.YoursExploreSetNothing, handler.GetNameLink());
             }
 
             for (ushort i = 0; i < PlayerConst.ExploredZonesSize; ++i)
@@ -140,13 +140,13 @@ namespace Game.Chat.Commands
             string enabled = "ON";
             string disabled = "OFF";
 
-            handler.SendSysMessage(CypherStrings.CommandCheatStatus);
-            handler.SendSysMessage(CypherStrings.CommandCheatGod, player.GetCommandStatus(PlayerCommandStates.God) ? enabled : disabled);
-            handler.SendSysMessage(CypherStrings.CommandCheatCd, player.GetCommandStatus(PlayerCommandStates.Cooldown) ? enabled : disabled);
-            handler.SendSysMessage(CypherStrings.CommandCheatCt, player.GetCommandStatus(PlayerCommandStates.Casttime) ? enabled : disabled);
-            handler.SendSysMessage(CypherStrings.CommandCheatPower, player.GetCommandStatus(PlayerCommandStates.Power) ? enabled : disabled);
-            handler.SendSysMessage(CypherStrings.CommandCheatWw, player.GetCommandStatus(PlayerCommandStates.Waterwalk) ? enabled : disabled);
-            handler.SendSysMessage(CypherStrings.CommandCheatTaxinodes, player.IsTaxiCheater() ? enabled : disabled);
+            handler.SendSysMessage(ForeverStrings.CommandCheatStatus);
+            handler.SendSysMessage(ForeverStrings.CommandCheatGod, player.GetCommandStatus(PlayerCommandStates.God) ? enabled : disabled);
+            handler.SendSysMessage(ForeverStrings.CommandCheatCd, player.GetCommandStatus(PlayerCommandStates.Cooldown) ? enabled : disabled);
+            handler.SendSysMessage(ForeverStrings.CommandCheatCt, player.GetCommandStatus(PlayerCommandStates.Casttime) ? enabled : disabled);
+            handler.SendSysMessage(ForeverStrings.CommandCheatPower, player.GetCommandStatus(PlayerCommandStates.Power) ? enabled : disabled);
+            handler.SendSysMessage(ForeverStrings.CommandCheatWw, player.GetCommandStatus(PlayerCommandStates.Waterwalk) ? enabled : disabled);
+            handler.SendSysMessage(ForeverStrings.CommandCheatTaxinodes, player.IsTaxiCheater() ? enabled : disabled);
             return true;
         }
 
@@ -166,16 +166,16 @@ namespace Game.Chat.Commands
             if (enable)
             {
                 chr.SetTaxiCheater(true);
-                handler.SendSysMessage(CypherStrings.YouGiveTaxis, handler.GetNameLink(chr));
+                handler.SendSysMessage(ForeverStrings.YouGiveTaxis, handler.GetNameLink(chr));
                 if (handler.NeedReportToTarget(chr))
-                    chr.SendSysMessage(CypherStrings.YoursTaxisAdded, handler.GetNameLink());
+                    chr.SendSysMessage(ForeverStrings.YoursTaxisAdded, handler.GetNameLink());
             }
             else
             {
                 chr.SetTaxiCheater(false);
-                handler.SendSysMessage(CypherStrings.YouRemoveTaxis, handler.GetNameLink(chr));
+                handler.SendSysMessage(ForeverStrings.YouRemoveTaxis, handler.GetNameLink(chr));
                 if (handler.NeedReportToTarget(chr))
-                    chr.SendSysMessage(CypherStrings.YoursTaxisRemoved, handler.GetNameLink());
+                    chr.SendSysMessage(ForeverStrings.YoursTaxisRemoved, handler.GetNameLink());
             }
 
             return true;

@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -73,7 +73,7 @@ namespace Game.DataStorage
 
             foreach (var uiDisplay in ChrClassUIDisplayStorage.Values)
             {
-                Cypher.Assert(uiDisplay.ChrClassesID < Class.Max);
+                Forever.Assert(uiDisplay.ChrClassesID < Class.Max);
                 _uiDisplayByClass[(int)uiDisplay.ChrClassesID] = uiDisplay;
             }
 
@@ -343,7 +343,7 @@ namespace Game.DataStorage
 
             foreach (var namesProfanity in NamesProfanityStorage.Values)
             {
-                Cypher.Assert(namesProfanity.Language < Locale.Total || namesProfanity.Language == Locale.AllLanguages);
+                Forever.Assert(namesProfanity.Language < Locale.Total || namesProfanity.Language == Locale.AllLanguages);
                 if (namesProfanity.Language != Locale.AllLanguages)
                     _nameValidators[(int)namesProfanity.Language].Add(namesProfanity.Name);
                 else
@@ -361,7 +361,7 @@ namespace Game.DataStorage
 
             foreach (var namesReserved in NamesReservedLocaleStorage.Values)
             {
-                Cypher.Assert(namesReserved.LocaleMask.HasAnyFlag(LocaleMask.Total));
+                Forever.Assert(namesReserved.LocaleMask.HasAnyFlag(LocaleMask.Total));
                 for (Locale i = 0; i < Locale.Total; i++)
                 {
                     if (LocaleMask.None.HasLocale(i))
@@ -398,7 +398,7 @@ namespace Game.DataStorage
 
             foreach (PvpDifficultyRecord record in PvpDifficultyStorage.Values)
             {
-                Cypher.Assert(record.BracketId < BattlegroundBracketId.Max,
+                Forever.Assert(record.BracketId < BattlegroundBracketId.Max,
                     $"PvpDifficulty bracket {record.BracketId} exceeded max allowed value {BattlegroundBracketId.Max}");
             }
 
@@ -472,9 +472,9 @@ namespace Game.DataStorage
 
             foreach (TalentRecord talentInfo in TalentStorage.Values)
             {
-                Cypher.Assert(talentInfo.ClassID < Class.Max);
-                Cypher.Assert(talentInfo.TierID < PlayerConst.MaxTalentTiers);
-                Cypher.Assert(talentInfo.ColumnIndex < PlayerConst.MaxTalentColumns);
+                Forever.Assert(talentInfo.ClassID < Class.Max);
+                Forever.Assert(talentInfo.TierID < PlayerConst.MaxTalentTiers);
+                Forever.Assert(talentInfo.ColumnIndex < PlayerConst.MaxTalentColumns);
                 _talentsByPosition[(int)talentInfo.ClassID][talentInfo.TierID][talentInfo.ColumnIndex].Add(talentInfo);
             }
 
@@ -545,7 +545,7 @@ namespace Game.DataStorage
                 UiMapRecord uiMap = UiMapStorage.LookupByKey(uiMapAssignment.UiMapID);
                 if (uiMap != null)
                 {
-                    Cypher.Assert(uiMap.System < UiMapSystem.Max, $"UiMapSystem.Max must be at least {uiMap.System + 1}");
+                    Forever.Assert(uiMap.System < UiMapSystem.Max, $"UiMapSystem.Max must be at least {uiMap.System + 1}");
                     if (uiMapAssignment.MapID >= 0)
                         _uiMapAssignmentByMap[(int)uiMap.System].Add(uiMapAssignment.MapID, uiMapAssignment);
                     if (uiMapAssignment.AreaID != 0)
@@ -864,14 +864,14 @@ namespace Game.DataStorage
 
         public byte[] GetHotfixBlobData(uint tableHash, int recordId, Locale locale)
         {
-            Cypher.Assert(SharedConst.IsValidLocale(locale), $"Locale {locale} is invalid locale");
+            Forever.Assert(SharedConst.IsValidLocale(locale), $"Locale {locale} is invalid locale");
 
             return _hotfixBlob[(int)locale].LookupByKey((tableHash, recordId));
         }
 
         public IReadOnlyList<HotfixOptionalData> GetHotfixOptionalData(uint tableHash, int recordId, Locale locale)
         {
-            Cypher.Assert(SharedConst.IsValidLocale(locale), $"Locale {locale} is invalid locale");
+            Forever.Assert(SharedConst.IsValidLocale(locale), $"Locale {locale} is invalid locale");
 
             return _hotfixOptionalData[(int)locale][(tableHash, recordId)];
         }
@@ -935,7 +935,7 @@ namespace Game.DataStorage
 
         public ChrClassUIDisplayRecord GetUiDisplayForClass(Class unitClass)
         {
-            Cypher.Assert(unitClass < Class.Max);
+            Forever.Assert(unitClass < Class.Max);
             return _uiDisplayByClass[(int)unitClass];
         }
 
@@ -1576,7 +1576,7 @@ namespace Game.DataStorage
 
         public string GetNameGenEntry(Race race, Gender gender, byte nameType = 0)
         {
-            Cypher.Assert(gender < Gender.None);
+            Forever.Assert(gender < Gender.None);
             var listNameGen = _nameGenData.LookupByKey(race);
             if (listNameGen == null)
                 return "";

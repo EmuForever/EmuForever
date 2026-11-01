@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Configuration;
@@ -36,7 +36,7 @@ namespace Game.Chat
             else
                 dbPortOutput = $"Realm Id: {Global.WorldMgr.GetRealmId().Index} not found in `realmlist` table. Please check your setup";
 
-            handler.SendSysMessage($"Worldserver listening connections on port {WorldConfig.Values[WorldCfg.PortWorld].Int32}");
+            handler.SendSysMessage($"ForeverWorld listening connections on port {WorldConfig.Values[WorldCfg.PortWorld].Int32}");
             handler.SendSysMessage(dbPortOutput);
 
             bool vmapIndoorCheck = WorldConfig.Values[WorldCfg.VmapIndoorCheck].Bool;
@@ -105,7 +105,7 @@ namespace Game.Chat
         [Command("exit", RBACPermissions.CommandServerExit, true)]
         static bool HandleServerExitCommand(CommandHandler handler)
         {
-            handler.SendSysMessage(CypherStrings.CommandExit);
+            handler.SendSysMessage(ForeverStrings.CommandExit);
             Global.WorldMgr.StopNow(ShutdownExitCode.Shutdown);
             return true;
         }
@@ -122,13 +122,13 @@ namespace Game.Chat
             string uptime = Time.SpanToTimeString(LoopTime.UpTime);
             Milliseconds updateTime = Global.WorldMgr.GetWorldUpdateTime().GetLastUpdateTime();
 
-            handler.SendSysMessage(CypherStrings.ConnectedPlayers, playersNum, maxPlayersNum);
-            handler.SendSysMessage(CypherStrings.ConnectedUsers, activeClientsNum, maxActiveClientsNum, queuedClientsNum, maxQueuedClientsNum);
-            handler.SendSysMessage(CypherStrings.Uptime, uptime);
-            handler.SendSysMessage(CypherStrings.UpdateDiff, updateTime);
+            handler.SendSysMessage(ForeverStrings.ConnectedPlayers, playersNum, maxPlayersNum);
+            handler.SendSysMessage(ForeverStrings.ConnectedUsers, activeClientsNum, maxActiveClientsNum, queuedClientsNum, maxQueuedClientsNum);
+            handler.SendSysMessage(ForeverStrings.Uptime, uptime);
+            handler.SendSysMessage(ForeverStrings.UpdateDiff, updateTime);
             // Can't use Global.WorldMgr.ShutdownMsg here in case of console command
             if (Global.WorldMgr.IsShuttingDown)
-                handler.SendSysMessage(CypherStrings.ShutdownTimeleft, Time.SpanToTimeString(Global.WorldMgr.GetShutDownTimeLeft()));
+                handler.SendSysMessage(ForeverStrings.ShutdownTimeleft, Time.SpanToTimeString(Global.WorldMgr.GetShutDownTimeLeft()));
 
             return true;
         }
@@ -140,7 +140,7 @@ namespace Game.Chat
             foreach (var line in Global.WorldMgr.GetMotd())
                 motd += line;
 
-            handler.SendSysMessage(CypherStrings.MotdCurrent, motd);
+            handler.SendSysMessage(ForeverStrings.MotdCurrent, motd);
             return true;
         }
 
@@ -287,7 +287,7 @@ namespace Game.Chat
                 && !IsOnlyUser(handler.GetSession()))
             {
                 delay = WorldConfig.Values[WorldCfg.ForceShutdownThreshold].Seconds;
-                handler.SendSysMessage(CypherStrings.ShutdownDelayed, delay);
+                handler.SendSysMessage(ForeverStrings.ShutdownDelayed, delay);
             }
 
             Global.WorldMgr.ShutdownServ(delay, shutdownMask, (ShutdownExitCode)exitCode, reason);
@@ -308,7 +308,7 @@ namespace Game.Chat
             static bool HandleServerShutDownCancelCommand(CommandHandler handler)
             {                
                 if (Global.WorldMgr.ShutdownCancel(out var timer))
-                    handler.SendSysMessage(CypherStrings.ShutdownCancelled, (Seconds)timer);
+                    handler.SendSysMessage(ForeverStrings.ShutdownCancelled, (Seconds)timer);
 
                 return true;
             }
@@ -327,7 +327,7 @@ namespace Game.Chat
             static bool HandleServerShutDownCancelCommand(CommandHandler handler)
             {
                 if (Global.WorldMgr.ShutdownCancel(out var timer))
-                    handler.SendSysMessage(CypherStrings.ShutdownCancelled, (Seconds)timer);
+                    handler.SendSysMessage(ForeverStrings.ShutdownCancelled, (Seconds)timer);
 
                 return true;
             }
@@ -346,7 +346,7 @@ namespace Game.Chat
             static bool HandleServerShutDownCancelCommand(CommandHandler handler)
             {
                 if (Global.WorldMgr.ShutdownCancel(out var timer))
-                    handler.SendSysMessage(CypherStrings.ShutdownCancelled, (Seconds)timer);
+                    handler.SendSysMessage(ForeverStrings.ShutdownCancelled, (Seconds)timer);
 
                 return true;
             }
@@ -371,7 +371,7 @@ namespace Game.Chat
             static bool HandleServerShutDownCancelCommand(CommandHandler handler)
             {
                 if (Global.WorldMgr.ShutdownCancel(out var timer))
-                    handler.SendSysMessage(CypherStrings.ShutdownCancelled, (Seconds)timer);
+                    handler.SendSysMessage(ForeverStrings.ShutdownCancelled, (Seconds)timer);
 
                 return true;
             }
@@ -418,7 +418,7 @@ namespace Game.Chat
             static bool HandleServerSetMotdCommand(CommandHandler handler, StringArguments args)
             {
                 Global.WorldMgr.SetMotd(args.NextString(""));
-                handler.SendSysMessage(CypherStrings.MotdNew, args.GetString());
+                handler.SendSysMessage(ForeverStrings.MotdNew, args.GetString());
                 return true;
             }
 
@@ -428,18 +428,18 @@ namespace Game.Chat
                 string arg1 = args.NextString();
                 if (arg1.Equals("on", StringComparison.OrdinalIgnoreCase))
                 {
-                    handler.SendSysMessage(CypherStrings.WorldClosed);
+                    handler.SendSysMessage(ForeverStrings.WorldClosed);
                     Global.WorldMgr.SetClosed(true);
                     return true;
                 }
                 else if (arg1.Equals("off", StringComparison.OrdinalIgnoreCase))
                 {
-                    handler.SendSysMessage(CypherStrings.WorldOpened);
+                    handler.SendSysMessage(ForeverStrings.WorldOpened);
                     Global.WorldMgr.SetClosed(false);
                     return true;
                 }
 
-                handler.SendSysMessage(CypherStrings.UseBol);
+                handler.SendSysMessage(ForeverStrings.UseBol);
                 return false;
             }
         }

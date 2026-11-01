@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.using Framework.Constants;
 
 using Framework.Constants;
@@ -42,6 +42,32 @@ namespace Game.Entities
         }
 
         public WowActionButton PackedData => _packedData;
+
+        // Classic 1.60 packs pet buttons as action | state << 24 with the 8-bit states 0x81 / 0xC1 (as TC does), not the retail
+        // 9-bit state at bit 23 kept here. Sent the retail way, the client read every button wrong and the bar stayed empty, and the
+        // commands it sent back (stay 0x07000000) decoded to state 0xE and did nothing.
+        public uint WireData
+        {
+            get
+            {
+                int state = (int)State;
+                if (state == (int)ActiveStates.Disabled)
+                    state = 0x81;
+                else if (state == (int)ActiveStates.Enabled)
+                    state = 0xC1;
+                return (uint)(Action & 0x00FFFFFF) | ((uint)state << 24);
+            }
+        }
+
+        public static CharmActionButton FromWire(uint wireData)
+        {
+            int state = (int)(wireData >> 24);
+            if (state == 0x81)
+                state = (int)ActiveStates.Disabled;
+            else if (state == 0xC1)
+                state = (int)ActiveStates.Enabled;
+            return new((ActiveStates)state, (int)(wireData & 0x00FFFFFF));
+        }
 
         public ActiveStates State
         {

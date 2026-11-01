@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using System;
@@ -68,7 +68,7 @@ public class RandomHelper
 
     public static float FRand(float min, float max)
     {
-        Cypher.Assert(max >= min);
+        Forever.Assert(max >= min);
         return (float)(rand.NextDouble() * (max - min) + min);
     }
 
@@ -113,8 +113,8 @@ public class RandomHelper
     public static TimeSpan RandTime(TimeSpan min, TimeSpan max)
     {
         TimeSpan diff = max - min;
-        Cypher.Assert(diff >= TimeSpan.Zero);
-        Cypher.Assert(diff <= Milliseconds.MaxValue);
+        Forever.Assert(diff >= TimeSpan.Zero);
+        Forever.Assert(diff <= Milliseconds.MaxValue);
         return min + TimeSpan.FromTicks(IRand64(0, diff.Ticks));
     }
 }

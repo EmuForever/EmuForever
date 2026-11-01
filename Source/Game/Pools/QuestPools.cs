@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Database;
@@ -17,10 +17,10 @@ namespace Game
 
         public static void RegeneratePool(QuestPool pool)
         {
-            Cypher.Assert(!pool.members.Empty(), 
+            Forever.Assert(!pool.members.Empty(), 
                 $"Quest pool {pool.poolId} is empty");
 
-            Cypher.Assert(pool.numActive <= pool.members.Count, 
+            Forever.Assert(pool.numActive <= pool.members.Count, 
                 $"Quest Pool {pool.poolId} requests {pool.numActive} spawns, " +
                 $"but has only {pool.members.Count} members.");
 

@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Game.Networking;
@@ -8,8 +8,8 @@ namespace Game.Entities
 {
     /// <summary>
     /// Classic 1.60.1 (build 70425 and later) changes-mask numbering for UnitData, PlayerData and ActivePlayerData.
-    /// The update writers use the retail (TrinityCore) bit numbers; the client reads a mask with Classic-only fields
-    /// inserted, so the mask header is renumbered here. Ported from TrinityCore-forever UpdateFields.cpp.
+    /// The update writers use the retail (EmuForever) bit numbers; the client reads a mask with Classic-only fields
+    /// inserted, so the mask header is renumbered here. Ported from EmuForever-forever UpdateFields.cpp.
     /// </summary>
     static class ClassicUpdateMask
     {

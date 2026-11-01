@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -18,7 +18,7 @@ namespace Game.Chat.Commands
             Player target = handler.GetSelectedPlayer();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
@@ -29,7 +29,7 @@ namespace Game.Chat.Commands
             CharTitlesRecord titleInfo = CliDB.CharTitlesStorage.LookupByKey(titleId);
             if (titleInfo == null)
             {
-                handler.SendSysMessage(CypherStrings.InvalidTitleId, titleId);
+                handler.SendSysMessage(ForeverStrings.InvalidTitleId, titleId);
                 return false;
             }
 
@@ -39,7 +39,7 @@ namespace Game.Chat.Commands
             target.SetTitle(titleInfo);
             target.SetChosenTitle(titleInfo.MaskID);
 
-            handler.SendSysMessage(CypherStrings.TitleCurrentRes, titleId, titleNameStr, tNameLink);
+            handler.SendSysMessage(ForeverStrings.TitleCurrentRes, titleId, titleNameStr, tNameLink);
             return true;
         }
 
@@ -49,7 +49,7 @@ namespace Game.Chat.Commands
             Player target = handler.GetSelectedPlayer();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
@@ -60,7 +60,7 @@ namespace Game.Chat.Commands
             CharTitlesRecord titleInfo = CliDB.CharTitlesStorage.LookupByKey(titleId);
             if (titleInfo == null)
             {
-                handler.SendSysMessage(CypherStrings.InvalidTitleId, titleId);
+                handler.SendSysMessage(ForeverStrings.InvalidTitleId, titleId);
                 return false;
             }
 
@@ -69,7 +69,7 @@ namespace Game.Chat.Commands
             string titleNameStr = string.Format((target.GetNativeGender() == Gender.Male ? titleInfo.Name : titleInfo.Name1)[handler.GetSessionDbcLocale()].ConvertFormatSyntax(), target.GetName());
 
             target.SetTitle(titleInfo);
-            handler.SendSysMessage(CypherStrings.TitleAddRes, titleId, titleNameStr, tNameLink);
+            handler.SendSysMessage(ForeverStrings.TitleAddRes, titleId, titleNameStr, tNameLink);
 
             return true;
         }
@@ -80,7 +80,7 @@ namespace Game.Chat.Commands
             Player target = handler.GetSelectedPlayer();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
@@ -91,7 +91,7 @@ namespace Game.Chat.Commands
             CharTitlesRecord titleInfo = CliDB.CharTitlesStorage.LookupByKey(titleId);
             if (titleInfo == null)
             {
-                handler.SendSysMessage(CypherStrings.InvalidTitleId, titleId);
+                handler.SendSysMessage(ForeverStrings.InvalidTitleId, titleId);
                 return false;
             }
 
@@ -100,12 +100,12 @@ namespace Game.Chat.Commands
             string tNameLink = handler.GetNameLink(target);
             string titleNameStr = string.Format((target.GetNativeGender() == Gender.Male ? titleInfo.Name : titleInfo.Name1)[handler.GetSessionDbcLocale()].ConvertFormatSyntax(), target.GetName());
 
-            handler.SendSysMessage(CypherStrings.TitleRemoveRes, titleId, titleNameStr, tNameLink);
+            handler.SendSysMessage(ForeverStrings.TitleRemoveRes, titleId, titleNameStr, tNameLink);
 
             if (!target.HasTitle(target.m_playerData.PlayerTitle))
             {
                 target.SetChosenTitle(0);
-                handler.SendSysMessage(CypherStrings.CurrentTitleReset, tNameLink);
+                handler.SendSysMessage(ForeverStrings.CurrentTitleReset, tNameLink);
             }
 
             return true;
@@ -121,7 +121,7 @@ namespace Game.Chat.Commands
                 Player target = handler.GetSelectedPlayer();
                 if (target == null)
                 {
-                    handler.SendSysMessage(CypherStrings.NoCharSelected);
+                    handler.SendSysMessage(ForeverStrings.NoCharSelected);
                     return false;
                 }
 
@@ -137,12 +137,12 @@ namespace Game.Chat.Commands
                 mask &= ~titles2;                                     // remove not existed titles
 
                 target.SetKnownTitles(0, mask);
-                handler.SendSysMessage(CypherStrings.Done);
+                handler.SendSysMessage(ForeverStrings.Done);
 
                 if (!target.HasTitle(target.m_playerData.PlayerTitle))
                 {
                     target.SetChosenTitle(0);
-                    handler.SendSysMessage(CypherStrings.CurrentTitleReset, handler.GetNameLink(target));
+                    handler.SendSysMessage(ForeverStrings.CurrentTitleReset, handler.GetNameLink(target));
                 }
 
                 return true;

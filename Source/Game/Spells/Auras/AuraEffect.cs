@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -354,7 +354,7 @@ namespace Game.Spells
         public void HandleEffect(AuraApplication aurApp, AuraEffectHandleModes mode, bool apply, AuraEffect triggeredBy = null)
         {
             // check if call is correct, we really don't want using bitmasks here (with 1 exception)
-            Cypher.Assert(mode == AuraEffectHandleModes.Real || mode == AuraEffectHandleModes.SendForClient
+            Forever.Assert(mode == AuraEffectHandleModes.Real || mode == AuraEffectHandleModes.SendForClient
                 || mode == AuraEffectHandleModes.ChangeAmount || mode == AuraEffectHandleModes.Stat
                 || mode == AuraEffectHandleModes.Skill || mode == AuraEffectHandleModes.Reapply
                 || mode == (AuraEffectHandleModes.ChangeAmount | AuraEffectHandleModes.Reapply));
@@ -397,7 +397,7 @@ namespace Game.Spells
         public void HandleEffect(Unit target, AuraEffectHandleModes mode, bool apply, AuraEffect triggeredBy = null)
         {
             AuraApplication aurApp = GetBase().GetApplicationOfTarget(target.GetGUID());
-            Cypher.Assert(aurApp != null);
+            Forever.Assert(aurApp != null);
             HandleEffect(aurApp, mode, apply, triggeredBy);
         }
 
@@ -3715,7 +3715,7 @@ namespace Game.Spells
             {
                 // Always (schoolMask == schoolMask.Magic) for creatures?
                 // target.BaseSpellCritChance += apply ? GetAmount() : -GetAmount();
-                Cypher.Assert(false, "Units have only BaseSpellCritChance mod?", "HandleModSpellCritSchoolChance");
+                Forever.Assert(false, "Units have only BaseSpellCritChance mod?", "HandleModSpellCritSchoolChance");
             }
         }
 

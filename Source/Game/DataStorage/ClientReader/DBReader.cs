@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Collections;
@@ -422,31 +422,31 @@ namespace Game.DataStorage
                     switch (Type.GetTypeCode(type))
                     {
                         case TypeCode.Single:
-                            Cypher.Assert(Id_or_Ref >= float.MinValue && Id_or_Ref <= float.MaxValue, $"Record's Id value will lost data!");
+                            Forever.Assert(Id_or_Ref >= float.MinValue && Id_or_Ref <= float.MaxValue, $"Record's Id value will lost data!");
                             f.SetValue(obj, (float)Id_or_Ref);
                             break;
                         case TypeCode.Int32:
-                            Cypher.Assert(Id_or_Ref >= int.MinValue && Id_or_Ref <= int.MaxValue, $"Record's Id value will lost data!");
+                            Forever.Assert(Id_or_Ref >= int.MinValue && Id_or_Ref <= int.MaxValue, $"Record's Id value will lost data!");
                             f.SetValue(obj, (int)Id_or_Ref);
                             break;
                         case TypeCode.UInt32:
-                            Cypher.Assert(Id_or_Ref >= uint.MinValue && Id_or_Ref <= uint.MaxValue, $"Record's Id value will lost data!");
+                            Forever.Assert(Id_or_Ref >= uint.MinValue && Id_or_Ref <= uint.MaxValue, $"Record's Id value will lost data!");
                             f.SetValue(obj, (uint)Id_or_Ref);
                             break;
                         case TypeCode.Int16:
-                            Cypher.Assert(Id_or_Ref >= short.MinValue && Id_or_Ref <= short.MaxValue, $"Record's Id value will lost data!");
+                            Forever.Assert(Id_or_Ref >= short.MinValue && Id_or_Ref <= short.MaxValue, $"Record's Id value will lost data!");
                             f.SetValue(obj, (short)Id_or_Ref);
                             break;
                         case TypeCode.UInt16:
-                            Cypher.Assert(Id_or_Ref >= ushort.MinValue && Id_or_Ref <= ushort.MaxValue, $"Record's Id value will lost data!");
+                            Forever.Assert(Id_or_Ref >= ushort.MinValue && Id_or_Ref <= ushort.MaxValue, $"Record's Id value will lost data!");
                             f.SetValue(obj, (ushort)Id_or_Ref);
                             break;
                         case TypeCode.Byte:
-                            Cypher.Assert(Id_or_Ref >= byte.MinValue && Id_or_Ref <= byte.MaxValue, $"Record's Id value will lost data!");
+                            Forever.Assert(Id_or_Ref >= byte.MinValue && Id_or_Ref <= byte.MaxValue, $"Record's Id value will lost data!");
                             f.SetValue(obj, (byte)Id_or_Ref);
                             break;
                         case TypeCode.SByte:
-                            Cypher.Assert(Id_or_Ref >= sbyte.MinValue && Id_or_Ref <= sbyte.MaxValue, $"Record's Id value will lost data!");
+                            Forever.Assert(Id_or_Ref >= sbyte.MinValue && Id_or_Ref <= sbyte.MaxValue, $"Record's Id value will lost data!");
                             f.SetValue(obj, (sbyte)Id_or_Ref);
                             break;
                         default:

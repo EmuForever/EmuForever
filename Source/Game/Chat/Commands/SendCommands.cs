@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Collections;
@@ -37,7 +37,7 @@ namespace Game.Chat.Commands
             DB.Characters.CommitTransaction(trans);
 
             string nameLink = handler.PlayerLink(playerIdentifier.GetName());
-            handler.SendSysMessage(CypherStrings.MailSent, nameLink);
+            handler.SendSysMessage(ForeverStrings.MailSent, nameLink);
             return true;
         }
 
@@ -67,7 +67,7 @@ namespace Game.Chat.Commands
                 ItemTemplate itemProto = Global.ObjectMgr.GetItemTemplate(itemId);
                 if (itemProto == null)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandItemidinvalid, itemId);
+                    handler.SendSysMessage(ForeverStrings.CommandItemidinvalid, itemId);
                     return false;
                 }
 
@@ -76,7 +76,7 @@ namespace Game.Chat.Commands
 
                 if (itemCount < 1 || (itemProto.GetMaxCount() > 0 && itemCount > itemProto.GetMaxCount()))
                 {
-                    handler.SendSysMessage(CypherStrings.CommandInvalidItemCount, itemCount, itemId);
+                    handler.SendSysMessage(ForeverStrings.CommandInvalidItemCount, itemCount, itemId);
                     return false;
                 }
 
@@ -90,7 +90,7 @@ namespace Game.Chat.Commands
 
                 if (items.Count > SharedConst.MaxMailItems)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandMailItemsLimit, SharedConst.MaxMailItems);
+                    handler.SendSysMessage(ForeverStrings.CommandMailItemsLimit, SharedConst.MaxMailItems);
                     return false;
                 }
             }
@@ -117,7 +117,7 @@ namespace Game.Chat.Commands
             DB.Characters.CommitTransaction(trans);
 
             string nameLink = handler.PlayerLink(playerIdentifier.GetName());
-            handler.SendSysMessage(CypherStrings.MailSent, nameLink);
+            handler.SendSysMessage(ForeverStrings.MailSent, nameLink);
             return true;
         }
 
@@ -136,7 +136,7 @@ namespace Game.Chat.Commands
             DB.Characters.CommitTransaction(trans);
 
             string nameLink = handler.PlayerLink(receiver.GetName());
-            handler.SendSysMessage(CypherStrings.MailSent, nameLink);
+            handler.SendSysMessage(ForeverStrings.MailSent, nameLink);
             return true;
         }
 
@@ -155,7 +155,7 @@ namespace Game.Chat.Commands
             // Check that he is not logging out.
             if (playerIdentifier.GetConnectedPlayer().GetSession().IsLogingOut())
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
@@ -165,7 +165,7 @@ namespace Game.Chat.Commands
 
             // Confirmation message
             string nameLink = handler.GetNameLink(playerIdentifier.GetConnectedPlayer());
-            handler.SendSysMessage(CypherStrings.Sendmessage, nameLink, msgStr);
+            handler.SendSysMessage(ForeverStrings.Sendmessage, nameLink, msgStr);
 
             return true;
         }

@@ -60,7 +60,7 @@ public sealed partial class SIPlayer
             return TickJourneyFlight();
         if(_journeyFlight!=null||walk||!WorkingGoal||!SIQuestKnowledge.IsBuilt||
             !me.IsAlive()||me.IsInCombat()||_encounter.Active||me.IsInFlight()||me.GetTransport()!=null||
-            _goal=="social"&&!_socialTravellingToCity||Distance(goal.Point)<1500||
+            SocialMode&&!_socialTravellingToCity||Distance(goal.Point)<1500||
             _trainerTrip?.Boarding.HasValue==true&&!_trainerFlightTaken)return false;
         if(_completedFlightGoal is SIPathPosition done&&done.MapId==goal.MapId&&Vector3.Distance(done.Point,goal.Point)<30)return false;
         if(Now<_nextJourneyFlightScan)return false;

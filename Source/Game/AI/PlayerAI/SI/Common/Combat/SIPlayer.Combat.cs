@@ -1,4 +1,4 @@
-using Framework.Constants;
+﻿using Framework.Constants;
 using Game.Entities;
 using Game.Spells;
 using System;
@@ -146,7 +146,7 @@ namespace Game.AI
                     (effect.MiscValue == 0 || effect.MiscValue == (int)pair.Value.GetBase().GetSpellInfo().Dispel)));
 
         // Ordinary CheckCast validates power, cooldown, reagents, range, sight and the spell's target.
-        bool Cast(SpellInfo spell, Unit target)
+        bool Cast(SpellInfo spell, Unit target, bool refreshPartyBuff = false)
         {
             if (WarlockRoutine.IsHealthFunnel(spell) && !CanHealthFunnelAt(target)) return false;
             if (spell != null && spell.IsRangedWeaponSpell() && HunterNeedsMelee(target)) return false;
@@ -154,7 +154,7 @@ namespace Game.AI
                 me.GetSpellHistory().HasGlobalCooldown(spell) || !me.GetSpellHistory().IsReady(spell) || !CanResourceCast(spell)) return false;
             if (BreaksMagePolymorph(spell, target)) return false;
             if (target != me && !spell.HasAttribute(SpellAttr2.IgnoreLineOfSight) && !CombatSight(target)) return false;
-            if (spell.GetEffects().All(effect => effect.IsAura()) && target.HasAura(spell.Id, me.GetGUID())) return false;
+            if (!refreshPartyBuff && spell.GetEffects().All(effect => effect.IsAura()) && target.HasAura(spell.Id, me.GetGUID())) return false;
             Spell cast = new(me, spell, TriggerCastFlags.None);
             if (cast.CheckUnitTargetRange(target) != SpellCastResult.SpellCastOk) return false;
             bool castTime = spell.CastTimeEntry != null && spell.CastTimeEntry.Base > 0;
@@ -277,6 +277,55 @@ namespace Game.AI
 
         // Out-of-combat maintenance: one successful cast per tick, through normal spell validation.
         long _nextBuffAction;
+        long _nextPartyBuffScan;
+        internal static bool PartyBuffTarget(Targets target) => target is Targets.UnitTargetAlly or Targets.UnitTargetParty or
+            Targets.UnitTargetAllyOrRaid or Targets.UnitCasterAreaParty or Targets.UnitCasterAreaRaid;
+        static bool CanBuffParty(SpellInfo spell) => IsMaintenanceBuff(spell) && spell.GetEffects().Any(effect =>
+            PartyBuffTarget(effect.TargetA.GetTarget()) || PartyBuffTarget(effect.TargetB.GetTarget()));
+        static bool PartyAreaBuff(SpellInfo spell) => spell.GetEffects().Any(effect =>
+            effect.TargetA.GetTarget() is Targets.UnitCasterAreaParty or Targets.UnitCasterAreaRaid ||
+            effect.TargetB.GetTarget() is Targets.UnitCasterAreaParty or Targets.UnitCasterAreaRaid);
+
+        // Party members, plus battleground teammates: a battleground team buffs each other without forming a group.
+        IEnumerable<Player> PartyBuffMembers()
+        {
+            foreach (var member in _partyMembers) yield return member;
+            if (!me.InBattleground()) yield break;
+            var bg = me.GetBattleground();
+            if (bg == null) yield break;
+            foreach (ObjectGuid guid in bg.GetPlayers().Keys)
+            {
+                Player ally = Global.ObjAccessor.FindPlayer(guid);
+                if (ally != null && ally != me && bg.GetPlayerTeam(guid) == bg.GetPlayerTeam(me.GetGUID()) && !_partyMembers.Contains(ally))
+                    yield return ally;
+            }
+        }
+
+        bool TickPartyBuffs()
+        {
+            if (Now < _nextPartyBuffScan || _partyMembers.Length == 0 || !me.IsAlive() ||
+                me.IsNonMeleeSpellCast(false, skipAutorepeat: true) || HasUsefulRecoveryAura()) return false;
+            _nextPartyBuffScan = Now + 3000;
+            foreach (var member in PartyBuffMembers().Where(p => p.IsAlive() && p.GetMap() == me.GetMap() &&
+                me.InSamePhase(p) && me.GetExactDist(p) <= 40).OrderBy(me.GetDistance))
+                foreach (var spell in _knownSpells.Where(CanBuffParty))
+                {
+                    bool area = PartyAreaBuff(spell);
+                    if (area && me.GetExactDist(member) > spell.GetEffects().Max(effect =>
+                        Math.Max(effect.CalcRadius(me), effect.CalcRadius(me, SpellTargetIndex.TargetB)))) continue;
+                    Unit castTarget = area ? me : member;
+                    if (HasCurrentBuff(member, SpellName(spell)) || ConflictsWithActiveBuff(spell, member) ||
+                        spell.CheckTarget(me, castTarget, false) != SpellCastResult.SpellCastOk) continue;
+                    if (Cast(spell, castTarget, refreshPartyBuff: area))
+                    {
+                        _nextPartyBuffScan = Now + 1600;
+                        Status = "Buffing party member " + member.GetName();
+                        return true;
+                    }
+                }
+            return false;
+        }
+
         bool ConflictsWithActiveBuff(SpellInfo spell) => me.GetAppliedAuras().Any(pair =>
         {
             var active=pair.Value.GetBase();
@@ -285,6 +334,17 @@ namespace Game.AI
             var rule=Global.SpellMgr.CheckSpellGroupStackRules(spell,info);
             return rule is SpellGroupStackRule.Exclusive or SpellGroupStackRule.ExclusiveHighest ||
                 rule==SpellGroupStackRule.ExclusiveFromSameCaster && active.GetCasterGUID()==me.GetGUID();
+        });
+        bool ConflictsWithActiveBuff(SpellInfo spell, Unit target) => target.GetAppliedAuras().Any(pair =>
+        {
+            var active = pair.Value.GetBase(); var info = active.GetSpellInfo();
+            if (info.GetFirstRankSpell().Id == spell.GetFirstRankSpell().Id)
+                return info.GetRank() >= spell.GetRank();
+            if (spell.IsAuraExclusiveBySpecificWith(info) ||
+                active.GetCasterGUID() == me.GetGUID() && spell.IsAuraExclusiveBySpecificPerCasterWith(info)) return true;
+            var rule = Global.SpellMgr.CheckSpellGroupStackRules(spell, info);
+            return rule == SpellGroupStackRule.Exclusive || rule == SpellGroupStackRule.ExclusiveHighest && info.SpellLevel >= spell.SpellLevel ||
+                rule == SpellGroupStackRule.ExclusiveFromSameCaster && active.GetCasterGUID() == me.GetGUID();
         });
         // Learned long-lived self buffs that the class routine does not manage and that are missing now.
         // Mutually exclusive armor, seals, blessings, aspects, etc. never replace one another.

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -336,7 +336,7 @@ namespace Game.DataStorage
             TraitCurrencySourceStorage.ReadDB2(data, "TraitCurrencySource.db2", HotfixStatements.SEL_TRAIT_CURRENCY_SOURCE, HotfixStatements.SEL_TRAIT_CURRENCY_SOURCE_LOCALE,
                 (original, hotfix) =>
                 {
-                    if (Game.Systems.Legacy.LegacyClientData.RestoreMissingRuleset(original, hotfix))
+                    if (Game.Systems.Legacy.LegacyClientData.RememberFileRuleset(original, hotfix))
                         ++restoredLegacyRulesets;
                 });
             RenownRewardsStorage.ReadDB2(data, "RenownRewards.db2", HotfixStatements.None);
@@ -438,7 +438,7 @@ namespace Game.DataStorage
                     OldContinentsNodesMask[field] |= submask;
             }
 
-            //// Check loaded DB2 files proper version (Forever 1.60.1 layout hashes, same as TrinityCore-forever DB2Metadata.h)
+            //// Check loaded DB2 files proper version (Forever 1.60.1 layout hashes, same as EmuForever-forever DB2Metadata.h)
             if (ItemSparseStorage.GetLayoutHash() != 0x6FCC3191 ||
                 SpellEffectStorage.GetLayoutHash() != 0x5362E3D4 ||
                 MapStorage.GetLayoutHash() != 0xD43AFAC3)

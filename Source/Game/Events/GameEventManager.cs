@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Collections;
@@ -1153,7 +1153,7 @@ namespace Game
         {
             GameEventAnnounce announce = mGameEvent[event_id].announce;
             if (announce == GameEventAnnounce.Yes)// || (announce == GameEventAnnounce.FromConfig && WorldConfigEventAnnounce))
-                Global.WorldMgr.SendWorldText(CypherStrings.Eventmessage, mGameEvent[event_id].description);
+                Global.WorldMgr.SendWorldText(ForeverStrings.Eventmessage, mGameEvent[event_id].description);
 
             Log.outInfo(LogFilter.Gameevent, $"GameEvent {event_id} \"{mGameEvent[event_id].description}\" started.");
 

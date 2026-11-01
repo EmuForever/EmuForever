@@ -44,7 +44,9 @@ public partial class Player
 
     internal bool DispatchDelayedTeleport(Func<WorldLocation,TeleportToOptions,int?,bool> dispatch=null)
     {
-        if(!HasPendingTeleportDispatch||!IsAlive()||IsCanDelayTeleport())return false;
+        // A corpse killed mid-update must stay put, but a released ghost has to reach its graveyard:
+        // SI releases spirit from its AI tick, inside the delayed-teleport window.
+        if(!HasPendingTeleportDispatch||!IsAlive()&&!HasPlayerFlag(PlayerFlags.Ghost)||IsCanDelayTeleport())return false;
         var location=new WorldLocation(teleportDest);
         var options=m_teleport_options;var instance=m_teleport_instanceId;
         SetDelayedTeleportFlag(false);

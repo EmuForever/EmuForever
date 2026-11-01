@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -183,7 +183,7 @@ namespace Game.Movement
         Milliseconds SendPathSpline(Unit owner, Speed velocity, Span<Vector3> path)
         {
             int nodeCount = path.Length;
-            Cypher.Assert(nodeCount > 1, 
+            Forever.Assert(nodeCount > 1, 
                 $"SplineChainMovementGenerator::SendPathSpline: " +
                 $"Every path must have source & destination (size > 1)! ({owner.GetGUID()})");
 
@@ -203,7 +203,7 @@ namespace Game.Movement
 
         void SendSplineFor(Unit owner, int index, ref TimeSpan duration)
         {
-            Cypher.Assert(index < _chainSize, 
+            Forever.Assert(index < _chainSize, 
                 $"SplineChainMovementGenerator::SendSplineFor: " +
                 $"referenced index ({index}) higher than path size ({_chainSize})!");
 

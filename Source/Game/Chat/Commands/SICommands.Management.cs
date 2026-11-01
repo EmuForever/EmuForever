@@ -2,6 +2,7 @@ using Framework.Constants;
 using Framework.Database;
 using Framework.IO;
 using Game.Cache;
+using Game.DataStorage;
 using Game.Entities;
 using System;
 using System.Collections.Concurrent;
@@ -93,61 +94,66 @@ namespace Game.Chat.Commands
             _ => Array.Empty<Race>()
         };
 
-        static (string First, string Surname) RandomName(Race race, Gender gender, ObjectGuid own = default)
+        static readonly ConcurrentDictionary<(Race Race,Gender Gender,byte Type),string[]> CreationNames=new();
+        static string[] NativeNames(Race race,Gender gender,byte type)=>CreationNames.GetOrAdd((race,gender,type),key=>
+            CliDB.NameGenStorage.Values.Where(n=>n.RaceID==key.Race&&n.Sex==key.Gender&&n.NameType==key.Type)
+                .Select(n=>n.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
+
+        static (string First,string Surname)? AvailableRandomName(Race race,Gender gender,ObjectGuid own=default)
         {
-            for (int attempt = 0; attempt < 200; ++attempt)
+            var names=NativeNames(race,gender,0).ToArray();RandomNumberGenerator.Shuffle(names.AsSpan());
+            var surnames=NativeNames(race,gender,1).ToArray();
+            if(surnames.Length==0)surnames=[""];
+            RandomNumberGenerator.Shuffle(surnames.AsSpan());
+            foreach(string generated in names)
             {
-                string generated = Global.DB2Mgr.GetNameGenEntry(race, gender);
-                if (!TryName(generated, 2, 12, out string first) || Creating.ContainsKey(first)) continue;
-                var existing = Global.CharacterCacheStorage.GetCharacterCacheByFirstName(first);
-                if (existing != null && existing.Guid != own) continue;
-                if (ObjectManager.CheckPlayerName(first, Locale.enUS, true) != ResponseCodes.CharNameSuccess || Global.ObjectMgr.IsReservedName(first)) continue;
-                string surname = Global.DB2Mgr.GetNameGenEntry(race, gender, 1);
-                if (!string.IsNullOrEmpty(surname) && !TryName(surname, 1, 32, out surname)) continue;
-                if (existing?.Guid == own && string.Equals(existing.Surname, surname ?? "", StringComparison.OrdinalIgnoreCase)) continue;
-                return (first, surname ?? "");
+                if(!TryName(generated,2,12,out string first))continue;
+                if(ObjectManager.CheckPlayerName(first,Locale.enUS,true)!=ResponseCodes.CharNameSuccess||Global.ObjectMgr.IsReservedName(first))continue;
+                foreach(string generatedSurname in surnames)
+                {
+                    string surname="";
+                    if(!string.IsNullOrEmpty(generatedSurname)&&!TryName(generatedSurname,1,48,out surname))continue;
+                    string full=Player.FormatFullName(first,surname);
+                    if(Creating.ContainsKey(full))continue;
+                    var existing=Global.CharacterCacheStorage.GetCharacterCacheByFullName(first,surname);
+                    if(existing!=null)continue; // Renames must actually change the full name too.
+                    return(first,surname);
+                }
             }
-            throw new InvalidOperationException("Could not find an unused DB2 name for this race/gender. No fabricated fallback name was used.");
+            return null;
         }
+
+        static (string First,string Surname) RandomName(Race race,Gender gender,ObjectGuid own=default) =>
+            AvailableRandomName(race,gender,own)??throw new InvalidOperationException("No unused native first-name/surname combination remains for this race/gender.");
 
         static void QueueRandomCreation(CommandHandler h, IReadOnlyList<string> words)
         {
-            var (team, total) = RandomCreationOptions(words);
-            Race[] races = RandomCreationRaces(team);
-            races = races.Where(race => ClassicClasses(race).Any(cls => Global.ObjectMgr.GetPlayerInfo(race, cls) != null)).ToArray();
-            if (races.Length == 0) throw new InvalidOperationException("No supported Classic/Forever race/class combinations for that faction.");
-            int remaining = total, active = 0, created = 0, failed = 0;
-            var createdByRace = races.ToDictionary(race => race, _ => 0);
+            var options=RandomCreationRequest(words);
+            if(options.Race is Race race && options.Class is Class cls)ValidateCreationCombination(race,cls);
+            else if(AvailableCreationRaces(options.Team).Length==0)throw new InvalidOperationException("No supported race/class combinations for that faction.");
+            int remaining=options.Count,active=0,created=0,failed=0;
+            long generation=SpawnQueue.Generation;
             Work.Enqueue(() =>
             {
-                if (remaining == 0)
+                if(!SpawnQueue.IsCurrent(generation))return true;
+                if(remaining==0)
                 {
-                    if (active != 0) return false;
-                    h.SendSysMessage($"SI random {team}: created {created}/{total}, failed {failed}. Races: " +
-                        string.Join(", ", createdByRace.Select(pair => $"{pair.Key}: {pair.Value}")));
+                    if(active!=0)return false;
+                    h.SendSysMessage($"SI random {options.Team}: created {created}/{options.Count}, failed {failed}; successful creations automatically log in.");
                     return true;
                 }
-                if (active >= 2) return false;
+                if(active>=2)return false;
                 --remaining;
                 try
                 {
-                    Race race = races[RandomNumberGenerator.GetInt32(races.Length)];
-                    Class[] classes = ClassicClasses(race).Where(cls => Global.ObjectMgr.GetPlayerInfo(race, cls) != null).ToArray();
-                    Class cls = classes[RandomNumberGenerator.GetInt32(classes.Length)];
-                    Gender gender = RandomNumberGenerator.GetInt32(2) == 0 ? Gender.Male : Gender.Female;
-                    var name = RandomName(race, gender);
                     ++active;
-                    try
-                    {
-                        CreateNamed(h, (name.First + " " + name.Surname).Trim(), race.ToString(), cls.ToString(), gender,
-                            success => { --active; if (success) { ++created; ++createdByRace[race]; } else ++failed; });
-                    }
-                    catch { --active; throw; }
+                    try { CreateRandom(h,options.Team,options.Race,options.Class,(success,guid)=>{--active;if(success)++created;else ++failed;},generation); }
+                    catch {--active;throw;}
                 }
-                catch (Exception error) { ++failed; ReportCreationFailure(h, "SI creation failed: " + error.GetBaseException().Message); }
+                catch(Exception error){++failed;ReportCreationFailure(h,"SI creation failed: "+error.GetBaseException().Message);}
                 return false;
             });
-            h.SendSysMessage($"Queued {total} random {team} SI character(s). Creation is paced; characters remain offline until spawned.");
+            h.SendSysMessage($"Queued {options.Count} random {options.Team} SI character(s); creation and automatic login are paced.");
         }
 
         static void QueueSpawnAll(CommandHandler h)
@@ -325,10 +331,11 @@ namespace Game.Chat.Commands
                 ? RandomName(character.RaceId, character.Sex, guid) : ParseFullName(parsed.NewName);
             if (ObjectManager.CheckPlayerName(name.First, Locale.enUS, true) != ResponseCodes.CharNameSuccess || Global.ObjectMgr.IsReservedName(name.First))
                 throw new ArgumentException("The new name does not pass character name validation.");
-            var existing = Global.CharacterCacheStorage.GetCharacterCacheByFirstName(name.First);
-            if (existing != null && existing.Guid != guid) throw new InvalidOperationException("That first name is already taken.");
-            if (!Creating.TryAdd(name.First, 0)) throw new InvalidOperationException("That name is already being created or assigned.");
-            if (!Editing.Add(guid)) { Creating.TryRemove(name.First, out _); throw new InvalidOperationException("This SI character already has a pending rename/delete."); }
+            string fullName=Player.FormatFullName(name.First,name.Surname);
+            var existing = Global.CharacterCacheStorage.GetCharacterCacheByFullName(name.First,name.Surname);
+            if (existing != null && existing.Guid != guid) throw new InvalidOperationException("That full name is already taken.");
+            if (!Creating.TryAdd(fullName, 0)) throw new InvalidOperationException("That name is already being created or assigned.");
+            if (!Editing.Add(guid)) { Creating.TryRemove(fullName, out _); throw new InvalidOperationException("This SI character already has a pending rename/delete."); }
             bool relog = false;
             long deadline = Environment.TickCount64 + 60000;
             Work.Enqueue(() =>
@@ -362,19 +369,18 @@ namespace Game.Chat.Commands
                         try
                         {
                             if (!success) { h.SendSysMessage("SI rename failed; the stored name was not changed."); return; }
-                            Global.CharacterCacheStorage.UpdateCharacterSurname(guid, name.Surname);
-                            Global.CharacterCacheStorage.UpdateCharacterData(guid, name.First);
+                            Global.CharacterCacheStorage.UpdateCharacterData(guid,name.First,surname:name.Surname);
                             h.SendSysMessage($"Renamed SI character {guid.GetCounter()} to {(name.First + " " + name.Surname).Trim()}.");
                             if (relog) Work.Enqueue(() => { Run(h, () => SpawnCharacter(h, guid)); return true; });
                         }
-                        finally { Creating.TryRemove(name.First, out _); Editing.Remove(guid); }
+                        finally { Creating.TryRemove(fullName, out _); Editing.Remove(guid); }
                     });
                     return true;
                 }
                 catch (Exception error)
                 {
                     h.SendSysMessage("SI rename: " + error.Message);
-                    Creating.TryRemove(name.First, out _); Editing.Remove(guid);
+                    Creating.TryRemove(fullName, out _); Editing.Remove(guid);
                     return true;
                 }
             });

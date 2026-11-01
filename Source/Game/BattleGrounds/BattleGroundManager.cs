@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -186,7 +186,7 @@ namespace Game.BattleGrounds
             if (bgTypeId != BattlegroundTypeId.None || IsRandomBattleground(bgTypeId))
             {
                 var data = bgDataStore.LookupByKey(bgTypeId);
-                return data.m_Battlegrounds.LookupByKey(instanceId);
+                return data?.m_Battlegrounds.LookupByKey(instanceId);
             }
 
             foreach (var it in bgDataStore)
@@ -212,7 +212,7 @@ namespace Game.BattleGrounds
             // the following works, because std.set is default ordered with "<"
             // the optimalization would be to use as bitmask std.vector<uint32> - but that would only make code unreadable
 
-            var clientIds = bgDataStore[bgTypeId].m_ClientBattlegroundIds[(int)bracket_id];
+            var clientIds = GetBattlegroundData(bgTypeId).m_ClientBattlegroundIds[(int)bracket_id];
             int lastId = 0;
             foreach (var id in clientIds)
             {
@@ -274,6 +274,9 @@ namespace Game.BattleGrounds
                     break;
                 case BattlegroundTypeId.EY:
                     bg = new BgEyeofStorm(bg_template);
+                    break;
+                case BattlegroundTypeId.DI:
+                    bg = new Zones.DarkspearIslands.BgDarkspearIslands(bg_template);
                     break;
                 case BattlegroundTypeId.RL:
                     bg = new BgRuinsOfLordaernon(bg_template);
@@ -462,13 +465,13 @@ namespace Game.BattleGrounds
         public void ToggleTesting()
         {
             m_Testing = !m_Testing;
-            Global.WorldMgr.SendWorldText(m_Testing ? CypherStrings.DebugBgOn : CypherStrings.DebugBgOff);
+            Global.WorldMgr.SendWorldText(m_Testing ? ForeverStrings.DebugBgOn : ForeverStrings.DebugBgOff);
         }
 
         public void ToggleArenaTesting()
         {
             m_ArenaTesting = !m_ArenaTesting;
-            Global.WorldMgr.SendWorldText(m_ArenaTesting ? CypherStrings.DebugArenaOn : CypherStrings.DebugArenaOff);
+            Global.WorldMgr.SendWorldText(m_ArenaTesting ? ForeverStrings.DebugArenaOn : ForeverStrings.DebugArenaOff);
         }
 
         public bool IsValidQueueId(BattlegroundQueueTypeId bgQueueTypeId)
@@ -701,12 +704,13 @@ namespace Game.BattleGrounds
 
         public void RemoveFromBGFreeSlotQueue(int mapId, int instanceId)
         {
-            var queues = m_BGFreeSlotQueue[mapId].ToList();
-            foreach (var bg in queues)
+            // Remove from the store itself: removing from a ToList() copy left every deleted battleground in the free-slot queue,
+            // so the next queue invited players into an instance that no longer existed and "Enter Battle" did nothing.
+            foreach (var bg in m_BGFreeSlotQueue[mapId].ToList())
             {
                 if (bg.GetInstanceID() == instanceId)
                 {
-                    queues.Remove(bg);
+                    m_BGFreeSlotQueue.Remove(mapId, bg);
                     return;
                 }
             }
@@ -715,12 +719,12 @@ namespace Game.BattleGrounds
         public void AddBattleground(Battleground bg)
         {
             if (bg != null)
-                bgDataStore[bg.GetTypeID()].m_Battlegrounds[bg.GetInstanceID()] = bg;
+                GetBattlegroundData(bg.GetTypeID()).m_Battlegrounds[bg.GetInstanceID()] = bg;
         }
 
         public void RemoveBattleground(BattlegroundTypeId bgTypeId, int instanceId)
         {
-            bgDataStore[bgTypeId].m_Battlegrounds.Remove(instanceId);
+            bgDataStore.LookupByKey(bgTypeId)?.m_Battlegrounds.Remove(instanceId);
         }
 
         public BattlegroundQueue GetBattlegroundQueue(BattlegroundQueueTypeId bgQueueTypeId)
@@ -732,6 +736,28 @@ namespace Game.BattleGrounds
         }
 
         public bool IsArenaTesting() { return m_ArenaTesting; }
+        internal Battleground[] GetActiveBattlegrounds() => bgDataStore.Values.SelectMany(data => data.m_Battlegrounds.Values)
+            .Where(bg => bg.GetInstanceID() != 0 && !bg.IsArena() && bg.GetStatus() != BattlegroundStatus.None &&
+                bg.GetStatus() != BattlegroundStatus.WaitQueue).OrderBy(bg => bg.GetInstanceID()).ToArray();
+
+        internal (int Players, int Tickets, int Invited, int Alliance, int Horde) GetBattlegroundQueueStatistics()
+        {
+            var players = new HashSet<ObjectGuid>(); var invited = new HashSet<ObjectGuid>();
+            var alliance = new HashSet<ObjectGuid>(); var horde = new HashSet<ObjectGuid>(); int tickets = 0;
+            foreach (var (id, queue) in m_BattlegroundQueues)
+            {
+                var template = GetBattlegroundTemplateByTypeId(id.BattlemasterListId);
+                if (template?.IsArena() == true || template == null && id.TeamSize != 0) continue;
+                foreach (var member in queue.PlayersForDiagnostics())
+                {
+                    players.Add(member.Guid); ++tickets;
+                    if (member.Invited) invited.Add(member.Guid);
+                    if (member.Team == Team.Alliance) alliance.Add(member.Guid);
+                    else if (member.Team == Team.Horde) horde.Add(member.Guid);
+                }
+            }
+            return (players.Count, tickets, invited.Count, alliance.Count, horde.Count);
+        }
         public bool IsTesting() { return m_Testing; }
 
         public BattlegroundTypeId GetBattleMasterBG(int entry)
@@ -750,6 +776,15 @@ namespace Game.BattleGrounds
         }
 
         Dictionary<BattlegroundTypeId, BattlegroundData> bgDataStore = new();
+
+        // EmuForever's std::map operator[] creates the entry on first use; the C# indexer throws instead, which crashed the world
+        // update the first time any battleground instance was created.
+        BattlegroundData GetBattlegroundData(BattlegroundTypeId bgTypeId)
+        {
+            if (!bgDataStore.TryGetValue(bgTypeId, out BattlegroundData data))
+                bgDataStore[bgTypeId] = data = new BattlegroundData();
+            return data;
+        }
         Dictionary<BattlegroundQueueTypeId, BattlegroundQueue> m_BattlegroundQueues = new();
         MultiMap<int, Battleground> m_BGFreeSlotQueue = new();
         Dictionary<int, BattlegroundTypeId> mBattleMastersMap = new();
@@ -820,10 +855,17 @@ namespace Game.BattleGrounds
 
         public bool IsArena() { return BattlemasterEntry.InstanceType == (uint)MapTypes.Arena; }
 
+        // A battleground is created only once each team can fill 10% of its slots (arenas keep their own rule).
+        public const double MinTeamFillRatio = 0.1;
+
         public ushort GetMinPlayersPerTeam()
         {
-            return BattlemasterEntry.MinPlayers;
+            if (IsArena())
+                return BattlemasterEntry.MinPlayers;
+            return (ushort)Math.Max(BattlemasterEntry.MinPlayers, (int)Math.Ceiling(BattlemasterEntry.MaxPlayers * MinTeamFillRatio));
         }
+
+        public ushort GetBaseMinPlayersPerTeam() => BattlemasterEntry.MinPlayers;
 
         public ushort GetMaxPlayersPerTeam()
         {

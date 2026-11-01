@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Collections;
@@ -618,11 +618,11 @@ namespace Game.Networking.Packets
 
             if (player != null)
             {
-                Cypher.Assert(player.GetGUID() == guid);
+                Forever.Assert(player.GetGUID() == guid);
 
                 AccountID = player.GetSession().GetAccountGUID();
                 BnetAccountID = player.GetSession().GetBattlenetAccountGUID();
-                Name = player.GetName();
+                Name = player.GetFirstName();
                 RaceID = player.GetRace();
                 Sex = player.GetNativeGender();
                 ClassID = player.GetClass();
@@ -640,7 +640,7 @@ namespace Game.Networking.Packets
 
                 AccountID = ObjectGuid.Create(HighGuid.WowAccount, accountId);
                 BnetAccountID = ObjectGuid.Create(HighGuid.BNetAccount, bnetAccountId);
-                Name = characterInfo.Name;
+                Name = characterInfo.FirstName;
                 RaceID = characterInfo.RaceId;
                 Sex = characterInfo.Sex;
                 ClassID = characterInfo.ClassId;
@@ -649,7 +649,7 @@ namespace Game.Networking.Packets
             }
 
             IsDeleted = characterInfo.IsDeleted;
-            Surname = characterInfo.Surname ?? string.Empty;   // Classic 1.60 (TC PlayerGuidLookupData::Initialize)
+            Surname = player?.GetSurname() ?? characterInfo.Surname ?? string.Empty;
             GuidActual = guid;
             VirtualRealmAddress = Global.WorldMgr.GetVirtualRealmAddress();
 

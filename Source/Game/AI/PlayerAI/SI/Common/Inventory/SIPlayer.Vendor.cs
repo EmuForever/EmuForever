@@ -16,7 +16,6 @@ namespace Game.AI
         long _nextVendorScan, _nextEquipCheck, _nextStartItemCheck;
         SITask _suspendedTask;
         readonly Dictionary<ObjectGuid, long> _vendorRetryAt = new();
-        long _nextProvisionVendorSearch;
 
         bool QuestNeedsItem(int item)
         {
@@ -190,10 +189,8 @@ namespace Game.AI
         bool CanRestockAt(Creature vendor) => ProvisionPurchase(vendor, false).Quantity > 0 ||
             me.GetMaxPower(PowerType.Mana) > 0 && ProvisionPurchase(vendor, true).Quantity > 0;
 
-        // A vendor entry worth a restock trip: it sells whichever of food or drink is actually low.
-        bool RestocksLowSupplies(int vendorEntry) =>
-            SIProvisionPolicy.Low(SupplyCount(false), ProvisionTarget(false)) && ProvisionPurchase(vendorEntry, null, false).Quantity > 0 ||
-            me.GetMaxPower(PowerType.Mana) > 0 && SIProvisionPolicy.Low(SupplyCount(true), ProvisionTarget(true)) && ProvisionPurchase(vendorEntry, null, true).Quantity > 0;
+        // The bot's own creature scan: food/drink merchants farther than this are never sought out.
+        float ProvisionScanRange => _settings.TargetSearchRadius;
 
         static bool Provision(ItemTemplate template, bool drink)
         {
@@ -356,7 +353,7 @@ namespace Game.AI
             _nextVendorScan = Now + 1000;
             bool urgent = NeedsVendor() || StoragePressure() || NeedsRestock();
             // Routine upkeep waits until the objective the bot came here for is finished.
-            if (!urgent && (CommittedToJourney() || !PartyFollowing && CommittedToObjective())) return false;
+            if (!urgent && (CommittedToJourney() || CommittedToObjective())) return false;
             bool ammunition = NeedsAmmunition();
             bool repair = NeedsRepair() && CanAffordRepair();
             bool fundingRepair = FundingRepair();
@@ -371,14 +368,10 @@ namespace Game.AI
                 SIVendorPurpose.Sell => localSeller,
                 SIVendorPurpose.Ammunition => NearestMerchant(QuestPickupRadius, NPCFlags1.Vendor, purpose, c => AmmunitionPurchase(c.GetEntry()).Quantity > 0),
                 SIVendorPurpose.Repair => NearestMerchant(QuestPickupRadius, NPCFlags1.Repair, purpose, CanAffordRepair),
-                _ => NearestMerchant(QuestPickupRadius, NPCFlags1.Vendor, purpose, CanRestockAt)
+                // Food and drink are bought only from a merchant the bot already sees; it never travels out for them.
+                _ => NearestMerchant(ProvisionScanRange, NPCFlags1.Vendor, purpose, CanRestockAt)
             };
             SISpawn? spawn = merchant != null ? SpawnOf(merchant) : null;
-            if (spawn == null && purpose == SIVendorPurpose.Restock && Now >= _nextProvisionVendorSearch && SIQuestKnowledge.IsBuilt)
-            {
-                _nextProvisionVendorSearch = Now + 15000;
-                spawn = NearestStockingVendor(SIVendorPurpose.Restock, RestocksLowSupplies);
-            }
             if (!localSale && (spawn == null || !repair && !ammunition && purpose != SIVendorPurpose.Restock) &&
                 PlanStorageVisit(out SIVendorPurpose storagePurpose, out Creature storageNpc, out SISpawn? storageSpawn))
             {

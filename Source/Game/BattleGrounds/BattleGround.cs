@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -19,7 +19,7 @@ using System.Numerics;
 
 namespace Game.BattleGrounds
 {
-    public class Battleground : ZoneScript, IDisposable
+    public partial class Battleground : ZoneScript, IDisposable
     {
         public Battleground(BattlegroundTemplate battlegroundTemplate)
         {
@@ -42,10 +42,11 @@ namespace Game.BattleGrounds
         {
             // remove objects and creatures
             // (this is done automatically in mapmanager update, when the instance is reset after the reset time)
-            for (var i = 0; i < BgCreatures.Length; ++i)
+            // Most battlegrounds spawn from the database and never allocate these.
+            for (var i = 0; i < (BgCreatures?.Length ?? 0); ++i)
                 DelCreature(i);
 
-            for (var i = 0; i < BgObjects.Length; ++i)
+            for (var i = 0; i < (BgObjects?.Length ?? 0); ++i)
                 DelObject(i);
 
             Global.BattlegroundMgr.RemoveBattleground(GetTypeID(), GetInstanceID());
@@ -115,7 +116,7 @@ namespace Game.BattleGrounds
                     else
                     {
                         if (Global.BattlegroundMgr.GetPrematureFinishTime() != TimeSpan.Zero
-                            && (GetPlayersCountByTeam(Team.Alliance) < GetMinPlayersPerTeam() || GetPlayersCountByTeam(Team.Horde) < GetMinPlayersPerTeam()))
+                            && (GetPlayersCountByTeam(Team.Alliance) < GetBaseMinPlayersPerTeam() || GetPlayersCountByTeam(Team.Horde) < GetBaseMinPlayersPerTeam()))
                         {
                             _ProcessProgress(diff);
                         }
@@ -216,9 +217,9 @@ namespace Game.BattleGrounds
         public virtual Team GetPrematureWinner()
         {
             Team winner = Team.Other;
-            if (GetPlayersCountByTeam(Team.Alliance) >= GetMinPlayersPerTeam())
+            if (GetPlayersCountByTeam(Team.Alliance) >= GetBaseMinPlayersPerTeam())
                 winner = Team.Alliance;
-            else if (GetPlayersCountByTeam(Team.Horde) >= GetMinPlayersPerTeam())
+            else if (GetPlayersCountByTeam(Team.Horde) >= GetBaseMinPlayersPerTeam())
                 winner = Team.Horde;
 
             return winner;
@@ -248,13 +249,13 @@ namespace Game.BattleGrounds
                 if (newtime > (Minutes)1)
                 {
                     if (newtime.ToMinutes() != m_PrematureCountDownTimer.ToMinutes())
-                        SendMessageToAll(CypherStrings.BattlegroundPrematureFinishWarning, ChatMsg.System, null, m_PrematureCountDownTimer.ToMinutes());
+                        SendMessageToAll(ForeverStrings.BattlegroundPrematureFinishWarning, ChatMsg.System, null, m_PrematureCountDownTimer.ToMinutes());
                 }
                 else
                 {
                     //announce every 15 seconds
                     if (newtime.ToSeconds() / 15 != m_PrematureCountDownTimer.ToSeconds() / 15)
-                        SendMessageToAll(CypherStrings.BattlegroundPrematureFinishWarningSecs, ChatMsg.System, null, m_PrematureCountDownTimer.ToSeconds());
+                        SendMessageToAll(ForeverStrings.BattlegroundPrematureFinishWarningSecs, ChatMsg.System, null, m_PrematureCountDownTimer.ToSeconds());
                 }
                 m_PrematureCountDownTimer = newtime;
             }
@@ -265,7 +266,13 @@ namespace Game.BattleGrounds
             // *********************************************************
             // ***           Battleground STARTING SYSTEM            ***
             // *********************************************************
-            ModifyStartDelayTime(diff);
+            // The countdown holds at the last warning until both teams are at least 10% full in the map (GetMinPlayersPerTeam)
+            // (invites that were declined or never accepted are refilled from the queue meanwhile).
+            bool holdStart = !IsArena() && !Global.BattlegroundMgr.IsTesting() && m_Events.HasAnyFlag(BattlegroundEventFlags.Event1) &&
+                GetStartDelayTime() <= StartDelayTimes[BattlegroundConst.EventIdThird] &&
+                (GetPlayersCountByTeam(Team.Alliance) < GetMinPlayersPerTeam() || GetPlayersCountByTeam(Team.Horde) < GetMinPlayersPerTeam());
+            if (!holdStart)
+                ModifyStartDelayTime(diff);
 
             if (!IsArena())
                 SetRemainingTime((Minutes)5);
@@ -397,7 +404,7 @@ namespace Game.BattleGrounds
                     }
                     // Announce BG starting
                     if (WorldConfig.Values[WorldCfg.BattlegroundQueueAnnouncerEnable].Bool)
-                        Global.WorldMgr.SendWorldText(CypherStrings.BgStartedAnnounceWorld, GetName(), GetMinLevel(), GetMaxLevel());
+                        Global.WorldMgr.SendWorldText(ForeverStrings.BgStartedAnnounceWorld, GetName(), GetMinLevel(), GetMaxLevel());
                 }
             }
 
@@ -460,13 +467,13 @@ namespace Game.BattleGrounds
 
         public BattlegroundMap GetBgMap()
         {
-            Cypher.Assert(m_Map != null);
+            Forever.Assert(m_Map != null);
             return m_Map;
         }
 
         public WorldSafeLocsEntry GetTeamStartPosition(int teamId)
         {
-            Cypher.Assert(teamId < BattleGroundTeamId.Neutral);
+            Forever.Assert(teamId < BattleGroundTeamId.Neutral);
             return _battlegroundTemplate.StartLocation[teamId];
         }
 
@@ -505,6 +512,9 @@ namespace Game.BattleGrounds
 
         public void SendBroadcastText(int id, ChatMsg msgType, WorldObject target = null)
         {
+            if (id == 0)
+                return; // templates without a broadcast (capture points, flags) simply say nothing
+
             if (!CliDB.BroadcastTextStorage.ContainsKey(id))
             {
                 Log.outError(LogFilter.Battleground, $"Battleground.SendBroadcastText: `broadcast_text` (ID: {id}) was not found");
@@ -655,16 +665,9 @@ namespace Game.BattleGrounds
                 if (player.HasAuraType(AuraType.SpiritOfRedemption))
                     player.RemoveAurasByType(AuraType.ModShapeshift);
 
-                if (!player.IsAlive())
-                {
-                    player.ResurrectPlayer(1.0f);
-                    player.SpawnCorpseBones();
-                }
-                else
-                {
-                    //needed cause else in av some creatures will kill the players at the end
-                    player.CombatStop();
-                }
+                //needed cause else in av some creatures will kill the players at the end
+                player.CombatStop();
+                ResetPlayerForBattleground(player, removeBuffs: false);
 
                 // remove temporary currency bonus auras before rewarding player
                 player.RemoveAura(BattlegroundConst.SpellHonorableDefender25y);
@@ -708,7 +711,8 @@ namespace Game.BattleGrounds
                     if (bgPlayer != null)
                     {
                         if (Global.BattlegroundMgr.IsRandomBattleground(bgPlayer.queueTypeId.BattlemasterListId)
-                            || Global.BattlegroundMgr.IsBGWeekend(bgPlayer.queueTypeId.BattlemasterListId))
+                            || Global.BattlegroundMgr.IsBGWeekend(bgPlayer.queueTypeId.BattlemasterListId)
+                            || GetMapId() == Game.Systems.PvP.ForeverPvpRanks.CallToArmsMapId())
                         {
                             UpdatePlayerScore(player, ScoreType.BonusHonor, GetBonusHonorFromKill(winnerKills));
                             if (!player.GetRandomWinner())
@@ -742,7 +746,8 @@ namespace Game.BattleGrounds
                     if (bgPlayer != null)
                     {
                         if (Global.BattlegroundMgr.IsRandomBattleground(bgPlayer.queueTypeId.BattlemasterListId)
-                            || Global.BattlegroundMgr.IsBGWeekend(bgPlayer.queueTypeId.BattlemasterListId))
+                            || Global.BattlegroundMgr.IsBGWeekend(bgPlayer.queueTypeId.BattlemasterListId)
+                            || GetMapId() == Game.Systems.PvP.ForeverPvpRanks.CallToArmsMapId())
                             UpdatePlayerScore(player, ScoreType.BonusHonor, GetBonusHonorFromKill(loserKills));
                     }
                 }
@@ -755,6 +760,10 @@ namespace Game.BattleGrounds
                 player.SendPacket(pvpMatchComplete);
 
                 player.UpdateCriteria(CriteriaType.ParticipateInBattleground, player.GetMapId());
+
+                // Classic 1.60: every battleground pays Rank Points, more for the week's Call to Arms battleground
+                if (IsBattleground())
+                    Game.Systems.PvP.ForeverPvpRanks.AwardBattleground(player, team == winner, GetMapId());
             }
         }
 
@@ -944,8 +953,35 @@ namespace Game.BattleGrounds
                 player.TeleportTo(loc.Loc);
         }
 
+        // Joining and leaving a battleground or arena start everyone clean: alive, full health and power, and
+        // without debuffs (and, on joining, without buffs). Passive auras, stances/forms/auras allowed into
+        // arenas and vehicle control stay.
+        static void ResetPlayerForBattleground(Player player, bool removeBuffs)
+        {
+            if (!player.IsAlive())
+            {
+                player.ResurrectPlayer(1.0f);
+                player.SpawnCorpseBones();
+            }
+            player.RemoveAppliedAuras(aurApp =>
+            {
+                Aura aura = aurApp.GetBase();
+                if (aura.IsPassive() || aura.HasEffectType(AuraType.ControlVehicle) ||
+                    aura.GetSpellInfo().HasAttribute(SpellAttr4.AllowEnteringArena)) return false;
+                return !aurApp.IsPositive() || removeBuffs;
+            });
+            player.SetFullHealth();
+            foreach (PowerType power in new[] { PowerType.Mana, PowerType.Energy })
+                if (player.GetMaxPower(power) > 0) player.SetFullPower(power);
+            if (player.GetPowerType() is PowerType.Rage or PowerType.RunicPower) player.SetPower(player.GetPowerType(), 0);
+        }
+
         public virtual void AddPlayer(Player player, BattlegroundQueueTypeId queueId)
         {
+            // A reconnect mid-match (already in this battleground) keeps its state.
+            if (!IsPlayerInBattleground(player.GetGUID()))
+                ResetPlayerForBattleground(player, removeBuffs: true);
+
             // remove afk from player
             if (player.IsAFK())
                 player.ToggleAFK();
@@ -1567,22 +1603,22 @@ namespace Game.BattleGrounds
             return AddSpiritGuide(type, pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), pos.GetOrientation(), teamIndex);
         }
 
-        public void SendMessageToAll(CypherStrings entry, ChatMsg msgType, Player source = null)
+        public void SendMessageToAll(ForeverStrings entry, ChatMsg msgType, Player source = null)
         {
             if (entry == 0)
                 return;
 
-            CypherStringChatBuilder builder = new(null, msgType, entry, source);
+            ForeverStringChatBuilder builder = new(null, msgType, entry, source);
             LocalizedDo localizer = new(builder);
             BroadcastWorker(localizer);
         }
 
-        public void SendMessageToAll(CypherStrings entry, ChatMsg msgType, Player source, params object[] args)
+        public void SendMessageToAll(ForeverStrings entry, ChatMsg msgType, Player source, params object[] args)
         {
             if (entry == 0)
                 return;
 
-            CypherStringChatBuilder builder = new(null, msgType, entry, source, args);
+            ForeverStringChatBuilder builder = new(null, msgType, entry, source, args);
             LocalizedDo localizer = new(builder);
             BroadcastWorker(localizer);
         }
@@ -1701,7 +1737,7 @@ namespace Game.BattleGrounds
 
         public int GetObjectType(ObjectGuid guid)
         {
-            for (int i = 0; i < BgObjects.Length; ++i)
+            for (int i = 0; i < (BgObjects?.Length ?? 0); ++i)
                 if (BgObjects[i] == guid)
                     return i;
             Log.outError(LogFilter.Battleground, 
@@ -1837,6 +1873,13 @@ namespace Game.BattleGrounds
 
             return _battlegroundTemplate.GetMaxPlayersPerTeam();
         }
+
+        // Premature finish ("Not enough players"): a match ends early only while a team holds less than 20% of
+        // a full team (WSG 2 of 10, AV 8 of 40). The client minimum (WSG 10) ended healthy 8v8 games.
+        // GetMinPlayersPerTeam is the separate 10% start rule.
+        public const double PrematureFinishTeamRatio = 0.2;
+        public int GetBaseMinPlayersPerTeam() => IsArena() ? _battlegroundTemplate.GetBaseMinPlayersPerTeam()
+            : Math.Max(1, (int)Math.Ceiling(GetMaxPlayersPerTeam() * PrematureFinishTeamRatio));
 
         public int GetMinPlayersPerTeam()
         {

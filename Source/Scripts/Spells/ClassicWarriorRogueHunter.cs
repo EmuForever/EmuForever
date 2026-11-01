@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -11,7 +11,7 @@ using System.Collections.Generic;
 using static Global;
 
 // Classic 1.60 (WoW Forever) warrior, rogue and hunter talents and abilities whose client spell is only a dummy aura or dummy effect, ported
-// from the reference TrinityCore (src/server/scripts/Custom/Classic/world/talents/classic_talents_warrior_rogue_hunter.cpp). Talent ranks
+// from the reference EmuForever (src/server/scripts/Custom/Classic/world/talents/classic_talents_warrior_rogue_hunter.cpp). Talent ranks
 // come from TraitDefinitionEffectPoints curves: the core puts the rank value into the aura amount, so the scripts read aurEff.GetAmount()
 // and never hardcode rank values.
 namespace Scripts.Spells.Classic.WarriorRogueHunter

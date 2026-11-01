@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -19,27 +19,27 @@ namespace Game.Chat
                 if (!enableArg.HasValue)
                 {
                     if (session.HasPermission(RBACPermissions.ChatUseStaffBadge) && session.GetPlayer().IsGMChat())
-                        session.SendNotification(CypherStrings.GmChatOn);
+                        session.SendNotification(ForeverStrings.GmChatOn);
                     else
-                        session.SendNotification(CypherStrings.GmChatOff);
+                        session.SendNotification(ForeverStrings.GmChatOff);
                     return true;
                 }
 
                 if (enableArg.HasValue)
                 {
                     session.GetPlayer().SetGMChat(true);
-                    session.SendNotification(CypherStrings.GmChatOn);
+                    session.SendNotification(ForeverStrings.GmChatOn);
                 }
                 else
                 {
                     session.GetPlayer().SetGMChat(false);
-                    session.SendNotification(CypherStrings.GmChatOff);
+                    session.SendNotification(ForeverStrings.GmChatOff);
                 }
 
                 return true;
             }
 
-            handler.SendSysMessage(CypherStrings.UseBol);
+            handler.SendSysMessage(ForeverStrings.UseBol);
             return false;
         }
 
@@ -61,7 +61,7 @@ namespace Game.Chat
                 target.SetCanTransitionBetweenSwimAndFly(false);
             }
 
-            handler.SendSysMessage(CypherStrings.CommandFlymodeStatus, handler.GetNameLink(target), enable ? "on" : "off");
+            handler.SendSysMessage(ForeverStrings.CommandFlymodeStatus, handler.GetNameLink(target), enable ? "on" : "off");
             return true;
         }
 
@@ -83,7 +83,7 @@ namespace Game.Chat
                     {
                         first = false;
                         footer = true;
-                        handler.SendSysMessage(CypherStrings.GmsOnSrv);
+                        handler.SendSysMessage(ForeverStrings.GmsOnSrv);
                         handler.SendSysMessage("========================");
                     }
                     int size = player.GetName().Length;
@@ -101,7 +101,7 @@ namespace Game.Chat
             if (footer)
                 handler.SendSysMessage("========================");
             if (first)
-                handler.SendSysMessage(CypherStrings.GmsNotLogged);
+                handler.SendSysMessage(ForeverStrings.GmsNotLogged);
             return true;
         }
 
@@ -116,7 +116,7 @@ namespace Game.Chat
 
             if (!result.IsEmpty())
             {
-                handler.SendSysMessage( CypherStrings.Gmlist);
+                handler.SendSysMessage( ForeverStrings.Gmlist);
                 handler.SendSysMessage("========================");
                 // Cycle through them. Display username and GM level
                 do
@@ -136,7 +136,7 @@ namespace Game.Chat
                 handler.SendSysMessage("========================");
             }
             else
-                handler.SendSysMessage( CypherStrings.GmlistEmpty);
+                handler.SendSysMessage( ForeverStrings.GmlistEmpty);
             return true;
         }
 
@@ -145,7 +145,7 @@ namespace Game.Chat
         {
             handler.GetPlayer().SetGameMaster(false);
             handler.GetPlayer().UpdateTriggerVisibility();
-            handler.GetSession().SendNotification(CypherStrings.GmOff);
+            handler.GetSession().SendNotification(ForeverStrings.GmOff);
             return true;
         }
 
@@ -154,7 +154,7 @@ namespace Game.Chat
         {
             handler.GetPlayer().SetGameMaster(true);
             handler.GetPlayer().UpdateTriggerVisibility();
-            handler.GetSession().SendNotification(CypherStrings.GmOn);
+            handler.GetSession().SendNotification(ForeverStrings.GmOn);
             return true;
         }
 
@@ -165,10 +165,10 @@ namespace Game.Chat
 
             if (!visibleArg.HasValue)
             {
-                handler.SendSysMessage(CypherStrings.YouAre, 
+                handler.SendSysMessage(ForeverStrings.YouAre, 
                     _player.IsGMVisible() 
-                    ? Global.ObjectMgr.GetCypherString(CypherStrings.Visible) 
-                    : Global.ObjectMgr.GetCypherString(CypherStrings.Invisible));
+                    ? Global.ObjectMgr.GetForeverString(ForeverStrings.Visible) 
+                    : Global.ObjectMgr.GetForeverString(ForeverStrings.Invisible));
 
                 return true;
             }
@@ -182,14 +182,14 @@ namespace Game.Chat
 
                 _player.SetGMVisible(true);
                 _player.UpdateObjectVisibility();
-                handler.GetSession().SendNotification(CypherStrings.InvisibleVisible);
+                handler.GetSession().SendNotification(ForeverStrings.InvisibleVisible);
             }
             else
             {
                 _player.AddAura(VISUAL_AURA, _player);
                 _player.SetGMVisible(false);
                 _player.UpdateObjectVisibility();
-                handler.GetSession().SendNotification(CypherStrings.InvisibleInvisible);
+                handler.GetSession().SendNotification(ForeverStrings.InvisibleInvisible);
             }
 
             return true;

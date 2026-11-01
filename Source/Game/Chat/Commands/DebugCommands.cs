@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -37,12 +37,12 @@ namespace Game.Chat
             Player player = handler.GetPlayer();
             if (!player.IsDebugAreaTriggers)
             {
-                handler.SendSysMessage(CypherStrings.DebugAreatriggerOn);
+                handler.SendSysMessage(ForeverStrings.DebugAreatriggerOn);
                 player.IsDebugAreaTriggers = true;
             }
             else
             {
-                handler.SendSysMessage(CypherStrings.DebugAreatriggerOff);
+                handler.SendSysMessage(ForeverStrings.DebugAreatriggerOff);
                 player.IsDebugAreaTriggers = false;
             }
             player.UpdateObjectVisibility();
@@ -78,7 +78,7 @@ namespace Game.Chat
             if (duration <= TimeSpan.Zero || duration >= (Minutes)30) // arbitrary upper limit
                 duration = (Minutes)3;
 
-            CypherStrings errMsg = target.GetAI().VisualizeBoundary(duration, player, fill == "fill");
+            ForeverStrings errMsg = target.GetAI().VisualizeBoundary(duration, player, fill == "fill");
             if (errMsg > 0)
                 handler.SendSysMessage(errMsg);
 
@@ -118,7 +118,7 @@ namespace Game.Chat
             Player target = handler.GetSelectedPlayerOrSelf();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
@@ -599,7 +599,7 @@ namespace Game.Chat
             foreach (var key in store.Keys)
             {
                 SpawnGroupTemplateData groupData = Global.ObjectMgr.GetSpawnGroupData(key);
-                Cypher.Assert(groupData != null); // checked by objectmgr on load
+                Forever.Assert(groupData != null); // checked by objectmgr on load
                 if (explain)
                 {
                     handler.SendSysMessage($" |-- '{groupData.name}' ({key})");
@@ -774,7 +774,7 @@ namespace Game.Chat
             if (!moveFlags.HasValue)
             {
                 //! Display case
-                handler.SendSysMessage(CypherStrings.MoveflagsGet, target.GetUnitMovementFlags(), target.GetUnitMovementFlags2());
+                handler.SendSysMessage(ForeverStrings.MoveflagsGet, target.GetUnitMovementFlags(), target.GetUnitMovementFlags2());
             }
             else
             {
@@ -794,7 +794,7 @@ namespace Game.Chat
                     target.SendMessageToSet(moveUpdate, true);
                 }
 
-                handler.SendSysMessage(CypherStrings.MoveflagsSet, target.GetUnitMovementFlags(), target.GetUnitMovementFlags2());
+                handler.SendSysMessage(ForeverStrings.MoveflagsSet, target.GetUnitMovementFlags(), target.GetUnitMovementFlags2());
             }
 
             return true;
@@ -843,9 +843,9 @@ namespace Game.Chat
             }
 
             if (nearestLoc != null)
-                handler.SendSysMessage(CypherStrings.CommandNearGraveyard, nearestLoc.Id, nearestLoc.Loc.GetPositionX(), nearestLoc.Loc.GetPositionY(), nearestLoc.Loc.GetPositionZ());
+                handler.SendSysMessage(ForeverStrings.CommandNearGraveyard, nearestLoc.Id, nearestLoc.Loc.GetPositionX(), nearestLoc.Loc.GetPositionY(), nearestLoc.Loc.GetPositionZ());
             else
-                handler.SendSysMessage(CypherStrings.CommandNearGraveyardNotfound);
+                handler.SendSysMessage(ForeverStrings.CommandNearGraveyardNotfound);
 
             return true;
         }
@@ -896,7 +896,7 @@ namespace Game.Chat
             Unit target = handler.GetSelectedUnit();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCreature);
                 return false;
             }
 
@@ -915,7 +915,7 @@ namespace Game.Chat
             Player target = handler.GetSelectedPlayerOrSelf();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
@@ -954,7 +954,7 @@ namespace Game.Chat
                     Global.WorldMgr.DisableForcedWarModeFactionBalanceState();
                     break;
                 default:
-                    handler.SendSysMessage(CypherStrings.BadValue);
+                    handler.SendSysMessage(ForeverStrings.BadValue);
                     return false;
             }
 
@@ -1040,7 +1040,7 @@ namespace Game.Chat
             Unit unit = handler.GetSelectedUnit();
             if (unit == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCharOrCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCharOrCreature);
                 return false;
             }
 
@@ -1150,7 +1150,7 @@ namespace Game.Chat
             Unit target = handler.GetSelectedUnit();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCharOrCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCharOrCreature);
                 return false;
             }
 
@@ -1295,7 +1295,7 @@ namespace Game.Chat
             Player target = handler.GetSelectedPlayerOrSelf();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
@@ -1330,7 +1330,7 @@ namespace Game.Chat
                 CinematicSequencesRecord cineSeq = CliDB.CinematicSequencesStorage.LookupByKey(cinematicId);
                 if (cineSeq == null)
                 {
-                    handler.SendSysMessage(CypherStrings.CinematicNotExist, cinematicId);
+                    handler.SendSysMessage(ForeverStrings.CinematicNotExist, cinematicId);
                     return false;
                 }
 
@@ -1362,7 +1362,7 @@ namespace Game.Chat
             {
                 if (!CliDB.MovieStorage.ContainsKey(movieId))
                 {
-                    handler.SendSysMessage(CypherStrings.MovieNotExist, movieId);
+                    handler.SendSysMessage(ForeverStrings.MovieNotExist, movieId);
                     return false;
                 }
 
@@ -1375,7 +1375,7 @@ namespace Game.Chat
             {
                 if (!CliDB.SoundKitStorage.ContainsKey(musicId))
                 {
-                    handler.SendSysMessage(CypherStrings.SoundNotExist, musicId);
+                    handler.SendSysMessage(ForeverStrings.SoundNotExist, musicId);
                     return false;
                 }
 
@@ -1383,7 +1383,7 @@ namespace Game.Chat
 
                 player.PlayDirectMusic(musicId, player);
 
-                handler.SendSysMessage(CypherStrings.YouHearSound, musicId);
+                handler.SendSysMessage(ForeverStrings.YouHearSound, musicId);
                 return true;
             }
 
@@ -1392,7 +1392,7 @@ namespace Game.Chat
             {
                 if (!CliDB.SoundKitStorage.ContainsKey(soundKitId))
                 {
-                    handler.SendSysMessage(CypherStrings.SoundNotExist, soundKitId);
+                    handler.SendSysMessage(ForeverStrings.SoundNotExist, soundKitId);
                     return false;
                 }
 
@@ -1400,7 +1400,7 @@ namespace Game.Chat
 
                 player.PlayObjectSound(soundKitId, player.GetGUID(), player, broadcastTextId.GetValueOrDefault(0));
 
-                handler.SendSysMessage(CypherStrings.YouHearSound, soundKitId);
+                handler.SendSysMessage(ForeverStrings.YouHearSound, soundKitId);
                 return true;
             }
 
@@ -1409,7 +1409,7 @@ namespace Game.Chat
             {
                 if (!CliDB.SoundKitStorage.ContainsKey(soundId))
                 {
-                    handler.SendSysMessage(CypherStrings.SoundNotExist, soundId);
+                    handler.SendSysMessage(ForeverStrings.SoundNotExist, soundId);
                     return false;
                 }
 
@@ -1418,7 +1418,7 @@ namespace Game.Chat
                 Unit unit = handler.GetSelectedUnit();
                 if (unit == null)
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCharOrCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCharOrCreature);
                     return false;
                 }
 
@@ -1427,7 +1427,7 @@ namespace Game.Chat
                 else
                     unit.PlayDirectSound(soundId, player, broadcastTextId);
 
-                handler.SendSysMessage(CypherStrings.YouHearSound, soundId);
+                handler.SendSysMessage(ForeverStrings.YouHearSound, soundId);
                 return true;
             }
         }
@@ -1446,7 +1446,7 @@ namespace Game.Chat
                 switch (command.ToLower())
                 {
                     default: // workaround for Variant of only ExactSequences not being supported
-                        handler.SendSysMessage(CypherStrings.BadValue);
+                        handler.SendSysMessage(ForeverStrings.BadValue);
                         return false;
                     case "alliance":
                         Global.WorldMgr.SetForcedWarModeFactionBalanceState(BattleGroundTeamId.Alliance, rewardValue);
@@ -1515,7 +1515,7 @@ namespace Game.Chat
             [Command("opcode", RBACPermissions.CommandDebug)]
             static bool HandleDebugSendOpcodeCommand(CommandHandler handler)
             {
-                handler.SendSysMessage(CypherStrings.CmdInvalid);
+                handler.SendSysMessage(ForeverStrings.CmdInvalid);
                 return true;
             }
 

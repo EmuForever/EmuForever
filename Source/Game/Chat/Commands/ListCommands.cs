@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -21,7 +21,7 @@ namespace Game.Chat.Commands
             CreatureTemplate cInfo = Global.ObjectMgr.GetCreatureTemplate(creatureId);
             if (cInfo == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandInvalidcreatureid, creatureId);
+                handler.SendSysMessage(ForeverStrings.CommandInvalidcreatureid, creatureId);
                 return false;
             }
 
@@ -80,7 +80,7 @@ namespace Game.Chat.Commands
                     {
                         var creBounds = thisMap.GetCreatureBySpawnIdStore()[guid];
                         foreach (var creature in creBounds)
-                            handler.SendSysMessage(CypherStrings.CreatureListChat, guid, guid, cInfo.Name, x, y, z, mapId, creature.GetGUID().ToString(), creature.IsAlive() ? "*" : " ");
+                            handler.SendSysMessage(ForeverStrings.CreatureListChat, guid, guid, cInfo.Name, x, y, z, mapId, creature.GetGUID().ToString(), creature.IsAlive() ? "*" : " ");
 
                         liveFound = !creBounds.Empty();
                     }
@@ -88,15 +88,15 @@ namespace Game.Chat.Commands
                     if (!liveFound)
                     {
                         if (handler.GetSession() != null)
-                            handler.SendSysMessage(CypherStrings.CreatureListChat, guid, guid, cInfo.Name, x, y, z, mapId, "", "");
+                            handler.SendSysMessage(ForeverStrings.CreatureListChat, guid, guid, cInfo.Name, x, y, z, mapId, "", "");
                         else
-                            handler.SendSysMessage(CypherStrings.CreatureListConsole, guid, cInfo.Name, x, y, z, mapId, "", "");
+                            handler.SendSysMessage(ForeverStrings.CreatureListConsole, guid, cInfo.Name, x, y, z, mapId, "", "");
                     }
                 }
                 while (result2.NextRow());
             }
 
-            handler.SendSysMessage(CypherStrings.CommandListcreaturemessage, creatureId, creatureCount);
+            handler.SendSysMessage(ForeverStrings.CommandListcreaturemessage, creatureId, creatureCount);
 
             return true;
         }
@@ -152,7 +152,7 @@ namespace Game.Chat.Commands
                         else
                             itemPosMessage = "";
 
-                        handler.SendSysMessage(CypherStrings.ItemlistSlot, itemGuid.ToString(), ownerName, ownerGuid.ToString(), ownerAccountId, itemPosMessage);
+                        handler.SendSysMessage(ForeverStrings.ItemlistSlot, itemGuid.ToString(), ownerName, ownerGuid.ToString(), ownerAccountId, itemPosMessage);
 
                         count--;
                     }
@@ -193,7 +193,7 @@ namespace Game.Chat.Commands
 
                         string itemPos = "[in mail]";
 
-                        handler.SendSysMessage(CypherStrings.ItemlistMail, itemGuid, itemSenderName, itemSender, itemSenderAccountId, itemReceiverName, itemReceiver, itemReceiverAccount, itemPos);
+                        handler.SendSysMessage(ForeverStrings.ItemlistMail, itemGuid, itemSenderName, itemSender, itemSenderAccountId, itemReceiverName, itemReceiver, itemReceiverAccount, itemPos);
 
                         count--;
                     }
@@ -231,7 +231,7 @@ namespace Game.Chat.Commands
 
                         string itemPos = "[in auction]";
 
-                        handler.SendSysMessage(CypherStrings.ItemlistAuction, itemGuid.ToString(), ownerName, owner.ToString(), ownerAccountId, itemPos);
+                        handler.SendSysMessage(ForeverStrings.ItemlistAuction, itemGuid.ToString(), ownerName, owner.ToString(), ownerAccountId, itemPos);
                     }
                     while (result.NextRow());
                 }
@@ -265,7 +265,7 @@ namespace Game.Chat.Commands
 
                         string itemPos = "[in guild bank]";
 
-                        handler.SendSysMessage(CypherStrings.ItemlistGuild, itemGuid.ToString(), guildName, guildGuid.ToString(), itemPos);
+                        handler.SendSysMessage(ForeverStrings.ItemlistGuild, itemGuid.ToString(), guildName, guildGuid.ToString(), itemPos);
 
                         count--;
                     }
@@ -275,11 +275,11 @@ namespace Game.Chat.Commands
 
             if (inventoryCount + mailCount + auctionCount + guildCount == 0)
             {
-                handler.SendSysMessage(CypherStrings.CommandNoitemfound);
+                handler.SendSysMessage(ForeverStrings.CommandNoitemfound);
                 return false;
             }
 
-            handler.SendSysMessage(CypherStrings.CommandListitemmessage, itemId, inventoryCount + mailCount + auctionCount + guildCount, inventoryCount, mailCount, auctionCount, guildCount);
+            handler.SendSysMessage(ForeverStrings.CommandListitemmessage, itemId, inventoryCount + mailCount + auctionCount + guildCount, inventoryCount, mailCount, auctionCount, guildCount);
             return true;
         }
 
@@ -301,8 +301,8 @@ namespace Game.Chat.Commands
                     uint countMail = result.Read<uint>(0);
 
                     string nameLink = handler.PlayerLink(player.GetName());
-                    handler.SendSysMessage(CypherStrings.ListMailHeader, countMail, nameLink, player.GetGUID().ToString());
-                    handler.SendSysMessage(CypherStrings.AccountListBar);
+                    handler.SendSysMessage(ForeverStrings.ListMailHeader, countMail, nameLink, player.GetGUID().ToString());
+                    handler.SendSysMessage(ForeverStrings.AccountListBar);
 
                     stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_MAIL_LIST_INFO);
                     stmt.SetInt64(0, player.GetGUID().GetCounter());
@@ -328,9 +328,9 @@ namespace Game.Chat.Commands
                                 int copp = (int)((money % MoneyConstants.Gold) % MoneyConstants.Silver);
                                 string receiverStr = handler.PlayerLink(receiver);
                                 string senderStr = handler.PlayerLink(sender);
-                                handler.SendSysMessage(CypherStrings.ListMailInfo1, messageId, subject, gold, silv, copp);
-                                handler.SendSysMessage(CypherStrings.ListMailInfo2, senderStr, senderId, receiverStr, receiverId);
-                                handler.SendSysMessage(CypherStrings.ListMailInfo3, deliverTime.ToLongDateString(), expireTime.ToLongDateString());
+                                handler.SendSysMessage(ForeverStrings.ListMailInfo1, messageId, subject, gold, silv, copp);
+                                handler.SendSysMessage(ForeverStrings.ListMailInfo2, senderStr, senderId, receiverStr, receiverId);
+                                handler.SendSysMessage(ForeverStrings.ListMailInfo3, deliverTime.ToLongDateString(), expireTime.ToLongDateString());
 
                                 if (hasItem == 1)
                                 {
@@ -360,10 +360,10 @@ namespace Game.Chat.Commands
                                                             {
                                                                 uint color = ItemConst.ItemQualityColors[(int)itemTemplate.GetQuality()];
                                                                 string itemStr = $"|c{color}|Hitem:{item_entry}:0:0:0:0:0:0:0:{handler.GetSession().GetPlayer().GetLevel()}:0:0:0:0:0|h[{itemTemplate.GetName(handler.GetSessionDbcLocale())}]|h|r";
-                                                                handler.SendSysMessage(CypherStrings.ListMailInfoItem, itemStr, item_entry, item_guid, item_count);
+                                                                handler.SendSysMessage(ForeverStrings.ListMailInfoItem, itemStr, item_entry, item_guid, item_count);
                                                             }
                                                             else
-                                                                handler.SendSysMessage(CypherStrings.ListMailInfoItem, itemTemplate.GetName(handler.GetSessionDbcLocale()), item_entry, item_guid, item_count);
+                                                                handler.SendSysMessage(ForeverStrings.ListMailInfoItem, itemTemplate.GetName(handler.GetSessionDbcLocale()), item_entry, item_guid, item_count);
                                                         }
                                                         while (result3.NextRow());
                                                     }
@@ -373,17 +373,17 @@ namespace Game.Chat.Commands
                                         }
                                     }
                                 }
-                                handler.SendSysMessage(CypherStrings.AccountListBar);
+                                handler.SendSysMessage(ForeverStrings.AccountListBar);
                             }
                             while (result1.NextRow());
                         }
                         else
-                            handler.SendSysMessage(CypherStrings.ListMailNotFound);
+                            handler.SendSysMessage(ForeverStrings.ListMailNotFound);
                     }
                     return true;
                 }
                 else
-                    handler.SendSysMessage(CypherStrings.ListMailNotFound);
+                    handler.SendSysMessage(ForeverStrings.ListMailNotFound);
             }
             return true;
         }
@@ -394,7 +394,7 @@ namespace Game.Chat.Commands
             GameObjectTemplate gInfo = Global.ObjectMgr.GetGameObjectTemplate(gameObjectId);
             if (gInfo == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandListobjinvalidid, gameObjectId);
+                handler.SendSysMessage(ForeverStrings.CommandListobjinvalidid, gameObjectId);
                 return false;
             }
 
@@ -455,7 +455,7 @@ namespace Game.Chat.Commands
                     {
                         var goBounds = thisMap.GetGameObjectBySpawnIdStore()[guid];
                         foreach (var go in goBounds)
-                            handler.SendSysMessage(CypherStrings.GoListChat, guid, entry, guid, gInfo.name, x, y, z, mapId, go.GetGUID().ToString(), go.IsSpawned() ? "*" : " ");
+                            handler.SendSysMessage(ForeverStrings.GoListChat, guid, entry, guid, gInfo.name, x, y, z, mapId, go.GetGUID().ToString(), go.IsSpawned() ? "*" : " ");
 
                         liveFound = !goBounds.Empty();
                     }
@@ -463,16 +463,16 @@ namespace Game.Chat.Commands
                         if (!liveFound)
                         {
                             if (handler.GetSession() != null)
-                                handler.SendSysMessage(CypherStrings.GoListChat, guid, entry, guid, gInfo.name, x, y, z, mapId, "", "");
+                                handler.SendSysMessage(ForeverStrings.GoListChat, guid, entry, guid, gInfo.name, x, y, z, mapId, "", "");
                             else
-                                handler.SendSysMessage(CypherStrings.GoListConsole, guid, gInfo.name, x, y, z, mapId, "", "");
+                                handler.SendSysMessage(ForeverStrings.GoListConsole, guid, gInfo.name, x, y, z, mapId, "", "");
                         }
                     }
                     while (result.NextRow());
                 }
             }
 
-            handler.SendSysMessage(CypherStrings.CommandListobjmessage, gameObjectId, objectCount);
+            handler.SendSysMessage(ForeverStrings.CommandListobjmessage, gameObjectId, objectCount);
 
             return true;
         }
@@ -484,18 +484,18 @@ namespace Game.Chat.Commands
             Map map = player.GetMap();
 
             Locale locale = handler.GetSession().GetSessionDbcLocale();
-            string stringOverdue = Global.ObjectMgr.GetCypherString(CypherStrings.ListRespawnsOverdue, locale);
+            string stringOverdue = Global.ObjectMgr.GetForeverString(ForeverStrings.ListRespawnsOverdue, locale);
 
             int zoneId = player.GetZoneId();
             string zoneName = GetZoneName(zoneId, locale);
             for (SpawnObjectType type = 0; type < SpawnObjectType.NumSpawnTypes; type++)
             {
                 if (range.HasValue)
-                    handler.SendSysMessage(CypherStrings.ListRespawnsRange, type, range.Value);
+                    handler.SendSysMessage(ForeverStrings.ListRespawnsRange, type, range.Value);
                 else
-                    handler.SendSysMessage(CypherStrings.ListRespawnsZone, type, zoneName, zoneId);
+                    handler.SendSysMessage(ForeverStrings.ListRespawnsZone, type, zoneName, zoneId);
 
-                handler.SendSysMessage(CypherStrings.ListRespawnsListheader);
+                handler.SendSysMessage(ForeverStrings.ListRespawnsListheader);
                 List<RespawnInfo> respawns = new();
                 map.GetRespawnInfo(respawns, (SpawnObjectTypeMask)(1 << (int)type));
                 foreach (RespawnInfo ri in respawns)
@@ -540,16 +540,16 @@ namespace Game.Chat.Commands
 
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
             var instanceByPackageMap = target.GetSceneMgr().GetSceneTemplateByInstanceMap();
 
-            handler.SendSysMessage(CypherStrings.DebugSceneObjectList, target.GetSceneMgr().GetActiveSceneCount());
+            handler.SendSysMessage(ForeverStrings.DebugSceneObjectList, target.GetSceneMgr().GetActiveSceneCount());
 
             foreach (var instanceByPackage in instanceByPackageMap)
-                handler.SendSysMessage(CypherStrings.DebugSceneObjectDetail, instanceByPackage.Value.ScenePackageId, instanceByPackage.Key);
+                handler.SendSysMessage(ForeverStrings.DebugSceneObjectDetail, instanceByPackage.Value.ScenePackageId, instanceByPackage.Key);
 
             return true;
         }
@@ -638,15 +638,15 @@ namespace Game.Chat.Commands
                 Unit unit = handler.GetSelectedUnit();
                 if (unit == null)
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCharOrCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCharOrCreature);
                     return false;
                 }
 
-                string talentStr = handler.GetCypherString(CypherStrings.Talent);
-                string passiveStr = handler.GetCypherString(CypherStrings.Passive);
+                string talentStr = handler.GetForeverString(ForeverStrings.Talent);
+                string passiveStr = handler.GetForeverString(ForeverStrings.Passive);
 
                 var auras = unit.GetAppliedAuras();
-                handler.SendSysMessage(CypherStrings.CommandTargetListauras, auras.Count);
+                handler.SendSysMessage(ForeverStrings.CommandTargetListauras, auras.Count);
                 foreach (var (_, aurApp) in auras)
                 {
                     Aura aura = aurApp.GetBase();
@@ -658,7 +658,7 @@ namespace Game.Chat.Commands
 
                     string ss_name = "|cffffffff|Hspell:" + aura.GetId() + "|h[" + name + "]|h|r";
 
-                    handler.SendSysMessage(CypherStrings.CommandTargetAuradetail, aura.GetId(), (handler.GetSession() != null ? ss_name : name),
+                    handler.SendSysMessage(ForeverStrings.CommandTargetAuradetail, aura.GetId(), (handler.GetSession() != null ? ss_name : name),
                         aurApp.GetEffectMask(), aura.GetCharges(), aura.GetStackAmount(), aurApp.GetSlot(),
                         aura.GetDuration(), aura.GetMaxDuration(), (aura.IsPassive() ? passiveStr : ""),
                         (talent ? talentStr : ""), aura.GetCasterGUID().IsPlayer() ? "player" : "creature",
@@ -681,10 +681,10 @@ namespace Game.Chat.Commands
                         if (!sizeLogged)
                         {
                             sizeLogged = true;
-                            handler.SendSysMessage(CypherStrings.CommandTargetListauratype, auraList.Count, auraType);
+                            handler.SendSysMessage(ForeverStrings.CommandTargetListauratype, auraList.Count, auraType);
                         }
 
-                        handler.SendSysMessage(CypherStrings.CommandTargetAurasimple, effect.GetId(), effect.GetEffIndex(), effect.GetAmount());
+                        handler.SendSysMessage(ForeverStrings.CommandTargetAurasimple, effect.GetId(), effect.GetEffIndex(), effect.GetAmount());
                     }
                 }
 

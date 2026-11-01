@@ -52,6 +52,7 @@ namespace Game.AI
                     }
                     continue;
                 }
+                order.Action = SIBattlegroundPolicy.GoalForLevel(order.Action,me.GetLevel());
                 _operatorControlled = order.Action is not ("quest" or "grind" or "resume" or "gather" or "professions" or "social");
                 if (order.Action is "gather" or "professions" or "social") ResetProfessionGoal();
                 // pause and duel hold the bot in place; resume returns it to what it was doing before either
@@ -61,6 +62,8 @@ namespace Game.AI
                     _previousTarget = _target;
                 }
                 if (order.Action == "duel") ResetDuelGoal();
+                if (order.Action == "bg" || _goal == "bg" && order.Action is not ("pause" or "resume"))
+                    ResetBattlegroundGoal();
                 if (order.Action == "resume")
                 {
                     if (_goal is not ("pause" or "duel"))
@@ -120,7 +123,18 @@ namespace Game.AI
             }
             _settingsStopped=false;
             ApplyOrders();
+            // Also repair a retained BG order after a level change or resume.
+            // Use the normal quest order so queues, movement and old tasks are reset.
+            if(_goal=="bg"&&SIBattlegroundPolicy.GoalForLevel(_goal,me.GetLevel())=="quest"&&!me.InBattleground())
+            {Order("quest");ApplyOrders();}
             if(me.HasPendingOperatorTeleport)return;
+            // Invites also interrupt taxi travel and can resurrect through the native port handler.
+            if (_goal == "bg" && !me.InBattleground() && !me.IsBeingTeleported() &&
+                me.GetSession().HasBattlegroundInviteForSI())
+            {
+                Stop();
+                if (me.GetSession().AcceptBattlegroundInviteForSI()) return;
+            }
             StopUnsafeHealthFunnel();
             StopInvalidRangedAttacks();
             StopObstructedCombatCasts();
@@ -145,6 +159,7 @@ namespace Game.AI
 
             TickQuestReservation();
             if (me.IsBeingTeleported() || me.IsCharmed()) { _preparation.Pause(Now); _encounter.Pause(Now); _task?.Suspend(Now); return; }
+            if (_settleOnFloor && SettleOnFloor()) return;
             // Native taxi movement owns the player until landing. Quest/trainer
             // replans must not cancel its itinerary or time out its saved task.
             if(me.IsInFlight())
@@ -161,19 +176,38 @@ namespace Game.AI
                 _lastQuestPosition=Here;_lastQuestPositionAt=Now;
             }
             if (!_started) Start();
+            if (_bgInstance != 0 && !me.InBattleground()) CompleteBattlegroundVisit();
+            // Death belongs to the shared recovery path, regardless of the SI goal.
+            if (!me.IsAlive())
+            {
+                if(me.GetBattleground() is {} deathBg)_bgSpreeBase=deathBg.KillingBlowsForSI(me.GetGUID());
+                Behavior="Death";_preparation.Pause(Now);_task?.Suspend(Now);
+                EndEncounter(false);RecoverCorpse();return;
+            }
+            if (_deathAt != 0 || _ghostStartedAt != 0 || Recovery is "CorpseRun" or "AwaitingReclaim" or "AwaitingRelease" or "Blocked" or "SpiritHealer")
+            {
+                OnResurrected();
+                if(me.InBattleground())
+                {
+                    _bgCarryingFlag=false;_bgObjective=null;_bgNextObjective=0;_bgExitReached=null;_bgDirectUntil=0;
+                    _recovering=_resting=false;Recovery="Alive";
+                }
+            }
+            if (_goal == "bg" || me.InBattleground())
+            {
+                RefreshWorldSnapshot();
+                if (_goal == "pause") { Behavior = "Pause"; Status = "Paused"; return; }
+                TickBattlegroundGoal();
+                return;
+            }
             CheckTrainingAvailability();
             RefreshWorldSnapshot();
             RefreshPartyContext();
             if(TickDuel())return;
             if (_goal == "pause") { Behavior = "Pause"; Status = "Paused"; _preparation.Pause(Now); return; }
             ReviewLocalQuestContext();
-            if (!me.IsAlive())
-            {
-                Behavior = "Death"; _preparation.Pause(Now); _task?.Suspend(Now);
-                EndEncounter(false); RecoverCorpse(); return;
-            }
-            if (_deathAt != 0 || _ghostStartedAt != 0 || Recovery is "CorpseRun" or "AwaitingReclaim" or "AwaitingRelease" or "Blocked" or "SpiritHealer") OnResurrected();
             RefreshSpellBook();
+            if (TickPartyBuffs()) return;
             SelectAmmunition();
             if (me.HasUnitState(UnitState.LostControl | UnitState.Stunned | UnitState.Confused | UnitState.Fleeing))
             {
@@ -190,7 +224,7 @@ namespace Game.AI
             if(TickPriorityTurnIn())return;
             if(TickJourneyFlight())return;
             if (ContinuePastTrivialAttackers()) return;
-            if (!_auctionMailDestination.HasValue && (!PartyFollowing || PartyErrand) && ContinueLongJourney()) return;
+            if (!_auctionMailDestination.HasValue && ContinueLongJourney()) return;
             // Death/combat can interrupt preparation. Neither releases the current quest order.
             if (TickCombatBehavior() != SIBehaviorResult.Failure)
             {
@@ -226,7 +260,6 @@ namespace Game.AI
                 if (_task.Kind == SITaskKind.Train) { TickTrainerBehavior(); Behavior = "Trainer"; return; }
                 TickVendorBehavior(); Behavior = "Vendor"; return;
             }
-            if (TickPartyCohesion(regroupOnly: true)) return;
             if(TickFlightPaths()){Behavior="FlightPaths";return;}
             // Maintenance is periodic, not a restart of login preparation or the quest order.
             if (Now >= _nextMaintenance)
@@ -238,10 +271,9 @@ namespace Game.AI
             RecoverIdleTask();
             if (WorkingGoal && TickAuctionMail()) { Behavior = "Mailbox"; return; }
             if (WorkingGoal && TickVendorBehavior()) { Behavior = "Vendor"; return; }
-            if (!PartyFollowing && _goal=="quest"&&SIQuestKnowledge.IsBuilt) NearbyQuestInteraction();
+            if (_goal=="quest"&&SIQuestKnowledge.IsBuilt) NearbyQuestInteraction();
             if (WorkingGoal && TickTrainerBehavior()) { Behavior = "Trainer"; return; }
             if (WorkingGoal && TickFirstAidUpkeep()) return;
-            if (TickPartyCohesion()) return;
             Behavior = _goal switch { "grind" => "LevelBot", "duel" => "Dueling", "gather" => "GatherBot", "professions" => "Professions",
                 "social" => "Social", _ => "QuestBot" };
             TickGoalBehavior();
@@ -273,17 +305,23 @@ namespace Game.AI
             return best;
         }
 
+        ObjectGuid _followingTarget;
+        bool _followingApproaching;
         void Follow()
         {
             Unit leader = Resolve(_target);
             if (leader != null && leader.IsAlive())
             {
-                Travel(leader.GetPosition(), "Following", 4);
+                if(_followingTarget!=_target){_followingTarget=_target;_followingApproaching=false;}
+                _followingApproaching=Game.AI.SIMovement.SIMovementRoute.FollowNeedsMovement(me.GetExactDist(leader),_followingApproaching,8,3);
+                if(_followingApproaching)Travel(leader.GetPosition(), "Following", 3,destinationTolerance:2);
+                else CancelTravel();
                 Status = "Following";
             }
             else
             {
                 Stop();
+                _followingApproaching=false;
                 Status = "Follow target unavailable";
             }
         }
@@ -330,7 +368,12 @@ namespace Game.AI
             Diagnostics.Publish($"SIPlayer {me.GetName()} [{type}] {summary}");
         }
 
-        public void Dispose() { Stop(); ReleaseQuestTarget(); }
+        public void Dispose()
+        {
+            Stop();
+            if (_goal == "bg" || _goal == "pause" && _previousGoal == "bg" || _bgInstance != 0) ResetBattlegroundGoal();
+            ReleaseQuestTarget();
+        }
     }
 }
 

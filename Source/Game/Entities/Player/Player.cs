@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -156,6 +156,29 @@ namespace Game.Entities
         }
 
         //Core
+        string _surname = string.Empty;
+        public static string FormatFullName(string first,string surname)
+        {
+            first=first?.Trim(); surname=surname?.Trim();
+            if(string.IsNullOrEmpty(surname)) return first ?? string.Empty;
+            return string.IsNullOrEmpty(first) ? surname : first+" "+surname;
+        }
+        public string GetFirstName() => base.GetName();
+        public string GetSurname() => _surname ?? string.Empty;
+        public void SetSurname(string surname) => _surname = surname?.Trim() ?? string.Empty;
+        // GetName is called constantly (packets, logs, SI); rebuild the full name only when a part changes.
+        string _fullNameFirst, _fullNameSurname, _fullName;
+        public override string GetName(Locale locale = Locale.enUS)
+        {
+            string first = base.GetName(locale), surname = GetSurname();
+            if (!ReferenceEquals(first, _fullNameFirst) || !ReferenceEquals(surname, _fullNameSurname))
+            {
+                _fullName = FormatFullName(first, surname);
+                _fullNameFirst = first; _fullNameSurname = surname;
+            }
+            return _fullName;
+        }
+
         public bool Create(long guidlow, CharacterCreateInfo createInfo)
         {
             _Create(ObjectGuid.Create(HighGuid.Player, guidlow));
@@ -163,6 +186,7 @@ namespace Game.Entities
 
             // Classic carries surname separately in character/name packets and the database.
             SetName(createInfo.Name);
+            SetSurname(createInfo.Surname);
 
             PlayerInfo info = ObjectMgr.GetPlayerInfo(createInfo.RaceId, createInfo.ClassId);
             if (info == null)
@@ -367,7 +391,7 @@ namespace Game.Entities
             UpdateSelfSIControl();
             Game.Chat.Commands.SICommands.UpdateTravelMarkers(this,diff);
             UpdateLegacyProgress();
-            SendPendingPetBar();
+            UpdatePvpRank();
 
             // undelivered mail
             if (m_nextMailDelivereTime != ServerTime.Zero && m_nextMailDelivereTime <= LoopTime.ServerTime)
@@ -1133,7 +1157,7 @@ namespace Game.Entities
 
         public void SendRemoveControlBar()
         {
-            SendEmptyPetBar();
+            SendPacket(new PetSpells());
         }
 
         public void SetBattlePetData(BattlePet pet = null)
@@ -1166,7 +1190,7 @@ namespace Game.Entities
                 {
                     ExitVehicle();
 
-                    // Temporary for issue https://github.com/TrinityCore/TrinityCore/issues/24876
+                    // Temporary for issue https://github.com/EmuForever/EmuForever/issues/24876
                     if (!GetCharmedGUID().IsEmpty() && !charm.HasAuraTypeWithCaster(AuraType.ControlVehicle, GetGUID()))
                     {
                         Log.outFatal(LogFilter.Player, 
@@ -1198,7 +1222,7 @@ namespace Game.Entities
                         $"Player debug info: {GetDebugInfo()}\n" +
                         $"Charm debug info: {charm.GetDebugInfo()}");
 
-                    Cypher.Assert(false);
+                    Forever.Assert(false);
                 }
 
                 SetCharm(charm, false);
@@ -1243,7 +1267,7 @@ namespace Game.Entities
             if (!charm.IsTypeId(TypeId.Player))
                 charm.GetSpellHistory().WritePacket(petSpells);
 
-            SendPetBar(petSpells);
+            SendPacket(petSpells);
         }
 
         public void PossessSpellInitialize()
@@ -1270,7 +1294,7 @@ namespace Game.Entities
             // Cooldowns
             charm.GetSpellHistory().WritePacket(petSpellsPacket);
 
-            SendPetBar(petSpellsPacket);
+            SendPacket(petSpellsPacket);
         }
 
         public void VehicleSpellInitialize()
@@ -1318,7 +1342,7 @@ namespace Game.Entities
             // Cooldowns
             vehicle.GetSpellHistory().WritePacket(petSpells);
 
-            SendPetBar(petSpells);
+            SendPacket(petSpells);
         }
 
         //Currency
@@ -1344,7 +1368,7 @@ namespace Game.Entities
                 return;
 
             CurrencyTypesRecord currency = CliDB.CurrencyTypesStorage.LookupByKey(id);
-            Cypher.Assert(currency != null);
+            Forever.Assert(currency != null);
 
             // Check faction
             if ((currency.IsAlliance && GetTeam() != Team.Alliance) ||
@@ -1436,6 +1460,7 @@ namespace Game.Entities
             }
 
             CurrencyChanged(id, amount);
+            UpdateRenownCriteria(id);
 
             SetCurrency packet = new();
             packet.Type = currency.Id;
@@ -1479,7 +1504,7 @@ namespace Game.Entities
                 return;
 
             CurrencyTypesRecord currency = CliDB.CurrencyTypesStorage.LookupByKey(id);
-            Cypher.Assert(currency != null);
+            Forever.Assert(currency != null);
 
             // Check faction
             if ((currency.IsAlliance && GetTeam() != Team.Alliance) ||
@@ -1574,6 +1599,9 @@ namespace Game.Entities
                 return 0;
 
             int maxQuantity = currency.MaxQty;
+            // Classic 1.60 PvP rank: the max quantity follows the season week (curve 102601: rank 3 in week 1 ... rank 14 from week 10).
+            if (currency.Id == Game.Systems.PvP.ForeverPvpRanks.RankCurrencyId && currency.MaxQtyCurveID != 0)
+                maxQuantity = Game.Systems.PvP.ForeverPvpRanks.RankCap(currency);
             int increasedCap = 0;
 
             if (currency.HasFlag(CurrencyTypesFlags.DynamicMaximum))
@@ -3182,7 +3210,7 @@ namespace Game.Entities
 
                 if (CanJoinConstantChannelInZone(channelEntry, current_zone))
                 {
-                    if (!channelEntry.HasFlag(ChatChannelFlags.ZoneBased))
+                    if (channelEntry.HasFlag(ChatChannelFlags.ZoneBased))
                     {
                         if (channelEntry.HasFlag(ChatChannelFlags.LinkedChannel) && usedChannel != null)
                             continue;                            // Already on the channel, as city channel names are not changing
@@ -3471,7 +3499,7 @@ namespace Game.Entities
 
         public void SetResurrectRequestData(WorldObject caster, int health, int mana, int appliedAura)
         {
-            Cypher.Assert(!IsResurrectRequested());
+            Forever.Assert(!IsResurrectRequested());
             _resurrectionData = new ResurrectionData();
             _resurrectionData.GUID = caster.GetGUID();
             _resurrectionData.Location.WorldRelocate(caster);
@@ -4533,7 +4561,11 @@ namespace Game.Entities
             // Special handle for Battlegroundmaps
             Battleground bg = GetBattleground();
             if (bg != null)
-                ClosestGrave = bg.GetClosestGraveyard(this);
+            {
+                // A battleground without a graveyard link for this spot used to leave the ghost on its corpse
+                // (and the spirit guide revived it there). Fall back to the team's base.
+                ClosestGrave = bg.GetClosestGraveyard(this) ?? bg.GetTeamStartPosition(Battleground.GetTeamIndexByTeamId(GetBGTeam()));
+            }
             else
             {
                 BattleField bf = BattleFieldMgr.GetBattlefieldToZoneId(GetMap(), GetZoneId());
@@ -4751,7 +4783,7 @@ namespace Game.Entities
 
             map.AddToMap(pet.ToCreature());
 
-            Cypher.Assert(!petStable.CurrentPetIndex.HasValue);
+            Forever.Assert(!petStable.CurrentPetIndex.HasValue);
             petStable.SetCurrentUnslottedPetIndex(petStable.UnslottedPets.Count);
             PetStable.PetInfo petInfo = new();
             pet.FillPetInfo(petInfo);
@@ -4825,7 +4857,7 @@ namespace Game.Entities
             pet.SavePetToDB(mode);
 
             PetStable.PetInfo currentPet = m_petStable.GetCurrentPet();
-            Cypher.Assert(currentPet != null && currentPet.PetNumber == pet.GetCharmInfo().GetPetNumber());
+            Forever.Assert(currentPet != null && currentPet.PetNumber == pet.GetCharmInfo().GetPetNumber());
             if (mode == PetSaveMode.NotInSlot)
                 m_petStable.CurrentPetIndex = null;
             else if (mode == PetSaveMode.AsDeleted)
@@ -4856,7 +4888,7 @@ namespace Game.Entities
 
             if (pet.IsControlled())
             {
-                SendEmptyPetBar();
+                SendPacket(new PetSpells());
 
                 if (GetGroup() != null)
                     SetGroupUpdateFlag(GroupUpdateFlags.Pet);
@@ -4915,7 +4947,7 @@ namespace Game.Entities
             SendPacket(setCollisionHeight);
 
             MoveUpdateCollisionHeight updateCollisionHeight = new();
-            updateCollisionHeight.Status = m_movementInfo;
+            updateCollisionHeight.Status = GetMovementUpdateState();
             updateCollisionHeight.Height = height;
             updateCollisionHeight.Scale = GetObjectScale();
             SendMessageToSet(updateCollisionHeight, false);
@@ -5070,7 +5102,7 @@ namespace Game.Entities
 
         bool IsFriendlyArea(AreaTableRecord areaEntry)
         {
-            Cypher.Assert(areaEntry != null);
+            Forever.Assert(areaEntry != null);
 
             var factionTemplate = GetFactionTemplateEntry();
             if (factionTemplate == null)
@@ -6585,9 +6617,9 @@ namespace Game.Entities
             SendPacket(new ExplorationExperience(Experience, Area));
         }
 
-        public void SendSysMessage(CypherStrings str, params object[] args)
+        public void SendSysMessage(ForeverStrings str, params object[] args)
         {
-            string input = ObjectMgr.GetCypherString(str);
+            string input = ObjectMgr.GetForeverString(str);
             string pattern = @"%(\d+(\.\d+)?)?(d|f|s|u)";
 
             int count = 0;
@@ -6718,14 +6750,14 @@ namespace Game.Entities
             if (!IsAcceptWhispers() && !IsGameMaster() && !target.IsGameMaster())
             {
                 SetAcceptWhispers(true);
-                SendSysMessage(CypherStrings.CommandWhisperon);
+                SendSysMessage(ForeverStrings.CommandWhisperon);
             }
 
             // announce afk or dnd message
             if (target.IsAFK())
-                SendSysMessage(CypherStrings.PlayerAfk, target.GetName(), target.autoReplyMsg);
+                SendSysMessage(ForeverStrings.PlayerAfk, target.GetName(), target.autoReplyMsg);
             else if (target.IsDND())
-                SendSysMessage(CypherStrings.PlayerDnd, target.GetName(), target.autoReplyMsg);
+                SendSysMessage(ForeverStrings.PlayerDnd, target.GetName(), target.autoReplyMsg);
         }
 
         public override void Whisper(int textId, Player target, bool isBossWhisper = false)
@@ -7245,8 +7277,8 @@ namespace Game.Entities
             else
                 m_taxi.SetFlightMasterFactionTemplateId(0);
 
-            totalcost = (uint)ApplyClassicLegacyPriceMod(totalcost, 4);
-            firstcost = (uint)ApplyClassicLegacyPriceMod(firstcost, 4);
+            totalcost = (uint)ApplyClassicLegacyPriceMod(totalcost,Game.Systems.Legacy.LegacyEffectEngine.FlightPathPriceType);
+            firstcost = (uint)ApplyClassicLegacyPriceMod(firstcost,Game.Systems.Legacy.LegacyEffectEngine.FlightPathPriceType);
             if (money < totalcost)
             {
                 GetSession().SendActivateTaxiReply(ActivateTaxiReply.NotEnoughMoney);
@@ -7423,7 +7455,7 @@ namespace Game.Entities
         //new
         public int DoRandomRoll(int minimum, int maximum)
         {
-            Cypher.Assert(maximum <= 1000000);
+            Forever.Assert(maximum <= 1000000);
 
             int roll = RandomHelper.IRand(minimum, maximum);
 
@@ -7643,7 +7675,7 @@ namespace Game.Entities
         public void SetClientControl(Unit target, bool allowMove)
         {
             // a player can never client control nothing
-            Cypher.Assert(target != null);
+            Forever.Assert(target != null);
 
             if (target == this && IsSelfSIControlled) allowMove = false;
 
@@ -7761,7 +7793,7 @@ namespace Game.Entities
                 offItem.DeleteFromInventoryDB(trans);                   // deletes item from character's inventory
                 offItem.SaveToDB(trans);                                // recursive and not have transaction guard into self, item not in inventory and can be save standalone
 
-                string subject = ObjectMgr.GetCypherString(CypherStrings.NotEquippedItem);
+                string subject = ObjectMgr.GetForeverString(ForeverStrings.NotEquippedItem);
                 new MailDraft(subject, "There were problems with equipping one or several items").AddItem(offItem).SendMailTo(trans, this, new MailSender(this, MailStationery.Gm), MailCheckFlags.Copied);
 
                 DB.Characters.CommitTransaction(trans);

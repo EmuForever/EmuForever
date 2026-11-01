@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -32,7 +32,7 @@ namespace Game.Chat.Commands
 
             if (!ObjectManager.NormalizePlayerName(ref playerName))
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
@@ -45,22 +45,22 @@ namespace Game.Chat.Commands
                     if (duration > 0)
                     {
                         if (WorldConfig.Values[WorldCfg.ShowBanInWorld].Bool)
-                            Global.WorldMgr.SendWorldText(CypherStrings.BanCharacterYoubannedmessageWorld, author, playerName, Time.SpanToTimeString((Seconds)duration, TimeFormat.ShortText), reason);
+                            Global.WorldMgr.SendWorldText(ForeverStrings.BanCharacterYoubannedmessageWorld, author, playerName, Time.SpanToTimeString((Seconds)duration, TimeFormat.ShortText), reason);
                         else
-                            handler.SendSysMessage(CypherStrings.BanYoubanned, playerName, Time.SpanToTimeString((Seconds)duration, TimeFormat.ShortText), reason);
+                            handler.SendSysMessage(ForeverStrings.BanYoubanned, playerName, Time.SpanToTimeString((Seconds)duration, TimeFormat.ShortText), reason);
                     }
                     else
                     {
                         if (WorldConfig.Values[WorldCfg.ShowBanInWorld].Bool)
-                            Global.WorldMgr.SendWorldText(CypherStrings.BanCharacterYoupermbannedmessageWorld, author, playerName, reason);
+                            Global.WorldMgr.SendWorldText(ForeverStrings.BanCharacterYoupermbannedmessageWorld, author, playerName, reason);
                         else
-                            handler.SendSysMessage(CypherStrings.BanYoupermbanned, playerName, reason);
+                            handler.SendSysMessage(ForeverStrings.BanYoupermbanned, playerName, reason);
                     }
                     break;
                 }
                 case BanReturn.Notfound:
                 {
-                    handler.SendSysMessage(CypherStrings.BanNotfound, "character", playerName);
+                    handler.SendSysMessage(ForeverStrings.BanNotfound, "character", playerName);
                     return false;
                 }
                 default:
@@ -95,7 +95,7 @@ namespace Game.Chat.Commands
                 case BanMode.Character:
                     if (!ObjectManager.NormalizePlayerName(ref nameOrIP))
                     {
-                        handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                        handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                         return false;
                     }
                     break;
@@ -112,16 +112,16 @@ namespace Game.Chat.Commands
                     if (duration > 0)
                     {
                         if (WorldConfig.Values[WorldCfg.ShowBanInWorld].Bool)
-                            Global.WorldMgr.SendWorldText(CypherStrings.BanAccountYoubannedmessageWorld, author, nameOrIP, Time.SpanToTimeString((Seconds)duration), reason);
+                            Global.WorldMgr.SendWorldText(ForeverStrings.BanAccountYoubannedmessageWorld, author, nameOrIP, Time.SpanToTimeString((Seconds)duration), reason);
                         else
-                            handler.SendSysMessage(CypherStrings.BanYoubanned, nameOrIP, Time.SpanToTimeString((Seconds)duration, TimeFormat.ShortText), reason);
+                            handler.SendSysMessage(ForeverStrings.BanYoubanned, nameOrIP, Time.SpanToTimeString((Seconds)duration, TimeFormat.ShortText), reason);
                     }
                     else
                     {
                         if (WorldConfig.Values[WorldCfg.ShowBanInWorld].Bool)
-                            Global.WorldMgr.SendWorldText(CypherStrings.BanAccountYoupermbannedmessageWorld, author, nameOrIP, reason);
+                            Global.WorldMgr.SendWorldText(ForeverStrings.BanAccountYoupermbannedmessageWorld, author, nameOrIP, reason);
                         else
-                            handler.SendSysMessage(CypherStrings.BanYoupermbanned, nameOrIP, reason);
+                            handler.SendSysMessage(ForeverStrings.BanYoupermbanned, nameOrIP, reason);
                     }
                     break;
                 case BanReturn.SyntaxError:
@@ -130,18 +130,18 @@ namespace Game.Chat.Commands
                     switch (mode)
                     {
                         default:
-                            handler.SendSysMessage(CypherStrings.BanNotfound, "account", nameOrIP);
+                            handler.SendSysMessage(ForeverStrings.BanNotfound, "account", nameOrIP);
                             break;
                         case BanMode.Character:
-                            handler.SendSysMessage(CypherStrings.BanNotfound, "character", nameOrIP);
+                            handler.SendSysMessage(ForeverStrings.BanNotfound, "character", nameOrIP);
                             break;
                         case BanMode.IP:
-                            handler.SendSysMessage(CypherStrings.BanNotfound, "ip", nameOrIP);
+                            handler.SendSysMessage(ForeverStrings.BanNotfound, "ip", nameOrIP);
                             break;
                     }
                     return false;
                 case BanReturn.Exists:
-                    handler.SendSysMessage(CypherStrings.BanExists);
+                    handler.SendSysMessage(ForeverStrings.BanExists);
                     break;
             }
 
@@ -161,7 +161,7 @@ namespace Game.Chat.Commands
             int accountId = Global.AccountMgr.GetId(accountName);
             if (accountId == 0)
             {
-                handler.SendSysMessage(CypherStrings.AccountNotExist, accountName);
+                handler.SendSysMessage(ForeverStrings.AccountNotExist, accountName);
                 return true;
             }
 
@@ -173,7 +173,7 @@ namespace Game.Chat.Commands
         {
             if (!ObjectManager.NormalizePlayerName(ref name))
             {
-                handler.SendSysMessage(CypherStrings.BaninfoNocharacter);
+                handler.SendSysMessage(ForeverStrings.BaninfoNocharacter);
                 return false;
             }
 
@@ -185,7 +185,7 @@ namespace Game.Chat.Commands
                 targetGuid = Global.CharacterCacheStorage.GetCharacterGuidByName(name);
                 if (targetGuid.IsEmpty())
                 {
-                    handler.SendSysMessage(CypherStrings.BaninfoNocharacter);
+                    handler.SendSysMessage(ForeverStrings.BaninfoNocharacter);
                     return false;
                 }
             }
@@ -197,11 +197,11 @@ namespace Game.Chat.Commands
             SQLResult result = DB.Characters.Query(stmt);
             if (result.IsEmpty())
             {
-                handler.SendSysMessage(CypherStrings.CharNotBanned, name);
+                handler.SendSysMessage(ForeverStrings.CharNotBanned, name);
                 return true;
             }
 
-            handler.SendSysMessage(CypherStrings.BaninfoBanhistory, name);
+            handler.SendSysMessage(ForeverStrings.BaninfoBanhistory, name);
             do
             {
                 ServerTime unbanDate = (ServerTime)(UnixTime64)result.Read<long>(3);
@@ -209,9 +209,9 @@ namespace Game.Chat.Commands
                 if (result.Read<bool>(2) && (result.Read<long>(1) == 0L || unbanDate >= LoopTime.ServerTime))
                     active = true;
                 bool permanent = result.Read<long>(1) == 0L;
-                string banTime = permanent ? handler.GetCypherString(CypherStrings.BaninfoInfinite) : Time.SpanToTimeString((Seconds)result.Read<long>(1), TimeFormat.ShortText);
-                handler.SendSysMessage(CypherStrings.BaninfoHistoryentry, ((DateTime)(UnixTime)result.Read<long>(0)).ToShortTimeString(), banTime,
-                    active ? handler.GetCypherString(CypherStrings.Yes) : handler.GetCypherString(CypherStrings.No), result.Read<string>(4), result.Read<string>(5));
+                string banTime = permanent ? handler.GetForeverString(ForeverStrings.BaninfoInfinite) : Time.SpanToTimeString((Seconds)result.Read<long>(1), TimeFormat.ShortText);
+                handler.SendSysMessage(ForeverStrings.BaninfoHistoryentry, ((DateTime)(UnixTime)result.Read<long>(0)).ToShortTimeString(), banTime,
+                    active ? handler.GetForeverString(ForeverStrings.Yes) : handler.GetForeverString(ForeverStrings.No), result.Read<string>(4), result.Read<string>(5));
             }
             while (result.NextRow());
 
@@ -230,13 +230,13 @@ namespace Game.Chat.Commands
 
             if (result.IsEmpty())
             {
-                handler.SendSysMessage(CypherStrings.BaninfoNoip);
+                handler.SendSysMessage(ForeverStrings.BaninfoNoip);
                 return true;
             }
 
             bool permanent = result.Read<long>(6) == 0;
-            handler.SendSysMessage(CypherStrings.BaninfoIpentry, result.Read<string>(0), result.Read<string>(1), permanent ? handler.GetCypherString(CypherStrings.BaninfoNever) : result.Read<string>(2),
-                permanent ? handler.GetCypherString(CypherStrings.BaninfoInfinite) : Time.SpanToTimeString((Seconds)result.Read<long>(3), TimeFormat.ShortText), result.Read<string>(4), result.Read<string>(5));
+            handler.SendSysMessage(ForeverStrings.BaninfoIpentry, result.Read<string>(0), result.Read<string>(1), permanent ? handler.GetForeverString(ForeverStrings.BaninfoNever) : result.Read<string>(2),
+                permanent ? handler.GetForeverString(ForeverStrings.BaninfoInfinite) : Time.SpanToTimeString((Seconds)result.Read<long>(3), TimeFormat.ShortText), result.Read<string>(4), result.Read<string>(5));
 
             return true;
         }
@@ -250,11 +250,11 @@ namespace Game.Chat.Commands
 
             if (result.IsEmpty())
             {
-                handler.SendSysMessage(CypherStrings.BaninfoNoaccountban, accountName);
+                handler.SendSysMessage(ForeverStrings.BaninfoNoaccountban, accountName);
                 return true;
             }
 
-            handler.SendSysMessage(CypherStrings.BaninfoBanhistory, accountName);
+            handler.SendSysMessage(ForeverStrings.BaninfoBanhistory, accountName);
             do
             {
                 ServerTime unbanDate = (ServerTime)(UnixTime)result.Read<int>(3);
@@ -262,9 +262,9 @@ namespace Game.Chat.Commands
                 if (result.Read<bool>(2) && (result.Read<ulong>(1) == 0 || unbanDate >= LoopTime.ServerTime))
                     active = true;
                 bool permanent = (result.Read<ulong>(1) == 0);
-                string banTime = permanent ? handler.GetCypherString(CypherStrings.BaninfoInfinite) : Time.SpanToTimeString((Seconds)result.Read<long>(1), TimeFormat.ShortText);
-                handler.SendSysMessage(CypherStrings.BaninfoHistoryentry,
-                    result.Read<string>(0), banTime, active ? handler.GetCypherString(CypherStrings.Yes) : handler.GetCypherString(CypherStrings.No), result.Read<string>(4), result.Read<string>(5));
+                string banTime = permanent ? handler.GetForeverString(ForeverStrings.BaninfoInfinite) : Time.SpanToTimeString((Seconds)result.Read<long>(1), TimeFormat.ShortText);
+                handler.SendSysMessage(ForeverStrings.BaninfoHistoryentry,
+                    result.Read<string>(0), banTime, active ? handler.GetForeverString(ForeverStrings.Yes) : handler.GetForeverString(ForeverStrings.No), result.Read<string>(4), result.Read<string>(5));
             }
             while (result.NextRow());
 
@@ -289,7 +289,7 @@ namespace Game.Chat.Commands
                 
                     if (result.IsEmpty())
                     {
-                        handler.SendSysMessage(CypherStrings.BanlistNoaccount);
+                        handler.SendSysMessage(ForeverStrings.BanlistNoaccount);
                         return true;
                     }
 
@@ -305,7 +305,7 @@ namespace Game.Chat.Commands
                 
                     if (result.IsEmpty())
                     {
-                        handler.SendSysMessage(CypherStrings.BanlistNoaccount);
+                        handler.SendSysMessage(ForeverStrings.BanlistNoaccount);
                         return true;
                     }
 
@@ -327,11 +327,11 @@ namespace Game.Chat.Commands
             
                 if (result.IsEmpty())
                 {
-                    handler.SendSysMessage(CypherStrings.BanlistNocharacter);
+                    handler.SendSysMessage(ForeverStrings.BanlistNocharacter);
                     return true;
                 }
 
-                handler.SendSysMessage(CypherStrings.BanlistMatchingcharacter);
+                handler.SendSysMessage(ForeverStrings.BanlistMatchingcharacter);
 
 
                 // Chat short output
@@ -353,9 +353,9 @@ namespace Game.Chat.Commands
                 // Console wide output
                 else
                 {
-                    handler.SendSysMessage(CypherStrings.BanlistCharacters);
+                    handler.SendSysMessage(ForeverStrings.BanlistCharacters);
                     handler.SendSysMessage(" =============================================================================== ");
-                    handler.SendSysMessage(CypherStrings.BanlistCharactersHeader);
+                    handler.SendSysMessage(ForeverStrings.BanlistCharactersHeader);
                     do
                     {
                         handler.SendSysMessage("-------------------------------------------------------------------------------");
@@ -420,11 +420,11 @@ namespace Game.Chat.Commands
 
             if (result.IsEmpty())
             {
-                handler.SendSysMessage(CypherStrings.BanlistNoip);
+                handler.SendSysMessage(ForeverStrings.BanlistNoip);
                 return true;
             }
 
-            handler.SendSysMessage(CypherStrings.BanlistMatchingip);
+            handler.SendSysMessage(ForeverStrings.BanlistMatchingip);
             // Chat short output
             if (handler.GetSession() != null)
             {
@@ -437,9 +437,9 @@ namespace Game.Chat.Commands
             // Console wide output
             else
             {
-                handler.SendSysMessage(CypherStrings.BanlistIps);
+                handler.SendSysMessage(ForeverStrings.BanlistIps);
                 handler.SendSysMessage(" ===============================================================================");
-                handler.SendSysMessage(CypherStrings.BanlistIpsHeader);
+                handler.SendSysMessage(ForeverStrings.BanlistIpsHeader);
                 do
                 {
                     handler.SendSysMessage("-------------------------------------------------------------------------------");
@@ -473,7 +473,7 @@ namespace Game.Chat.Commands
 
         static bool HandleBanListHelper(SQLResult result, CommandHandler handler)
         {
-            handler.SendSysMessage(CypherStrings.BanlistMatchingaccount);
+            handler.SendSysMessage(ForeverStrings.BanlistMatchingaccount);
 
             // Chat short output
             if (handler.GetSession() != null)
@@ -498,9 +498,9 @@ namespace Game.Chat.Commands
             // Console wide output
             else
             {
-                handler.SendSysMessage(CypherStrings.BanlistAccounts);
+                handler.SendSysMessage(ForeverStrings.BanlistAccounts);
                 handler.SendSysMessage(" ===============================================================================");
-                handler.SendSysMessage(CypherStrings.BanlistAccountsHeader);
+                handler.SendSysMessage(ForeverStrings.BanlistAccountsHeader);
                 do
                 {
                     handler.SendSysMessage("-------------------------------------------------------------------------------");
@@ -567,17 +567,17 @@ namespace Game.Chat.Commands
         {
             if (!ObjectManager.NormalizePlayerName(ref name))
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
             if (!Global.WorldMgr.RemoveBanCharacter(name))
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
-            handler.SendSysMessage(CypherStrings.UnbanUnbanned, name);
+            handler.SendSysMessage(ForeverStrings.UnbanUnbanned, name);
             return true;
         }
 
@@ -603,7 +603,7 @@ namespace Game.Chat.Commands
                 case BanMode.Character:
                     if (!ObjectManager.NormalizePlayerName(ref nameOrIp))
                     {
-                        handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                        handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                         return false;
                     }
                     break;
@@ -614,9 +614,9 @@ namespace Game.Chat.Commands
             }
 
             if (Global.WorldMgr.RemoveBanAccount(mode, nameOrIp))
-                handler.SendSysMessage(CypherStrings.UnbanUnbanned, nameOrIp);
+                handler.SendSysMessage(ForeverStrings.UnbanUnbanned, nameOrIp);
             else
-                handler.SendSysMessage(CypherStrings.UnbanError, nameOrIp);
+                handler.SendSysMessage(ForeverStrings.UnbanError, nameOrIp);
 
             return true;
         }

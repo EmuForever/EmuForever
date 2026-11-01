@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -24,7 +24,7 @@ namespace Game.Chat
 
             if (group == null)
             {
-                handler.SendSysMessage(CypherStrings.GroupNotInGroup, player.GetName());
+                handler.SendSysMessage(ForeverStrings.GroupNotInGroup, player.GetName());
                 return false;
             }
 
@@ -40,7 +40,7 @@ namespace Game.Chat
 
             if (groupSource == null)
             {
-                handler.SendSysMessage(CypherStrings.GroupNotInGroup, playerSource.GetName());
+                handler.SendSysMessage(ForeverStrings.GroupNotInGroup, playerSource.GetName());
                 return false;
             }
 
@@ -49,19 +49,19 @@ namespace Game.Chat
 
             if (groupTarget != null || playerTarget.GetGroup() == groupSource)
             {
-                handler.SendSysMessage(CypherStrings.GroupAlreadyInGroup, playerTarget.GetName());
+                handler.SendSysMessage(ForeverStrings.GroupAlreadyInGroup, playerTarget.GetName());
                 return false;
             }
 
             if (groupSource.IsFull())
             {
-                handler.SendSysMessage(CypherStrings.GroupFull);
+                handler.SendSysMessage(ForeverStrings.GroupFull);
                 return false;
             }
 
             groupSource.AddMember(playerTarget);
             groupSource.BroadcastGroupUpdate();
-            handler.SendSysMessage(CypherStrings.GroupPlayerJoined, playerTarget.GetName(), playerSource.GetName());
+            handler.SendSysMessage(ForeverStrings.GroupPlayerJoined, playerTarget.GetName(), playerSource.GetName());
             return true;
         }
 
@@ -73,7 +73,7 @@ namespace Game.Chat
 
             if (group == null)
             {
-                handler.SendSysMessage(CypherStrings.GroupNotInGroup, player.GetName());
+                handler.SendSysMessage(ForeverStrings.GroupNotInGroup, player.GetName());
                 return false;
             }
 
@@ -122,9 +122,9 @@ namespace Game.Chat
                     if (handler.NeedReportToTarget(target))
                     {
                         if (oldlevel < level)
-                            target.SendSysMessage(CypherStrings.YoursLevelUp, handler.GetNameLink(), level);
+                            target.SendSysMessage(ForeverStrings.YoursLevelUp, handler.GetNameLink(), level);
                         else                                                // if (oldlevel > newlevel)
-                            target.SendSysMessage(CypherStrings.YoursLevelDown, handler.GetNameLink(), level);
+                            target.SendSysMessage(ForeverStrings.YoursLevelDown, handler.GetNameLink(), level);
                     }
                 }
             }
@@ -155,7 +155,7 @@ namespace Game.Chat
             // If both fails, players simply has no party. Return false.
             if (groupTarget == null)
             {
-                handler.SendSysMessage(CypherStrings.GroupNotInGroup, target.GetName());
+                handler.SendSysMessage(ForeverStrings.GroupNotInGroup, target.GetName());
                 return false;
             }
 
@@ -163,7 +163,7 @@ namespace Game.Chat
             var members = groupTarget.GetMemberSlots();
 
             // To avoid a cluster fuck, namely trying multiple queries to simply get a group member count...
-            handler.SendSysMessage(CypherStrings.GroupType, (groupTarget.IsRaidGroup() ? "raid" : "party"), members.Count);
+            handler.SendSysMessage(ForeverStrings.GroupType, (groupTarget.IsRaidGroup() ? "raid" : "party"), members.Count);
             // ... we simply move the group Type and member count print after retrieving the slots and simply output it's size.
 
             // While rather dirty codestyle-wise, it saves space (if only a little). For each member, we look several informations up.
@@ -210,7 +210,7 @@ namespace Game.Chat
                 }
 
                 // Now we can print those informations for every single member of each group!
-                handler.SendSysMessage(CypherStrings.GroupPlayerNameGuid, slot.name, onlineState,
+                handler.SendSysMessage(ForeverStrings.GroupPlayerNameGuid, slot.name, onlineState,
                     zoneName, phases, slot.guid.ToString(), flags, LFGQueue.GetRolesString(slot.roles));
             }
 
@@ -226,7 +226,7 @@ namespace Game.Chat
 
             if (group == null)
             {
-                handler.SendSysMessage(CypherStrings.GroupNotInGroup, player.GetName());
+                handler.SendSysMessage(ForeverStrings.GroupNotInGroup, player.GetName());
                 return false;
             }
 
@@ -302,7 +302,7 @@ namespace Game.Chat
 
             if (group == null)
             {
-                handler.SendSysMessage(CypherStrings.NotInGroup, nameLink);
+                handler.SendSysMessage(ForeverStrings.NotInGroup, nameLink);
                 return false;
             }
 
@@ -319,7 +319,7 @@ namespace Game.Chat
                 Player groupLeader = Global.ObjAccessor.GetPlayer(gmMap, group.GetLeaderGUID());
                 if (groupLeader == null || (groupLeader.GetMapId() != gmMap.GetId()) || (groupLeader.GetInstanceId() != gmMap.GetInstanceId()))
                 {
-                    handler.SendSysMessage(CypherStrings.PartialGroupSummon);
+                    handler.SendSysMessage(ForeverStrings.PartialGroupSummon);
                     onlyLocalSummon = true;
                 }
             }
@@ -339,7 +339,7 @@ namespace Game.Chat
 
                 if (player.IsBeingTeleported())
                 {
-                    handler.SendSysMessage(CypherStrings.IsTeleported, plNameLink);
+                    handler.SendSysMessage(ForeverStrings.IsTeleported, plNameLink);
                     continue;
                 }
 
@@ -351,14 +351,14 @@ namespace Game.Chat
                         ((playerMap.GetId() != gmMap.GetId()) || (playerMap.GetInstanceId() != gmMap.GetInstanceId()))) // so we need to be in the same map and instance of the map, otherwise skip
                     {
                         // cannot summon from instance to instance
-                        handler.SendSysMessage(CypherStrings.CannotSummonInstInst, plNameLink);
+                        handler.SendSysMessage(ForeverStrings.CannotSummonInstInst, plNameLink);
                         continue;
                     }
                 }
 
-                handler.SendSysMessage(CypherStrings.Summoning, plNameLink, "");
+                handler.SendSysMessage(ForeverStrings.Summoning, plNameLink, "");
                 if (handler.NeedReportToTarget(player))
-                    player.SendSysMessage(CypherStrings.SummonedBy, handler.GetNameLink());
+                    player.SendSysMessage(ForeverStrings.SummonedBy, handler.GetNameLink());
 
                 // stop flight if need
                 if (player.IsInFlight())
@@ -409,31 +409,31 @@ namespace Game.Chat
 
                 if (group == null)
                 {
-                    handler.SendSysMessage(CypherStrings.NotInGroup, player.GetName());
+                    handler.SendSysMessage(ForeverStrings.NotInGroup, player.GetName());
                     return false;
                 }
 
                 if (!group.IsRaidGroup())
                 {
-                    handler.SendSysMessage(CypherStrings.GroupNotInRaidGroup, player.GetName());
+                    handler.SendSysMessage(ForeverStrings.GroupNotInRaidGroup, player.GetName());
                     return false;
                 }
 
                 if (flag == GroupMemberFlags.Assistant && group.IsLeader(guid))
                 {
-                    handler.SendSysMessage(CypherStrings.LeaderCannotBeAssistant, player.GetName());
+                    handler.SendSysMessage(ForeverStrings.LeaderCannotBeAssistant, player.GetName());
                     return false;
                 }
 
                 if (group.GetMemberFlags(guid).HasAnyFlag(flag))
                 {
                     group.SetGroupMemberFlag(guid, false, flag);
-                    handler.SendSysMessage(CypherStrings.GroupRoleChanged, player.GetName(), "no longer", flag);
+                    handler.SendSysMessage(ForeverStrings.GroupRoleChanged, player.GetName(), "no longer", flag);
                 }
                 else
                 {
                     group.SetGroupMemberFlag(guid, true, flag);
-                    handler.SendSysMessage(CypherStrings.GroupRoleChanged, player.GetName(), "now", flag);
+                    handler.SendSysMessage(ForeverStrings.GroupRoleChanged, player.GetName(), "now", flag);
                 }
                 return true;
             }

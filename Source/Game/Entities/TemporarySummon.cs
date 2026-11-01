@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -170,7 +170,7 @@ namespace Game.Entities
 
         public virtual void InitStats(WorldObject summoner, TimeSpan duration)
         {
-            Cypher.Assert(!IsPet());
+            Forever.Assert(!IsPet());
 
             m_timer = duration;
             m_lifetime = duration;
@@ -316,11 +316,11 @@ namespace Game.Entities
                 return;
             }
 
-            Cypher.Assert(!IsPet());
+            Forever.Assert(!IsPet());
             if (IsPet())
             {
                 ToPet().Remove(PetSaveMode.NotInSlot);
-                Cypher.Assert(!IsInWorld);
+                Forever.Assert(!IsInWorld);
                 return;
             }
 
@@ -480,7 +480,7 @@ namespace Game.Entities
             : base(properties, owner, isWorldObject)
         {
             m_owner = owner;
-            Cypher.Assert(m_owner != null);
+            Forever.Assert(m_owner != null);
             UnitTypeMask |= UnitTypeMask.Minion;
             m_followAngle = SharedConst.PetFollowAngle;
             /// @todo: Find correct way
@@ -608,7 +608,7 @@ namespace Game.Entities
         public bool InitStatsForLevel(int petlevel)
         {
             CreatureTemplate cinfo = GetCreatureTemplate();
-            Cypher.Assert(cinfo != null);
+            Forever.Assert(cinfo != null);
 
             SetLevel(petlevel);
 
@@ -1308,7 +1308,7 @@ namespace Game.Entities
     {
         public Puppet(SummonPropertiesRecord properties, Unit owner) : base(properties, owner, false)
         {
-            Cypher.Assert(owner.IsTypeId(TypeId.Player));
+            Forever.Assert(owner.IsTypeId(TypeId.Player));
             UnitTypeMask |= UnitTypeMask.Puppet;
         }
 
@@ -1324,7 +1324,7 @@ namespace Game.Entities
         {
             base.InitSummon(summoner);
             if (!SetCharmedBy(GetOwner(), CharmType.Possess))
-                Cypher.Assert(false);
+                Forever.Assert(false);
         }
 
         public override void Update(TimeSpan diff)

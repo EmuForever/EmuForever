@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -19,7 +19,7 @@ namespace Game.Chat
             // Character name must be provided when using this from console.
             if (player == null || handler.GetSession() == null)
             {
-                handler.SendSysMessage(CypherStrings.CmdSyntax);
+                handler.SendSysMessage(ForeverStrings.CmdSyntax);
                 return false;
             }
 
@@ -28,31 +28,31 @@ namespace Game.Chat
 
             if (player.IsConnected())
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
             InstanceMap map = player.GetConnectedPlayer().GetMap().ToInstanceMap();
             if (map == null)
             {
-                handler.SendSysMessage(CypherStrings.NotDungeon);
+                handler.SendSysMessage(ForeverStrings.NotDungeon);
                 return false;
             }
 
             if (map.GetInstanceScript() == null)
             {
-                handler.SendSysMessage(CypherStrings.NoInstanceData);
+                handler.SendSysMessage(ForeverStrings.NoInstanceData);
                 return false;
             }
 
             if (encounterId > map.GetInstanceScript().GetEncounterCount())
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 
             EncounterState state = map.GetInstanceScript().GetBossState(encounterId);
-            handler.SendSysMessage(CypherStrings.CommandInstGetBossState, encounterId, state);
+            handler.SendSysMessage(ForeverStrings.CommandInstGetBossState, encounterId, state);
             return true;
         }
 
@@ -69,16 +69,16 @@ namespace Game.Chat
             {
                 MapDb2Entries entries = new(instanceLock.GetMapId(), instanceLock.GetDifficultyId());
                 string timeleft = !instanceLock.IsExpired() ? Time.SpanToTimeString(instanceLock.GetEffectiveExpiryTime() - now) : "-";
-                handler.SendSysMessage(CypherStrings.CommandListBindInfo,
+                handler.SendSysMessage(ForeverStrings.CommandListBindInfo,
                     entries.Map.Id, entries.Map.MapName[Global.WorldMgr.GetDefaultDbcLocale()],
                     entries.MapDifficulty.DifficultyID, CliDB.DifficultyStorage.LookupByKey(entries.MapDifficulty.DifficultyID).Name,
                     instanceLock.GetInstanceId(),
-                    handler.GetCypherString(instanceLock.IsExpired() ? CypherStrings.Yes : CypherStrings.No),
-                    handler.GetCypherString(instanceLock.IsExtended() ? CypherStrings.Yes : CypherStrings.No),
+                    handler.GetForeverString(instanceLock.IsExpired() ? ForeverStrings.Yes : ForeverStrings.No),
+                    handler.GetForeverString(instanceLock.IsExtended() ? ForeverStrings.Yes : ForeverStrings.No),
                     timeleft);
             }
 
-            handler.SendSysMessage(CypherStrings.CommandListBindPlayerBinds, instanceLocks.Count);
+            handler.SendSysMessage(ForeverStrings.CommandListBindPlayerBinds, instanceLocks.Count);
             return true;
         }
 
@@ -88,7 +88,7 @@ namespace Game.Chat
             // Character name must be provided when using this from console.
             if (player == null || handler.GetSession() == null)
             {
-                handler.SendSysMessage(CypherStrings.CmdSyntax);
+                handler.SendSysMessage(ForeverStrings.CmdSyntax);
                 return false;
             }
 
@@ -97,32 +97,32 @@ namespace Game.Chat
 
             if (!player.IsConnected())
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
             InstanceMap map = player.GetConnectedPlayer().GetMap().ToInstanceMap();
             if (map == null)
             {
-                handler.SendSysMessage(CypherStrings.NotDungeon);
+                handler.SendSysMessage(ForeverStrings.NotDungeon);
                 return false;
             }
 
             if (map.GetInstanceScript() == null)
             {
-                handler.SendSysMessage(CypherStrings.NoInstanceData);
+                handler.SendSysMessage(ForeverStrings.NoInstanceData);
                 return false;
             }
 
             // Reject improper values.
             if (encounterId > map.GetInstanceScript().GetEncounterCount())
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 
             map.GetInstanceScript().SetBossState(encounterId, state);
-            handler.SendSysMessage(CypherStrings.CommandInstSetBossState, encounterId, state);
+            handler.SendSysMessage(ForeverStrings.CommandInstSetBossState, encounterId, state);
             return true;
         }
 
@@ -134,8 +134,8 @@ namespace Game.Chat
 
             InstanceLocksStatistics statistics = Global.InstanceLockMgr.GetStatistics();
 
-            handler.SendSysMessage(CypherStrings.CommandInstStatSaves, statistics.InstanceCount);
-            handler.SendSysMessage(CypherStrings.CommandInstStatPlayersbound, statistics.PlayerCount);
+            handler.SendSysMessage(ForeverStrings.CommandInstStatSaves, statistics.InstanceCount);
+            handler.SendSysMessage(ForeverStrings.CommandInstStatPlayersbound, statistics.PlayerCount);
 
             return true;
         }
@@ -166,27 +166,27 @@ namespace Game.Chat
             {
                 MapDb2Entries entries = new(instanceLock.GetMapId(), instanceLock.GetDifficultyId());
                 string timeleft = !instanceLock.IsExpired() ? Time.SpanToTimeString(instanceLock.GetEffectiveExpiryTime() - now) : "-";
-                handler.SendSysMessage(CypherStrings.CommandInstUnbindUnbinding,
+                handler.SendSysMessage(ForeverStrings.CommandInstUnbindUnbinding,
                     entries.Map.Id, entries.Map.MapName[Global.WorldMgr.GetDefaultDbcLocale()],
                     entries.MapDifficulty.DifficultyID, CliDB.DifficultyStorage.LookupByKey(entries.MapDifficulty.DifficultyID).Name,
                     instanceLock.GetInstanceId(),
-                    handler.GetCypherString(instanceLock.IsExpired() ? CypherStrings.Yes : CypherStrings.No),
-                    handler.GetCypherString(instanceLock.IsExtended() ? CypherStrings.Yes : CypherStrings.No),
+                    handler.GetForeverString(instanceLock.IsExpired() ? ForeverStrings.Yes : ForeverStrings.No),
+                    handler.GetForeverString(instanceLock.IsExtended() ? ForeverStrings.Yes : ForeverStrings.No),
                     timeleft);
             }
 
-            handler.SendSysMessage(CypherStrings.CommandInstUnbindUnbound, locksReset.Count);
+            handler.SendSysMessage(ForeverStrings.CommandInstUnbindUnbound, locksReset.Count);
 
             foreach (InstanceLock instanceLock in locksNotReset)
             {
                 MapDb2Entries entries = new(instanceLock.GetMapId(), instanceLock.GetDifficultyId());
                 string timeleft = !instanceLock.IsExpired() ? Time.SpanToTimeString(instanceLock.GetEffectiveExpiryTime() - now) : "-";
-                handler.SendSysMessage(CypherStrings.CommandInstUnbindFailed,
+                handler.SendSysMessage(ForeverStrings.CommandInstUnbindFailed,
                     entries.Map.Id, entries.Map.MapName[Global.WorldMgr.GetDefaultDbcLocale()],
                     entries.MapDifficulty.DifficultyID, CliDB.DifficultyStorage.LookupByKey(entries.MapDifficulty.DifficultyID).Name,
                     instanceLock.GetInstanceId(),
-                    handler.GetCypherString(instanceLock.IsExpired() ? CypherStrings.Yes : CypherStrings.No),
-                    handler.GetCypherString(instanceLock.IsExtended() ? CypherStrings.Yes : CypherStrings.No),
+                    handler.GetForeverString(instanceLock.IsExpired() ? ForeverStrings.Yes : ForeverStrings.No),
+                    handler.GetForeverString(instanceLock.IsExtended() ? ForeverStrings.Yes : ForeverStrings.No),
                     timeleft);
             }
 

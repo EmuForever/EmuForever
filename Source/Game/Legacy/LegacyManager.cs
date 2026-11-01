@@ -49,14 +49,14 @@ namespace Game.Systems.Legacy
             SpendingLimit = CliDB.TraitCurrencyStorage.LookupByKey(PointsCurrencyId)?.SourcedMax ?? 0;
             _allChallenges = CliDB.TraitCurrencySourceStorage.Values.Where(x => x.TraitCurrencyID == PointsCurrencyId && x.AchievementID != 0).Select(x => x.AchievementID).ToHashSet();
             _challenges = CliDB.TraitCurrencySourceStorage.Values
-                .Where(x => x.TraitCurrencyID == PointsCurrencyId && x.SuperDistrictSetID == RulesetId && x.AchievementID != 0)
+                .Where(x => x.TraitCurrencyID == PointsCurrencyId && LegacyClientData.RulesetOf(x) == RulesetId && x.AchievementID != 0)
                 .GroupBy(x => x.AchievementID).ToDictionary(x => x.Key, x => x.First());
             int invalidAmounts = _challenges.Values.Count(x => x.Amount <= 0);
             int[] missingAchievements = _challenges.Keys.Where(x => !CliDB.AchievementStorage.ContainsKey(x)).ToArray();
             if (SpendingLimit <= 0 || _challenges.Count == 0 || invalidAmounts != 0 || missingAchievements.Length != 0)
             {
                 string sourceSets = string.Join(", ", CliDB.TraitCurrencySourceStorage.Values
-                    .Where(x => x.TraitCurrencyID == PointsCurrencyId).GroupBy(x => x.SuperDistrictSetID)
+                    .Where(x => x.TraitCurrencyID == PointsCurrencyId).GroupBy(x => LegacyClientData.RulesetOf(x))
                     .Select(x => $"{x.Key}:{x.Count()}"));
                 throw new InvalidOperationException($"Legacy client data/ruleset is incomplete: ruleset={RulesetId} ({RulesetName}), " +
                     $"currency={PointsCurrencyId}, spendingLimit={SpendingLimit}, challenges={_challenges.Count}, invalidAmounts={invalidAmounts}, " +
@@ -165,6 +165,27 @@ namespace Game.Systems.Legacy
 
         public static int EarnedPoints(IEnumerable<int> completed) => completed.Distinct()
             .Where(_challenges.ContainsKey).Sum(id => _challenges[id].Amount);
+
+        // Hidden tracking quests the official server flags when a questline ends. This world database has no row for them,
+        // so finishing any of the questline's final quests stands in for the flag.
+        // 84195: "Lord Valthalak Laid to Rest" (challenge 62054), any class's "Saving the Best for Last" (8999-9014).
+        static readonly Dictionary<int, int[]> TrackingQuests = new() { [84195] = Enumerable.Range(8999, 16).ToArray() };
+        static readonly ILookup<int, int> TrackingQuestsBySource = TrackingQuests
+            .SelectMany(pair => pair.Value.Select(source => (Source: source, Tracking: pair.Key))).ToLookup(x => x.Source, x => x.Tracking);
+        public static IEnumerable<int> TrackingQuestsCompletedBy(int questId) => TrackingQuestsBySource[questId];
+        public static bool TrackingQuestEarned(Player player, int trackingQuestId) =>
+            TrackingQuests.TryGetValue(trackingQuestId, out int[] sources) && sources.Any(player.GetQuestRewardStatus);
+
+        // The beta's "Legacy Challenge" (achievement 64283, 16 points: every tester could try the perks without leveling
+        // several classes) only counts while world state 32679 is 1. Off at launch; Legacy.BetaChallenge = 1 turns it on.
+        // Points it already granted stay with the account, as Blizzard kept them until the beta ended.
+        public const int BetaChallengeAchievementId = 64283, BetaChallengeWorldState = 32679;
+        public static void ApplyWorldStates()
+        {
+            bool beta = ConfigMgr.GetDefaultValue("Legacy.BetaChallenge", false);
+            Global.WorldStateMgr.SetValue(BetaChallengeWorldState, beta ? 1 : 0, true, null);
+            if (beta) Log.outInfo(LogFilter.ServerLoading, $"Legacy: beta challenge {BetaChallengeAchievementId} is active (16 points per account).");
+        }
     }
 
     public sealed class LegacyAccountProgress

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -58,7 +58,7 @@ namespace Game.Chat.Commands
 
             public uint fmtId = session ? LANG_AHBOT_STATUS_FORMAT_CHAT : LANG_AHBOT_STATUS_FORMAT_CONSOLE;
 
-            handler->PSendSysMessage(fmtId, handler->GetCypherString(LANG_AHBOT_STATUS_ITEM_COUNT),
+            handler->PSendSysMessage(fmtId, handler->GetForeverString(LANG_AHBOT_STATUS_ITEM_COUNT),
                 statusInfo[AUCTION_HOUSE_ALLIANCE].ItemsCount,
                 statusInfo[AUCTION_HOUSE_HORDE].ItemsCount,
                 statusInfo[AUCTION_HOUSE_NEUTRAL].ItemsCount,
@@ -68,7 +68,7 @@ namespace Game.Chat.Commands
 
             if (all)
             {
-                handler->PSendSysMessage(fmtId, handler->GetCypherString(LANG_AHBOT_STATUS_ITEM_RATIO),
+                handler->PSendSysMessage(fmtId, handler->GetForeverString(LANG_AHBOT_STATUS_ITEM_RATIO),
                     sAuctionBotConfig->GetConfig(CONFIG_AHBOT_ALLIANCE_ITEM_AMOUNT_RATIO),
                     sAuctionBotConfig->GetConfig(CONFIG_AHBOT_HORDE_ITEM_AMOUNT_RATIO),
                     sAuctionBotConfig->GetConfig(CONFIG_AHBOT_NEUTRAL_ITEM_AMOUNT_RATIO),
@@ -86,7 +86,7 @@ namespace Game.Chat.Commands
                     handler->SendSysMessage(LANG_AHBOT_STATUS_TITLE2_CHAT);
 
                 for (int i = 0; i < MAX_AUCTION_QUALITY; ++i)
-                    handler->PSendSysMessage(fmtId, handler->GetCypherString(ahbotQualityIds[i]),
+                    handler->PSendSysMessage(fmtId, handler->GetForeverString(ahbotQualityIds[i]),
                         statusInfo[AUCTION_HOUSE_ALLIANCE].QualityInfo[i],
                         statusInfo[AUCTION_HOUSE_HORDE].QualityInfo[i],
                         statusInfo[AUCTION_HOUSE_NEUTRAL].QualityInfo[i],
@@ -118,7 +118,7 @@ namespace Game.Chat.Commands
                 sAuctionBot->SetItemsAmount(qVals);
 
                 for (int i = 0; i < MAX_AUCTION_QUALITY; ++i)
-                    handler->PSendSysMessage(LANG_AHBOT_ITEMS_AMOUNT, handler->GetCypherString(ahbotQualityIds[i]), sAuctionBotConfig->GetConfigItemQualityAmount(AuctionQuality(i)));
+                    handler->PSendSysMessage(LANG_AHBOT_ITEMS_AMOUNT, handler->GetForeverString(ahbotQualityIds[i]), sAuctionBotConfig->GetConfigItemQualityAmount(AuctionQuality(i)));
                 */
                 return true;
             }
@@ -153,7 +153,7 @@ namespace Game.Chat.Commands
                 public uint qualityVal = atoi(arg);
 
                 sAuctionBot->SetItemsAmountForQuality(Q, qualityVal);
-                handler->PSendSysMessage(LANG_AHBOT_ITEMS_AMOUNT, handler->GetCypherString(ahbotQualityIds[Q]),
+                handler->PSendSysMessage(LANG_AHBOT_ITEMS_AMOUNT, handler->GetForeverString(ahbotQualityIds[Q]),
                     sAuctionBotConfig->GetConfigItemQualityAmount(Q));
                 */
                 return true;

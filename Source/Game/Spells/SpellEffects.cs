@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -49,6 +49,7 @@ namespace Game.Spells
         [SpellEffectHandler(SpellEffectName.Unk276)]
         void EffectUnused() { }
 
+        [SpellEffectHandler(SpellEffectName.ResurrectNew)]
         void EffectResurrectNew()
         {
             if (effectHandleMode != SpellEffectHandleMode.HitTarget)
@@ -1154,7 +1155,7 @@ namespace Game.Spells
                     return;
             }
 
-            Cypher.Assert(dynObjAura == null);
+            Forever.Assert(dynObjAura == null);
 
             float radius = effectInfo.CalcRadius(unitCaster);
 
@@ -1183,7 +1184,7 @@ namespace Game.Spells
             else
                 return;
 
-            Cypher.Assert(dynObjAura.GetDynobjOwner() != null);
+            Forever.Assert(dynObjAura.GetDynobjOwner() != null);
             dynObjAura._ApplyEffectForTargets(effectInfo.EffectIndex);
         }
 
@@ -2408,7 +2409,7 @@ namespace Game.Spells
                     if (OldSummon.IsDead())
                         return;
 
-                    Cypher.Assert(OldSummon.GetMap() == owner.GetMap());
+                    Forever.Assert(OldSummon.GetMap() == owner.GetMap());
 
                     float px, py, pz;
                     owner.GetClosePoint(out px, out py, out pz, OldSummon.GetCombatReach());
@@ -4402,6 +4403,7 @@ namespace Game.Spells
 
             go.SetRespawnTime(duration > 0 ? duration : TimeSpan.Zero);
             go.SetOwnerGUID(unitCaster.GetGUID());
+            go.SetLevel(unitCaster.GetLevel());     // Classic 1.60: objects placed by players (bobbers, campfires, camp features) carry the owner's level (official sniff)
             go.SetSpellId(m_spellInfo.Id);
 
             ExecuteLogEffectSummonObject(effectInfo.Effect, go);
@@ -4511,6 +4513,7 @@ namespace Game.Spells
             playerTarget.SetSkill(skillid, damage, skillval, maxSkillVal);
         }
 
+        [SpellEffectHandler(SpellEffectName.SpiritHeal)]
         void EffectSpiritHeal()
         {
             Unit caster = GetCaster().ToUnit();
@@ -5040,7 +5043,7 @@ namespace Game.Spells
             switch (m_spellInfo.Id)
             {
                 case 91604: // Restricted Flight Area
-                    player.GetSession().SendNotification(CypherStrings.ZoneNoflyzone);
+                    player.GetSession().SendNotification(ForeverStrings.ZoneNoflyzone);
                     break;
                 default:
                     break;

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -72,7 +72,7 @@ namespace Game.Chat
                 if ((_player = Global.ObjAccessor.FindPlayerByLowGUID(_guid.GetCounter())) != null)
                     _name = _player.GetName();
                 else if (!Global.CharacterCacheStorage.GetCharacterNameByGuid(_guid, out _name))
-                    return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserCharGuidNoExist, _guid.ToString()));
+                    return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserCharGuidNoExist, _guid.ToString()));
                 return next;
             }
             else
@@ -80,12 +80,12 @@ namespace Game.Chat
                 _name = tempVal;
 
                 if (!ObjectManager.NormalizePlayerName(ref _name))
-                    return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserCharNameInvalid, _name));
+                    return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserCharNameInvalid, _name));
 
                 if ((_player = Global.ObjAccessor.FindPlayerByName(_name)) != null)
                     _guid = _player.GetGUID();
                 else if ((_guid = Global.CharacterCacheStorage.GetCharacterGuidByName(_name)).IsEmpty())
-                    return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserCharNameNoExist, _name));
+                    return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserCharNameNoExist, _name));
                 return next;
             }
         }
@@ -125,14 +125,14 @@ namespace Game.Chat
 
             // try parsing as account id instead
             if (int.TryParse(text, out int id))
-                return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserAccountNameNoExist, _name));
+                return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserAccountNameNoExist, _name));
             _id = id;
             _session = Global.WorldMgr.FindSession(_id);
 
             if (Global.AccountMgr.GetName(_id, out _name))
                 return next;
             else
-                return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserAccountIdNoExist, _id));
+                return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserAccountIdNoExist, _id));
         }
 
         public static AccountIdentifier FromTarget(CommandHandler handler)

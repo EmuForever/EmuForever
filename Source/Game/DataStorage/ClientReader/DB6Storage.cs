@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -63,13 +63,13 @@ namespace Game.DataStorage
 
             switch (Type.GetTypeCode(type))
             {
-                case TypeCode.Single: Cypher.Assert(id >= float.MinValue && id <= float.MaxValue, $"DB6Storage's Key value will lost data!"); break;
-                case TypeCode.Int32: Cypher.Assert(id >= int.MinValue && id <= int.MaxValue, $"DB6Storage's Key value will lost data!"); break;
-                case TypeCode.UInt32: Cypher.Assert(id >= uint.MinValue && id <= uint.MaxValue, $"DB6Storage's Key value will lost data!"); break;
-                case TypeCode.Int16: Cypher.Assert(id >= short.MinValue && id <= short.MaxValue, $"DB6Storage's Key value will lost data!"); break;
-                case TypeCode.UInt16: Cypher.Assert(id >= ushort.MinValue && id <= ushort.MaxValue, $"DB6Storage's Key value will lost data!"); break;
-                case TypeCode.Byte: Cypher.Assert(id >= byte.MinValue && id <= byte.MaxValue, $"DB6Storage's Key value will lost data!"); break;
-                case TypeCode.SByte: Cypher.Assert(id >= sbyte.MinValue && id <= sbyte.MaxValue, $"DB6Storage's Key value will lost data!"); break;
+                case TypeCode.Single: Forever.Assert(id >= float.MinValue && id <= float.MaxValue, $"DB6Storage's Key value will lost data!"); break;
+                case TypeCode.Int32: Forever.Assert(id >= int.MinValue && id <= int.MaxValue, $"DB6Storage's Key value will lost data!"); break;
+                case TypeCode.UInt32: Forever.Assert(id >= uint.MinValue && id <= uint.MaxValue, $"DB6Storage's Key value will lost data!"); break;
+                case TypeCode.Int16: Forever.Assert(id >= short.MinValue && id <= short.MaxValue, $"DB6Storage's Key value will lost data!"); break;
+                case TypeCode.UInt16: Forever.Assert(id >= ushort.MinValue && id <= ushort.MaxValue, $"DB6Storage's Key value will lost data!"); break;
+                case TypeCode.Byte: Forever.Assert(id >= byte.MinValue && id <= byte.MaxValue, $"DB6Storage's Key value will lost data!"); break;
+                case TypeCode.SByte: Forever.Assert(id >= sbyte.MinValue && id <= sbyte.MaxValue, $"DB6Storage's Key value will lost data!"); break;
                 default:
                     throw new Exception($"Unhandled DB6Storage's TKey type: {type}");
             }

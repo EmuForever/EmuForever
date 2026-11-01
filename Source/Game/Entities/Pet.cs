@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -31,7 +31,7 @@ namespace Game.Entities
         {
             m_petType = type;
 
-            Cypher.Assert(GetOwner().IsTypeId(TypeId.Player));
+            Forever.Assert(GetOwner().IsTypeId(TypeId.Player));
 
             UnitTypeMask |= UnitTypeMask.Pet;
             if (type == PetType.Hunter)
@@ -318,8 +318,8 @@ namespace Game.Entities
                 unslottedPet.PetNumber == petInfoNumber
                 );
 
-                Cypher.Assert(!petStable.CurrentPetIndex.HasValue);
-                Cypher.Assert(unslottedPetIndex != -1);
+                Forever.Assert(!petStable.CurrentPetIndex.HasValue);
+                Forever.Assert(unslottedPetIndex != -1);
 
                 petStable.SetCurrentUnslottedPetIndex(unslottedPetIndex);
             }
@@ -329,7 +329,7 @@ namespace Game.Entities
                 pet?.PetNumber == petInfo.PetNumber
                 );
 
-                Cypher.Assert(activePetIndex != -1);
+                Forever.Assert(activePetIndex != -1);
 
                 petStable.SetCurrentActivePetIndex(activePetIndex);
             }
@@ -484,7 +484,7 @@ namespace Game.Entities
                 // save pet
                 string actionBar = GenerateActionBarData();
 
-                Cypher.Assert(owner.GetPetStable().GetCurrentPet() != null && owner.GetPetStable().GetCurrentPet().PetNumber == GetCharmInfo().GetPetNumber());
+                Forever.Assert(owner.GetPetStable().GetCurrentPet() != null && owner.GetPetStable().GetCurrentPet().PetNumber == GetCharmInfo().GetPetNumber());
                 FillPetInfo(owner.GetPetStable().GetCurrentPet(), owner.GetTemporaryPetReactState());
 
                 stmt = CharacterDatabase.GetPreparedStatement(CharStatements.INS_PET);
@@ -625,7 +625,7 @@ namespace Game.Entities
                             Log.outError(LogFilter.Pet,
                                 $"Pet {GetEntry()} is not pet of owner {GetOwner().GetName()}, removed");
                             
-                            Cypher.Assert(GetPetType() != PetType.Hunter, 
+                            Forever.Assert(GetPetType() != PetType.Hunter, 
                                 $"Unexpected unlinked pet found for owner {owner.GetSession().GetPlayerInfo()}");
                             
                             Remove(PetSaveMode.NotInSlot);
@@ -736,7 +736,7 @@ namespace Game.Entities
 
         public bool CreateBaseAtCreature(Creature creature)
         {
-            Cypher.Assert(creature != null);
+            Forever.Assert(creature != null);
 
             if (!CreateBaseAtTamed(creature.GetCreatureTemplate(), creature.GetMap()))
                 return false;
@@ -1406,7 +1406,7 @@ namespace Game.Entities
 
         public bool Create(long guidlow, Map map, int entry, int petNumber)
         {
-            Cypher.Assert(map != null);
+            Forever.Assert(map != null);
             SetMap(map);
 
             // TODO: counter should be constructed as (summon_count << 32) | petNumber

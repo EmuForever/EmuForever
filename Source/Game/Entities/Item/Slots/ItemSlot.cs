@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -31,7 +31,7 @@ namespace Game.Entities
 
         public bool IsItemSlotExactly(byte backPackCapacity)
         {
-            Cypher.Assert(InventorySlots.ItemStart + backPackCapacity < InventorySlots.ItemEnd);
+            Forever.Assert(InventorySlots.ItemStart + backPackCapacity < InventorySlots.ItemEnd);
 
             return Value >= InventorySlots.ItemStart && Value < InventorySlots.ItemStart + backPackCapacity;
         }

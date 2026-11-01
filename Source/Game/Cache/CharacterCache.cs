@@ -12,7 +12,7 @@ namespace Game.Cache
     public partial class CharacterCache : Singleton<CharacterCache>
     {
         Dictionary<ObjectGuid, CharacterCacheEntry> _characterCacheStore = new();
-        Dictionary<string, CharacterCacheEntry> _characterCacheByNameStore = new();
+        Dictionary<string, CharacterCacheEntry> _characterCacheByNameStore = new(StringComparer.OrdinalIgnoreCase);
 
         CharacterCache() { }
 
@@ -23,7 +23,7 @@ namespace Game.Cache
             _mailRecipientsByName.Clear();
             RelativeTime oldMSTime = Time.NowRelative;
 
-            SQLResult result = DB.Characters.Query("SELECT guid, name, account, race, gender, class, level, deleteDate, surname FROM characters");
+            SQLResult result = DB.Characters.Query("SELECT guid, COALESCE(name,deleteInfos_Name,''), account, race, gender, class, level, deleteDate, surname FROM characters");
             if (result.IsEmpty())
             {
                 Log.outInfo(LogFilter.ServerLoading, "No character name data loaded, empty query");
@@ -33,21 +33,21 @@ namespace Game.Cache
             do
             {
                 ObjectGuid guid = ObjectGuid.Create(HighGuid.Player, result.Read<long>(0));
-                AddCharacterCacheEntry(guid, result.Read<int>(2), result.Read<string>(1), result.Read<byte>(4), result.Read<byte>(3), result.Read<byte>(5), result.Read<byte>(6), result.Read<uint>(7) != 0);
-                UpdateCharacterSurname(guid, result.Read<string>(8));
+                AddCharacterCacheEntry(guid, result.Read<int>(2), result.Read<string>(1), result.Read<byte>(4), result.Read<byte>(3), result.Read<byte>(5), result.Read<byte>(6), result.Read<uint>(7) != 0,result.Read<string>(8));
             } while (result.NextRow());
 
             Log.outInfo(LogFilter.ServerLoading, 
                 $"Loaded character infos for {_characterCacheStore.Count} characters in {Time.Diff(oldMSTime)} ms.");
         }
 
-        public void AddCharacterCacheEntry(ObjectGuid guid, int accountId, string name, byte gender, byte race, byte playerClass, byte level, bool isDeleted)
+        public void AddCharacterCacheEntry(ObjectGuid guid, int accountId, string name, byte gender, byte race, byte playerClass, byte level, bool isDeleted,string surname = null)
         {
-            string surname = _characterCacheStore.TryGetValue(guid, out CharacterCacheEntry existing) ? existing.Surname : string.Empty;
-            if (existing != null) UpdateMailRecipientIndex(existing, add: false);
+            _characterCacheStore.TryGetValue(guid,out CharacterCacheEntry existing);
+            surname ??= existing?.Surname ?? string.Empty;
+            if (existing != null) {UpdateMailRecipientIndex(existing, add: false);_characterCacheByNameStore.Remove(existing.FullName);}
             var data = new CharacterCacheEntry();
             data.Guid = guid;
-            data.Name = name;
+            data.Name = siPlayer.NormalizeStoredName(name,surname);
             data.Surname = surname;
             data.AccountId = accountId;
             data.RaceId = (Race)race;
@@ -61,7 +61,7 @@ namespace Game.Cache
 
             // Fill Name to Guid Store
             if (!isDeleted)
-                _characterCacheByNameStore[name] = data;
+                _characterCacheByNameStore[data.FullName] = data;
             _characterCacheStore[guid] = data;
             UpdateMailRecipientIndex(data, add: true);
         }
@@ -69,20 +69,23 @@ namespace Game.Cache
         public void DeleteCharacterCacheEntry(ObjectGuid guid, string name)
         {
             if (_characterCacheStore.TryGetValue(guid, out var entry))
+            {
                 UpdateMailRecipientIndex(entry, add: false);
+                _characterCacheByNameStore.Remove(entry.FullName);
+            }
             _characterCacheStore.Remove(guid);
-            _characterCacheByNameStore.Remove(name);
         }
 
-        public void UpdateCharacterData(ObjectGuid guid, string name, byte? gender = null, byte? race = null)
+        public void UpdateCharacterData(ObjectGuid guid, string name, byte? gender = null, byte? race = null,string surname = null)
         {
             var characterCacheEntry = _characterCacheStore.LookupByKey(guid);
             if (characterCacheEntry == null)
                 return;
 
-            string oldName = characterCacheEntry.Name;
             UpdateMailRecipientIndex(characterCacheEntry, add: false);
+            _characterCacheByNameStore.Remove(characterCacheEntry.FullName);
             characterCacheEntry.Name = name;
+            if(surname!=null){characterCacheEntry.Surname=surname;Global.ObjAccessor.FindConnectedPlayer(guid)?.SetSurname(surname);}
 
             if (gender.HasValue)
                 characterCacheEntry.Sex = (Gender)gender.Value;
@@ -95,9 +98,8 @@ namespace Game.Cache
             Global.WorldMgr.SendGlobalMessage(invalidatePlayer);
 
             // Correct name -> pointer storage
-            _characterCacheByNameStore.Remove(oldName);
             if (!characterCacheEntry.IsDeleted)
-                _characterCacheByNameStore[name] = characterCacheEntry;
+                _characterCacheByNameStore[characterCacheEntry.FullName] = characterCacheEntry;
             UpdateMailRecipientIndex(characterCacheEntry, add: true);
         }
 
@@ -121,17 +123,22 @@ namespace Game.Cache
         // has corrected the name index. Exact first-name matches retain priority.
         internal CharacterCacheEntry GetCharacterCacheByFirstName(string first)
         {
-            return GetCharacterCacheByName(first) ?? _characterCacheStore.Values.FirstOrDefault(entry => !entry.IsDeleted &&
-                string.Equals(siPlayer.NormalizeStoredName(entry.Name, entry.Surname), first, StringComparison.OrdinalIgnoreCase));
+            return GetCharacterCacheByName(first);
         }
+
+        public CharacterCacheEntry GetCharacterCacheByFullName(string first,string surname) =>
+            _characterCacheByNameStore.LookupByKey(Player.FormatFullName(first,surname));
 
         public void UpdateCharacterSurname(ObjectGuid guid, string surname)
         {
             if (_characterCacheStore.TryGetValue(guid, out CharacterCacheEntry entry))
             {
                 UpdateMailRecipientIndex(entry, add: false);
+                _characterCacheByNameStore.Remove(entry.FullName);
                 entry.Surname = surname ?? string.Empty;
+                if(!entry.IsDeleted)_characterCacheByNameStore[entry.FullName]=entry;
                 UpdateMailRecipientIndex(entry, add: true);
+                Global.ObjAccessor.FindConnectedPlayer(guid)?.SetSurname(entry.Surname);
             }
         }
 
@@ -170,11 +177,11 @@ namespace Game.Cache
                 return;
 
             UpdateMailRecipientIndex(cacheEntry, add: false);
-            _characterCacheByNameStore.Remove(cacheEntry.Name);
+            _characterCacheByNameStore.Remove(cacheEntry.FullName);
             cacheEntry.Name = name;
             cacheEntry.IsDeleted = deleted;
             if (!deleted)
-                _characterCacheByNameStore[name] = cacheEntry;
+                _characterCacheByNameStore[cacheEntry.FullName] = cacheEntry;
             UpdateMailRecipientIndex(cacheEntry, add: true);
         }
 
@@ -190,12 +197,14 @@ namespace Game.Cache
 
         public CharacterCacheEntry GetCharacterCacheByName(string name)
         {
-            return _characterCacheByNameStore.LookupByKey(name);
+            // A first-name alias is usable only when it identifies one character.
+            // Full-name lookup never silently picks the last loaded namesake.
+            return GetCharacterCacheByGuid(GetMailRecipientGuidByName(name));
         }
 
         public ObjectGuid GetCharacterGuidByName(string name)
         {
-            var characterCacheEntry = _characterCacheByNameStore.LookupByKey(name);
+            var characterCacheEntry = GetCharacterCacheByName(name);
             if (characterCacheEntry != null)
                 return characterCacheEntry.Guid;
 
@@ -209,7 +218,7 @@ namespace Game.Cache
             if (characterCacheEntry == null)
                 return false;
 
-            name = characterCacheEntry.Name;
+            name = characterCacheEntry.FullName;
             return true;
         }
 
@@ -233,7 +242,7 @@ namespace Game.Cache
 
         public int GetCharacterAccountIdByName(string name)
         {
-            var characterCacheEntry = _characterCacheByNameStore.LookupByKey(name);
+            var characterCacheEntry = GetCharacterCacheByName(name);
             if (characterCacheEntry != null)
                 return characterCacheEntry.AccountId;
 
@@ -285,6 +294,8 @@ namespace Game.Cache
 
     public class CharacterCacheEntry
     {
+        public string FirstName => siPlayer.NormalizeStoredName(Name,Surname);
+        public string FullName => Player.FormatFullName(FirstName,Surname);
         public ObjectGuid Guid;
         public string Name;
         public string Surname = string.Empty;

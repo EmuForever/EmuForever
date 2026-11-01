@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -438,11 +438,14 @@ namespace Game.Entities
 
         public override void Update(TimeSpan diff)
         {
+            // Area spirit guides resurrect on a 30 s channel. One spawned mid-battle (a base graveyard opening) could miss its
+            // first cast and stand idle, its queue timer at 0, so the client never queued anyone: restart it whenever it lapses.
+            if (IsAreaSpiritHealer() && !IsAreaSpiritHealerIndividual() && IsAlive() && GetChannelSpellId() == 0
+                && GetCurrentSpell(CurrentSpellTypes.Channeled) == null)
+                CastSpell(null, BattlegroundConst.SpellSpiritHealChannelAoE, true);
+
             if (IsAIEnabled() && triggerJustAppeared && m_deathState != DeathState.Dead)
             {
-                if (IsAreaSpiritHealer() && !IsAreaSpiritHealerIndividual())
-                    CastSpell(null, BattlegroundConst.SpellSpiritHealChannelAoE, false);
-
                 if (m_respawnCompatibilityMode && VehicleKit != null)
                     VehicleKit.Reset();
 
@@ -634,6 +637,10 @@ namespace Game.Entities
 
                         RegenTimer = SharedConst.CreatureRegenInterval;
                     }
+
+                    // A victim inside melee reach is reachable whatever the navmesh says: no "Evade" on hits that land.
+                    if (CanNotReachTarget() && GetVictim() != null && IsWithinMeleeRange(GetVictim()))
+                        SetCannotReachTarget(false);
 
                     if (CanNotReachTarget() && !IsInEvadeMode() && !GetMap().IsRaid())
                     {
@@ -1099,9 +1106,18 @@ namespace Game.Entities
             return false;
         }
 
+        // Retail behaviour: a creature that has just respawned ignores everything around it for a few seconds,
+        // so it cannot ambush whoever is standing on its spawn point. Being attacked engages it at once.
+        public void StartRespawnAggroGrace()
+        {
+            _respawnAggroGraceUntil = LoopTime.ServerTime + SharedConst.CreatureRespawnAggroGrace;
+        }
+
         public override void AtEngage(Unit target)
         {
             base.AtEngage(target);
+
+            _respawnAggroGraceUntil = ServerTime.Zero;
 
             if (!HasFlag(CreatureStaticFlags2.AllowMountedCombat))
                 Dismount();
@@ -1439,7 +1455,7 @@ namespace Game.Entities
 
             if (data.SpawnId == 0)
                 data.SpawnId = m_spawnId;
-            Cypher.Assert(data.SpawnId == m_spawnId);
+            Forever.Assert(data.SpawnId == m_spawnId);
 
             data.Id = GetEntry();
             if (displayId != 0)
@@ -1978,6 +1994,10 @@ namespace Game.Entities
 
             if (!force)
             {
+                // A freshly respawned creature does not start fights on its own (see StartRespawnAggroGrace).
+                if (LoopTime.ServerTime < _respawnAggroGraceUntil)
+                    return false;
+
                 if (!_IsTargetAcceptable(who))
                     return false;
 
@@ -2167,6 +2187,7 @@ namespace Game.Entities
                     SelectLevel();
 
                     SetDeathState(DeathState.JustRespawned);
+                    StartRespawnAggroGrace();
 
                     CreatureModel display = new(GetNativeDisplayId(), GetNativeDisplayScale(), 1.0f);
                     if (Global.ObjectMgr.GetCreatureModelRandomGender(ref display, GetCreatureTemplate()) != null)
@@ -2704,8 +2725,10 @@ namespace Game.Entities
 
         public void StartDefaultCombatMovement(Unit victim, float? range = null, float? angle = null)
         {
+            // An unset range/angle must stay unset: ChaseAngle(0) means "stay in front of the victim", which made every
+            // melee mob circle to the player's face, stack there, and swing back and forth in front of a fleeing player.
             if (!HasFlag(CreatureStaticFlags.NoMeleeFlee) || IsSummon())
-                GetMotionMaster().MoveChase(victim, range.GetValueOrDefault(0), angle.GetValueOrDefault(0));
+                GetMotionMaster().MoveChase(victim, range.HasValue ? new Movement.ChaseRange(range.Value) : null, angle.HasValue ? new Movement.ChaseAngle(angle.Value) : null);
             else
                 GetMotionMaster().MoveFleeing(victim);
         }

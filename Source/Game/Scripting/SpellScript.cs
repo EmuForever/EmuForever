@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -112,7 +112,7 @@ namespace Game.Scripting
             protected EffectHook(int effIndex)
             {
                 // effect index must be in range <0;2>, allow use of special effindexes
-                Cypher.Assert(_effIndex == SpellConst.EffectAll || _effIndex == SpellConst.EffectFirstFound || _effIndex < SpellConst.MaxEffects);
+                Forever.Assert(_effIndex == SpellConst.EffectAll || _effIndex == SpellConst.EffectFirstFound || _effIndex < SpellConst.MaxEffects);
                 _effIndex = effIndex;
             }
 
@@ -1002,7 +1002,7 @@ namespace Game.Scripting
             if (hitUnit != null)
             {
                 var targetInfo = m_spell.m_UniqueTargetInfo.Find(targetInfo => targetInfo.TargetGUID == hitUnit.GetGUID());
-                Cypher.Assert(targetInfo != null);
+                Forever.Assert(targetInfo != null);
                 return targetInfo.IsCrit;
             }
 
@@ -1084,7 +1084,7 @@ namespace Game.Scripting
 
         public SpellEffectInfo GetEffectInfo()
         {
-            Cypher.Assert(IsInEffectHook(), 
+            Forever.Assert(IsInEffectHook(), 
                 $"Script: `{m_scriptName}` Spell: `{m_scriptSpellId}`: function SpellScript::GetEffectInfo was called, " +
                 $"but function has no effect in current hook!");
 

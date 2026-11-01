@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using System;
@@ -744,7 +744,7 @@ namespace Framework.Constants
         MythicPlusDisplaySeasonEnded = 234, /*NYI*/ // {DisplaySeason}
         WinRatedSoloShuffleRound = 239, /*NYI*/
         ParticipateInRatedSoloShuffleRound = 240, /*NYI*/
-        ReputationAmountGained = 243, /*NYI*/ // Gain reputation amount with {FactionID}; accumulate, not highest
+        ReputationAmountGained = 243, // Gain reputation amount with {FactionID}; Classic 1.60 Legacy uses it for "reach Exalted" (standing)
         FulfillAnyCraftingOrder = 245, /*NYI*/
         FulfillCraftingOrderType = 246, /*NYI*/ // {CraftingOrderType}
 
@@ -752,6 +752,8 @@ namespace Framework.Constants
         CompleteTrackingQuest = 250, /*NYI*/
 
         GainLevels = 253, // Gain levels
+
+        ReachRenownLevel = 261, // Reach renown level {#Level}; asset = the renown currency (Classic 1.60 Legacy: 3473, PvP rank)
 
 
         Count = 284

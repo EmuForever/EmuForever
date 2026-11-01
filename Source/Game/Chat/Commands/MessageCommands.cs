@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -23,7 +23,7 @@ namespace Game.Chat
             if (session != null)
                 name = session.GetPlayer().GetName();
 
-            Global.WorldMgr.SendWorldText(CypherStrings.AnnounceColor, name, message);
+            Global.WorldMgr.SendWorldText(ForeverStrings.AnnounceColor, name, message);
             return true;
         }
 
@@ -38,7 +38,7 @@ namespace Game.Chat
             if (session != null)
                 name = session.GetPlayer().GetName();
 
-            Global.WorldMgr.SendGMText(CypherStrings.AnnounceColor, name, message);
+            Global.WorldMgr.SendGMText(ForeverStrings.AnnounceColor, name, message);
             return true;
         }
 
@@ -48,7 +48,7 @@ namespace Game.Chat
             if (message.IsEmpty())
                 return false;
 
-            Global.WorldMgr.SendServerMessage(ServerMessageType.String, handler.GetParsedString(CypherStrings.Systemmessage, message));
+            Global.WorldMgr.SendServerMessage(ServerMessageType.String, handler.GetParsedString(ForeverStrings.Systemmessage, message));
             return true;
         }
 
@@ -58,7 +58,7 @@ namespace Game.Chat
             if (message.IsEmpty())
                 return false;
 
-            Global.WorldMgr.SendGMText(CypherStrings.GmBroadcast, message);
+            Global.WorldMgr.SendGMText(ForeverStrings.GmBroadcast, message);
             return true;
         }
 
@@ -68,7 +68,7 @@ namespace Game.Chat
             if (message.IsEmpty())
                 return false;
 
-            string str = handler.GetCypherString(CypherStrings.GlobalNotify);
+            string str = handler.GetForeverString(ForeverStrings.GlobalNotify);
             str += message;
 
             Global.WorldMgr.SendGlobalMessage(new PrintNotification(str));
@@ -82,7 +82,7 @@ namespace Game.Chat
             if (message.IsEmpty())
                 return false;
 
-            string str = handler.GetCypherString(CypherStrings.GmNotify);
+            string str = handler.GetForeverString(ForeverStrings.GmNotify);
             str += message;
 
             Global.WorldMgr.SendGlobalGMMessage(new PrintNotification(str));
@@ -95,14 +95,14 @@ namespace Game.Chat
         {
             if (!operationArg.HasValue)
             {
-                handler.SendSysMessage(CypherStrings.CommandWhisperaccepting, handler.GetSession().GetPlayer().IsAcceptWhispers() ? handler.GetCypherString(CypherStrings.On) : handler.GetCypherString(CypherStrings.Off));
+                handler.SendSysMessage(ForeverStrings.CommandWhisperaccepting, handler.GetSession().GetPlayer().IsAcceptWhispers() ? handler.GetForeverString(ForeverStrings.On) : handler.GetForeverString(ForeverStrings.Off));
                 return true;
             }
 
             if (operationArg.HasValue)
             {
                 handler.GetSession().GetPlayer().SetAcceptWhispers(true);
-                handler.SendSysMessage(CypherStrings.CommandWhisperon);
+                handler.SendSysMessage(ForeverStrings.CommandWhisperon);
                 return true;
             }
             else
@@ -110,7 +110,7 @@ namespace Game.Chat
                 // Remove all players from the Gamemaster's whisper whitelist
                 handler.GetSession().GetPlayer().ClearWhisperWhiteList();
                 handler.GetSession().GetPlayer().SetAcceptWhispers(false);
-                handler.SendSysMessage(CypherStrings.CommandWhisperoff);
+                handler.SendSysMessage(ForeverStrings.CommandWhisperoff);
                 return true;
             }
 
@@ -136,7 +136,7 @@ namespace Game.Chat
                     }
                 }
             }
-            handler.SendSysMessage(CypherStrings.UseBol);
+            handler.SendSysMessage(ForeverStrings.UseBol);
             return false;*/
         }        
     }
@@ -185,7 +185,7 @@ namespace Game.Chat
                     stmt.SetInt32(0, 1);
                     stmt.SetString(1, channelName);
                     DB.Characters.Execute(stmt);
-                    handler.SendSysMessage(CypherStrings.ChannelEnableOwnership, channelName);
+                    handler.SendSysMessage(ForeverStrings.ChannelEnableOwnership, channelName);
                 }
                 else
                 {
@@ -195,7 +195,7 @@ namespace Game.Chat
                     stmt.SetInt32(0, 0);
                     stmt.SetString(1, channelName);
                     DB.Characters.Execute(stmt);
-                    handler.SendSysMessage(CypherStrings.ChannelDisableOwnership, channelName);
+                    handler.SendSysMessage(ForeverStrings.ChannelDisableOwnership, channelName);
                 }
 
                 return true;

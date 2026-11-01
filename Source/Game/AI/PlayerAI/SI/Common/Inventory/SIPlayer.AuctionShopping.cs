@@ -131,13 +131,13 @@ namespace Game.AI
         {
             _shoppingBudget.Record(spent);
             _awaitingPurchasedMail = true; _nextAuctionMailScan = 0;
-            MarkPartyErrand(); NoteGameplayProgress();
+            NoteGameplayProgress();
             Status = $"Bought {quantity}x {ItemName(item)}; collecting auction mail";
         }
 
         AuctionPurchase NeededAuctionPurchase(Creature auctioneer, bool force = false)
         {
-            bool materialsOnly = _professionShopping.Count > 0 && _goal is "professions" or "social";
+            bool materialsOnly = _professionShopping.Count > 0 && (_goal == "professions" || SocialMode);
             if (!ScanAuctionPurchases(auctioneer.GetFaction(), materialsOnly, force)) return null;
             var purchase = _auctionPurchase;
             _auctionPurchase = null; _nextShoppingScan = Now + 10000;

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -17,7 +17,7 @@ namespace Game.Chat
             if (info == null)
                 return default;
 
-            ChatCommandResult errorResult = ChatCommandResult.FromErrorMessage(handler.GetCypherString(CypherStrings.CmdparserLinkdataInvalid));
+            ChatCommandResult errorResult = ChatCommandResult.FromErrorMessage(handler.GetForeverString(ForeverStrings.CmdparserLinkdataInvalid));
 
             string data;
 
@@ -275,7 +275,7 @@ namespace Game.Chat
         {
             get
             {
-                Cypher.Assert(false, "MountLinkData.Data property is not implement yet!");
+                Forever.Assert(false, "MountLinkData.Data property is not implement yet!");
                 return string.Empty;
             }
         }
@@ -311,7 +311,7 @@ namespace Game.Chat
         {
             get
             {
-                Cypher.Assert(false, "QuestLinkData.Data property is not implement yet!");
+                Forever.Assert(false, "QuestLinkData.Data property is not implement yet!");
                 return string.Empty;
             }
         }
@@ -347,7 +347,7 @@ namespace Game.Chat
         {
             get
             {
-                Cypher.Assert(false, "SpellLinkData.Data property is not implement yet!");
+                Forever.Assert(false, "SpellLinkData.Data property is not implement yet!");
                 return string.Empty;
             }
         }
@@ -383,7 +383,7 @@ namespace Game.Chat
         {
             get
             {
-                Cypher.Assert(false, "TalentLinkData.Data property is not implement yet!");
+                Forever.Assert(false, "TalentLinkData.Data property is not implement yet!");
                 return string.Empty;
             }
         }

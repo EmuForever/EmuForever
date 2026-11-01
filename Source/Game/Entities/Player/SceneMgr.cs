@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -46,7 +46,7 @@ namespace Game.Entities
             int sceneInstanceID = GetNewStandaloneSceneInstanceID();
 
             if (_isDebuggingScenes)
-                GetPlayer().SendSysMessage(CypherStrings.CommandSceneDebugPlay, sceneInstanceID, sceneTemplate.ScenePackageId, sceneTemplate.PlaybackFlags);
+                GetPlayer().SendSysMessage(ForeverStrings.CommandSceneDebugPlay, sceneInstanceID, sceneTemplate.ScenePackageId, sceneTemplate.PlaybackFlags);
 
             PlayScene playScene = new();
             playScene.SceneID = sceneTemplate.SceneId;
@@ -100,7 +100,7 @@ namespace Game.Entities
                 return;
 
             if (_isDebuggingScenes)
-                GetPlayer().SendSysMessage(CypherStrings.CommandSceneDebugTrigger, sceneInstanceID, triggerName);
+                GetPlayer().SendSysMessage(ForeverStrings.CommandSceneDebugTrigger, sceneInstanceID, triggerName);
 
             SceneTemplate sceneTemplate = GetSceneTemplateFromInstanceId(sceneInstanceID);
             Global.ScriptMgr.OnSceneTrigger(GetPlayer(), sceneInstanceID, sceneTemplate, triggerName);
@@ -112,7 +112,7 @@ namespace Game.Entities
                 return;
 
             if (_isDebuggingScenes)
-                GetPlayer().SendSysMessage(CypherStrings.CommandSceneDebugCancel, sceneInstanceID);
+                GetPlayer().SendSysMessage(ForeverStrings.CommandSceneDebugCancel, sceneInstanceID);
 
             SceneTemplate sceneTemplate = GetSceneTemplateFromInstanceId(sceneInstanceID);
             if (sceneTemplate.PlaybackFlags.HasFlag(SceneFlags.NotCancelable))
@@ -136,7 +136,7 @@ namespace Game.Entities
                 return;
 
             if (_isDebuggingScenes)
-                GetPlayer().SendSysMessage(CypherStrings.CommandSceneDebugComplete, sceneInstanceID);
+                GetPlayer().SendSysMessage(ForeverStrings.CommandSceneDebugComplete, sceneInstanceID);
 
             SceneTemplate sceneTemplate = GetSceneTemplateFromInstanceId(sceneInstanceID);
 

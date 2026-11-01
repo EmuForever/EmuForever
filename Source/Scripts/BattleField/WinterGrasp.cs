@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -1566,27 +1566,27 @@ namespace Game.BattleFields
 
         public override void HandleContestedEventHorde(GameObject controlZone)
         {
-            Cypher.Assert(m_Workshop != null);
+            Forever.Assert(m_Workshop != null);
             base.HandleContestedEventHorde(controlZone);
             m_Workshop.GiveControlTo(BattleGroundTeamId.Neutral);
         }
 
         public override void HandleContestedEventAlliance(GameObject controlZone)
         {
-            Cypher.Assert(m_Workshop != null);
+            Forever.Assert(m_Workshop != null);
             base.HandleContestedEventAlliance(controlZone);
             m_Workshop.GiveControlTo(BattleGroundTeamId.Neutral);
         }
 
         public override void HandleProgressEventHorde(GameObject controlZone)
         {
-            Cypher.Assert(m_Workshop != null);
+            Forever.Assert(m_Workshop != null);
             m_Workshop.GiveControlTo(BattleGroundTeamId.Horde);
         }
 
         public override void HandleProgressEventAlliance(GameObject controlZone)
         {
-            Cypher.Assert(m_Workshop != null);
+            Forever.Assert(m_Workshop != null);
             m_Workshop.GiveControlTo(BattleGroundTeamId.Alliance);
         }
 

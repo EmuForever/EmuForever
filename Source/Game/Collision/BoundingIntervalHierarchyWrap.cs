@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.GameMath;
@@ -11,17 +11,16 @@ namespace Game.Collision
     {
         public void Insert(T obj)
         {
+            if (m_obj2Idx.ContainsKey(obj) || !m_objects_to_push.Add(obj)) return;
             ++unbalanced_times;
-            m_objects_to_push.Add(obj);
         }
         public void Remove(T obj)
         {
             ++unbalanced_times;
             uint Idx;
-            if (m_obj2Idx.TryGetValue(obj, out Idx))
+            if (m_obj2Idx.Remove(obj, out Idx))
                 { m_objects[(int)Idx] = null; if (Idx < m_objectArray.Length) m_objectArray[Idx] = null; }
-            else
-                m_objects_to_push.Remove(obj);
+            m_objects_to_push.Remove(obj);
         }
 
         public void Balance()
@@ -33,6 +32,9 @@ namespace Game.Collision
             m_objects.Clear();
             m_objects.AddRange(m_obj2Idx.Keys);
             m_objects.AddRange(m_objects_to_push);
+            m_objects_to_push.Clear();
+            m_obj2Idx.Clear();
+            for (int i = 0; i < m_objects.Count; ++i) m_obj2Idx[m_objects[i]] = (uint)i;
 
             m_tree.Build(m_objects);
             // The tree's indices refer to this order; queries read this snapshot until the next rebalance.

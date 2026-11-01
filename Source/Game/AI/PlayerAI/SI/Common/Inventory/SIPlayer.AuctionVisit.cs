@@ -51,7 +51,7 @@ namespace Game.AI
                 _auctionVisitBuy = null;
                 // A profession visit buys all useful affordable lots allowed by
                 // its existing four-purchase budget, not just one stack per trip.
-                if (bought && _professionShopping.Count > 0 && _goal is "professions" or "social")
+                if (bought && _professionShopping.Count > 0 && (_goal == "professions" || SocialMode))
                 {
                     var next = NeededAuctionPurchase(npc, force: true);
                     if (next != null)

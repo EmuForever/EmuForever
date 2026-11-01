@@ -75,6 +75,8 @@ namespace Game.AI
                 Unit target = Resolve(_encounter.Target);
                 if (target != null) RememberBlockedRoute(target.GetPosition(), "Unreachable combat target; skipping for five minutes.");
             }
+            // Drop the selection too, or the bot keeps a dead player's ghost (or a corpse) targeted.
+            if (!_encounter.Target.IsEmpty() && me.GetTarget() == _encounter.Target) me.SetSelection(ObjectGuid.Empty);
             _encounter.Clear();
             me.InterruptSpell(CurrentSpellTypes.AutoRepeat);
             _clearingTravelApproach = false;
@@ -118,6 +120,7 @@ namespace Game.AI
                 bool attackable = owner.CanFight(target) && (engaged || target is not Creature creature ||
                     !creature.HasLootRecipient() || creature.IsTappedBy(owner.me));
                 float range = owner.CombatApproachRange(target, melee);
+                if(owner._encounter.Stage==SIEncounterStage.Approach)range=SICombatSpacing.ApproachRange(range);
                 return new(true, target.IsAlive(), attackable, engaged, owner.me.GetExactDist(target) <= range,
                     owner.CombatSight(target), target is Creature corpse && owner.me.IsAllowedToLoot(corpse),
                     target.GetHealthPct(), owner.DamageDelivered);
@@ -125,7 +128,7 @@ namespace Game.AI
             public SIBehaviorResult Approach(ObjectGuid guid, bool melee)
             {
                 Unit target = Target(guid);
-                return target == null ? SIBehaviorResult.Failure : owner.ApproachInRange(target, owner.CombatApproachRange(target, melee),
+                return target == null ? SIBehaviorResult.Failure : owner.ApproachInRange(target, SICombatSpacing.ApproachRange(owner.CombatApproachRange(target, melee)),
                     owner.CombatSight(target), "Approaching " + target.GetName());
             }
             public void StopTravel() => owner.CancelTravel();

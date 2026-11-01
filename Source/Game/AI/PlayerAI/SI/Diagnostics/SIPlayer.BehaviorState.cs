@@ -16,6 +16,7 @@ public sealed partial class SIPlayer
         {
             if(_siDuelActive)return "Finish duel, then resume previous activity";
             if(_goal=="pause")return "Wait for resume";
+            if(_goal=="bg" || me.InBattleground())return BattlegroundState;
             if(_journeyFlight!=null)return (_journeyFlightTaken?"Finish flight: ":"Board flight: ")+JourneyFlightDescription+"; then "+_journeyFlightReason;
             if(_goal=="duel")return "Challenge nearby players of the same level or lower, then return to the duel area";
             if(!_flightMaster.IsEmpty())return "Learn flight path, then resume task";
@@ -31,8 +32,7 @@ public sealed partial class SIPlayer
                 _=>"Continue combat, then loot or skip corpse"
             };
             if(!_preparation.Complete)return "Finish preparation, then resume task";
-            if(_auctionMailDestination.HasValue || _awaitingPurchasedMail)return "Collect auction mail, then return to party or previous activity";
-            if(PartyFollowing && !PartyErrand)return "Stay with party / return to its current area";
+            if(_auctionMailDestination.HasValue || _awaitingPurchasedMail)return "Collect auction mail, then resume previous activity";
             return _task?.Kind switch
             {
                 SITaskKind.PickUp=>"Accept local quest",
@@ -51,7 +51,7 @@ public sealed partial class SIPlayer
                 SITaskKind.Grind=>_goal=="quest"?$"Resume questing at level {_questGrindUntilLevel}":"Continue ordered grinding",
                 _ when _goal=="professions"=>_professionSummary,
                 _ when _goal=="gather"=>"Gather nearby nodes, skinnable beasts and cloth drops",
-                _ when _goal=="social"=>_customerJob!=null?"Collect materials and meet the crafter":"Walk near the bank and auction house while waiting for work",
+                _ when SocialMode=>_customerJob!=null?"Collect materials and meet the crafter":"Follow city walking paths while waiting for work",
                 _=>_goal=="quest"?$"Scan local quests within {QuestPickupRadius:0} yards":"Continue "+_goal
             };
         }

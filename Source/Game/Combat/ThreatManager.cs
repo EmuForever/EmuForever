@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -90,7 +90,7 @@ namespace Game.Combat
             if (_currentVictimRef == null || _currentVictimRef.ShouldBeOffline())
                 UpdateVictim();
 
-            Cypher.Assert(_currentVictimRef == null || _currentVictimRef.IsAvailable());
+            Forever.Assert(_currentVictimRef == null || _currentVictimRef.IsAvailable());
             return _currentVictimRef?.GetVictim();
         }
 
@@ -510,7 +510,7 @@ namespace Game.Combat
                 // otherwise the next highest target may still be a melee above 110% and we need to look further
             }
             // we should have found the old victim at some point in the loop above, so execution should never get to this point
-            Cypher.Assert(false, 
+            Forever.Assert(false, 
                 "Current victim not found in sorted threat list " +
                 "even though it has a reference - manager desync!");
             return null;
@@ -758,7 +758,7 @@ namespace Game.Combat
         void PutThreatListRef(ObjectGuid guid, ThreatReference refe)
         {
             NeedClientUpdate = true;
-            Cypher.Assert(!_myThreatListEntries.ContainsKey(guid), 
+            Forever.Assert(!_myThreatListEntries.ContainsKey(guid), 
                 $"Duplicate threat reference being inserted on {_owner.GetGUID()} for {guid}!");
 
             _myThreatListEntries[guid] = refe;
@@ -784,7 +784,7 @@ namespace Game.Combat
 
         void PutThreatenedByMeRef(ObjectGuid guid, ThreatReference refe)
         {
-            Cypher.Assert(!_threatenedByMe.ContainsKey(guid), 
+            Forever.Assert(!_threatenedByMe.ContainsKey(guid), 
                 $"Duplicate threatened-by-me reference being inserted on {_owner.GetGUID()} for {guid}!");
             
             _threatenedByMe[guid] = refe;
@@ -808,7 +808,7 @@ namespace Game.Combat
                     {
                         _redirectInfo.Add((victimPair.Key, thisPct));
                         totalPct += thisPct;
-                        Cypher.Assert(totalPct <= 100);
+                        Forever.Assert(totalPct <= 100);
                         if (totalPct == 100)
                             return;
                     }

@@ -26,10 +26,10 @@ namespace Game.AI
             if (offset.LengthSquared() < .0001f) offset = Vector3.UnitX;
             return target + Vector3.Normalize(offset) * distance;
         }
-        public static Vector3[] LocalPath(Vector3 actor,Vector3 endpoint,Func<Vector3,float> floor,Func<Vector3,Vector3,bool> corridor)
+        public static Vector3[] LocalPath(Vector3 actor,Vector3 endpoint,Func<Vector3,float> floor,Func<Vector3,Vector3,bool> corridor,float maximumDistance=WalkRange)
         {
             float distance=Vector3.Distance(actor,endpoint);
-            if(!float.IsFinite(distance)||distance>WalkRange||distance<.05f)return null;
+            if(!float.IsFinite(distance)||distance>maximumDistance||distance<.05f)return null;
             var points=new List<Vector3>{actor};
             float startFloor=floor(actor);
             float correction=SIMovement.SIWalkingSurface.InitialFloorCorrection(actor,new(actor.X,actor.Y,startFloor))?actor.Z-startFloor:0;

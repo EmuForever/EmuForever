@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Configuration;
@@ -122,14 +122,14 @@ namespace Game.Chat
                 Console.Beep();
 
             Console.ForegroundColor = ConsoleColor.Green;
-            Framework.Logging.ConsoleTimestamps.WritePrompt("Cypher>> ");
+            Framework.Logging.ConsoleTimestamps.WritePrompt("Forever>> ");
 
             var handler = new ConsoleHandler();
             while (!Global.WorldMgr.IsStopped)
             {
                 handler.ParseCommands(Framework.Logging.ConsoleTimestamps.ReadLine());
                 Console.ForegroundColor = ConsoleColor.Green;
-                Framework.Logging.ConsoleTimestamps.WritePrompt("Cypher>> ");
+                Framework.Logging.ConsoleTimestamps.WritePrompt("Forever>> ");
             }
         }
 
@@ -148,7 +148,7 @@ namespace Game.Chat
         public string _name;
         public CommandPermissions _permission;
         public string _helpText;
-        public CypherStrings _helpString;
+        public ForeverStrings _helpString;
         public SortedDictionary<string, ChatCommandNode> _subCommands = new();
 
         MethodInfo _methodInfo;
@@ -179,7 +179,7 @@ namespace Game.Chat
             {
                 /* oldTail = token DELIMITER newTail */
                 var (token, newTail) = oldTail.Tokenize();
-                Cypher.Assert(!token.IsEmpty());
+                Forever.Assert(!token.IsEmpty());
                 var listOfPossibleCommands = map.Where(p => p.Key.StartsWith(token) && p.Value.IsVisible(handler)).ToList();
                 if (listOfPossibleCommands.Empty())
                     break; /* no matching subcommands found */
@@ -190,13 +190,13 @@ namespace Game.Chat
                     if (listOfPossibleCommands.Count > 1)
                     { /* there are multiple matching subcommands - print possibilities and return */
                         if (cmd != null)
-                            handler.SendSysMessage(CypherStrings.SubcmdAmbiguous, cmd._name, ' ', token);
+                            handler.SendSysMessage(ForeverStrings.SubcmdAmbiguous, cmd._name, ' ', token);
                         else
-                            handler.SendSysMessage(CypherStrings.CmdAmbiguous, token);
+                            handler.SendSysMessage(ForeverStrings.CmdAmbiguous, token);
 
-                        handler.SendSysMessage(listOfPossibleCommands[0].Value.HasVisibleSubCommands(handler) ? CypherStrings.SubcmdsListEntryEllipsis : CypherStrings.SubcmdsListEntry, listOfPossibleCommands[0].Key);
+                        handler.SendSysMessage(listOfPossibleCommands[0].Value.HasVisibleSubCommands(handler) ? ForeverStrings.SubcmdsListEntryEllipsis : ForeverStrings.SubcmdsListEntry, listOfPossibleCommands[0].Key);
                         foreach (var (name, command) in listOfPossibleCommands)
-                            handler.SendSysMessage(command.HasVisibleSubCommands(handler) ? CypherStrings.SubcmdsListEntryEllipsis : CypherStrings.SubcmdsListEntry, name);
+                            handler.SendSysMessage(command.HasVisibleSubCommands(handler) ? ForeverStrings.SubcmdsListEntryEllipsis : ForeverStrings.SubcmdsListEntry, name);
 
                         return true;
                     }
@@ -239,10 +239,10 @@ namespace Game.Chat
                     if (cmd != null)
                     {
                         cmd.SendCommandHelp(handler);
-                        handler.SendSysMessage(CypherStrings.SubcmdInvalid, cmd._name, ' ', token);
+                        handler.SendSysMessage(ForeverStrings.SubcmdInvalid, cmd._name, ' ', token);
                     }
                     else
-                        handler.SendSysMessage(CypherStrings.CmdInvalid, token);
+                        handler.SendSysMessage(ForeverStrings.CmdInvalid, token);
                     return;
                 }
 
@@ -252,13 +252,13 @@ namespace Game.Chat
                     if (listOfPossibleCommands.Count > 1)
                     { /* there are multiple matching subcommands - print possibilities and return */
                         if (cmd != null)
-                            handler.SendSysMessage(CypherStrings.SubcmdAmbiguous, cmd._name, ' ', token);
+                            handler.SendSysMessage(ForeverStrings.SubcmdAmbiguous, cmd._name, ' ', token);
                         else
-                            handler.SendSysMessage(CypherStrings.CmdAmbiguous, token);
+                            handler.SendSysMessage(ForeverStrings.CmdAmbiguous, token);
 
-                        handler.SendSysMessage(listOfPossibleCommands[0].Value.HasVisibleSubCommands(handler) ? CypherStrings.SubcmdsListEntryEllipsis : CypherStrings.SubcmdsListEntry, listOfPossibleCommands[0].Key);
+                        handler.SendSysMessage(listOfPossibleCommands[0].Value.HasVisibleSubCommands(handler) ? ForeverStrings.SubcmdsListEntryEllipsis : ForeverStrings.SubcmdsListEntry, listOfPossibleCommands[0].Key);
                         foreach (var (name, command) in listOfPossibleCommands)
-                            handler.SendSysMessage(command.HasVisibleSubCommands(handler) ? CypherStrings.SubcmdsListEntryEllipsis : CypherStrings.SubcmdsListEntry, name);
+                            handler.SendSysMessage(command.HasVisibleSubCommands(handler) ? ForeverStrings.SubcmdsListEntryEllipsis : ForeverStrings.SubcmdsListEntry, name);
 
                         return;
                     }
@@ -272,17 +272,17 @@ namespace Game.Chat
                 cmd.SendCommandHelp(handler);
             else if (cmdStr.IsEmpty())
             {
-                handler.SendSysMessage(CypherStrings.AvailableCmds);
+                handler.SendSysMessage(ForeverStrings.AvailableCmds);
                 foreach (var (name, command) in map)
                 {
                     if (!command.IsVisible(handler))
                         continue;
 
-                    handler.SendSysMessage(command.HasVisibleSubCommands(handler) ? CypherStrings.SubcmdsListEntryEllipsis : CypherStrings.SubcmdsListEntry, name);
+                    handler.SendSysMessage(command.HasVisibleSubCommands(handler) ? ForeverStrings.SubcmdsListEntryEllipsis : ForeverStrings.SubcmdsListEntry, name);
                 }
             }
             else
-                handler.SendSysMessage(CypherStrings.CmdInvalid, cmdStr);
+                handler.SendSysMessage(ForeverStrings.CmdInvalid, cmdStr);
         }
 
         bool IsInvokerVisible(CommandHandler who)
@@ -359,8 +359,8 @@ namespace Game.Chat
                     handler.SendSysMessage(_helpText);
                 else
                 {
-                    handler.SendSysMessage(CypherStrings.CmdHelpGeneric, _name);
-                    handler.SendSysMessage(CypherStrings.CmdNoHelpAvailable, _name);
+                    handler.SendSysMessage(ForeverStrings.CmdHelpGeneric, _name);
+                    handler.SendSysMessage(ForeverStrings.CmdNoHelpAvailable, _name);
                 }
             }
 
@@ -373,11 +373,11 @@ namespace Game.Chat
                 if (!header)
                 {
                     if (!hasInvoker)
-                        handler.SendSysMessage(CypherStrings.CmdHelpGeneric, _name);
-                    handler.SendSysMessage(CypherStrings.SubcmdsList);
+                        handler.SendSysMessage(ForeverStrings.CmdHelpGeneric, _name);
+                    handler.SendSysMessage(ForeverStrings.SubcmdsList);
                     header = true;
                 }
-                handler.SendSysMessage(subCommandHasSubCommand ? CypherStrings.SubcmdsListEntryEllipsis : CypherStrings.SubcmdsListEntry, command._name);
+                handler.SendSysMessage(subCommandHasSubCommand ? ForeverStrings.SubcmdsListEntryEllipsis : ForeverStrings.SubcmdsListEntry, command._name);
             }
         }
 

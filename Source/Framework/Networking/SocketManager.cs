@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using System;
@@ -14,7 +14,7 @@ namespace Framework.Networking
 
         public virtual bool StartNetwork(string bindIp, int port, int threadCount = 1)
         {
-            Cypher.Assert(threadCount > 0);
+            Forever.Assert(threadCount > 0);
 
             Acceptor = new AsyncAcceptor();
             if (!Acceptor.Start(bindIp, port))

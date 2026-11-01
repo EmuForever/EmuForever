@@ -55,7 +55,7 @@ public sealed partial class SIPlayer
                     point.X,point.Y,point.Z+1.8f,LineOfSightChecks.All,ModelIgnoreFlags.Nothing);
                 previous=point;
             }
-            if(!clear)continue;
+            if(!clear||!SocialRouteAllowed([origin,end]))continue;
             CancelPlanning();HaltSpline();
             var move=new MoveSplineInit(me);move.MovebyPath([Here,end]);move.SetUncompressed();move.SetWalk(true);
             if(move.Launch()<=0)continue;

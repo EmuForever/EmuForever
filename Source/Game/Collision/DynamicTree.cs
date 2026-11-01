@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.GameMath;
@@ -54,7 +54,7 @@ namespace Game.Collision
             bool result;
             float maxDist = (endPos - startPos).Length();
             // valid map coords should *never ever* produce float overflow, but this would produce NaNs too
-            Cypher.Assert(maxDist < float.MaxValue);
+            Forever.Assert(maxDist < float.MaxValue);
             // prevent NaN values which can cause BIH intersection to enter infinite loop
             if (maxDist < 1e-10f)
             {

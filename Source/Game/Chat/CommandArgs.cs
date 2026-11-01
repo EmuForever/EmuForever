@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -47,7 +47,7 @@ namespace Game.Chat
 
                 if (result1.HasErrorMessage() && result2.HasErrorMessage())
                 {
-                    return ChatCommandResult.FromErrorMessage($"{handler.GetCypherString(CypherStrings.CmdparserEither)} \"{result2.GetErrorMessage()}\"\n{handler.GetCypherString(CypherStrings.CmdparserOr)} \"{result1.GetErrorMessage()}\"");
+                    return ChatCommandResult.FromErrorMessage($"{handler.GetForeverString(ForeverStrings.CmdparserEither)} \"{result2.GetErrorMessage()}\"\n{handler.GetForeverString(ForeverStrings.CmdparserOr)} \"{result1.GetErrorMessage()}\"");
                 }
                 else if (result1.HasErrorMessage())
                     return result1;
@@ -93,7 +93,7 @@ namespace Game.Chat
                     if (sbyte.TryParse(token, out sbyte tempValue))
                         val = tempValue;
                     else
-                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
+                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
 
                     return new ChatCommandResult(tail);
                 }
@@ -105,7 +105,7 @@ namespace Game.Chat
                     if (short.TryParse(token, out short tempValue))
                         val = tempValue;
                     else
-                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
+                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
 
                     return new ChatCommandResult(tail);
                 }
@@ -117,7 +117,7 @@ namespace Game.Chat
                     if (int.TryParse(token, out int tempValue))
                         val = tempValue;
                     else
-                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
+                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
 
                     return new ChatCommandResult(tail);
                 }
@@ -129,7 +129,7 @@ namespace Game.Chat
                     if (long.TryParse(token, out long tempValue))
                         val = tempValue;
                     else
-                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
+                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
 
                     return new ChatCommandResult(tail);
                 }
@@ -141,7 +141,7 @@ namespace Game.Chat
                     if (byte.TryParse(token, out byte tempValue))
                         val = tempValue;
                     else
-                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
+                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
 
                     return new ChatCommandResult(tail);
                 }
@@ -153,7 +153,7 @@ namespace Game.Chat
                     if (ushort.TryParse(token, out ushort tempValue))
                         val = tempValue;
                     else
-                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
+                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
 
                     return new ChatCommandResult(tail);
                 }
@@ -165,7 +165,7 @@ namespace Game.Chat
                     if (uint.TryParse(token, out uint tempValue))
                         val = tempValue;
                     else
-                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
+                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
 
                     return new ChatCommandResult(tail);
                 }
@@ -177,7 +177,7 @@ namespace Game.Chat
                     if (ulong.TryParse(token, out ulong tempValue))
                         val = tempValue;
                     else
-                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
+                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
 
                     return new ChatCommandResult(tail);
                 }
@@ -189,10 +189,10 @@ namespace Game.Chat
                     if (float.TryParse(token, out float tempValue))
                         val = tempValue;
                     else
-                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
+                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
 
                     if (!float.IsFinite(val))
-                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
+                        return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
 
                     return new ChatCommandResult(tail);
                 }
@@ -218,7 +218,7 @@ namespace Game.Chat
                         else if ((token == "0") || token.Equals("n", StringComparison.OrdinalIgnoreCase) || token.Equals("off", StringComparison.OrdinalIgnoreCase) || token.Equals("no", StringComparison.OrdinalIgnoreCase))
                             val = false;
                         else
-                            return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
+                            return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserStringValueInvalid, token, Type.GetTypeCode(type)));
                     }
 
                     return new ChatCommandResult(tail);
@@ -244,14 +244,14 @@ namespace Game.Chat
                             ChatCommandResult result = TryConsume(out dynamic tempVal, typeof(uint), handler, args);
                             if (!result.IsSuccessful() || (val = CliDB.AchievementStorage.LookupByKey((int)tempVal)) != null)
                                 return result;
-                            return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserAchievementNoExist, tempVal));
+                            return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserAchievementNoExist, tempVal));
                         }
                         case nameof(CurrencyTypesRecord):
                         {
                             ChatCommandResult result = TryConsume(out dynamic tempVal, typeof(uint), handler, args);
                             if (!result.IsSuccessful() || (val = CliDB.CurrencyTypesStorage.LookupByKey((int)tempVal)) != null)
                                 return result;
-                            return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserCurrencyNoExist, tempVal));
+                            return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserCurrencyNoExist, tempVal));
                         }
                         case nameof(GameTele):
                         {
@@ -262,9 +262,9 @@ namespace Game.Chat
                             if (!result.IsSuccessful() || (val = Global.ObjectMgr.GetGameTele(tempVal)) != null)
                                 return result;
                             if (tempVal is uint)
-                                return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserGameTeleIdNoExist, tempVal));
+                                return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserGameTeleIdNoExist, tempVal));
                             else
-                                return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserGameTeleNoExist, tempVal));
+                                return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserGameTeleNoExist, tempVal));
                         }
                         case nameof(ItemTemplate):
                         {
@@ -272,7 +272,7 @@ namespace Game.Chat
                             if (!result.IsSuccessful() || (val = Global.ObjectMgr.GetItemTemplate(tempVal)) != null)
                                 return result;
 
-                            return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserItemNoExist, tempVal));
+                            return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserItemNoExist, tempVal));
                         }
                         case nameof(SpellInfo):
                         {
@@ -280,7 +280,7 @@ namespace Game.Chat
                             if (!result.IsSuccessful() || (val = Global.SpellMgr.GetSpellInfo(tempVal, Difficulty.None)) != null)
                                 return result;
 
-                            return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserSpellNoExist, tempVal));
+                            return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserSpellNoExist, tempVal));
                         }
                         case nameof(TalentInfo):
                         {
@@ -288,7 +288,7 @@ namespace Game.Chat
                             if (!result.IsSuccessful() || (val = Global.SpellMgr.GetSpellInfo(tempVal, Difficulty.None)) != null)
                                 return result;
 
-                            return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserSpellNoExist, tempVal));
+                            return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserSpellNoExist, tempVal));
                         }
                         case nameof(Quest):
                         {
@@ -296,7 +296,7 @@ namespace Game.Chat
                             if (!result.IsSuccessful() || (val = Global.ObjectMgr.GetQuestTemplate(tempVal)) != null)
                                 return result;
                             
-                            return ChatCommandResult.FromErrorMessage(handler.GetParsedString(CypherStrings.CmdparserQuestNoExist, tempVal));
+                            return ChatCommandResult.FromErrorMessage(handler.GetParsedString(ForeverStrings.CmdparserQuestNoExist, tempVal));
                         }
                     }
                     break;
@@ -310,7 +310,7 @@ namespace Game.Chat
         {
             ChatCommandResult result = TryAtIndex(out val, types, 0, handler, args);
             if (result.HasErrorMessage() && (result.GetErrorMessage().IndexOf('\n') != -1))
-                return ChatCommandResult.FromErrorMessage($"{handler.GetCypherString(CypherStrings.CmdparserEither)} {result.GetErrorMessage()}");
+                return ChatCommandResult.FromErrorMessage($"{handler.GetForeverString(ForeverStrings.CmdparserEither)} {result.GetErrorMessage()}");
             return result;
         }
 
@@ -331,9 +331,9 @@ namespace Game.Chat
                     if (!nestedResult.HasErrorMessage())
                         return thisResult;
                     if (nestedResult.GetErrorMessage().StartsWith("\""))
-                        return ChatCommandResult.FromErrorMessage($"\"{thisResult.GetErrorMessage()}\"\n{handler.GetCypherString(CypherStrings.CmdparserOr)} {nestedResult.GetErrorMessage()}");
+                        return ChatCommandResult.FromErrorMessage($"\"{thisResult.GetErrorMessage()}\"\n{handler.GetForeverString(ForeverStrings.CmdparserOr)} {nestedResult.GetErrorMessage()}");
                     else
-                        return ChatCommandResult.FromErrorMessage($"\"{thisResult.GetErrorMessage()}\"\n{handler.GetCypherString(CypherStrings.CmdparserOr)} \"{nestedResult.GetErrorMessage()}\"");
+                        return ChatCommandResult.FromErrorMessage($"\"{thisResult.GetErrorMessage()}\"\n{handler.GetForeverString(ForeverStrings.CmdparserOr)} \"{nestedResult.GetErrorMessage()}\"");
                 }
             }
             else

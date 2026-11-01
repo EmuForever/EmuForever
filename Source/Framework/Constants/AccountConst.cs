@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 namespace Framework.Constants
@@ -575,7 +575,7 @@ namespace Framework.Constants
         CommandReloadSpellTargetPosition = 701,
         CommandReloadSpellThreats = 702,
         CommandReloadSpellGroupStackRules = 703,
-        CommandReloadCypherString = 704,
+        CommandReloadForeverString = 704,
         // 705 - 706 previously used, do not reuse
         CommandReloadWaypointPath = 707,
         CommandReloadVehicleAccesory = 708,

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -79,7 +79,7 @@ namespace Game.Movement
                 bool departureEvent = true;
                 do
                 {
-                    Cypher.Assert(_currentNode < _path.Count, $"Point Id: {pointId}\n{owner.GetDebugInfo()}");
+                    Forever.Assert(_currentNode < _path.Count, $"Point Id: {pointId}\n{owner.GetDebugInfo()}");
 
                     DoEventIfAny(owner, _path[_currentNode], departureEvent);
                     while (!_pointsForPathSwitch.Empty() && _pointsForPathSwitch[0].PathIndex <= _currentNode)
@@ -219,7 +219,7 @@ namespace Game.Movement
                     }
                 }
 
-                _pointsForPathSwitch.Add(new TaxiNodeChangeInfo((Math.Max(_path.Count, 1) - 1), (long)player.ApplyClassicLegacyPriceMod((ulong)Math.Ceiling(cost * discount), 4)));
+                _pointsForPathSwitch.Add(new TaxiNodeChangeInfo((Math.Max(_path.Count, 1) - 1), (long)player.ApplyClassicLegacyPriceMod((ulong)Math.Ceiling(cost * discount),Game.Systems.Legacy.LegacyEffectEngine.FlightPathPriceType)));
             }
         }
 
@@ -242,7 +242,7 @@ namespace Game.Movement
 
         void DoEventIfAny(Player owner, TaxiPathNodeRecord node, bool departure)
         {
-            Cypher.Assert(node != null, owner.GetDebugInfo());
+            Forever.Assert(node != null, owner.GetDebugInfo());
 
             int eventid = departure ? node.DepartureEventID : node.ArrivalEventID;
             if (eventid != 0)

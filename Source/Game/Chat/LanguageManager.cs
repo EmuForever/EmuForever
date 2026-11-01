@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 
@@ -20,7 +20,7 @@ namespace Game.Chat
 
         public void LoadSpellEffectLanguage(SpellEffectRecord spellEffect)
         {
-            Cypher.Assert(spellEffect != null && spellEffect.Effect == SpellEffectName.Language);
+            Forever.Assert(spellEffect != null && spellEffect.Effect == SpellEffectName.Language);
 
             int languageId = spellEffect.EffectMiscValue[0];
             _langsMap.Add(languageId, new LanguageDesc(spellEffect.SpellID, 0)); // register without a skill id for now

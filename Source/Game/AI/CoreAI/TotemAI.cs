@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -14,7 +14,7 @@ namespace Game.AI
 
         public TotemAI(Creature creature) : base(creature)
         {
-            Cypher.Assert(creature.IsTotem(), 
+            Forever.Assert(creature.IsTotem(), 
                 $"TotemAI: AI assigned to a no-totem creature ({creature.GetGUID()})!");
 
             _victimGuid = ObjectGuid.Empty;

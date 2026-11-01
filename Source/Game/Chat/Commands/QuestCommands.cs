@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -18,13 +18,13 @@ namespace Game.Chat
             Player player = handler.GetSelectedPlayer();
             if (player == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
             if (Global.DisableMgr.IsDisabledFor(DisableType.Quest, quest.Id, null))
             {
-                handler.SendSysMessage(CypherStrings.CommandQuestNotfound, quest.Id);
+                handler.SendSysMessage(ForeverStrings.CommandQuestNotfound, quest.Id);
                 return false;
             }
 
@@ -34,7 +34,7 @@ namespace Game.Chat
 
             if (result != null)
             {
-                handler.SendSysMessage(CypherStrings.CommandQuestStartfromitem, quest.Id, result.GetId());
+                handler.SendSysMessage(ForeverStrings.CommandQuestStartfromitem, quest.Id, result.GetId());
                 return false;
             }
 
@@ -54,14 +54,14 @@ namespace Game.Chat
             Player player = handler.GetSelectedPlayer();
             if (player == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
             // If player doesn't have the quest
             if (player.GetQuestStatus(quest.Id) == QuestStatus.None || Global.DisableMgr.IsDisabledFor(DisableType.Quest, quest.Id, null))
             {
-                handler.SendSysMessage(CypherStrings.CommandQuestNotfound, quest.Id);
+                handler.SendSysMessage(ForeverStrings.CommandQuestNotfound, quest.Id);
                 return false;
             }
 
@@ -78,7 +78,7 @@ namespace Game.Chat
             Player player = handler.GetSelectedPlayer();
             if (player == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
@@ -112,12 +112,12 @@ namespace Game.Chat
                 Global.ScriptMgr.OnQuestStatusChange(player, quest.Id);
                 Global.ScriptMgr.OnQuestStatusChange(player, quest, oldStatus, QuestStatus.None);
 
-                handler.SendSysMessage(CypherStrings.CommandQuestRemoved);
+                handler.SendSysMessage(ForeverStrings.CommandQuestRemoved);
                 return true;
             }
             else
             {
-                handler.SendSysMessage(CypherStrings.CommandQuestNotfound, quest.Id);
+                handler.SendSysMessage(ForeverStrings.CommandQuestNotfound, quest.Id);
                 return false;
             }
         }
@@ -128,14 +128,14 @@ namespace Game.Chat
             Player player = handler.GetSelectedPlayer();
             if (player == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
             // If player doesn't have the quest
             if (player.GetQuestStatus(quest.Id) != QuestStatus.Complete || Global.DisableMgr.IsDisabledFor(DisableType.Quest, quest.Id, null))
             {
-                handler.SendSysMessage(CypherStrings.CommandQuestNotfound, quest.Id);
+                handler.SendSysMessage(ForeverStrings.CommandQuestNotfound, quest.Id);
                 return false;
             }
 
@@ -152,14 +152,14 @@ namespace Game.Chat
                 Player player = handler.GetSelectedPlayerOrSelf();
                 if (player == null)
                 {
-                    handler.SendSysMessage(CypherStrings.NoCharSelected);
+                    handler.SendSysMessage(ForeverStrings.NoCharSelected);
                     return false;
                 }
 
                 QuestObjective obj = Global.ObjectMgr.GetQuestObjective(objectiveId);
                 if (obj == null)
                 {
-                    handler.SendSysMessage(CypherStrings.QuestObjectiveNotfound);
+                    handler.SendSysMessage(ForeverStrings.QuestObjectiveNotfound);
                     return false;
                 }
 

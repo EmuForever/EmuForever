@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -186,7 +186,7 @@ public class ObjectAccessor : Singleton<ObjectAccessor>
     }
     public Player FindPlayerByName(string name)
     {
-        Player player = PlayerNameMapHolder.Find(name);
+        Player player = FindConnectedPlayerByName(name);
         if (player == null || !player.IsInWorld)
             return null;
 
@@ -204,7 +204,7 @@ public class ObjectAccessor : Singleton<ObjectAccessor>
     }
     public Player FindConnectedPlayerByName(string name)
     {
-        return PlayerNameMapHolder.Find(name);
+        return FindConnectedPlayer(Global.CharacterCacheStorage.GetCharacterGuidByName(name));
     }
 
     public void SaveAllPlayers()
@@ -225,7 +225,7 @@ public class ObjectAccessor : Singleton<ObjectAccessor>
     {
         lock (_lockObject)
         {
-            PlayerNameMapHolder.Insert(obj);
+
             _players[obj.GetGUID()] = obj;
         }
     }
@@ -234,32 +234,9 @@ public class ObjectAccessor : Singleton<ObjectAccessor>
     {
         lock (_lockObject)
         {
-            PlayerNameMapHolder.Remove(obj);
+
             _players.TryRemove(obj.GetGUID(), out _);
         }
     }
 }
 
-class PlayerNameMapHolder
-{
-    public static void Insert(Player p)
-    {
-        _playerNameMap[p.GetName()] = p;
-    }
-
-    public static void Remove(Player p)
-    {
-        _playerNameMap.Remove(p.GetName());
-    }
-
-    public static Player Find(string name)
-    {
-        if (!ObjectManager.NormalizePlayerName(ref name))
-            return null;
-
-        return _playerNameMap.LookupByKey(name);
-    }
-
-    // case-insensitive: names created in lower case ("war") never matched the capitalized lookup
-    static Dictionary<string, Player> _playerNameMap = new(StringComparer.OrdinalIgnoreCase);
-}

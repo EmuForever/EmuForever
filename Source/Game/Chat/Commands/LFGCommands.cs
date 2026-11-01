@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -54,12 +54,12 @@ namespace Game.Chat
 
             if (groupTarget == null)
             {
-                handler.SendSysMessage(CypherStrings.LfgNotInGroup, player.GetName());
+                handler.SendSysMessage(ForeverStrings.LfgNotInGroup, player.GetName());
                 return false;
             }
 
             ObjectGuid guid = groupTarget.GetGUID();
-            handler.SendSysMessage(CypherStrings.LfgGroupInfo, groupTarget.IsLFGGroup(), Global.LFGMgr.GetState(guid), Global.LFGMgr.GetDungeon(guid));
+            handler.SendSysMessage(ForeverStrings.LfgGroupInfo, groupTarget.IsLFGGroup(), Global.LFGMgr.GetState(guid), Global.LFGMgr.GetDungeon(guid));
 
             foreach (var slot in groupTarget.GetMemberSlots())
             {
@@ -79,9 +79,9 @@ namespace Game.Chat
             if (optionsArg.HasValue)
             {
                 Global.LFGMgr.SetOptions((LfgOptions)optionsArg.Value);
-                handler.SendSysMessage(CypherStrings.LfgOptionsChanged);
+                handler.SendSysMessage(ForeverStrings.LfgOptionsChanged);
             }
-            handler.SendSysMessage(CypherStrings.LfgOptions, Global.LFGMgr.GetOptions());
+            handler.SendSysMessage(ForeverStrings.LfgOptions, Global.LFGMgr.GetOptions());
             return true;
         }
 
@@ -95,7 +95,7 @@ namespace Game.Chat
         [Command("clean", RBACPermissions.CommandLfgClean, true)]
         static bool HandleLfgCleanCommand(CommandHandler handler)
         {
-            handler.SendSysMessage(CypherStrings.LfgClean);
+            handler.SendSysMessage(ForeverStrings.LfgClean);
             Global.LFGMgr.Clean();
             return true;
         }
@@ -108,7 +108,7 @@ namespace Game.Chat
             ObjectGuid guid = player.GetGUID();
             var dungeons = Global.LFGMgr.GetSelectedDungeons(guid);
 
-            handler.SendSysMessage(CypherStrings.LfgPlayerInfo, player.GetName(), Global.LFGMgr.GetState(guid), dungeons.Count, LFGQueue.ConcatenateDungeons(dungeons),
+            handler.SendSysMessage(ForeverStrings.LfgPlayerInfo, player.GetName(), Global.LFGMgr.GetState(guid), dungeons.Count, LFGQueue.ConcatenateDungeons(dungeons),
                 LFGQueue.GetRolesString(Global.LFGMgr.GetRoles(guid)));
         }
     }

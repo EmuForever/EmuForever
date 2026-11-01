@@ -108,7 +108,7 @@ namespace Game.AI
         {
             if (WaitingForTravelMount()) return true;
             if (me.IsMounted() || !me.IsAlive() || me.IsInCombat() || _encounter.Active || me.GetTransport() != null ||
-                me.IsInFlight() || SwimmingSurface(Here) || me.HasPlayerFlag(PlayerFlags.Ghost) || _goal == "flee" || Now < _nextMountAttempt) return false;
+                me.IsInFlight() || SwimmingSurface(Here) || me.HasPlayerFlag(PlayerFlags.Ghost) || !BattlegroundTravelMountAllowed || _goal == "flee" || Now < _nextMountAttempt) return false;
             if(!_travelMount.CanAttempt(Now,me.IsOutdoors(),SwimmingSurface(Here)))return false;
             if(me.GetSkillValue(SkillType.Riding)==0)return false;
             _nextMountAttempt = Now + 10000;

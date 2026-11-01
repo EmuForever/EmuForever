@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework;
@@ -197,7 +197,7 @@ namespace Game
 
         void AddSession_(WorldSession s)
         {
-            Cypher.Assert(s != null);
+            Forever.Assert(s != null);
 
             // A queued SI spawn must never evict an account that connected meanwhile.
             if (s.IsServerControlled && FindSession(s.GetAccountId()) != null)
@@ -394,12 +394,12 @@ namespace Game
 
         public void SetInitialWorldSettings()
         {
-            // Use the realm whose id is set as RealmID in WorldServer.conf (realmlist can hold several realms)
+            // Use the realm whose id is set as RealmID in ForeverWorld.conf (realmlist can hold several realms)
             int configuredRealmId = _realm.Id.Index;
             _realm = Global.RealmMgr.GetRealms().FirstOrDefault(r => r.Id.Index == configuredRealmId);
             if (_realm == null)
             {
-                Log.outFatal(LogFilter.ServerLoading, $"RealmID {configuredRealmId} from WorldServer.conf is not in the auth `realmlist` table.");
+                Log.outFatal(LogFilter.ServerLoading, $"RealmID {configuredRealmId} from ForeverWorld.conf is not in the auth `realmlist` table.");
                 Environment.Exit(1);
             }
             Log.SetRealmId(_realm.Id.Index);
@@ -434,8 +434,8 @@ namespace Game
             // Initialize game event manager
             Global.GameEventMgr.Initialize();
 
-            Log.outInfo(LogFilter.ServerLoading, "Loading Cypher Strings...");
-            if (!Global.ObjectMgr.LoadCypherStrings())
+            Log.outInfo(LogFilter.ServerLoading, "Loading Forever Strings...");
+            if (!Global.ObjectMgr.LoadForeverStrings())
                 Environment.Exit(1);
 
             // not send custom Type REALM_FFA_PVP to realm list
@@ -494,7 +494,7 @@ namespace Game
             {
                 if (mapEntry.ParentMapID != -1)
                 {
-                    Cypher.Assert(mapEntry.CosmeticParentMapID == -1 || mapEntry.ParentMapID == mapEntry.CosmeticParentMapID, 
+                    Forever.Assert(mapEntry.CosmeticParentMapID == -1 || mapEntry.ParentMapID == mapEntry.CosmeticParentMapID, 
                         $"Inconsistent parent map data for map {mapEntry.Id} (ParentMapID = {mapEntry.ParentMapID}, " +
                         $"CosmeticParentMapID = {mapEntry.CosmeticParentMapID})");
 
@@ -541,6 +541,7 @@ namespace Game
             TraitMgr.Load();
             Game.Systems.Legacy.LegacyManager.Load();
             Game.Systems.Legacy.LegacyManager.ValidatePersistence();
+            Game.Systems.PvP.ForeverPvpRanks.LoadConfig();
 
             Log.outInfo(LogFilter.ServerLoading, "Loading languages...");
             Global.LanguageMgr.LoadLanguages();
@@ -955,6 +956,7 @@ namespace Game
 
             Log.outInfo(LogFilter.ServerLoading, "Loading World State templates...");
             Global.WorldStateMgr.LoadFromDB();                                          // must be loaded before battleground, outdoor PvP and conditions
+            Game.Systems.Legacy.LegacyManager.ApplyWorldStates();
 
             Log.outInfo(LogFilter.ServerLoading, "Loading Persistend World Variables...");              // must be loaded before Battleground, outdoor PvP and conditions
             LoadPersistentWorldVariables();
@@ -1308,7 +1310,7 @@ namespace Game
                 if (dataPath != _dataPath)
                 {
                     Log.outError(LogFilter.ServerLoading,
-                        $"DataDir option can't be changed at worldserver.conf reload, " +
+                        $"DataDir option can't be changed at foreverworld.conf reload, " +
                         $"using current value ({_dataPath}).");
                 }
             }
@@ -1664,7 +1666,7 @@ namespace Game
         }
 
         // Send a System Message to all players (except self if mentioned)
-        public void SendWorldText(CypherStrings string_id, params object[] args)
+        public void SendWorldText(ForeverStrings string_id, params object[] args)
         {
             WorldWorldTextBuilder wt_builder = new((uint)string_id, args);
             var wt_do = new LocalizedDo(wt_builder);
@@ -1678,7 +1680,7 @@ namespace Game
         }
 
         // Send a System Message to all GMs (except self if mentioned)
-        public void SendGMText(CypherStrings string_id, params object[] args)
+        public void SendGMText(ForeverStrings string_id, params object[] args)
         {
             var wt_builder = new WorldWorldTextBuilder((uint)string_id, args);
             var wt_do = new LocalizedDo(wt_builder);
@@ -1781,6 +1783,8 @@ namespace Game
                     break;
                 case BanMode.Character:
                     // No SQL injection with prepared statements
+                    var character=Global.CharacterCacheStorage.GetCharacterCacheByName(nameOrIP);
+                    if(character!=null)nameOrIP=character.FullName;
                     stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_ACCOUNT_BY_NAME);
                     stmt.SetString(0, nameOrIP);
                     dataBase = DB.Characters;
@@ -1959,7 +1963,7 @@ namespace Game
             ServerTime currentTime = LoopTime.ServerTime;
 
             Seconds elapsed = (Seconds)(m_ShutdownTime - currentTime);
-            Cypher.Assert(elapsed >= 0);
+            Forever.Assert(elapsed >= 0);
 
             if (ignoreTimer)
             {
@@ -2078,12 +2082,12 @@ namespace Game
             int abcenter = WorldConfig.Values[WorldCfg.AutoBroadcastCenter].Int32;
 
             if (abcenter == 0)
-                SendWorldText(CypherStrings.AutoBroadcast, pair.Value.Message);
+                SendWorldText(ForeverStrings.AutoBroadcast, pair.Value.Message);
             else if (abcenter == 1)
                 SendGlobalMessage(new PrintNotification(pair.Value.Message));
             else if (abcenter == 2)
             {
-                SendWorldText(CypherStrings.AutoBroadcast, pair.Value.Message);
+                SendWorldText(ForeverStrings.AutoBroadcast, pair.Value.Message);
                 SendGlobalMessage(new PrintNotification(pair.Value.Message));
             }
 
@@ -2147,7 +2151,7 @@ namespace Game
             // store next reset time
             RealmTime nowLocal = LoopTime.RealmTime;
             RealmTime next = GetNextDailyResetTime(nowLocal);
-            Cypher.Assert(nowLocal < next);
+            Forever.Assert(nowLocal < next);
 
             m_NextDailyQuestReset = next;
             SetPersistentWorldVariable(NextDailyQuestResetTimeVarId, (UnixTime)next);
@@ -2185,7 +2189,7 @@ namespace Game
             // store next reset time
             RealmTime nowLocal = LoopTime.RealmTime;
             RealmTime next = GetNextWeeklyResetTime(nowLocal);
-            Cypher.Assert(nowLocal < next);
+            Forever.Assert(nowLocal < next);
 
             m_NextWeeklyQuestReset = next;
             SetPersistentWorldVariable(NextWeeklyQuestResetTimeVarId, (UnixTime)next);
@@ -2228,7 +2232,7 @@ namespace Game
             // store next reset time
             RealmTime nowLocal = LoopTime.RealmTime;
             RealmTime next = GetNextMonthlyResetTime(nowLocal);
-            Cypher.Assert(nowLocal < next);
+            Forever.Assert(nowLocal < next);
 
             m_NextMonthlyQuestReset = next;
             SetPersistentWorldVariable(NextMonthlyQuestResetTimeVarId, (UnixTime)next);
@@ -2846,7 +2850,7 @@ namespace Game
 
         public override MultiplePacketSender Invoke(Locale locale)
         {
-            string text = Global.ObjectMgr.GetCypherString(i_textId, locale);
+            string text = Global.ObjectMgr.GetForeverString(i_textId, locale);
 
             if (i_args != null)
                 text = string.Format(text, i_args);

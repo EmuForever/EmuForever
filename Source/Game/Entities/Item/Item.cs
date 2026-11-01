@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Collections;
@@ -598,7 +598,7 @@ namespace Game.Entities
             if (item.IsInUpdateQueue())
                 return;
 
-            Cypher.Assert(player != null);
+            Forever.Assert(player != null);
 
             if (player.GetGUID() != item.GetOwnerGUID())
             {
@@ -620,7 +620,7 @@ namespace Game.Entities
             if (!item.IsInUpdateQueue())
                 return;
 
-            Cypher.Assert(player != null);
+            Forever.Assert(player != null);
 
             if (player.GetGUID() != item.GetOwnerGUID())
             {
@@ -690,7 +690,7 @@ namespace Game.Entities
                 return 0;
 
             var curDurability = m_itemData.Durability;
-            Cypher.Assert(maxDurability >= curDurability);
+            Forever.Assert(maxDurability >= curDurability);
 
             var lostDurability = maxDurability - curDurability;
             if (lostDurability == 0)
@@ -901,7 +901,7 @@ namespace Game.Entities
 
         public void SetGem(int slot, ItemDynamicFieldGems gem)
         {
-            Cypher.Assert(slot < ItemConst.MaxGemSockets);
+            Forever.Assert(slot < ItemConst.MaxGemSockets);
             
             SocketedGem gemField = m_values.ModifyValue(m_itemData).ModifyValue(m_itemData.Gems, slot);
 
@@ -2024,7 +2024,7 @@ namespace Game.Entities
 
             if (eff.EquippedItems.Empty())                                    //all items of a set were removed
             {
-                Cypher.Assert(eff == player.ItemSetEff[setindex]);
+                Forever.Assert(eff == player.ItemSetEff[setindex]);
                 player.ItemSetEff[setindex] = null;
             }
         }
@@ -2126,7 +2126,7 @@ namespace Game.Entities
 
         public SocketType GetSocketType(int index)
         {
-            Cypher.Assert(index < ItemConst.MaxGemSockets && index > -1);
+            Forever.Assert(index < ItemConst.MaxGemSockets && index > -1);
             return _bonusData.socketType[index];
         }
 

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Collections;
@@ -19,7 +19,7 @@ namespace Game.Misc
             GossipOptionFlags flags, int? gossipNpcOptionId, int actionMenuId, int actionPoiId, bool boxCoded, uint boxMoney,
             string boxText, int? spellId, int? overrideIconId, int sender, int action)
         {
-            Cypher.Assert(_menuItems.Count <= SharedConst.MaxGossipMenuItems);
+            Forever.Assert(_menuItems.Count <= SharedConst.MaxGossipMenuItems);
 
             // Find a free new id - script case
             if (orderIndex == -1)

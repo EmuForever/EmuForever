@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -686,7 +686,7 @@ namespace Game
         void HandleMoveApplyMovementForceAck(MoveApplyMovementForceAck moveApplyMovementForceAck)
         {
             Unit mover = _player.GetUnitBeingMoved();
-            Cypher.Assert(mover != null);
+            Forever.Assert(mover != null);
             _player.ValidateMovementInfo(moveApplyMovementForceAck.Ack.Status);
 
             // prevent tampered movement data
@@ -711,7 +711,7 @@ namespace Game
         void HandleMoveRemoveMovementForceAck(MoveRemoveMovementForceAck moveRemoveMovementForceAck)
         {
             Unit mover = _player.GetUnitBeingMoved();
-            Cypher.Assert(mover != null);
+            Forever.Assert(mover != null);
             _player.ValidateMovementInfo(moveRemoveMovementForceAck.Ack.Status);
 
             // prevent tampered movement data
@@ -736,7 +736,7 @@ namespace Game
         void HandleMoveSetModMovementForceMagnitudeAck(MovementSpeedAck setModMovementForceMagnitudeAck)
         {
             Unit mover = _player.GetUnitBeingMoved();
-            Cypher.Assert(mover != null);                      // there must always be a mover
+            Forever.Assert(mover != null);                      // there must always be a mover
             _player.ValidateMovementInfo(setModMovementForceMagnitudeAck.Ack.Status);
 
             // prevent tampered movement data

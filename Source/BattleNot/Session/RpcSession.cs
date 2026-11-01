@@ -1202,9 +1202,38 @@ sealed class BnetHost
     {
         _db = db;
         _realms = realms;
-        using X509Certificate2 pem = X509Certificate2.CreateFromPemFile(certificateFile, privateKeyFile);
-        _certificate = X509CertificateLoader.LoadPkcs12(pem.Export(X509ContentType.Pkcs12), null);
+        _certificate = LoadCertificate(certificateFile, privateKeyFile);
         _devCert = _certificate.GetNameInfo(X509NameType.SimpleName, false) == "*.*";
+    }
+
+    // Missing or unreadable PEM files fall back to an in-memory "*.*" development certificate
+    // (plain http login/shop) instead of taking the whole server down.
+    static X509Certificate2 LoadCertificate(string certificateFile, string privateKeyFile)
+    {
+        string? problem = null;
+        if (string.IsNullOrEmpty(certificateFile) || !File.Exists(certificateFile))
+            problem = $"CertificateFile not found: '{certificateFile}'";
+        else if (string.IsNullOrEmpty(privateKeyFile) || !File.Exists(privateKeyFile))
+            problem = $"PrivateKeyFile not found: '{privateKeyFile}'";
+        else
+        {
+            try
+            {
+                using X509Certificate2 pem = X509Certificate2.CreateFromPemFile(certificateFile, privateKeyFile);
+                return X509CertificateLoader.LoadPkcs12(pem.Export(X509ContentType.Pkcs12), null);
+            }
+            catch (Exception ex)
+            {
+                problem = $"Failed to load certificate '{certificateFile}' / '{privateKeyFile}': {ex.Message}";
+            }
+        }
+
+        Log.outError(LogFilter.Server, problem);
+        Log.outWarn(LogFilter.Server, "Falling back to a temporary development certificate (*.*); login and shop will run over plain http.");
+        using var key = RSA.Create(2048);
+        var request = new CertificateRequest("CN=*.*", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using X509Certificate2 dev = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+        return X509CertificateLoader.LoadPkcs12(dev.Export(X509ContentType.Pkcs12), null);
     }
 
     public bool DevCertificate => _devCert;

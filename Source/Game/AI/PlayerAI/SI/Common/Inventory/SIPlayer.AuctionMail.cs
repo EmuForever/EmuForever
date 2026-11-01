@@ -36,7 +36,7 @@ namespace Game.AI
                     ? NearestSpawn(Knowledge.MailboxCreatures, Knowledge.MailboxObjects, true) : null;
                 _auctionMailbox = mailbox?.GetGUID() ?? ObjectGuid.Empty;
                 if (!_auctionMailDestination.HasValue) { _awaitingPurchasedMail = false; return false; }
-                MarkPartyErrand(); _mailProgressAt = Now; _mailClosest = float.MaxValue;
+                _mailProgressAt = Now; _mailClosest = float.MaxValue;
             }
             _task?.Suspend(Now);
             SISpawn spawn = _auctionMailDestination.Value;

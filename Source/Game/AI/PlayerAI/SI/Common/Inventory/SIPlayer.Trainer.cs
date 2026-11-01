@@ -118,8 +118,8 @@ namespace Game.AI
             _trainerTrip=null;
             // Local quest interactions precede starting a new, distant trainer trip.
             if(CommittedToJourney())return false;
-            if(!PartyFollowing && (_task?.Kind is SITaskKind.PickUp or SITaskKind.TurnIn) && !TaskDone(_task))return false;
-            if(!PartyFollowing && CommittedToObjective())return false;
+            if((_task?.Kind is SITaskKind.PickUp or SITaskKind.TurnIn) && !TaskDone(_task))return false;
+            if(CommittedToObjective())return false;
             if (!SIQuestKnowledge.IsBuilt || Now < _nextTrainingScan || _trainingOffers == null || _trainingQueryLevel != me.GetLevel()) return false;
             _nextTrainingScan = Now + 15000;
             // Known/affordable class lessons cannot change while the spellbook and funds are unchanged.

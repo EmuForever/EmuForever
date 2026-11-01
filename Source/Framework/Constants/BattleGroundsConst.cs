@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.﻿
 
 using System;
@@ -198,6 +198,7 @@ namespace Framework.Constants
         DomDg = 1037,     // Domination - Deepwind Gorge
         DomDg2 = 1039,     // Domination - Deepwind Gorge
         Ed = 1041,     // Empyrean Domain
+        DI = 1157,     // Darkspear Islands (Classic 1.60, map 2997)
         Max = 902
     }
 

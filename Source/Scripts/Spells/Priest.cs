@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -2608,7 +2608,7 @@ namespace Scripts.Spells.Priest
             SpellInfo spellInfo = SpellMgr.GetSpellInfo(SpellIds.BlessedHealing, GetCastDifficulty());
             int amount = MathFunctions.CalculatePct(healInfo.GetHeal(), aurEff.GetAmount());
 
-            Cypher.Assert(spellInfo.GetMaxTicks() > 0);
+            Forever.Assert(spellInfo.GetMaxTicks() > 0);
             amount /= spellInfo.GetMaxTicks();
 
             Unit caster = eventInfo.GetActor();

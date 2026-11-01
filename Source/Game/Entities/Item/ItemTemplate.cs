@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -283,7 +283,7 @@ namespace Game.Entities
         static Dictionary<int, ItemArmorTotalRecord> _armorTotals;
         static Dictionary<int, ItemArmorShieldRecord> _armorShields;
 
-        // Tooltip armor of an armor piece or shield (TrinityCore ItemTemplate::GetArmor). The total/shield tables
+        // Tooltip armor of an armor piece or shield (EmuForever ItemTemplate::GetArmor). The total/shield tables
         // are keyed by their ItemLevel column; concurrent first use builds the same lookup twice, harmlessly.
         public int GetArmor()
         {
@@ -327,16 +327,16 @@ namespace Game.Entities
         }
         public int GetMaxCount() { return ExtendedData.MaxCount; }
         public byte GetContainerSlots() { return ExtendedData.ContainerSlots; }
-        public ItemModType GetStatModifierBonusStat(int index) { Cypher.Assert(index < ItemConst.MaxStats); return ExtendedData.StatModifierBonusStat(index); }
+        public ItemModType GetStatModifierBonusStat(int index) { Forever.Assert(index < ItemConst.MaxStats); return ExtendedData.StatModifierBonusStat(index); }
         /// <summary> 1.60.1 (retail-style): stat amount = RandPropPoints(itemLevel) * StatPercentEditor / 10000 </summary>
         public short GetStatModifierBonusAmount(int index)
         {
-            Cypher.Assert(index < ItemConst.MaxStats);
+            Forever.Assert(index < ItemConst.MaxStats);
             int randomPropPoints = ItemEnchantmentManager.GetRandomPropertyPoints(GetItemLevel(), GetQuality(), GetInventoryType());
             return (short)Math.Round(ExtendedData.StatPercentEditor[index] * randomPropPoints * 0.0001f);
         }
-        public int GetStatPercentEditor(int index) { Cypher.Assert(index < ItemConst.MaxStats); return ExtendedData.StatPercentEditor[index]; }
-        public float GetStatPercentageOfSocket(int index) { Cypher.Assert(index < ItemConst.MaxStats); return ExtendedData.StatPercentageOfSocket[index]; }
+        public int GetStatPercentEditor(int index) { Forever.Assert(index < ItemConst.MaxStats); return ExtendedData.StatPercentEditor[index]; }
+        public float GetStatPercentageOfSocket(int index) { Forever.Assert(index < ItemConst.MaxStats); return ExtendedData.StatPercentageOfSocket[index]; }
         public int GetScalingStatContentTuning() { return ExtendedData.ContentTuningID; }
         // 1.60.1 has no ScalingStatDistribution/ScalingStatValues
         public ushort GetScalingStatDistributionID() { return 0; }
@@ -392,7 +392,7 @@ namespace Game.Entities
 
         public SocketType GetSocketType(int index)
         {
-            Cypher.Assert(index < ItemConst.MaxGemSockets);
+            Forever.Assert(index < ItemConst.MaxGemSockets);
             return (SocketType)ExtendedData.SocketType[index];
         }
 

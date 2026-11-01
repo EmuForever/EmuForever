@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Collections;
@@ -251,14 +251,16 @@ namespace Game.Networking.Packets
                 foreach (ChrCustomizationChoice customization in Customizations)
                     customization.Write(data);
 
-                string surname = Global.CharacterCacheStorage.GetCharacterSurnameByGuid(Guid);
-                data.WriteBits(Name.GetByteCount(), 6);
+                var identity = Global.CharacterCacheStorage.GetCharacterCacheByGuid(Guid);
+                string surname = identity?.Surname ?? string.Empty;
+                string firstName = identity?.FirstName ?? Name;
+                data.WriteBits(firstName.GetByteCount(), 6);
                 data.WriteBits(surname.GetByteCount(), 6);
                 data.WriteBit(FirstLogin);
                 data.WriteBit(true); // RealmInfoFound
                 data.WriteBit(false); // IsRealmOffline
                 data.FlushBits();
-                data.WriteString(Name);
+                data.WriteString(firstName);
                 data.WriteString(surname);
             }
 
@@ -858,7 +860,7 @@ namespace Game.Networking.Packets
 
         public override void Write()
         {
-            Cypher.Assert(UndeleteInfo != null);
+            Forever.Assert(UndeleteInfo != null);
             _worldPacket.WriteInt32(UndeleteInfo.ClientToken);
             _worldPacket.WriteUInt32((uint)Result);
             _worldPacket.WritePackedGuid(UndeleteInfo.CharacterGuid);

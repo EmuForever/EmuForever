@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -131,6 +131,11 @@ namespace Game
                 return cap;
             }
 
+            // Curve-based renown (Classic 1.60 PvP ranks) stores only the progress inside the current level; SetOneFactionReputation
+            // levels it up and caps it, so nothing is clamped here.
+            if (IsRenownReputation(factionEntry) && factionEntry.RenownThresholdCurveID != 0)
+                return int.MaxValue / 2;
+
             if (IsRenownReputation(factionEntry))
             {
                 // Compared to a paragon reputation, DF renown reputations
@@ -210,7 +215,49 @@ namespace Game
             if (!IsRenownReputation(factionEntry))
                 return false;
 
+            // A curve-based track below its absolute maximum keeps earning while the weekly cap holds it back.
+            if (factionEntry.RenownThresholdCurveID != 0)
+            {
+                CurrencyTypesRecord currency = CliDB.CurrencyTypesStorage.LookupByKey(factionEntry.RenownCurrencyID);
+                return currency != null && currency.MaxQty != 0 && GetRenownLevel(factionEntry) >= currency.MaxQty;
+            }
+
             return GetRenownLevel(factionEntry) >= GetRenownMaxLevel(factionEntry);
+        }
+
+        // Curve-based renown (Classic 1.60 PvP ranks): each level takes its own amount (RenownThresholdCurveID), and the
+        // currency's maximum can be lower than its absolute maximum for a while (the weekly rank cap). 'progress' is the reputation
+        // inside the current level after a gain. Past the cap the bar holds at most one level's worth; the rest is lost.
+        (int Level, int Progress) ResolveCurveRenown(FactionRecord factionEntry, CurrencyTypesRecord currency, int level, int progress)
+        {
+            int cap = GetRenownMaxLevel(factionEntry);
+            int absoluteMax = currency.MaxQty != 0 ? currency.MaxQty : cap;
+            while (level < cap && level < absoluteMax && progress >= Game.Systems.PvP.ForeverPvpRanks.RenownThreshold(factionEntry, level))
+            {
+                progress -= Game.Systems.PvP.ForeverPvpRanks.RenownThreshold(factionEntry, level);
+                ++level;
+            }
+            if (level >= absoluteMax)
+                progress = 0;
+            else
+                progress = Math.Clamp(progress, 0, Game.Systems.PvP.ForeverPvpRanks.RenownThreshold(factionEntry, level));
+            return (level, progress);
+        }
+
+        // Applies progress held back by the weekly cap once the cap has risen (new season week, login).
+        public void RefreshCurveRenown(FactionRecord factionEntry)
+        {
+            if (factionEntry == null || !IsRenownReputation(factionEntry) || factionEntry.RenownThresholdCurveID == 0)
+                return;
+            var factionState = _factions.LookupByKey(factionEntry.ReputationIndex);
+            if (factionState == null)
+                return;
+            int level = GetRenownLevel(factionEntry);
+            if (level < GetRenownMaxLevel(factionEntry) && factionState.Standing >= Game.Systems.PvP.ForeverPvpRanks.RenownThreshold(factionEntry, level))
+            {
+                SetOneFactionReputation(factionEntry, 0, true);
+                SendState(factionState);
+            }
         }
 
         bool IsRenownReputation(FactionRecord factionEntry)
@@ -548,7 +595,16 @@ namespace Game
                 else
                 {
                     CurrencyTypesRecord currency = CliDB.CurrencyTypesStorage.LookupByKey(factionEntry.RenownCurrencyID);
-                    if (currency != null)
+                    if (currency != null && factionEntry.RenownThresholdCurveID != 0)
+                    {
+                        int oldRenownLevel = GetRenownLevel(factionEntry);
+                        var (newRenownLevel, progress) = ResolveCurveRenown(factionEntry, currency, oldRenownLevel, standing - baseRep);
+                        newStanding = progress;
+                        factionState.VisualStandingIncrease = reputationChange;
+                        if (oldRenownLevel != newRenownLevel)
+                            _player.ModifyCurrency(currency.Id, newRenownLevel - oldRenownLevel, CurrencyGainSource.RenownRepGain, CurrencyDestroyReason.Cheat);
+                    }
+                    else if (currency != null)
                     {
                         int renownLevelThreshold = GetRenownLevelThreshold(factionEntry);
                         int oldRenownLevel = GetRenownLevel(factionEntry);
@@ -577,6 +633,9 @@ namespace Game
                 factionState.needSend = true;
                 factionState.needSave = true;
 
+                if (factionEntry.Id == Game.Systems.PvP.ForeverPvpRanks.RankFactionId)
+                    _player.UpdatePvpRankFields();
+
                 SetVisible(factionState);
 
                 ParagonReputationRecord paragonReputation = Global.DB2Mgr.GetParagonReputation(factionEntry.Id);
@@ -594,6 +653,7 @@ namespace Game
 
                 _player.UpdateCriteria(CriteriaType.TotalFactionsEncountered, factionEntry.Id);
                 _player.UpdateCriteria(CriteriaType.ReputationGained, factionEntry.Id);
+                _player.UpdateCriteria(CriteriaType.ReputationAmountGained, factionEntry.Id);
                 _player.UpdateCriteria(CriteriaType.TotalExaltedFactions, factionEntry.Id);
                 _player.UpdateCriteria(CriteriaType.TotalReveredFactions, factionEntry.Id);
                 _player.UpdateCriteria(CriteriaType.TotalHonoredFactions, factionEntry.Id);
@@ -872,7 +932,7 @@ namespace Game
             return _factions.LookupByKey(id);
         }
 
-        public CypherStrings GetReputationRankStrIndex(FactionRecord factionEntry)
+        public ForeverStrings GetReputationRankStrIndex(FactionRecord factionEntry)
         {
             return ReputationRankStrIndex[(int)GetRank(factionEntry)];
         }
@@ -931,10 +991,10 @@ namespace Game
             // Exalted
         ];
 
-        public static CypherStrings[] ReputationRankStrIndex =
+        public static ForeverStrings[] ReputationRankStrIndex =
         [
-            CypherStrings.RepHated, CypherStrings.RepHostile, CypherStrings.RepUnfriendly, CypherStrings.RepNeutral,
-            CypherStrings.RepFriendly, CypherStrings.RepHonored, CypherStrings.RepRevered, CypherStrings.RepExalted
+            ForeverStrings.RepHated, ForeverStrings.RepHostile, ForeverStrings.RepUnfriendly, ForeverStrings.RepNeutral,
+            ForeverStrings.RepFriendly, ForeverStrings.RepHonored, ForeverStrings.RepRevered, ForeverStrings.RepExalted
         ];
 
         SortedDictionary<int, FactionState> _factions = new();

@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -105,7 +105,7 @@ namespace Game.Entities
                 if (count != 0 && itemid != 0)
                 {
                     InventoryResult msg = CanStoreNewItem(ItemPos.Undefined, out var dest, itemid, count);
-                    Cypher.Assert(msg == InventoryResult.Ok); // Already checked before
+                    Forever.Assert(msg == InventoryResult.Ok); // Already checked before
                     Item it = StoreNewItem(dest, itemid, true);
                     SendNewItem(it, count, true, false, true);
                 }
@@ -2435,7 +2435,7 @@ namespace Game.Entities
             if (crItem.ExtendedCost != 0) // case for new honor system
             {
                 var iece = CliDB.ItemExtendedCostStorage.LookupByKey(crItem.ExtendedCost);
-                Cypher.Assert(iece != null);
+                Forever.Assert(iece != null);
 
                 for (int i = 0; i < ItemConst.MaxItemExtCostItems; ++i)
                 {
@@ -3375,7 +3375,7 @@ namespace Game.Entities
                 // reputation discount
                 price = (long)Math.Floor(price * GetReputationPriceDiscount(creature));
                 price = pProto.GetBuyPrice() > 0 ? Math.Max(1L, price) : price;
-                if (price > 0) price = (long)ApplyClassicLegacyPriceMod((ulong)price, 0);
+                if (price > 0) price = (long)ApplyClassicLegacyPriceMod((ulong)price, Game.Systems.Legacy.LegacyEffectEngine.VendorPriceType);
 
                 int priceMod = GetTotalAuraModifier(AuraType.ModVendorItemsPrices);
                 if (priceMod != 0)
@@ -6043,7 +6043,7 @@ namespace Game.Entities
 
                     var sendItemsBatch = new Action<int, int>((batchNumber, batchSize) =>
                     {
-                        MailDraft draft = new(Global.ObjectMgr.GetCypherString(CypherStrings.NotEquippedItem), "There were problems with equipping item(s).");
+                        MailDraft draft = new(Global.ObjectMgr.GetForeverString(ForeverStrings.NotEquippedItem), "There were problems with equipping item(s).");
                         for (int j = 0; j < batchSize; ++j)
                             draft.AddItem(unstorableItems[batchNumber * SharedConst.MaxMailItems + j]);
 

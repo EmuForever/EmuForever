@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -82,26 +82,24 @@ namespace Game.Networking.Packets
             _worldPacket.WriteUInt8(Flag);
             _worldPacket.WriteUInt8((byte)ReactState);
 
-            // Always 10 buttons, zero when unset: the "remove control bar" packet sends none, like TrinityCore's zeroed array.
-            uint Button(int i) => i < ActionButtons.Count ? ActionButtons[i].PackedData : 0;
-            for (int i = 0; i < SharedConst.ActionBarIndexMax; ++i)
-                _worldPacket.WriteUInt32(Button(i));
+            foreach (var actionButton in ActionButtons)
+                _worldPacket.WriteUInt32(actionButton.WireData);
 
             // Classic 1.60 reads 18 action button slots before the counts (official sniff of a 70291 hunter pet: the 10
             // buttons, then attack / follow / move / first slot, 0x16000000, the three reactions). With only 10 the client
-            // read the counts and spells as buttons (TrinityCore-forever).
-            foreach (int i in new[] { 0, 1, 2, 3 })
-                _worldPacket.WriteUInt32(Button(i));
+            // read the counts and spells as buttons (EmuForever-forever).
+            for (int i = 0; i < 4; ++i)
+                _worldPacket.WriteUInt32(ActionButtons[i].WireData);
             _worldPacket.WriteInt32(0x16000000);
-            foreach (int i in new[] { 7, 8, 9 })
-                _worldPacket.WriteUInt32(Button(i));
+            for (int i = 7; i < SharedConst.ActionBarIndexMax; ++i)
+                _worldPacket.WriteUInt32(ActionButtons[i].WireData);
 
             _worldPacket.WriteInt32(Actions.Count);
             _worldPacket.WriteInt32(Cooldowns.Count);
             _worldPacket.WriteInt32(SpellHistory.Count);
 
             foreach (var action in Actions)
-                _worldPacket.WriteUInt32(action.PackedData);
+                _worldPacket.WriteUInt32(action.WireData);
 
             foreach (PetSpellCooldown cooldown in Cooldowns)
             {
@@ -129,7 +127,7 @@ namespace Game.Networking.Packets
         public CommandStates CommandState;
         public byte Flag;
 
-        public Array<CharmActionButton> ActionButtons = new (SharedConst.ActionBarIndexMax);
+        public Array<CharmActionButton> ActionButtons = new(SharedConst.ActionBarIndexMax, default);
         public List<CharmActionButton> Actions = new();
         public List<PetSpellCooldown> Cooldowns = new();
         public List<PetSpellHistory> SpellHistory = new();
@@ -246,7 +244,7 @@ namespace Game.Networking.Packets
         {
             PetGUID = _worldPacket.ReadPackedGuid();
 
-            Button = new(_worldPacket.ReadUInt32());
+            Button = CharmActionButton.FromWire(_worldPacket.ReadUInt32());
             TargetGUID = _worldPacket.ReadPackedGuid();
 
             ActionPosition = _worldPacket.ReadVector3();
@@ -267,7 +265,7 @@ namespace Game.Networking.Packets
             PetGUID = _worldPacket.ReadPackedGuid();
 
             Index = _worldPacket.ReadInt32();
-            ActionButton = new(_worldPacket.ReadUInt32());
+            ActionButton = CharmActionButton.FromWire(_worldPacket.ReadUInt32());
         }
 
         public ObjectGuid PetGUID;

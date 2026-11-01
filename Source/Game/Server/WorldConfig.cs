@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Configuration;
@@ -19,10 +19,10 @@ namespace Game
         public static void Load(bool reload = false)
         {
             if (reload)
-                Load("Configs/WorldServer.conf");
+                Load("Configs/ForeverWorld.conf");
 
             // We cleanse all data to catch access errors on data that is not yet initialized.
-            //Values._values.Clear(); // TODO: WorldCfg.ClientCacheVersion Already Pre-Loaded in WorldServer.Server.StartDB();
+            //Values._values.Clear(); // TODO: WorldCfg.ClientCacheVersion Already Pre-Loaded in ForeverWorld.Server.StartDB();
 
             Values[WorldCfg.None] = 0;
             // Read support system setting from the config file
@@ -308,7 +308,7 @@ namespace Game
                 if (val != Values[WorldCfg.PortWorld].Int32)
                 {
                     Log.outError(LogFilter.ServerLoading,
-                        $"WorldServerPort option can't be changed at worldserver.conf reload, " +
+                        $"WorldServerPort option can't be changed at foreverworld.conf reload, " +
                         $"using current value ({Values[WorldCfg.PortWorld]}).");
                 }
 
@@ -316,7 +316,7 @@ namespace Game
                 if (val != Values[WorldCfg.PortInstance].Int32)
                 {
                     Log.outError(LogFilter.ServerLoading,
-                        $"InstanceServerPort option can't be changed at worldserver.conf reload, " +
+                        $"InstanceServerPort option can't be changed at foreverworld.conf reload, " +
                         $"using current value ({Values[WorldCfg.PortInstance]}).");
                 }
             }
@@ -360,7 +360,7 @@ namespace Game
                 Values[WorldCfg.MinDiscoveredScaledXpRatio] = 0;
             }
 
-            /// @todo Add MonsterSight (with meaning) in worldserver.conf or put them as define
+            /// @todo Add MonsterSight (with meaning) in foreverworld.conf or put them as define
             Values[WorldCfg.SightMonster] = GetDefaultValue("MonsterSight", 50.0f);
 
             Values[WorldCfg.RegenHpCannotReachTargetInRaid] = GetDefaultValue("Creature.RegenHPCannotReachTargetInRaid", true);
@@ -371,7 +371,7 @@ namespace Game
                 if (val != Values[WorldCfg.GameType].Int32)
                 {
                     Log.outError(LogFilter.ServerLoading,
-                        $"GameType option can't be changed at worldserver.conf reload, " +
+                        $"GameType option can't be changed at foreverworld.conf reload, " +
                         $"using current value ({Values[WorldCfg.GameType]}).");
                 }
             }
@@ -384,7 +384,7 @@ namespace Game
                 if (val != Values[WorldCfg.RealmZone].Int32)
                 {
                     Log.outError(LogFilter.ServerLoading,
-                        $"RealmZone option can't be changed at worldserver.conf reload, " +
+                        $"RealmZone option can't be changed at foreverworld.conf reload, " +
                         $"using current value ({Values[WorldCfg.RealmZone]}).");
                 }
             }
@@ -401,7 +401,7 @@ namespace Game
                         string sign = Values[WorldCfg.TimeZoneOffset].Int32 > 0 ? "+" : "";
 
                         Log.outError(LogFilter.ServerLoading,
-                            $"TimeZoneOffset option can't be changed at worldserver.conf reload, " +
+                            $"TimeZoneOffset option can't be changed at foreverworld.conf reload, " +
                             $"using current value ({sign}{(Minutes)Values[WorldCfg.TimeZoneOffset].TimeSpan}).");
                     }
                 }
@@ -852,7 +852,7 @@ namespace Game
                 if (val != Values[WorldCfg.Expansion].Int32)
                 {
                     Log.outError(LogFilter.ServerLoading,
-                        $"Expansion option can't be changed at worldserver.conf reload, " +
+                        $"Expansion option can't be changed at foreverworld.conf reload, " +
                         $"using current value ({Values[WorldCfg.Expansion]}[{(Expansion)Values[WorldCfg.Expansion].Int32}]).");
                 }
             }
@@ -1023,7 +1023,7 @@ namespace Game
 
             {
                 uint defaultChacheId = 0u;
-                uint oldCacheId = Values[WorldCfg.ClientCacheVersion].UInt32; // Already Pre-Loaded in WorldServer.Server.StartDB();
+                uint oldCacheId = Values[WorldCfg.ClientCacheVersion].UInt32; // Already Pre-Loaded in ForeverWorld.Server.StartDB();
                 uint clientCacheId = GetDefaultValue("ClientCacheVersion", defaultChacheId);
 
                 // overwrite DB/old value

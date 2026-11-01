@@ -6196,7 +6196,7 @@
     "SetAmmo": {
       "message": "CMSG_SET_AMMO",
       "opcode": "0x3F0105",
-      "source": "confirmed-client-log-and-local-trinitycore_new-reference"
+      "source": "confirmed-client-log-and-local-emuforever_new-reference"
     },
     "SetAssistantLeader": {
       "message": "CMSG_SET_ASSISTANT_LEADER",
@@ -9377,7 +9377,7 @@
     "CreateChar": {
       "message": "SMSG_CREATE_CHAR",
       "opcode": "0x4701AC",
-      "source": "TrinityCore ClassicOpcodes::TranslateServerOpcode (70291+): retail 0x4501AC"
+      "source": "EmuForever ClassicOpcodes::TranslateServerOpcode (70291+): retail 0x4501AC"
     },
     "CreateShipmentResponse": {
       "message": "SMSG_CREATE_SHIPMENT_RESPONSE",

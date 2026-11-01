@@ -16,12 +16,11 @@ namespace Game.AI
         }
 
         public string Behavior { get; private set; } = "Starting";
-        public string Activity => _encounter.Active ? $"{_encounter.Stage}: {Resolve(_encounter.Target)?.GetName() ?? "target"}" : !_preparation.Complete ? $"Preparing: {_preparation.Stage}" : Behavior is "Party" or "Mailbox" ? Status : _task?.Label ?? Status;
+        public string Activity => _goal == "bg" || me.InBattleground() ? Status : _encounter.Active ? $"{_encounter.Stage}: {Resolve(_encounter.Target)?.GetName() ?? "target"}" : !_preparation.Complete ? $"Preparing: {_preparation.Stage}" : Behavior is "Party" or "Mailbox" ? Status : _task?.Label ?? Status;
 
         SIBehaviorResult TickCombatBehavior()
         {
             Unit partyTarget = PartyAssistTarget();
-            if (_encounter.Active && !me.IsInCombat() && !PartyTargetAllowed(Resolve(_encounter.Target))) EndEncounter(false);
             if (!_encounter.Active && partyTarget != null) BeginEncounter(partyTarget);
             Unit attacker = ActiveMobAttackers().Where(unit => CanFight(unit) && !HeldByMagePolymorph(unit)).FirstOrDefault();
             attacker ??= me.GetAttackers().FirstOrDefault(unit => CanFight(unit) && !HeldByMagePolymorph(unit));

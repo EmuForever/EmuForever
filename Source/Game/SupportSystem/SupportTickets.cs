@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -39,17 +39,17 @@ namespace Game.SupportSystem
         public virtual string FormatViewMessageString(CommandHandler handler, string closedName, string assignedToName, string unassignedName, string deletedName)
         {
             StringBuilder ss = new();
-            ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistguid, _id));
-            ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistname, GetPlayerName()));
+            ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistguid, _id));
+            ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistname, GetPlayerName()));
 
             if (!string.IsNullOrEmpty(closedName))
-                ss.Append(handler.GetParsedString(CypherStrings.CommandTicketclosed, closedName));
+                ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketclosed, closedName));
             if (!string.IsNullOrEmpty(assignedToName))
-                ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistassignedto, assignedToName));
+                ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistassignedto, assignedToName));
             if (!string.IsNullOrEmpty(unassignedName))
-                ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistunassigned, unassignedName));
+                ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistunassigned, unassignedName));
             if (!string.IsNullOrEmpty(deletedName))
-                ss.Append(handler.GetParsedString(CypherStrings.CommandTicketdeleted, deletedName));
+                ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketdeleted, deletedName));
             return ss.ToString();
         }
 
@@ -181,18 +181,18 @@ namespace Game.SupportSystem
             ServerTime curTime = LoopTime.ServerTime;
 
             StringBuilder ss = new();
-            ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistguid, _id));
-            ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistname, GetPlayerName()));
-            ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistagecreate, Time.SpanToTimeString(curTime - _createTime, TimeFormat.ShortText, false)));
+            ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistguid, _id));
+            ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistname, GetPlayerName()));
+            ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistagecreate, Time.SpanToTimeString(curTime - _createTime, TimeFormat.ShortText, false)));
 
             if (!_assignedTo.IsEmpty())
-                ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistassignedto, GetAssignedToName()));
+                ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistassignedto, GetAssignedToName()));
 
             if (detailed)
             {
-                ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistmessage, _note));
+                ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistmessage, _note));
                 if (!string.IsNullOrEmpty(_comment))
-                    ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistcomment, _comment));
+                    ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistcomment, _comment));
             }
             return ss.ToString();
         }
@@ -325,18 +325,18 @@ namespace Game.SupportSystem
             ServerTime curTime = LoopTime.ServerTime;
 
             StringBuilder ss = new();
-            ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistguid, _id));
-            ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistname, GetPlayerName()));
-            ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistagecreate, Time.SpanToTimeString(curTime - _createTime, TimeFormat.ShortText, false)));
+            ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistguid, _id));
+            ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistname, GetPlayerName()));
+            ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistagecreate, Time.SpanToTimeString(curTime - _createTime, TimeFormat.ShortText, false)));
 
             if (!_assignedTo.IsEmpty())
-                ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistassignedto, GetAssignedToName()));
+                ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistassignedto, GetAssignedToName()));
 
             if (detailed)
             {
-                ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistmessage, _note));
+                ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistmessage, _note));
                 if (!string.IsNullOrEmpty(_comment))
-                    ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistcomment, _comment));
+                    ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistcomment, _comment));
             }
             return ss.ToString();
         }
@@ -437,18 +437,18 @@ namespace Game.SupportSystem
             ServerTime curTime = LoopTime.ServerTime;
 
             StringBuilder ss = new();
-            ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistguid, _id));
-            ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistname, GetPlayerName()));
-            ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistagecreate, Time.SpanToTimeString(curTime - _createTime, TimeFormat.ShortText, false)));
+            ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistguid, _id));
+            ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistname, GetPlayerName()));
+            ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistagecreate, Time.SpanToTimeString(curTime - _createTime, TimeFormat.ShortText, false)));
 
             if (!_assignedTo.IsEmpty())
-                ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistassignedto, GetAssignedToName()));
+                ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistassignedto, GetAssignedToName()));
 
             if (detailed)
             {
-                ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistmessage, _note));
+                ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistmessage, _note));
                 if (!string.IsNullOrEmpty(_comment))
-                    ss.Append(handler.GetParsedString(CypherStrings.CommandTicketlistcomment, _comment));
+                    ss.Append(handler.GetParsedString(ForeverStrings.CommandTicketlistcomment, _comment));
             }
             return ss.ToString();
         }

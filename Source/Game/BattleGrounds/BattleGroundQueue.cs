@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -73,7 +73,7 @@ namespace Game.BattleGrounds
                 if (arenaTeam != null)
                 {
                     Global.WorldMgr.SendWorldText(
-                        CypherStrings.ArenaQueueAnnounceWorldJoin, arenaTeam.GetName(), m_queueId.TeamSize, m_queueId.TeamSize, ginfo.ArenaTeamRating);
+                        ForeverStrings.ArenaQueueAnnounceWorldJoin, arenaTeam.GetName(), m_queueId.TeamSize, m_queueId.TeamSize, ginfo.ArenaTeamRating);
                 }
             }
 
@@ -132,13 +132,13 @@ namespace Game.BattleGrounds
                         // Show queue status to player only (when joining queue)
                         if (WorldConfig.Values[WorldCfg.BattlegroundQueueAnnouncerPlayerOnly].Bool)
                         {
-                            leader.SendSysMessage(CypherStrings.BgQueueAnnounceSelf, bg.BattlemasterEntry.Name[Global.WorldMgr.GetDefaultDbcLocale()], q_min_level, q_max_level,
+                            leader.SendSysMessage(ForeverStrings.BgQueueAnnounceSelf, bg.BattlemasterEntry.Name[Global.WorldMgr.GetDefaultDbcLocale()], q_min_level, q_max_level,
                                 qAlliance, (MinPlayers > qAlliance) ? MinPlayers - qAlliance : 0, qHorde, (MinPlayers > qHorde) ? MinPlayers - qHorde : 0);
                         }
                         // System message
                         else
                         {
-                            Global.WorldMgr.SendWorldText(CypherStrings.BgQueueAnnounceWorld, bg.BattlemasterEntry.Name[Global.WorldMgr.GetDefaultDbcLocale()], q_min_level, q_max_level,
+                            Global.WorldMgr.SendWorldText(ForeverStrings.BgQueueAnnounceWorld, bg.BattlemasterEntry.Name[Global.WorldMgr.GetDefaultDbcLocale()], q_min_level, q_max_level,
                                 qAlliance, (MinPlayers > qAlliance) ? MinPlayers - qAlliance : 0, qHorde, (MinPlayers > qHorde) ? MinPlayers - qHorde : 0);
                         }
                     }
@@ -288,7 +288,7 @@ namespace Game.BattleGrounds
                 if (team != null)
                 {
                     Global.WorldMgr.SendWorldText(
-                        CypherStrings.ArenaQueueAnnounceWorldExit, team.GetName(), m_queueId.TeamSize, m_queueId.TeamSize, group.ArenaTeamRating);
+                        ForeverStrings.ArenaQueueAnnounceWorldExit, team.GetName(), m_queueId.TeamSize, m_queueId.TeamSize, group.ArenaTeamRating);
                 }
             }
 
@@ -770,7 +770,10 @@ namespace Game.BattleGrounds
                     break;
 
                 var bgQueues = Global.BattlegroundMgr.GetBGFreeSlotQueueStore(mapId);
-                foreach (var bg in bgQueues)
+                // Filling the last slots removes this instance from bgQueues.
+                // Retain the candidates for this pass while the live store changes.
+                // The battleground that has been running longest is filled first.
+                foreach (var bg in bgQueues.OrderByDescending(b => b.GetElapsedTime()).ToArray())
                 {
                     // DO NOT allow queue manager to invite new player to rated games
                     if (!bg.IsRated() && bg.GetBracketId() == bracket_id &&
@@ -989,6 +992,8 @@ namespace Game.BattleGrounds
         }
 
         public BattlegroundQueueTypeId GetQueueId() { return m_queueId; }
+        internal IEnumerable<(ObjectGuid Guid, Team Team, bool Invited)> PlayersForDiagnostics() =>
+            m_QueuedPlayers.Select(entry => (entry.Key, entry.Value.GroupInfo.Team, entry.Value.GroupInfo.IsInvitedToBGInstanceGUID != 0));
         
         BattlegroundQueueTypeId m_queueId;
 

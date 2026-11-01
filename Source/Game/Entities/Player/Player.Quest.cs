@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -282,7 +282,7 @@ namespace Game.Entities
                 //we should obtain map from GetMap() in 99% of cases. Special case
                 //only for quests which cast teleport spells on player
                 Map _map = IsInWorld ? GetMap() : Global.MapMgr.FindMap(GetMapId(), GetInstanceId());
-                Cypher.Assert(_map != null);
+                Forever.Assert(_map != null);
                 GameObject gameObject = _map.GetGameObject(guid);
                 if (gameObject != null)
                 {
@@ -421,6 +421,7 @@ namespace Game.Entities
         bool CanTakeQuestChecks(Quest quest,bool msg,bool ignoreLevel)
         {
             if (!Game.Systems.Legacy.LegacyRewardManager.CanClaim(this, quest.Id)) return false;
+            if (!Game.Systems.PvP.ForeverPvpRanks.JourneyQuestOpen(quest.Id)) return false; // Field of Honor: week n opens in season week n
             return !Global.DisableMgr.IsDisabledFor(DisableType.Quest, quest.Id, this)
                 && SatisfyQuestStatus(quest, msg) && SatisfyQuestExclusiveGroup(quest, msg)
                 && SatisfyQuestClass(quest, msg) && SatisfyQuestRace(quest, msg) && (ignoreLevel ? SatisfyQuestMaxLevel(quest,msg) : SatisfyQuestLevel(quest, msg))
@@ -1180,6 +1181,8 @@ namespace Game.Entities
 
             UpdateCriteria(CriteriaType.CompleteQuestsCount);
             UpdateCriteria(CriteriaType.CompleteQuest, quest.Id);
+            foreach (int trackingQuest in Game.Systems.Legacy.LegacyManager.TrackingQuestsCompletedBy(quest.Id))
+                UpdateCriteria(CriteriaType.CompleteQuest, trackingQuest);
             UpdateCriteria(CriteriaType.CompleteAnyReplayQuest, 1);
 
             // make full db save
@@ -2523,7 +2526,7 @@ namespace Game.Entities
 
         public void KilledMonster(CreatureTemplate cInfo, ObjectGuid guid)
         {
-            Cypher.Assert(cInfo != null);
+            Forever.Assert(cInfo != null);
 
             if (cInfo.Entry != 0)
                 KilledMonsterCredit(cInfo.Entry, guid);
@@ -2695,7 +2698,7 @@ namespace Game.Entities
                             objectiveIsNowComplete = IsQuestObjectiveProgressBarComplete(logSlot, quest);
                             break;
                         default:
-                            Cypher.Assert(false, $"Unhandled quest objective type {objectiveType}");
+                            Forever.Assert(false, $"Unhandled quest objective type {objectiveType}");
                             break;
                     }
                 }
@@ -2943,7 +2946,7 @@ namespace Game.Entities
 
         public bool IsQuestObjectiveCompletable(ushort slot, Quest quest, QuestObjective objective)
         {
-            Cypher.Assert(objective.QuestID == quest.Id);
+            Forever.Assert(objective.QuestID == quest.Id);
 
             if (objective.Flags.HasAnyFlag(QuestObjectiveFlags.PartOfProgressBar))
             {

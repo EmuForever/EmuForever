@@ -5,7 +5,7 @@
   <PropertyGroup>
 	  <OutputType>Exe</OutputType>
     <ApplicationIcon>Blue.ico</ApplicationIcon>
-    <StartupObject>WorldServer.Server</StartupObject>            
+    <StartupObject>ForeverWorld.Server</StartupObject>            
     <!-- A busy realm allocates on map, network and navigation workers. Background
          server GC prevents workstation collection from serializing that workload. -->
     <ServerGarbageCollection>true</ServerGarbageCollection>
@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Configs/WorldServer.conf">
+    <None Update="Configs/ForeverWorld.conf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

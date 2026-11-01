@@ -7,21 +7,22 @@ namespace Game.AI;
 
 public static class SISocialMovement
 {
-    public const float HubRadius = 45;
+    public static bool Active(string goal,bool queued,bool inBattleground) => goal=="social" || goal=="bg"&&queued&&!inBattleground;
+    public static bool StrollPointAllowed(bool outdoors,float bankDistance,float auctionDistance) =>
+        bankDistance>=22 && (outdoors || auctionDistance<25);
+    public static bool OnPath(Vector3 point,IReadOnlyList<Vector3> path,float width)
+    {
+        if(path==null)return false;
+        for(int i=1;i<path.Count;++i)
+        {
+            var delta=path[i]-path[i-1];float length=delta.LengthSquared();
+            float t=length>0?Math.Clamp(Vector3.Dot(point-path[i-1],delta)/length,0,1):0;
+            if(Vector3.DistanceSquared(point,path[i-1]+delta*t)<=width*width)return true;
+        }
+        return false;
+    }
     public static bool ServiceAllowed(int currentCity, int selectedCity, int serviceZone) =>
         selectedCity != 0 && currentCity == selectedCity && serviceZone == selectedCity;
     public static bool RouteAllowed(int selectedCity, bool travellingToCity, IEnumerable<int> zones) =>
         travellingToCity || selectedCity != 0 && zones.All(zone => zone == selectedCity);
-    public static bool NearHub(Vector3 actor, Vector3 bank, Vector3? auction)
-    {
-        bool Near(Vector3 hub) => Vector2.Distance(new(actor.X, actor.Y), new(hub.X, hub.Y)) <= HubRadius && Math.Abs(actor.Z - hub.Z) <= 20;
-        return Near(bank) || auction.HasValue && Near(auction.Value);
-    }
-    public static Vector3 Destination(Vector3 bank, Vector3? auction, float hubSample, float angleSample, float radiusSample)
-    {
-        var center = auction.HasValue && hubSample >= .5f ? auction.Value : bank;
-        float angle = Math.Clamp(angleSample, 0, 1) * MathF.PI * 2;
-        float radius = 5 + Math.Clamp(radiusSample, 0, 1) * 20;
-        return center + new Vector3(MathF.Cos(angle) * radius, MathF.Sin(angle) * radius, 0);
-    }
 }

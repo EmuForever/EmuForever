@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -17,7 +17,7 @@ namespace Game.Chat
             Unit target = handler.GetSelectedUnit();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCharOrCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCharOrCreature);
                 return false;
             }
 
@@ -38,7 +38,7 @@ namespace Game.Chat
             Creature caster = handler.GetSelectedCreature();
             if (caster == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCharOrCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCharOrCreature);
                 return false;
             }
 
@@ -78,7 +78,7 @@ namespace Game.Chat
             Unit target = handler.GetSelectedUnit();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCharOrCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCharOrCreature);
                 return false;
             }
 
@@ -100,13 +100,13 @@ namespace Game.Chat
             Creature caster = handler.GetSelectedCreature();
             if (caster == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCharOrCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCharOrCreature);
                 return false;
             }
 
             if (caster.GetVictim() == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectedTargetNotHaveVictim);
+                handler.SendSysMessage(ForeverStrings.SelectedTargetNotHaveVictim);
                 return false;
             }
 
@@ -128,7 +128,7 @@ namespace Game.Chat
             Unit caster = handler.GetSelectedUnit();
             if (caster == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCharOrCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCharOrCreature);
                 return false;
             }
 
@@ -161,13 +161,13 @@ namespace Game.Chat
             var spellInfo = Global.SpellMgr.GetSpellInfo(spellId, Difficulty.None);
             if (spellInfo == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandNospellfound);
+                handler.SendSysMessage(ForeverStrings.CommandNospellfound);
                 return false;
             }
 
             if (!Global.SpellMgr.IsSpellValid(spellInfo, handler.GetPlayer()))
             {
-                handler.SendSysMessage(CypherStrings.CommandSpellBroken, spellInfo.Id);
+                handler.SendSysMessage(ForeverStrings.CommandSpellBroken, spellInfo.Id);
                 return false;
             }
             return true;

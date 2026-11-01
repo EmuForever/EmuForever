@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -305,7 +305,7 @@ namespace Game.Movement
             if (HasFlag(MotionMasterFlags.InitializationPending | MotionMasterFlags.Initializing))
                 return;
 
-            Cypher.Assert(!Empty(), 
+            Forever.Assert(!Empty(), 
                 $"MotionMaster:Update: update called without Initializing! ({_owner.GetGUID()})");
 
             AddFlag(MotionMasterFlags.Update);
@@ -322,11 +322,11 @@ namespace Game.Movement
             if (top.HasFlag(MovementGeneratorFlags.Deactivated))
                 top.Reset(_owner);
 
-            Cypher.Assert(!top.HasFlag(MovementGeneratorFlags.InitializationPending | MovementGeneratorFlags.Deactivated), $"MotionMaster:Update: update called on an uninitialized top! ({_owner.GetGUID()}) (Type: {top.GetMovementGeneratorType()}, flags: {top.Flags})");
+            Forever.Assert(!top.HasFlag(MovementGeneratorFlags.InitializationPending | MovementGeneratorFlags.Deactivated), $"MotionMaster:Update: update called on an uninitialized top! ({_owner.GetGUID()}) (Type: {top.GetMovementGeneratorType()}, flags: {top.Flags})");
 
             if (!top.Update(_owner, diff))
             {
-                Cypher.Assert(top == GetCurrentMovementGenerator(), 
+                Forever.Assert(top == GetCurrentMovementGenerator(), 
                     $"MotionMaster::Update: top was modified while updating! ({_owner.GetGUID()})");
 
                 // Since all the actions that modify any slot are delayed, this movement is guaranteed to be top
@@ -1099,7 +1099,7 @@ namespace Game.Movement
                         gen.GetMovementGeneratorType() == MovementGeneratorType.Flight
                         );
 
-                    Cypher.Assert(!hasExisting, "Duplicate flight path movement generator");
+                    Forever.Assert(!hasExisting, "Duplicate flight path movement generator");
 
                     FlightPathMovementGenerator movement = new();
                     movement.LoadPath(_owner.ToPlayer());

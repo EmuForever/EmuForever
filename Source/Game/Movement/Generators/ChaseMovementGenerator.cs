@@ -1,16 +1,23 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
 using Game.AI;
 using Game.Entities;
 using System;
+using System.Collections.Generic;
 
 namespace Game.Movement
 {
     class ChaseMovementGenerator : MovementGenerator
     {
         static Milliseconds RANGE_CHECK_INTERVAL = (Milliseconds)100; // time (ms) until we attempt to recalculate
+        const float DirectChaseDistance = 15.0f; // yards within which a visible target is chased in a straight line when no path exists
+        static readonly Milliseconds REPATH_INTERVAL = (Milliseconds)150; // minimum time between re-paths while already running toward a moving target
+        static readonly Milliseconds SPREAD_CHECK_INTERVAL = (Milliseconds)400; // how often a settled melee attacker checks whether it overlaps another
+        const float TargetMovedDistSq = 0.1f * 0.1f;
+        const float SpreadSpacingFactor = 0.6f; // two attackers overlap when closer than this share of their summed combat reach
+        const float MinSpreadSpacing = 1.0f;
 
         ChaseRange? _range;
         ChaseAngle? _angle;
@@ -18,6 +25,8 @@ namespace Game.Movement
         PathGenerator _path;
         Position _lastTargetPosition;
         TimeTracker _rangeCheckTimer;
+        TimeTracker _repathTimer;
+        TimeTracker _spreadTimer;
         bool _movingTowards = true;
         bool _mutualChase = true;
 
@@ -35,6 +44,8 @@ namespace Game.Movement
             BaseUnitState = UnitState.Chase;
 
             _rangeCheckTimer = new(RANGE_CHECK_INTERVAL);
+            _repathTimer = new(REPATH_INTERVAL);
+            _spreadTimer = new(SPREAD_CHECK_INTERVAL);
         }
 
         public override void Initialize(Unit owner)
@@ -88,7 +99,8 @@ namespace Game.Movement
 
             // periodically check if we're already in the expected range...
             _rangeCheckTimer.Update(diff);
-            if (_rangeCheckTimer.Passed())
+            bool rangeCheckTick = _rangeCheckTimer.Passed();
+            if (rangeCheckTick)
             {
                 _rangeCheckTimer.Reset(RANGE_CHECK_INTERVAL);
                 if (HasFlag(MovementGeneratorFlags.InformEnabled) && PositionOkay(owner, target, _movingTowards ? null : minTarget, _movingTowards ? maxTarget : null, angle))
@@ -118,9 +130,31 @@ namespace Game.Movement
                 DoMovementInform(owner, target);
             }
 
-            // if the target moved, we have to consider whether to adjust
-            if (_lastTargetPosition == null || target.GetPosition() != _lastTargetPosition || mutualChase != _mutualChase)
+            // Several melee attackers on one victim fan out around it instead of standing inside each other.
+            _spreadTimer.Update(diff);
+            if (_spreadTimer.Passed())
             {
+                _spreadTimer.Reset(SPREAD_CHECK_INTERVAL);
+                if (cOwner != null && !angle.HasValue && !mutualChase && TrySpreadOut(cOwner, target, maxTarget))
+                {
+                    _lastTargetPosition = new(target.GetPosition());
+                    return true;
+                }
+            }
+
+            // If the target moved, we have to consider whether to adjust. Position has no value equality, so compare
+            // coordinates: a reference compare always differed and re-pathed every tick, even when the target only turned.
+            // While already running a route, a moving target is re-pathed at most every REPATH_INTERVAL.
+            _repathTimer.Update(diff);
+            bool targetMoved = _lastTargetPosition == null || _lastTargetPosition.GetExactDistSq(target) > TargetMovedDistSq;
+            if (targetMoved && owner.HasUnitState(UnitState.ChaseMove) && !owner.MoveSpline.Finalized() && !_repathTimer.Passed() && mutualChase == _mutualChase)
+                targetMoved = false;
+            // A standing target still needs a check now and then: knockback, fear or a script can move the creature itself.
+            bool displaced = !targetMoved && rangeCheckTick && !owner.HasUnitState(UnitState.ChaseMove) &&
+                !PositionOkay(owner, target, minRange, maxRange, angle);
+            if (targetMoved || displaced || mutualChase != _mutualChase)
+            {
+                _repathTimer.Reset(REPATH_INTERVAL);
                 _lastTargetPosition = new(target.GetPosition());
                 _mutualChase = mutualChase;
                 if (owner.HasUnitState(UnitState.ChaseMove) || !PositionOkay(owner, target, minRange, maxRange, angle))
@@ -130,6 +164,7 @@ namespace Game.Movement
                     {
                         cOwner.SetCannotReachTarget(true);
                         cOwner.StopMoving();
+                        cOwner.SetFacingToObject(target);
                         _path = null;
                         return true;
                     }
@@ -161,12 +196,18 @@ namespace Game.Movement
                         owner.UpdateAllowedPositionZ(x, y, ref z);
 
                     bool success = _path.CalculatePath(x, y, z, owner.CanFly());
-                    if (!success || _path.GetPathType().HasAnyFlag(PathType.NoPath))
+                    // A target close by and in sight is reachable even where the navmesh has a seam or a steep
+                    // patch: run straight at it (the NoPath result already holds that shortcut) instead of
+                    // freezing mid-turn and evading after CreatureNoPathEvadeTime.
+                    bool directChase = success && _path.GetPathType().HasAnyFlag(PathType.NoPath) &&
+                        owner.IsWithinDist(target, DirectChaseDistance) && owner.IsWithinLOSInMap(target);
+                    if (!success || _path.GetPathType().HasAnyFlag(PathType.NoPath) && !directChase)
                     {
                         if (cOwner != null)
                             cOwner.SetCannotReachTarget(true);
 
                         owner.StopMoving();
+                        owner.SetFacingToObject(target); // watch the target instead of freezing mid-turn
                         return true;
                     }
 
@@ -262,6 +303,94 @@ namespace Game.Movement
             if (!owner.IsWithinLOSInMap(target))
                 return false;
             return true;
+        }
+
+        // Retail-style melee separation. A settled attacker standing inside another attacker of the same victim steps
+        // to the nearest free spot on the ring around the victim (closest angle first, so it only shuffles aside).
+        // The attacker with the lower GUID keeps its spot, so a pair never both move; attackers already walking to
+        // a spot are judged by their destination, so two mobs updated in the same tick do not pick the same gap.
+        static bool TrySpreadOut(Creature owner, Unit target, float maxTarget)
+        {
+            if (owner.HasUnitState(UnitState.ChaseMove) || !owner.MoveSpline.Finalized() || owner.IsPet() || owner.IsGuardian())
+                return false;
+            if (target.IsMoving() || !target.MoveSpline.Finalized() || !owner.IsWithinMeleeRange(target))
+                return false;
+
+            var attackers = target.GetAttackers();
+            if (attackers.Count < 2)
+                return false;
+
+            float reach = owner.GetCombatReach();
+            float searchRadius = owner.GetExactDist2d(target) + 8.0f;
+            List<(float X, float Y, float Spacing, bool Settled, long Order)> others = new();
+            foreach (Unit other in attackers)
+            {
+                if (other == owner || !other.IsAlive() || other.IsPlayer() || other.GetExactDist2d(target) > searchRadius)
+                    continue;
+                float ox = other.GetPositionX(), oy = other.GetPositionY();
+                if (!other.MoveSpline.Finalized())
+                {
+                    var destination = other.MoveSpline.FinalDestination();
+                    ox = destination.X; oy = destination.Y;
+                }
+                others.Add((ox, oy, Math.Max(MinSpreadSpacing, (reach + other.GetCombatReach()) * SpreadSpacingFactor),
+                    other.MoveSpline.Finalized(), other.GetGUID().GetCounter()));
+            }
+
+            bool Overlaps(float x, float y, bool onlyYielding)
+            {
+                foreach (var other in others)
+                {
+                    if (onlyYielding && other.Settled && other.Order > owner.GetGUID().GetCounter())
+                        continue; // that one moves out of our way instead
+                    float dx = x - other.X, dy = y - other.Y;
+                    if (dx * dx + dy * dy < other.Spacing * other.Spacing)
+                        return true;
+                }
+                return false;
+            }
+
+            if (!Overlaps(owner.GetPositionX(), owner.GetPositionY(), true))
+                return false;
+
+            // Stay on the current ring, inside melee reach.
+            float minRadius = Math.Min(target.GetCombatReach() + reach * 0.5f, maxTarget - 0.25f);
+            float radius = Math.Clamp(owner.GetExactDist2d(target), minRadius, maxTarget - 0.25f);
+            float chord = Math.Min(1.0f, Math.Max(MinSpreadSpacing, reach * SpreadSpacingFactor) / (2.0f * radius));
+            float step = Math.Max(0.15f, 2.0f * MathF.Asin(chord) * 0.5f);
+            float baseAngle = target.GetAbsoluteAngle(owner);
+            int steps = (int)MathF.Ceiling(MathF.PI / step);
+
+            for (int k = 1; k <= steps; ++k)
+            {
+                foreach (int side in new[] { 1, -1 })
+                {
+                    float angle = baseAngle + side * k * step;
+                    float x = target.GetPositionX() + radius * MathF.Cos(angle);
+                    float y = target.GetPositionY() + radius * MathF.Sin(angle);
+                    if (Overlaps(x, y, false))
+                        continue;
+
+                    float z = target.GetPositionZ();
+                    owner.UpdateAllowedPositionZ(x, y, ref z);
+                    if (Math.Abs(z - target.GetPositionZ()) > 3.0f || !target.IsWithinLOS(x, y, z))
+                        continue;
+
+                    PathGenerator path = new(owner);
+                    if (!path.CalculatePath(x, y, z, owner.CanFly()) || path.GetPathType().HasAnyFlag(PathType.NoPath | PathType.Incomplete) ||
+                        path.GetPathLength() > radius * 2.0f + 2.0f)
+                        continue;
+
+                    owner.AddUnitState(UnitState.ChaseMove);
+                    MoveSplineInit init = new(owner);
+                    init.MovebyPath(path.GetPath());
+                    init.SetWalk(true);
+                    init.SetFacing(target);
+                    init.Launch();
+                    return true;
+                }
+            }
+            return false;
         }
 
         static void DoMovementInform(Unit owner, Unit target)

@@ -2,8 +2,26 @@ using Game.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 namespace Game.AI
 {
+    public static class SISpiritGuideWaiting
+    {
+        public const float MinimumSpacing=3,MinimumRadius=4,MaximumRadius=9,MaximumWalk=12;
+        public static bool NeedsQueue(bool assigned,bool waitingAura)=>!assigned||!waitingAura;
+        public static bool WithinHealRange(Vector3 point,Vector3 guide)=>
+            Vector3.DistanceSquared(point,guide)<=(Framework.Constants.PlayerConst.MaxAreaSpiritHealerRange-2)*(Framework.Constants.PlayerConst.MaxAreaSpiritHealerRange-2);
+        public static Vector3 Candidate(Vector3 guide,ulong seed,int attempt)
+        {
+            ulong hash=unchecked(seed+(ulong)(attempt+1)*0x9E3779B97F4A7C15UL);
+            hash=unchecked((hash^(hash>>30))*0xBF58476D1CE4E5B9UL);
+            hash=unchecked((hash^(hash>>27))*0x94D049BB133111EBUL);hash^=hash>>31;
+            float angle=(hash&0xFFFFFF)/16777216f*MathF.Tau;
+            float radius=MinimumRadius+((hash>>24)&0xFFFF)/65535f*(MaximumRadius-MinimumRadius);
+            return guide+new Vector3(MathF.Cos(angle)*radius,MathF.Sin(angle)*radius,0);
+        }
+    }
+
     public readonly record struct SIRecoveryHazard(Position Position, float AggroRadius);
 
     public static class SICorpseRecovery

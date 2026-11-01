@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -25,9 +25,9 @@ namespace Game.Entities
         public override void Dispose()
         {
             // make sure all references were properly removed
-            Cypher.Assert(_aura == null);
-            Cypher.Assert(_caster == null);
-            Cypher.Assert(!_isViewpoint);
+            Forever.Assert(_aura == null);
+            Forever.Assert(_caster == null);
+            Forever.Assert(!_isViewpoint);
             _removedAura = null;
 
             base.Dispose();
@@ -122,8 +122,8 @@ namespace Game.Entities
         public override void Update(TimeSpan diff)
         {
             // caster has to be always available and in the same map
-            Cypher.Assert(_caster != null);
-            Cypher.Assert(_caster.GetMap() == GetMap());
+            Forever.Assert(_caster != null);
+            Forever.Assert(_caster.GetMap() == GetMap());
 
             bool expired = false;
 
@@ -179,13 +179,13 @@ namespace Game.Entities
 
         public void SetAura(Aura aura)
         {
-            Cypher.Assert(_aura == null && aura != null);
+            Forever.Assert(_aura == null && aura != null);
             _aura = aura;
         }
 
         void RemoveAura()
         {
-            Cypher.Assert(_aura != null && _removedAura == null);
+            Forever.Assert(_aura != null && _removedAura == null);
             _removedAura = _aura;
             _aura = null;
             if (!_removedAura.IsRemoved())
@@ -214,22 +214,22 @@ namespace Game.Entities
 
         public override int GetFaction()
         {
-            Cypher.Assert(_caster != null);
+            Forever.Assert(_caster != null);
             return _caster.GetFaction();
         }
 
         void BindToCaster()
         {
-            Cypher.Assert(_caster == null);
+            Forever.Assert(_caster == null);
             _caster = Global.ObjAccessor.GetUnit(this, GetCasterGUID());
-            Cypher.Assert(_caster != null);
-            Cypher.Assert(_caster.GetMap() == GetMap());
+            Forever.Assert(_caster != null);
+            Forever.Assert(_caster.GetMap() == GetMap());
             _caster._RegisterDynObject(this);
         }
 
         void UnbindFromCaster()
         {
-            Cypher.Assert(_caster != null);
+            Forever.Assert(_caster != null);
             _caster._UnregisterDynObject(this);
             _caster = null;
         }

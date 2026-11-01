@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -22,7 +22,7 @@ namespace Game.Conditions
 
         public bool Meets(ConditionSourceInfo sourceInfo)
         {
-            Cypher.Assert(ConditionTarget < SharedConst.MaxConditionTargets);
+            Forever.Assert(ConditionTarget < SharedConst.MaxConditionTargets);
 
             Map map = sourceInfo.mConditionMap;
             bool condMeets = false;
@@ -145,7 +145,7 @@ namespace Game.Conditions
                     if (player != null)
                     {
                         // don't allow 0 items (it's checked during table load)
-                        Cypher.Assert(ConditionValue2 != 0);
+                        Forever.Assert(ConditionValue2 != 0);
                         bool checkBank = ConditionValue3 != 0;
                         condMeets = player.HasItemCount(ConditionValue1, ConditionValue2, checkBank);
                     }
@@ -597,7 +597,7 @@ namespace Game.Conditions
                     mask |= GridMapTypeMask.All & ~GridMapTypeMask.Player;
                     break;
                 default:
-                    Cypher.Assert(false, "Condition.GetSearcherTypeMaskForCondition - missing condition handling!");
+                    Forever.Assert(false, "Condition.GetSearcherTypeMaskForCondition - missing condition handling!");
                     break;
             }
             return mask;

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -208,7 +208,7 @@ namespace Game.Spells
                 return;
 
             // Cooldown on event (Presence of Mind, Nature's Swiftness, ...): held until the effect is used up,
-            // then started by SendCooldownEvent. Holding it keeps the spell unusable meanwhile, as TrinityCore does.
+            // then started by SendCooldownEvent. Holding it keeps the spell unusable meanwhile, as EmuForever does.
             StartCooldown(spellInfo, itemId, spell, spellInfo.IsCooldownStartedOnEvent());
         }
 

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using System;
@@ -190,6 +190,7 @@ namespace Framework.Constants
         public static readonly Milliseconds CreatureRegenInterval = (Seconds)2;
         public static readonly Milliseconds PetFocusRegenInterval = (Seconds)4;
         public static readonly Milliseconds CreatureNoPathEvadeTime = (Seconds)5;
+        public static readonly Milliseconds CreatureRespawnAggroGrace = (Seconds)3;
         public const int BoundaryVisualizeCreature = 15425;
         public const float BoundaryVisualizeCreatureScale = 0.25f;
         public const int BoundaryVisualizeStepSize = 1;
@@ -1609,7 +1610,7 @@ namespace Framework.Constants
         CallscriptToUnit = 21,               // Source = Worldobject (If Present Used As A Search Center), Datalong = Script Id, Datalong2 = Unit Lowguid, Dataint = Script Table To Use (See Scriptstype)
         Kill = 22,               // Source/Target = Creature, Dataint = Remove Corpse Attribute
 
-        // Cyphercore Only
+        // Emuforever Only
         Orientation = 30,               // Source = Unit, Target (Datalong > 0) = Unit, Datalong = > 0 Turn Source To Face Target, O = Orientation
         Equip = 31,               // Soucre = Creature, Datalong = Equipment Id
         Model = 32,               // Source = Creature, Datalong = Model Id
@@ -3500,8 +3501,8 @@ namespace Framework.Constants
         SocketingPunchcardblueGemOnlyInPunchcardblueslot = 1075,
         SocketingRequiresDominationShard = 1076,
         SocketingDominationShardOnlyInDominationslot = 1077,
-        SocketingRequiresCypherGem = 1078,
-        SocketingCypherGemOnlyInCypherslot = 1079,
+        SocketingRequiresForeverGem = 1078,
+        SocketingForeverGemOnlyInForeverslot = 1079,
         SocketingRequiresTinkerGem = 1080,
         SocketingTinkerGemOnlyInTinkerslot = 1081,
         SocketingRequiresPrimordialGem = 1082,

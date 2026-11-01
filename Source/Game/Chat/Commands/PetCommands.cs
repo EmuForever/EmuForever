@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -18,7 +18,7 @@ namespace Game.Chat
 
             if (creatureTarget == null || creatureTarget.IsPet() || creatureTarget.IsTypeId(TypeId.Player))
             {
-                handler.SendSysMessage(CypherStrings.SelectCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCreature);
                 return false;
             }
 
@@ -66,7 +66,7 @@ namespace Game.Chat
             Pet pet = GetSelectedPlayerPetOrOwn(handler);
             if (pet == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectPlayerOrPet);
+                handler.SendSysMessage(ForeverStrings.SelectPlayerOrPet);
                 return false;
             }
 
@@ -82,7 +82,7 @@ namespace Game.Chat
             // Check if spell is valid
             if (!Global.SpellMgr.IsSpellValid(spellInfo))
             {
-                handler.SendSysMessage(CypherStrings.CommandSpellBroken, spellId);
+                handler.SendSysMessage(ForeverStrings.CommandSpellBroken, spellId);
                 return false;
             }
 
@@ -98,7 +98,7 @@ namespace Game.Chat
             Pet pet = GetSelectedPlayerPetOrOwn(handler);
             if (pet == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectPlayerOrPet);
+                handler.SendSysMessage(ForeverStrings.SelectPlayerOrPet);
                 return false;
             }
 
@@ -119,7 +119,7 @@ namespace Game.Chat
             Player owner = pet != null ? pet.GetOwner() : null;
             if (pet == null || owner == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectPlayerOrPet);
+                handler.SendSysMessage(ForeverStrings.SelectPlayerOrPet);
                 return false;
             }
 
@@ -128,7 +128,7 @@ namespace Game.Chat
 
             if (level == 0 || level < -SharedConst.StrongMaxLevel || level > SharedConst.StrongMaxLevel)
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 

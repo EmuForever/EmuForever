@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -13,19 +13,19 @@ namespace Game.Chat.Commands
     [CommandGroup("learn")]
     class LearnCommands
     {
-        [Command("", CypherStrings.CommandLearnHelp, RBACPermissions.CommandLearn)]
+        [Command("", ForeverStrings.CommandLearnHelp, RBACPermissions.CommandLearn)]
         static bool HandleLearnCommand(CommandHandler handler, int spellId, [OptionalArg] string allRanksStr)
         {
             Player targetPlayer = handler.GetSelectedPlayerOrSelf();
             if (targetPlayer == null)
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
             if (!Global.SpellMgr.IsSpellValid(spellId, handler.GetSession().GetPlayer()))
             {
-                handler.SendSysMessage(CypherStrings.CommandSpellBroken, spellId);
+                handler.SendSysMessage(ForeverStrings.CommandSpellBroken, spellId);
                 return false;
             }
 
@@ -34,9 +34,9 @@ namespace Game.Chat.Commands
             if (!allRanks && targetPlayer.HasSpell(spellId))
             {
                 if (targetPlayer == handler.GetPlayer())
-                    handler.SendSysMessage(CypherStrings.YouKnownSpell);
+                    handler.SendSysMessage(ForeverStrings.YouKnownSpell);
                 else
-                    handler.SendSysMessage(CypherStrings.TargetKnownSpell, handler.GetNameLink(targetPlayer));
+                    handler.SendSysMessage(ForeverStrings.TargetKnownSpell, handler.GetNameLink(targetPlayer));
 
                 return false;
             }
@@ -54,7 +54,7 @@ namespace Game.Chat.Commands
         [CommandGroup("all")]
         class LearnAllCommands
         {
-            [Command("blizzard", CypherStrings.CommandLearnAllBlizzardHelp, RBACPermissions.CommandLearnAllGm)]
+            [Command("blizzard", ForeverStrings.CommandLearnAllBlizzardHelp, RBACPermissions.CommandLearnAllGm)]
             static bool HandleLearnAllGMCommand(CommandHandler handler)
             {
                 foreach (var skillSpell in Global.SpellMgr.GetSkillLineAbilityMapBounds((int)SkillType.Internal))
@@ -66,11 +66,11 @@ namespace Game.Chat.Commands
                     handler.GetSession().GetPlayer().SpellBook.Learn(skillSpell.Spell, false);
                 }
 
-                handler.SendSysMessage(CypherStrings.LearningGmSkills);
+                handler.SendSysMessage(ForeverStrings.LearningGmSkills);
                 return true;
             }
 
-            [Command("debug", CypherStrings.CommandLearnAllDebugHelp, RBACPermissions.CommandLearn)]
+            [Command("debug", ForeverStrings.CommandLearnAllDebugHelp, RBACPermissions.CommandLearn)]
             static bool HandleLearnDebugSpellsCommand(CommandHandler handler)
             {
                 Player  player = handler.GetPlayer();
@@ -84,7 +84,7 @@ namespace Game.Chat.Commands
                 return true;
             }
 
-            [Command("crafts", CypherStrings.CommandLearnAllCraftsHelp, RBACPermissions.CommandLearnAllCrafts)]
+            [Command("crafts", ForeverStrings.CommandLearnAllCraftsHelp, RBACPermissions.CommandLearnAllCrafts)]
             static bool HandleLearnAllCraftsCommand(CommandHandler handler, PlayerIdentifier player)
             {
                 if (player == null)
@@ -99,11 +99,11 @@ namespace Game.Chat.Commands
                         HandleLearnSkillRecipesHelper(target, skillInfo.Id);
                 }
 
-                handler.SendSysMessage(CypherStrings.CommandLearnAllCraft);
+                handler.SendSysMessage(ForeverStrings.CommandLearnAllCraft);
                 return true;
             }
 
-            [Command("default", CypherStrings.CommandLearnAllDefaultHelp, RBACPermissions.CommandLearnAllDefault)]
+            [Command("default", ForeverStrings.CommandLearnAllDefaultHelp, RBACPermissions.CommandLearnAllDefault)]
             static bool HandleLearnAllDefaultCommand(CommandHandler handler, PlayerIdentifier player)
             {
                 if (player == null)
@@ -116,11 +116,11 @@ namespace Game.Chat.Commands
                 target.LearnCustomSpells();
                 target.LearnQuestRewardedSpells();
 
-                handler.SendSysMessage(CypherStrings.CommandLearnAllDefaultAndQuest, handler.GetNameLink(target));
+                handler.SendSysMessage(ForeverStrings.CommandLearnAllDefaultAndQuest, handler.GetNameLink(target));
                 return true;
             }
 
-            [Command("languages", CypherStrings.CommandLearnAllLanguagesHelp, RBACPermissions.CommandLearnAllLang)]
+            [Command("languages", ForeverStrings.CommandLearnAllLanguagesHelp, RBACPermissions.CommandLearnAllLang)]
             static bool HandleLearnAllLangCommand(CommandHandler handler)
             {
                 Global.LanguageMgr.ForEachLanguage((_, languageDesc) =>
@@ -131,11 +131,11 @@ namespace Game.Chat.Commands
                     return true;
                 });
 
-                handler.SendSysMessage(CypherStrings.CommandLearnAllLang);
+                handler.SendSysMessage(ForeverStrings.CommandLearnAllLang);
                 return true;
             }
 
-            [Command("recipes", CypherStrings.CommandLearnAllRecipesHelp, RBACPermissions.CommandLearnAllRecipes)]
+            [Command("recipes", ForeverStrings.CommandLearnAllRecipesHelp, RBACPermissions.CommandLearnAllRecipes)]
             static bool HandleLearnAllRecipesCommand(CommandHandler handler, Tail namePart)
             {
                 //  Learns all recipes of specified profession and sets skill to max
@@ -144,7 +144,7 @@ namespace Game.Chat.Commands
                 Player target = handler.GetSelectedPlayer();
                 if (target == null)
                 {
-                    handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                    handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                     return false;
                 }
 
@@ -195,11 +195,11 @@ namespace Game.Chat.Commands
 
                 ushort maxLevel = target.GetPureMaxSkillValue(skillId);
                 target.SetSkill(skillId, target.GetSkillStep(skillId), maxLevel, maxLevel);
-                handler.SendSysMessage(CypherStrings.CommandLearnAllRecipes, name);
+                handler.SendSysMessage(ForeverStrings.CommandLearnAllRecipes, name);
                 return true;
             }
 
-            [Command("talents", CypherStrings.CommandLearnAllTalentsHelp, RBACPermissions.CommandLearnAllTalents)]
+            [Command("talents", ForeverStrings.CommandLearnAllTalentsHelp, RBACPermissions.CommandLearnAllTalents)]
             static bool HandleLearnAllTalentsCommand(CommandHandler handler)
             {
                 Player player = handler.GetSession().GetPlayer();
@@ -234,11 +234,11 @@ namespace Game.Chat.Commands
                 player.SetFreeTalentPoints(0);
                 player.SendTalentsInfoData();
 
-                handler.SendSysMessage(CypherStrings.CommandLearnClassTalents);
+                handler.SendSysMessage(ForeverStrings.CommandLearnClassTalents);
                 return true;
             }
 
-            [Command("pettalents", CypherStrings.CommandLearnAllPettalentHelp, RBACPermissions.CommandLearnMyPetTalents)]
+            [Command("pettalents", ForeverStrings.CommandLearnAllPettalentHelp, RBACPermissions.CommandLearnMyPetTalents)]
             static bool HandleLearnAllPetTalentsCommand(CommandHandler handler) { return true; }
 
             static void HandleLearnSkillRecipesHelper(Player player, SkillType skillId)
@@ -275,7 +275,7 @@ namespace Game.Chat.Commands
         [CommandGroup("my")]
         class LearnAllMyCommands
         {
-            [Command("quests", CypherStrings.CommandLearnMyQuestsHelp, RBACPermissions.CommandLearnAllMySpells)]
+            [Command("quests", ForeverStrings.CommandLearnMyQuestsHelp, RBACPermissions.CommandLearnAllMySpells)]
             static bool HandleLearnMyQuestsCommand(CommandHandler handler)
             {
                 Player player = handler.GetPlayer();
@@ -287,7 +287,7 @@ namespace Game.Chat.Commands
                 return true;
             }
 
-            [Command("trainer", CypherStrings.CommandLearnMyTrainerHelp, RBACPermissions.CommandLearnAllMySpells)]
+            [Command("trainer", ForeverStrings.CommandLearnMyTrainerHelp, RBACPermissions.CommandLearnAllMySpells)]
             static bool HandleLearnMySpellsCommand(CommandHandler handler)
             {
                 ChrClassesRecord classEntry = CliDB.ChrClassesStorage.LookupByKey(handler.GetPlayer().GetClass());
@@ -321,18 +321,18 @@ namespace Game.Chat.Commands
                     handler.GetSession().GetPlayer().SpellBook.Learn(spellInfo.Id, false);
                 }
 
-                handler.SendSysMessage(CypherStrings.CommandLearnClassSpells);
+                handler.SendSysMessage(ForeverStrings.CommandLearnClassSpells);
                 return true;
             }
         }
 
-        [CommandNonGroup("unlearn", CypherStrings.CommandUnlearnHelp, RBACPermissions.CommandUnlearn)]
+        [CommandNonGroup("unlearn", ForeverStrings.CommandUnlearnHelp, RBACPermissions.CommandUnlearn)]
         static bool HandleUnLearnCommand(CommandHandler handler, int spellId, [OptionalArg] string allRanksStr)
         {
             Player target = handler.GetSelectedPlayer();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
@@ -344,7 +344,7 @@ namespace Game.Chat.Commands
             if (target.HasSpell(spellId))
                 target.SpellBook.Remove(spellId, false, !allRanks);
             else
-                handler.SendSysMessage(CypherStrings.ForgetSpell);
+                handler.SendSysMessage(ForeverStrings.ForgetSpell);
 
             return true;
         }

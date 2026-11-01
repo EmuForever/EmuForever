@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -158,13 +158,13 @@ namespace Scripts.World.NpcsSpecial
             {
                 if (spawn.MyEntry == entry)
                 {
-                    Cypher.Assert(ObjectMgr.GetCreatureTemplate(spawn.OtherEntry) != null, 
+                    Forever.Assert(ObjectMgr.GetCreatureTemplate(spawn.OtherEntry) != null, 
                         $"Invalid creature entry {spawn.OtherEntry} in 'npc_air_force_bots' script");
                     return spawn;
                 }
             }
 
-            Cypher.Assert(false, 
+            Forever.Assert(false, 
                 $"Unhandled creature with entry {entry} is assigned 'npc_air_force_bots' script");
             return null;
         }

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -1725,7 +1725,7 @@ namespace Game.Entities
             {
                 foreach (AuraApplication aurApp in procAuras)
                 {
-                    Cypher.Assert(aurApp.GetTarget() == this);
+                    Forever.Assert(aurApp.GetTarget() == this);
                     processAuraApplication(aurApp);
                 }
             }
@@ -1807,7 +1807,7 @@ namespace Game.Entities
                 ++m_procDeep;
             else
             {
-                Cypher.Assert(m_procDeep != 0);
+                Forever.Assert(m_procDeep != 0);
                 --m_procDeep;
             }
         }
@@ -1833,7 +1833,7 @@ namespace Game.Entities
 
         public void SetCurrentCastSpell(Spell pSpell)
         {
-            Cypher.Assert(pSpell != null);                                         // NULL may be never passed here, use InterruptSpell or InterruptNonMeleeSpells
+            Forever.Assert(pSpell != null);                                         // NULL may be never passed here, use InterruptSpell or InterruptNonMeleeSpells
 
             CurrentSpellTypes CSpellType = pSpell.GetCurrentContainer();
 
@@ -2672,7 +2672,7 @@ namespace Game.Entities
 
         public void InterruptSpell(CurrentSpellTypes spellType, bool withDelayed = true, bool withInstant = true)
         {
-            Cypher.Assert(spellType < CurrentSpellTypes.Max);
+            Forever.Assert(spellType < CurrentSpellTypes.Max);
 
             Log.outDebug(LogFilter.Unit, $"Interrupt spell for unit {GetEntry()}");
             Spell spell = m_currentSpells.LookupByKey(spellType);
@@ -3412,7 +3412,7 @@ namespace Game.Entities
         {
             Aura aura = keyValuePair.Value;
 
-            Cypher.Assert(!aura.IsRemoved());
+            Forever.Assert(!aura.IsRemoved());
 
             m_ownedAuras.Remove(keyValuePair);
             m_removedAuras.Add(aura);
@@ -3441,7 +3441,7 @@ namespace Game.Entities
             if (auraToRemove.IsRemoved())
                 return;
 
-            Cypher.Assert(auraToRemove.GetOwner() == this);
+            Forever.Assert(auraToRemove.GetOwner() == this);
 
             if (removeMode == AuraRemoveMode.None)
             {
@@ -3463,7 +3463,7 @@ namespace Game.Entities
                 }
             }
 
-            Cypher.Assert(false);
+            Forever.Assert(false);
         }
 
         public void RemoveAurasDueToSpell(int spellId, ObjectGuid casterGUID = default, uint reqEffMask = 0, AuraRemoveMode removeMode = AuraRemoveMode.Default)
@@ -3657,7 +3657,7 @@ namespace Game.Entities
             {
                 Aura aura = eff.GetBase();
                 AuraApplication aurApp = aura.GetApplicationOfTarget(GetGUID());
-                Cypher.Assert(aurApp != null);
+                Forever.Assert(aurApp != null);
 
                 if (check(aurApp))
                 {
@@ -3914,16 +3914,16 @@ namespace Game.Entities
                 return;
 
             AuraApplication aurApp = pair.Value;
-            Cypher.Assert(aurApp != null);
-            Cypher.Assert(!aurApp.HasRemoveMode());
-            Cypher.Assert(aurApp.GetTarget() == this);
+            Forever.Assert(aurApp != null);
+            Forever.Assert(!aurApp.HasRemoveMode());
+            Forever.Assert(aurApp.GetTarget() == this);
 
             aurApp.SetRemoveMode(removeMode);
             Aura aura = aurApp.GetBase();
             Log.outDebug(LogFilter.Spells, $"Aura {aura.GetId()} now is remove mode {removeMode}");
 
             // dead loop is killing the server probably
-            Cypher.Assert(m_removedAurasCount < 0xFFFFFFFF);
+            Forever.Assert(m_removedAurasCount < 0xFFFFFFFF);
 
             ++m_removedAurasCount;
 
@@ -3963,7 +3963,7 @@ namespace Game.Entities
             }
 
             // all effect mustn't be applied
-            Cypher.Assert(aurApp.GetEffectMask() == 0);
+            Forever.Assert(aurApp.GetEffectMask() == 0);
 
             // Remove totem at next update if totem loses its aura
             if (aurApp.GetRemoveMode() == AuraRemoveMode.Expire && IsTypeId(TypeId.Unit) && IsTotem())
@@ -4003,7 +4003,7 @@ namespace Game.Entities
         public void _UnapplyAura(AuraApplication aurApp, AuraRemoveMode removeMode)
         {
             // aura can be removed from unit only if it's applied on it, shouldn't happen
-            Cypher.Assert(aurApp.GetBase().GetApplicationOfTarget(GetGUID()) == aurApp);
+            Forever.Assert(aurApp.GetBase().GetApplicationOfTarget(GetGUID()) == aurApp);
 
             var spellId = aurApp.GetBase().GetId();
 
@@ -4015,7 +4015,7 @@ namespace Game.Entities
                     return;
                 }
             }
-            Cypher.Assert(false);
+            Forever.Assert(false);
         }
 
         public AuraEffect GetAuraEffect(int spellId, int effIndex, ObjectGuid casterGUID = default)
@@ -4189,10 +4189,10 @@ namespace Game.Entities
         
         public void _ApplyAuraEffect(Aura aura, int effIndex)
         {
-            Cypher.Assert(aura != null);
-            Cypher.Assert(aura.HasEffect(effIndex));
+            Forever.Assert(aura != null);
+            Forever.Assert(aura.HasEffect(effIndex));
             AuraApplication aurApp = aura.GetApplicationOfTarget(GetGUID());
-            Cypher.Assert(aurApp != null);
+            Forever.Assert(aurApp != null);
             if (aurApp.GetEffectMask() == 0)
                 _ApplyAura(aurApp, 1u << effIndex);
             else
@@ -4259,7 +4259,7 @@ namespace Game.Entities
 
         public void _AddAura(UnitAura aura, Unit caster)
         {
-            Cypher.Assert(!m_cleanupDone);
+            Forever.Assert(!m_cleanupDone);
             m_ownedAuras.Add(aura.GetId(), aura);
 
             _RemoveNoStackAurasDueToAura(aura, true);
@@ -4274,7 +4274,7 @@ namespace Game.Entities
                 // @HACK: Player is not in world during loading auras.
                 //Single target auras are not saved or loaded from database
                 //but may be created as a result of aura links (player mounts with passengers)
-                Cypher.Assert((IsInWorld && !IsDuringRemoveFromWorld()) || aura.GetCasterGUID() == GetGUID());
+                Forever.Assert((IsInWorld && !IsDuringRemoveFromWorld()) || aura.GetCasterGUID() == GetGUID());
 
                 // register single target aura
                 caster.m_scAuras.Add(aura);
@@ -4296,7 +4296,7 @@ namespace Game.Entities
 
         public Aura _TryStackingOrRefreshingExistingAura(AuraCreateInfo createInfo)
         {
-            Cypher.Assert(!createInfo.CasterGUID.IsEmpty() || createInfo.Caster != null);
+            Forever.Assert(!createInfo.CasterGUID.IsEmpty() || createInfo.Caster != null);
 
             // Check if these can stack anyway
             if (createInfo.CasterGUID.IsEmpty() && !createInfo.GetSpellInfo().IsStackableOnOneSlotWithDifferentCasters())

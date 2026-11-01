@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -11,7 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using static Global;
 
-// Classic 1.60 (WoW Forever) priest and paladin talents, ported from the reference TrinityCore
+// Classic 1.60 (WoW Forever) priest and paladin talents, ported from the reference EmuForever
 // (src/server/scripts/Custom/Classic/world/talents/classic_talents_priest_paladin.cpp). In the client data these talents are dummy auras
 // (or dummy spells) with no server side behaviour; the scripts implement the Forever tooltips with the helper spells found in the 1.60
 // data. Talent rank values come from the trait curves, so every amount is read from the talent aura effect, never hardcoded.

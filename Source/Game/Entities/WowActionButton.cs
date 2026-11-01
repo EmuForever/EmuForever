@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 namespace Game.Entities
@@ -35,8 +35,8 @@ namespace Game.Entities
         {
             uint packedData = (uint)((type << 23) | value);
 
-            Cypher.Assert(type == GetType(packedData), "'Type' value out of range");
-            Cypher.Assert(value == GetValue(packedData), "'Value' value out of range");
+            Forever.Assert(type == GetType(packedData), "'Type' value out of range");
+            Forever.Assert(value == GetValue(packedData), "'Value' value out of range");
 
             return packedData;
         }

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -126,9 +126,9 @@ namespace Game.Chat
                 var target = player.GetConnectedPlayer();
                 target.ResetSpells();
 
-                target.SendSysMessage(CypherStrings.ResetSpells);
+                target.SendSysMessage(ForeverStrings.ResetSpells);
                 if (handler.GetSession() == null || handler.GetSession().GetPlayer() != target)
-                    handler.SendSysMessage(CypherStrings.ResetSpellsOnline, handler.GetNameLink(target));
+                    handler.SendSysMessage(ForeverStrings.ResetSpellsOnline, handler.GetNameLink(target));
             }
             else
             {
@@ -137,7 +137,7 @@ namespace Game.Chat
                 stmt.SetInt64(1, player.GetGUID().GetCounter());
                 DB.Characters.Execute(stmt);
 
-                handler.SendSysMessage(CypherStrings.ResetSpellsOffline, player.GetName());
+                handler.SendSysMessage(ForeverStrings.ResetSpellsOffline, player.GetName());
             }
 
             return true;
@@ -177,9 +177,9 @@ namespace Game.Chat
                 var target = player.GetConnectedPlayer();
                 target.ResetTalents(true);
                 target.SendTalentsInfoData();
-                target.SendSysMessage(CypherStrings.ResetTalents);
+                target.SendSysMessage(ForeverStrings.ResetTalents);
                 if (handler.GetSession() == null || handler.GetSession().GetPlayer() != target)
-                    handler.SendSysMessage(CypherStrings.ResetTalentsOnline, handler.GetNameLink(target));
+                    handler.SendSysMessage(ForeverStrings.ResetTalentsOnline, handler.GetNameLink(target));
 
                 /* TODO: 6.x remove/update pet talents
                 Pet* pet = target.GetPet();
@@ -197,11 +197,11 @@ namespace Game.Chat
                 DB.Characters.Execute(stmt);
 
                 string nameLink = handler.PlayerLink(player.GetName());
-                handler.SendSysMessage(CypherStrings.ResetTalentsOffline, nameLink);
+                handler.SendSysMessage(ForeverStrings.ResetTalentsOffline, nameLink);
                 return true;
             }
 
-            handler.SendSysMessage(CypherStrings.NoCharSelected);
+            handler.SendSysMessage(ForeverStrings.NoCharSelected);
             return false;
         }
 
@@ -214,20 +214,20 @@ namespace Game.Chat
             if (subCommand == "spells")
             {
                 atLogin = AtLoginFlags.ResetSpells;
-                Global.WorldMgr.SendWorldText(CypherStrings.ResetallSpells);
+                Global.WorldMgr.SendWorldText(ForeverStrings.ResetallSpells);
                 if (handler.GetSession() == null)
-                    handler.SendSysMessage(CypherStrings.ResetallSpells);
+                    handler.SendSysMessage(ForeverStrings.ResetallSpells);
             }
             else if (subCommand == "talents")
             {
                 atLogin = AtLoginFlags.ResetTalents | AtLoginFlags.ResetPetTalents;
-                Global.WorldMgr.SendWorldText(CypherStrings.ResetallTalents);
+                Global.WorldMgr.SendWorldText(ForeverStrings.ResetallTalents);
                 if (handler.GetSession() == null)
-                    handler.SendSysMessage(CypherStrings.ResetallTalents);
+                    handler.SendSysMessage(ForeverStrings.ResetallTalents);
             }
             else
             {
-                handler.SendSysMessage(CypherStrings.ResetallUnknownCase, subCommand);
+                handler.SendSysMessage(ForeverStrings.ResetallUnknownCase, subCommand);
                 return false;
             }
 

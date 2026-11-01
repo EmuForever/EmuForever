@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -27,26 +27,26 @@ namespace Game.Chat
 
             if (target.GetGuildId() != 0)
             {
-                handler.SendSysMessage(CypherStrings.PlayerInGuild);
+                handler.SendSysMessage(ForeverStrings.PlayerInGuild);
                 return false;
             }
 
             if (Global.GuildMgr.GetGuildByName(guildName) != null)
             {
-                handler.SendSysMessage(CypherStrings.GuildRenameAlreadyExists);
+                handler.SendSysMessage(ForeverStrings.GuildRenameAlreadyExists);
                 return false;
             }
 
             if (Global.ObjectMgr.IsReservedName(guildName) || !ObjectManager.IsValidCharterName(guildName))
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 
             Guild guild = new();
             if (!guild.Create(target, guildName))
             {
-                handler.SendSysMessage(CypherStrings.GuildNotCreated);
+                handler.SendSysMessage(ForeverStrings.GuildNotCreated);
                 return false;
             }
 
@@ -133,36 +133,36 @@ namespace Game.Chat
         {
             if (oldGuildName.IsEmpty())
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 
             if (newGuildName.IsEmpty())
             {
-                handler.SendSysMessage(CypherStrings.InsertGuildName);
+                handler.SendSysMessage(ForeverStrings.InsertGuildName);
                 return false;
             }
 
             Guild guild = Global.GuildMgr.GetGuildByName(oldGuildName);
             if (guild == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandCouldnotfind, oldGuildName);
+                handler.SendSysMessage(ForeverStrings.CommandCouldnotfind, oldGuildName);
                 return false;
             }
 
             if (Global.GuildMgr.GetGuildByName(newGuildName) != null)
             {
-                handler.SendSysMessage(CypherStrings.GuildRenameAlreadyExists, newGuildName);
+                handler.SendSysMessage(ForeverStrings.GuildRenameAlreadyExists, newGuildName);
                 return false;
             }
 
             if (!guild.SetName(newGuildName))
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 
-            handler.SendSysMessage(CypherStrings.GuildRenameDone, oldGuildName, newGuildName);
+            handler.SendSysMessage(ForeverStrings.GuildRenameDone, oldGuildName, newGuildName);
             return true;
         }
 
@@ -189,21 +189,21 @@ namespace Game.Chat
                 return false;
 
             // Display Guild Information
-            handler.SendSysMessage(CypherStrings.GuildInfoName, guild.GetName(), guild.GetId()); // Guild Id + Name
+            handler.SendSysMessage(ForeverStrings.GuildInfoName, guild.GetName(), guild.GetId()); // Guild Id + Name
 
             string guildMasterName;
             if (Global.CharacterCacheStorage.GetCharacterNameByGuid(guild.GetLeaderGUID(), out guildMasterName))
-                handler.SendSysMessage(CypherStrings.GuildInfoGuildMaster, guildMasterName, guild.GetLeaderGUID().ToString()); // Guild Master
+                handler.SendSysMessage(ForeverStrings.GuildInfoGuildMaster, guildMasterName, guild.GetLeaderGUID().ToString()); // Guild Master
 
             // Format creation date
 
             ServerTime createdDateTime = guild.GetCreatedDate();
-            handler.SendSysMessage(CypherStrings.GuildInfoCreationDate, createdDateTime.ToLongDateString()); // Creation Date
-            handler.SendSysMessage(CypherStrings.GuildInfoMemberCount, guild.GetMembersCount()); // Number of Members
-            handler.SendSysMessage(CypherStrings.GuildInfoBankGold, guild.GetBankMoney() / 100 / 100); // Bank Gold (in gold coins)
-            handler.SendSysMessage(CypherStrings.GuildInfoLevel, guild.GetLevel()); // Level
-            handler.SendSysMessage(CypherStrings.GuildInfoMotd, guild.GetMOTD()); // Message of the Day
-            handler.SendSysMessage(CypherStrings.GuildInfoExtraInfo, guild.GetInfo()); // Extra Information
+            handler.SendSysMessage(ForeverStrings.GuildInfoCreationDate, createdDateTime.ToLongDateString()); // Creation Date
+            handler.SendSysMessage(ForeverStrings.GuildInfoMemberCount, guild.GetMembersCount()); // Number of Members
+            handler.SendSysMessage(ForeverStrings.GuildInfoBankGold, guild.GetBankMoney() / 100 / 100); // Bank Gold (in gold coins)
+            handler.SendSysMessage(ForeverStrings.GuildInfoLevel, guild.GetLevel()); // Level
+            handler.SendSysMessage(ForeverStrings.GuildInfoMotd, guild.GetMOTD()); // Message of the Day
+            handler.SendSysMessage(ForeverStrings.GuildInfoExtraInfo, guild.GetInfo()); // Extra Information
             return true;
         }
     }

@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -14,7 +14,7 @@ using System.Collections.Generic;
 using System.Linq;
 using static Global;
 
-// Classic 1.60 (WoW Forever) spell scripts, ported from the reference TrinityCore (src/server/scripts/Custom/Classic/world). The world
+// Classic 1.60 (WoW Forever) spell scripts, ported from the reference EmuForever (src/server/scripts/Custom/Classic/world). The world
 // database binds these names in spell_script_names; without a C# class of the same name the binding silently does nothing. The talent
 // scripts are in ClassicMageShaman.cs, ClassicPriestPaladin.cs, ClassicWarlockDruid.cs and ClassicWarriorRogueHunter.cs.
 // Not ported: the Legacy perk scripts (core: Player.Legacy.cs, LegacyDefinitions.cs) and classic_spell_profession_certification

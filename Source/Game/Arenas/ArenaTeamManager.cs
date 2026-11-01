@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Database;
@@ -41,7 +41,7 @@ namespace Game.Arenas
         public void AddArenaTeam(ArenaTeam arenaTeam)
         {
             var added = ArenaTeamStorage.TryAdd(arenaTeam.GetId(), arenaTeam);
-            Cypher.Assert(!added, $"Duplicate arena team with ID {arenaTeam.GetId()}");
+            Forever.Assert(!added, $"Duplicate arena team with ID {arenaTeam.GetId()}");
         }
 
         public void RemoveArenaTeam(int arenaTeamId)

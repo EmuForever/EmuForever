@@ -31,9 +31,20 @@ public sealed partial class SIPlayer
         lines.Add($"{me.GetName()}: level {me.GetLevel()} {me.GetRace()} {me.GetClass()}; XP {me.GetXP()}/{me.GetXPForNextLevel()}; SI active for {_clock.TotalMinutes:F1} minutes.");
         lines.Add($"Location: map {me.GetMapId()}, zone {me.GetZoneId()}, area {me.GetAreaId()}, instance {me.GetInstanceId()}; ({here.X:F2}, {here.Y:F2}, {here.Z:F2}); facing {me.GetOrientation():F2}.");
         lines.Add($"Goal: {_goal}; behavior: {Behavior}; task: {_task?.Label??"none"}; status: {Status}.");
+        if (_goal == "bg" || me.InBattlegroundQueue() || me.InBattleground())
+        {
+            lines.Add($"Battleground: {BattlegroundQueueDescription()}; activity: {BattlegroundState}.");
+            if (me.GetSession().SIBattlegroundJoinResult is string joinResult)
+                lines.Add("Last battleground join: " + joinResult + ".");
+        }
         lines.Add($"Previous: {LastBehaviorState}; next: {NextExpectedState}; recovery: {Recovery}.");
         lines.Add($"Health {me.GetHealth()}/{me.GetMaxHealth()} ({me.GetHealthPct():F1}%); mana {me.GetPower(PowerType.Mana)}/{me.GetMaxPower(PowerType.Mana)}; current power {me.GetPowerType()} {me.GetPower(me.GetPowerType())}/{me.GetMaxPower(me.GetPowerType())}.");
         lines.Add($"State: {(me.IsAlive()?"alive":"dead")}, combat {me.IsInCombat()}, mounted {me.IsMounted()}, swimming {me.IsInWater()}, taxi {me.IsInFlight()}, teleport {me.IsBeingTeleported()}; moving {!me.MoveSpline.Finalized()}.");
+        if(!me.IsAlive()&&me.InBattleground())
+        {
+            var guide=_waitingSpiritGuide.IsEmpty()?null:ObjectAccessor.GetCreature(me,_waitingSpiritGuide);
+            lines.Add($"Spirit guide: {guide?.GetName()??"not found nearby"}; assigned {guide!=null&&me.CanAcceptAreaSpiritHealFrom(guide)}; waiting aura {me.HasAura(BattlegroundConst.SpellWaitingForResurrect)}; spacing {_spiritGuideSpacing}.");
+        }
         lines.Add($"Stats: strength {me.GetStat(Stats.Strength):F0}, agility {me.GetStat(Stats.Agility):F0}, stamina {me.GetStat(Stats.Stamina):F0}, intellect {me.GetStat(Stats.Intellect):F0}, spirit {me.GetStat(Stats.Spirit):F0}; armor {me.GetArmor()}; melee/ranged AP {me.GetTotalAttackPowerValue(WeaponAttackType.BaseAttack):F0}/{me.GetTotalAttackPowerValue(WeaponAttackType.RangedAttack):F0}.");
         lines.Add("Resistances: "+string.Join(", ",new[]{SpellSchools.Holy,SpellSchools.Fire,SpellSchools.Nature,SpellSchools.Frost,SpellSchools.Shadow,SpellSchools.Arcane}.Select(s=>$"{s} {me.GetResistance(s)}"))+".");
         string who=_task?.Destination is SISpawn spawn?$"{(spawn.GameObject?ObjectName(spawn.Entry):CreatureName(spawn.Entry))} (entry {spawn.Entry}, spawn {spawn.SpawnId})":"";
@@ -47,7 +58,8 @@ public sealed partial class SIPlayer
         else if(_task?.Destination is SISpawn planned)
             lines.Add($"Destination: {who}; map {planned.Map} ({planned.Position.X:F2}, {planned.Position.Y:F2}, {planned.Position.Z:F2}); {Distance(planned.Position):F1} yards; navigation {NavigationMode}.");
         else lines.Add($"Navigation: {NavigationMode}; destination: {(_task?.Hotspots.Count>0?"current quest/gathering area":"none")}; {_journeyReason}.");
-        lines.Add($"Route: corner {_waypoint}/{_route.Length}; planning {_planning?.Status.ToString()??"none"}; next leg {_aheadMovement?.Status.ToString()??"none"}; walk/run/swim speed {me.GetSpeed(UnitMoveType.Walk).PerSec:F2}/{me.GetSpeed(UnitMoveType.Run).PerSec:F2}/{me.GetSpeed(UnitMoveType.Swim).PerSec:F2} yd/s.");
+        string routeState=_route.Length>1?$"corner {_waypoint}/{_route.Length-1}":_movementFailed?"blocked (no usable path)":_planning!=null?"awaiting path":"no active path";
+        lines.Add($"Route: {routeState}; arrival range {_movementArrival:F1} yd; planning {_planning?.Status.ToString()??"none"}; next leg {_aheadMovement?.Status.ToString()??"none"}; walk/run/swim speed {me.GetSpeed(UnitMoveType.Walk).PerSec:F2}/{me.GetSpeed(UnitMoveType.Run).PerSec:F2}/{me.GetSpeed(UnitMoveType.Swim).PerSec:F2} yd/s.");
         if(_journeyFlight!=null)lines.Add($"Flight itinerary: {JourneyFlightDescription}; fare {_journeyFlight.Fare} copper; {(_journeyFlightTaken?"airborne":"boarding at "+CreatureName(_journeyFlight.Boarding.Entry))}; then {_journeyFlightReason} at ({_journeyFlightGoal.Point.X:F1}, {_journeyFlightGoal.Point.Y:F1}, {_journeyFlightGoal.Point.Z:F1}).");
         if(_routeWaypoint is System.Numerics.Vector3 point)lines.Add($"Next road point: ({point.X:F2}, {point.Y:F2}, {point.Z:F2}).");
         var cast=me.GetCurrentSpell(CurrentSpellTypes.Generic)??me.GetCurrentSpell(CurrentSpellTypes.Channeled);
@@ -69,7 +81,7 @@ public sealed partial class SIPlayer
             lines.Add($"Quest {quest.Id}: {quest.LogTitle} [{me.GetQuestStatus(quest.Id)}]; "+string.Join(", ",quest.Objectives.Select(o=>$"{o.Type} {me.GetQuestSlotObjectiveData(slot,o)}/{o.Amount}"))+".");
         lines.Add($"SI counters: kills {Kills}; damage dealt {DamageDelivered}; items looted {ItemsLooted}; loot animation {(_lootAnimationUntil>Now?"active":"none")}.");
         var group=me.GetGroup();
-        lines.Add(group==null?"Party: none.":$"Party: {group.GetMembersCount()} members; following {PartyFollowing}; errand {PartyErrand}.");
+        lines.Add(group==null?"Party: none.":$"Party: {group.GetMembersCount()} members; party buff checks active; independent movement.");
         if(me.GetPet() is Pet pet)lines.Add($"Pet: {pet.GetName()}; health {pet.GetHealth()}/{pet.GetMaxHealth()}; reaction {pet.GetReactState()}; victim {pet.GetVictim()?.GetName()??"none"}.");
         return lines.ToArray();
     }

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using System;
@@ -54,7 +54,7 @@ namespace Framework.Constants
         public const uint MapLiquidMagic = 0x51494C4D; //"MLIQ";
 
         public const uint mmapMagic = 0x4D4D4150; // 'MMAP'
-        public const int mmapVersion = 16;       // TrinityCore mmaps_generator MMAP_VERSION
+        public const int mmapVersion = 16;       // EmuForever mmaps_generator MMAP_VERSION
         public const int mmapLegacyVersion = 15;
 
         public const string VMapMagic = "VMAP_4.E";

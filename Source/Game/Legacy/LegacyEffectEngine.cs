@@ -4,6 +4,9 @@ namespace Game.Systems.Legacy
 {
     public static class LegacyEffectEngine
     {
+        // Aura 620's misc value: which gold price it changes. Read from the perk spells (Bartering 1225459 = 1, Frequent Flier 1225490 = 4);
+        // the vendor value is 1, not 0, so a 0 lookup left Bartering without effect.
+        public const int VendorPriceType = 1, FlightPathPriceType = 4;
         [ThreadStatic] public static int GatheringBonus;
         public static float GatheringChance(int itemId, float chance) =>
             itemId is 249391 or 249399 or 249427 or 268415 or 268418 ? chance * (1 + GatheringBonus / 100.0f) : chance;

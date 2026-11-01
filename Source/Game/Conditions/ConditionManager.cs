@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -34,7 +34,7 @@ namespace Game
             foreach (var i in conditions)
             {
                 // no point of having not loaded conditions in list
-                Cypher.Assert(i.IsLoaded(), 
+                Forever.Assert(i.IsLoaded(), 
                     "ConditionMgr.GetSearcherTypeMaskForConditionList - " +
                     "not yet loaded condition found in list");
 
@@ -48,7 +48,7 @@ namespace Game
                 if (i.ReferenceId != 0) // handle reference
                 {
                     var refe = ConditionStorage[ConditionSourceType.ReferenceCondition].LookupByKey(new ConditionId(i.ReferenceId, 0, 0));
-                    Cypher.Assert(refe != null, "ConditionMgr.GetSearcherTypeMaskForConditionList - incorrect reference");
+                    Forever.Assert(refe != null, "ConditionMgr.GetSearcherTypeMaskForConditionList - incorrect reference");
                     elseGroupSearcherTypeMasks[i.ElseGroup] &= GetSearcherTypeMaskForConditionList(refe);
                 }
                 else // handle normal condition
@@ -2019,7 +2019,7 @@ namespace Game
 
         static bool PlayerConditionLogic(uint logic, bool[] results)
         {
-            Cypher.Assert(results.Length < 16, "Logic array size must be equal to or less than 16");
+            Forever.Assert(results.Length < 16, "Logic array size must be equal to or less than 16");
 
             for (var i = 0; i < results.Length; ++i)
             {

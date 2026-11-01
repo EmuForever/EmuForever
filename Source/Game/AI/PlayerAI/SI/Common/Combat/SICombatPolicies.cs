@@ -20,6 +20,9 @@ public static class SITravelCombatPolicy
 
 public static class SICombatSpacing
 {
+    // Enter comfortably inside usable range, then hold anywhere within it.
+    // Keep the ranged minimum-range margin rather than pushing hunters to melee.
+    public static float ApproachRange(float maximum) => maximum>8?System.Math.Max(8,maximum-4):System.Math.Max(1,maximum-1);
     public static bool RangedAutoAttack(bool meleeStrategy, bool hunterMelee, bool rangedEquipped, bool inMeleeRange) =>
         !meleeStrategy && !hunterMelee && rangedEquipped && !inMeleeRange;
 

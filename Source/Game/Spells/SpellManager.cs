@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -2415,7 +2415,7 @@ namespace Game.Entities
                 return loadData[key];
             }
 
-            // Classic 1.60+ client data uses effect/aura/target values retail does not define yet: skip those effects and report them once (as TrinityCore-forever does)
+            // Classic 1.60+ client data uses effect/aura/target values retail does not define yet: skip those effects and report them once (as EmuForever-forever does)
             Dictionary<string, Dictionary<int, int>> unknownEffectValues = new();
             void CountUnknown(string kind, int value)
             {
@@ -2426,7 +2426,7 @@ namespace Game.Entities
 
             foreach (var effect in CliDB.SpellEffectStorage.Values)
             {
-                Cypher.Assert(effect.EffectIndex < SpellConst.MaxEffects, $"MAX_SPELL_EFFECTS must be at least {effect.EffectIndex}");
+                Forever.Assert(effect.EffectIndex < SpellConst.MaxEffects, $"MAX_SPELL_EFFECTS must be at least {effect.EffectIndex}");
 
                 // Classic 1.60 client data (TC GetClassicAuraType) uses aura types beyond retail's range for effects that used a retail
                 // aura before. 674: armor buffs and debuffs (Mark of the Wild, Devotion Aura, Sunder Armor, Faerie Fire, Expose Armor,
@@ -2474,7 +2474,7 @@ namespace Game.Entities
                 {
                     case AuraType.AddFlatModifier:
                     case AuraType.AddPctModifier:
-                        Cypher.Assert(effect.EffectMiscValue[0] < (int)SpellModOp.Max, 
+                        Forever.Assert(effect.EffectMiscValue[0] < (int)SpellModOp.Max, 
                             $"MAX_SPELLMOD must be at least {effect.EffectMiscValue[0] + 1}");
                         break;
                     default:

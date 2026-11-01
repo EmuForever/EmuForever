@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using System;
@@ -314,7 +314,7 @@ namespace Framework.Constants
         PathOfAscension = 595,
         LegendaryCrafting = 596,
         Campaign91 = 600,
-        CyphersOfTheFirstOnes = 601,
+        ForeversOfTheFirstOnes = 601,
         ZerethMortisCampaign = 602,
         TheArchivistsCodex = 603,
         CovenantAssaults = 604,
@@ -417,7 +417,7 @@ namespace Framework.Constants
         Max
     }
 
-    // Classic 1.60 / retail layout (TrinityCore QuestDef.h); the 3.4.3 values showed no ! or ? in the 1.60 client
+    // Classic 1.60 / retail layout (EmuForever QuestDef.h); the 3.4.3 values showed no ! or ? in the 1.60 client
     public enum QuestGiverStatus : ulong
     {
         None                               = 0x000000000000,

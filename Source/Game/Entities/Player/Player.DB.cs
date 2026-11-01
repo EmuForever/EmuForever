@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Collections;
@@ -167,7 +167,7 @@ namespace Game.Entities
                 // Send problematic items by mail
                 while (problematicItems.Count != 0)
                 {
-                    string subject = Global.ObjectMgr.GetCypherString(CypherStrings.NotEquippedItem);
+                    string subject = Global.ObjectMgr.GetForeverString(ForeverStrings.NotEquippedItem);
                     MailDraft draft = new(subject, "There were problems with equipping item(s).");
                     for (int i = 0; problematicItems.Count != 0 && i < SharedConst.MaxMailItems; ++i)
                     {
@@ -649,7 +649,7 @@ namespace Game.Entities
                 if (loc == null && GetRace() == Race.PandarenNeutral)
                     loc = Global.ObjectMgr.GetWorldSafeLoc(3295); // The Wandering Isle, Starting Area GY
 
-                Cypher.Assert(loc != null, 
+                Forever.Assert(loc != null, 
                     $"Missing fallback graveyard location for faction {GetBatttleGroundTeamId()}");
 
                 homebind.WorldRelocate(loc.Loc);
@@ -1292,7 +1292,7 @@ namespace Game.Entities
                 if (glyphId==0)
                     continue;
                 var glyphProperty = CliDB.GlyphPropertiesStorage.LookupByKey(glyphId);
-                Cypher.Assert(glyphProperty != null);
+                Forever.Assert(glyphProperty != null);
 
                 CastSpell(this, glyphProperty.SpellID, true);
             }
@@ -3068,27 +3068,15 @@ namespace Game.Entities
             _Create(guid);
             InitializeGuildClubMemberId();
 
-            if (GetSession().IsServerControlled)
+            string surname=Global.CharacterCacheStorage.GetCharacterSurnameByGuid(guid);
+            name=siPlayer.NormalizeStoredName(name,surname);
+            SetName(name);SetSurname(surname);
+            // Client fields and database columns carry the two name parts separately.
+            if (ObjectManager.CheckPlayerName(GetFirstName(),GetSession().GetSessionDbcLocale())!=ResponseCodes.CharNameSuccess ||
+                (!GetSession().HasPermission(RBACPermissions.SkipCheckCharacterCreationReservedname)&&Global.ObjectMgr.IsReservedName(GetFirstName())))
             {
-                string normalized = siPlayer.NormalizeStoredName(name, Global.CharacterCacheStorage.GetCharacterSurnameByGuid(guid));
-                if (normalized != name)
-                {
-                    var existing = Global.CharacterCacheStorage.GetCharacterCacheByName(normalized);
-                    if (existing != null && existing.Guid != guid) return FailLoad("Normalized SI first name is already in use.");
-                    name = normalized;
-                    Global.CharacterCacheStorage.UpdateCharacterData(guid, name);
-                }
-            }
-            SetName(name);
-
-            // check name limitations
-            if (ObjectManager.CheckPlayerName(GetName(), GetSession().GetSessionDbcLocale()) != ResponseCodes.CharNameSuccess ||
-                (!GetSession().HasPermission(RBACPermissions.SkipCheckCharacterCreationReservedname) && Global.ObjectMgr.IsReservedName(GetName())))
-            {
-                PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(CharStatements.UPD_ADD_AT_LOGIN_FLAG);
-                stmt.SetUInt16(0, (ushort)AtLoginFlags.Rename);
-                stmt.SetInt64(1, guid.GetCounter());
-                DB.Characters.Execute(stmt);
+                PreparedStatement stmt=CharacterDatabase.GetPreparedStatement(CharStatements.UPD_ADD_AT_LOGIN_FLAG);
+                stmt.SetUInt16(0,(ushort)AtLoginFlags.Rename);stmt.SetInt64(1,guid.GetCounter());DB.Characters.Execute(stmt);
                 return FailLoad("character name requires a rename");
             }
 
@@ -3395,7 +3383,7 @@ namespace Game.Entities
                     var nodeEntry = CliDB.TaxiNodesStorage.LookupByKey(nodeid);
                     if (nodeEntry != null && nodeEntry.ContinentID == GetMapId())
                     {
-                        Cypher.Assert(nodeEntry != null);                                  // checked in m_taxi.LoadTaxiDestinationsFromString
+                        Forever.Assert(nodeEntry != null);                                  // checked in m_taxi.LoadTaxiDestinationsFromString
                         mapId = nodeEntry.ContinentID;
                         Relocate(nodeEntry.Pos.X, nodeEntry.Pos.Y, nodeEntry.Pos.Z, 0.0f);
                     }
@@ -3827,7 +3815,8 @@ namespace Game.Entities
                 stmt = CharacterDatabase.GetPreparedStatement(CharStatements.INS_CHARACTER);
                 stmt.SetInt64(index++, GetGUID().GetCounter());
                 stmt.SetUInt32(index++, unchecked((uint)GetSession().GetAccountId()));
-                stmt.SetString(index++, GetName());
+                stmt.SetString(index++, GetFirstName());
+                stmt.SetString(index++, GetSurname());
                 stmt.SetUInt8(index++, (byte)GetRace());
                 stmt.SetUInt8(index++, (byte)GetClass());
                 stmt.SetUInt8(index++, (byte)GetNativeGender());   // save gender from PLAYER_BYTES_3, UNIT_BYTES_0 changes with every transform effect
@@ -3938,7 +3927,8 @@ namespace Game.Entities
             {
                 // Update query
                 stmt = CharacterDatabase.GetPreparedStatement(CharStatements.UPD_CHARACTER);
-                stmt.SetString(index++, GetName());
+                stmt.SetString(index++, GetFirstName());
+                stmt.SetString(index++, GetSurname());
                 stmt.SetUInt8(index++, (byte)GetRace());
                 stmt.SetUInt8(index++, (byte)GetClass());
                 stmt.SetUInt8(index++, (byte)GetNativeGender());   // save gender from PLAYER_BYTES_3, UNIT_BYTES_0 changes with every transform effect
@@ -4142,7 +4132,7 @@ namespace Game.Entities
             stmt.SetUInt8(1, Global.WorldMgr.GetRealmId().Region);
             stmt.SetUInt8(2, Global.WorldMgr.GetRealmId().Site);
             stmt.SetInt32(3, Global.WorldMgr.GetRealmId().Index);
-            stmt.SetString(4, GetName());
+            stmt.SetString(4, GetFirstName());
             stmt.SetInt64(5, GetGUID().GetCounter());
             stmt.SetInt32(6, LoopTime.UnixServerTime);
             loginTransaction.Append(stmt);

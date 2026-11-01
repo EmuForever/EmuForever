@@ -11,7 +11,7 @@ using System.Linq;
 namespace Game
 {
     // Classic 1.60 Group Finder (vanilla style premade groups, CMSG_LFG_LIST_*), ported from the reference
-    // (E:\trinitycore_new GuildHandler.cpp HandleLfgListProbe). Listings live in memory only.
+    // (E:\emuforever_new GuildHandler.cpp HandleLfgListProbe). Listings live in memory only.
     static class GroupFinderListings
     {
         // One posted listing. Request = the client's LFGListJoinRequest bytes as sent; the client reads it back with the mirrored

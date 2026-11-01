@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 namespace System.Collections
@@ -324,7 +324,7 @@ namespace System.Collections
 
         private static int GetArrayLength(int n, int div)
         {
-            Cypher.Assert(div > 0, "GetArrayLength: div arg must be greater than 0");
+            Forever.Assert(div > 0, "GetArrayLength: div arg must be greater than 0");
             return n > 0 ? (((n - 1) / div) + 1) : 0;
         }
 

@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Collections;
@@ -35,17 +35,9 @@ namespace Game
             if (name.IsEmpty())
                 return false;
 
-            //CultureInfo cultureInfo = Thread.CurrentThread.CurrentCulture;
-            //TextInfo textInfo = cultureInfo.TextInfo;
-
-            //str = textInfo.ToTitleCase(str);
-
-            name = name.ToLower();
-
-            var charArray = name.ToCharArray();
-            charArray[0] = char.ToUpper(charArray[0]);
-
-            name = new string(charArray);
+            name=string.Join(" ",name.Split((char[])null,StringSplitOptions.RemoveEmptyEntries)
+                .Select(part=>char.ToUpperInvariant(part[0])+part[1..].ToLowerInvariant()));
+            if(name.Length==0)return false;
             return true;
         }
 
@@ -280,15 +272,15 @@ namespace Game
         }
 
         //General
-        public bool LoadCypherStrings()
+        public bool LoadForeverStrings()
         {
             RelativeTime oldMSTime = Time.NowRelative;
-            CypherStringStorage.Clear();
+            ForeverStringStorage.Clear();
 
             SQLResult result = DB.World.Query("SELECT entry, content_default, content_loc1, content_loc2, content_loc3, content_loc4, content_loc5, content_loc6, content_loc7, content_loc8 FROM trinity_string");
             if (result.IsEmpty())
             {
-                Log.outInfo(LogFilter.ServerLoading, "Loaded 0 CypherStrings. DB table `trinity_string` is empty.");
+                Log.outInfo(LogFilter.ServerLoading, "Loaded 0 ForeverStrings. DB table `trinity_string` is empty.");
                 return false;
             }
             uint count = 0;
@@ -296,15 +288,15 @@ namespace Game
             {
                 uint entry = result.Read<uint>(0);
 
-                CypherStringStorage[entry] = new StringArray((int)SharedConst.DefaultLocale + 1);
+                ForeverStringStorage[entry] = new StringArray((int)SharedConst.DefaultLocale + 1);
                 count++;
 
                 for (var i = SharedConst.DefaultLocale; i >= 0; --i)
-                    AddLocaleString(result.Read<string>((int)i + 1).ConvertFormatSyntax(), i, CypherStringStorage[entry]);
+                    AddLocaleString(result.Read<string>((int)i + 1).ConvertFormatSyntax(), i, ForeverStringStorage[entry]);
             }
             while (result.NextRow());
 
-            Log.outInfo(LogFilter.ServerLoading, $"Loaded {count} CypherStrings in {Time.Diff(oldMSTime)} ms.");
+            Log.outInfo(LogFilter.ServerLoading, $"Loaded {count} ForeverStrings in {Time.Diff(oldMSTime)} ms.");
             return true;
         }
 
@@ -473,24 +465,24 @@ namespace Game
             }
         }       
 
-        public string GetCypherString(uint entry, Locale locale = Locale.enUS)
+        public string GetForeverString(uint entry, Locale locale = Locale.enUS)
         {
-            if (!CypherStringStorage.ContainsKey(entry))
+            if (!ForeverStringStorage.ContainsKey(entry))
             {
-                Log.outError(LogFilter.Sql, $"Cypher string entry {entry} not found in DB.");
+                Log.outError(LogFilter.Sql, $"Forever string entry {entry} not found in DB.");
                 return "<Error>";
             }
 
-            var cs = CypherStringStorage[entry];
+            var cs = ForeverStringStorage[entry];
             if (cs.Length > (int)locale && !string.IsNullOrEmpty(cs[(int)locale]))
                 return cs[(int)locale];
 
             return cs[(int)SharedConst.DefaultLocale];
         }
 
-        public string GetCypherString(CypherStrings cmd, Locale locale = Locale.enUS)
+        public string GetForeverString(ForeverStrings cmd, Locale locale = Locale.enUS)
         {
-            return GetCypherString((uint)cmd, locale);
+            return GetForeverString((uint)cmd, locale);
         }
 
         public Dictionary<Race, RaceUnlockRequirement> GetRaceUnlockRequirements() 
@@ -4524,7 +4516,7 @@ namespace Game
                 return false;
 
             CreatureData master = GetCreatureData(guidLow);
-            Cypher.Assert(master != null);
+            Forever.Assert(master != null);
             ObjectGuid guid = ObjectGuid.Create(HighGuid.Creature, master.MapId, master.Id, guidLow);
             PreparedStatement stmt;
 
@@ -6075,7 +6067,7 @@ namespace Game
             if (cInfo == null)
             {
                 if (player != null)
-                    player.SendSysMessage(CypherStrings.CommandVendorselection);
+                    player.SendSysMessage(ForeverStrings.CommandVendorselection);
                 else
                 {
                     Log.outError(LogFilter.Sql,
@@ -6090,7 +6082,7 @@ namespace Game
                 if (skipvendors == null || skipvendors.Count == 0)
                 {
                     if (player != null)
-                        player.SendSysMessage(CypherStrings.CommandVendorselection);
+                        player.SendSysMessage(ForeverStrings.CommandVendorselection);
                     else
                     {
                         Log.outError(LogFilter.Sql,
@@ -6109,7 +6101,7 @@ namespace Game
                 (vItem.Type == ItemVendorType.Currency && CliDB.CurrencyTypesStorage.LookupByKey(vItem.item) == null))
             {
                 if (player != null)
-                    player.SendSysMessage(CypherStrings.ItemNotFound, vItem.item, vItem.Type);
+                    player.SendSysMessage(ForeverStrings.ItemNotFound, vItem.item, vItem.Type);
                 else
                 {
                     Log.outError(LogFilter.Sql,
@@ -6132,7 +6124,7 @@ namespace Game
             if (vItem.ExtendedCost != 0 && !CliDB.ItemExtendedCostStorage.ContainsKey(vItem.ExtendedCost))
             {
                 if (player != null)
-                    player.SendSysMessage(CypherStrings.ExtendedCostNotExist, vItem.ExtendedCost);
+                    player.SendSysMessage(ForeverStrings.ExtendedCostNotExist, vItem.ExtendedCost);
                 else
                 {
                     Log.outError(LogFilter.Sql,
@@ -6180,7 +6172,7 @@ namespace Game
             if (vItems.FindItemCostPair(vItem.item, vItem.ExtendedCost, vItem.Type) != null)
             {
                 if (player != null)
-                    player.SendSysMessage(CypherStrings.ItemAlreadyInList, vItem.item, vItem.ExtendedCost, vItem.Type);
+                    player.SendSysMessage(ForeverStrings.ItemAlreadyInList, vItem.item, vItem.ExtendedCost, vItem.Type);
                 else
                 {
                     Log.outError(LogFilter.Sql,
@@ -6736,7 +6728,7 @@ namespace Game
         void OnDeleteSpawnData(SpawnData data)
         {
             var templateIt = _spawnGroupDataStorage.LookupByKey(data.spawnGroupData.groupId);
-            Cypher.Assert(templateIt != null, 
+            Forever.Assert(templateIt != null, 
                 $"Creature data for ({data.type},{data.SpawnId}) " +
                 $"is being deleted and has invalid spawn group index " +
                 $"{data.spawnGroupData.groupId}!");
@@ -6754,7 +6746,7 @@ namespace Game
                 return;
             }
 
-            Cypher.Assert(false, 
+            Forever.Assert(false, 
                 $"Spawn data ({data.type},{data.SpawnId}) " +
                 $"being removed is member of spawn group {data.spawnGroupData.groupId}, " +
                 $"but not actually listed in the lookup table for that group!");
@@ -6894,7 +6886,7 @@ namespace Game
                 case SpawnObjectType.AreaTrigger:
                     return Global.AreaTriggerDataStorage.GetAreaTriggerSpawn(spawnId);
                 default:
-                    Cypher.Assert(false, $"Invalid spawn object Type {type} [{(byte)type}]");
+                    Forever.Assert(false, $"Invalid spawn object Type {type} [{(byte)type}]");
                     return null;
             }
         }
@@ -7538,7 +7530,7 @@ namespace Game
                             else
                             {
                                 Log.outError(LogFilter.Sql,
-                                    $"Unused (> MaxPlayerLevel in worldserver.conf) level {currentlevel} " +
+                                    $"Unused (> MaxPlayerLevel in foreverworld.conf) level {currentlevel} " +
                                     $"in `player_levelstats` table, ignoring.");
                             }
                             continue;
@@ -7828,7 +7820,7 @@ namespace Game
                     else
                     {
                         Log.outInfo(LogFilter.Server, 
-                            $"Unused (> MaxPlayerLevel in worldserver.conf) level {currentlevel} " +
+                            $"Unused (> MaxPlayerLevel in foreverworld.conf) level {currentlevel} " +
                             $"in `pet_levelstats` table, ignoring.");
 
                         ++count;    // make result loading percent "expected" correct in case disabled detail mode for example.
@@ -12445,7 +12437,7 @@ namespace Game
 
         public ObjectGuidGenerator GetGenerator(HighGuid high)
         {
-            Cypher.Assert(ObjectGuid.IsGlobal(high) || ObjectGuid.IsRealmSpecific(high), 
+            Forever.Assert(ObjectGuid.IsGlobal(high) || ObjectGuid.IsRealmSpecific(high), 
                 "Only global guid can be generated in ObjectMgr context");
 
             return GetGuidSequenceGenerator(high);
@@ -12993,7 +12985,7 @@ namespace Game
 
         #region Fields
         //General
-        Dictionary<uint, StringArray> CypherStringStorage = new();
+        Dictionary<uint, StringArray> ForeverStringStorage = new();
         Dictionary<int, RepRewardRate> _repRewardRateStorage = new();
         Dictionary<int, ReputationOnKillEntry> _repOnKillStorage = new();
         Dictionary<int, RepSpilloverTemplate> _repSpilloverTemplateStorage = new();
@@ -14158,7 +14150,7 @@ namespace Game
             // script id 0 as dummy for "no script found".
             int id = Insert("", false);
 
-            Cypher.Assert(id <= 0);
+            Forever.Assert(id <= 0);
         }
 
         public int Insert(string scriptName, bool isScriptNameBound)
@@ -14167,7 +14159,7 @@ namespace Game
             var result = NameToIndex.TryAdd(scriptName, entry);
             if (result)
             {
-                Cypher.Assert(NameToIndex.Count <= int.MaxValue);
+                Forever.Assert(NameToIndex.Count <= int.MaxValue);
                 IndexToName.Add(entry);
             }
 

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -16,13 +16,13 @@ namespace Game.Chat.Commands
         {
             if (!WorldConfig.Values[WorldCfg.SupportTicketsEnabled].Bool)
             {
-                handler.SendSysMessage(CypherStrings.DisallowTicketsConfig);
+                handler.SendSysMessage(ForeverStrings.DisallowTicketsConfig);
                 return true;
             }
 
             bool status = !Global.SupportMgr.GetSupportSystemStatus();
             Global.SupportMgr.SetSupportSystemStatus(status);
-            handler.SendSysMessage(status ? CypherStrings.AllowTickets : CypherStrings.DisallowTickets);
+            handler.SendSysMessage(status ? ForeverStrings.AllowTickets : ForeverStrings.DisallowTickets);
             return true;
         }
 
@@ -190,7 +190,7 @@ namespace Game.Chat.Commands
             {
                 if (Global.SupportMgr.GetOpenTicketCount<BugTicket>() != 0 || Global.SupportMgr.GetOpenTicketCount<ComplaintTicket>() != 0 || Global.SupportMgr.GetOpenTicketCount<SuggestionTicket>() != 0)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandTicketpending);
+                    handler.SendSysMessage(ForeverStrings.CommandTicketpending);
                     return true;
                 }
                 else
@@ -198,7 +198,7 @@ namespace Game.Chat.Commands
                     Global.SupportMgr.ResetTickets<BugTicket>();
                     Global.SupportMgr.ResetTickets<ComplaintTicket>();
                     Global.SupportMgr.ResetTickets<SuggestionTicket>();
-                    handler.SendSysMessage(CypherStrings.CommandTicketreset);
+                    handler.SendSysMessage(ForeverStrings.CommandTicketreset);
                 }
                 return true;
             }
@@ -233,7 +233,7 @@ namespace Game.Chat.Commands
             T ticket = Global.SupportMgr.GetTicket<T>(ticketId);
             if (ticket == null || ticket.IsClosed())
             {
-                handler.SendSysMessage(CypherStrings.CommandTicketnotexist);
+                handler.SendSysMessage(ForeverStrings.CommandTicketnotexist);
                 return true;
             }
 
@@ -242,14 +242,14 @@ namespace Game.Chat.Commands
             // Target must exist and have administrative rights
             if (!Global.AccountMgr.HasPermission(accountId, RBACPermissions.CommandsBeAssignedTicket, Global.WorldMgr.GetRealm().Id.Index))
             {
-                handler.SendSysMessage(CypherStrings.CommandTicketassignerrorA);
+                handler.SendSysMessage(ForeverStrings.CommandTicketassignerrorA);
                 return true;
             }
 
             // If already assigned, leave
             if (ticket.IsAssignedTo(targetGuid))
             {
-                handler.SendSysMessage(CypherStrings.CommandTicketassignerrorB, ticket.GetId());
+                handler.SendSysMessage(ForeverStrings.CommandTicketassignerrorB, ticket.GetId());
                 return true;
             }
 
@@ -258,7 +258,7 @@ namespace Game.Chat.Commands
             Player player = handler.GetSession() != null ? handler.GetSession().GetPlayer() : null;
             if (player != null && ticket.IsAssignedNotTo(player.GetGUID()))
             {
-                handler.SendSysMessage(CypherStrings.CommandTicketalreadyassigned, ticket.GetId());
+                handler.SendSysMessage(ForeverStrings.CommandTicketalreadyassigned, ticket.GetId());
                 return true;
             }
 
@@ -276,7 +276,7 @@ namespace Game.Chat.Commands
             T ticket = Global.SupportMgr.GetTicket<T>(ticketId);
             if (ticket == null || ticket.IsClosed())
             {
-                handler.SendSysMessage(CypherStrings.CommandTicketnotexist);
+                handler.SendSysMessage(ForeverStrings.CommandTicketnotexist);
                 return true;
             }
 
@@ -285,7 +285,7 @@ namespace Game.Chat.Commands
             Player player = handler.GetSession() != null ? handler.GetSession().GetPlayer() : null;
             if (player != null && ticket.IsAssignedNotTo(player.GetGUID()))
             {
-                handler.SendSysMessage(CypherStrings.CommandTicketcannotclose, ticket.GetId());
+                handler.SendSysMessage(ForeverStrings.CommandTicketcannotclose, ticket.GetId());
                 return true;
             }
 
@@ -317,7 +317,7 @@ namespace Game.Chat.Commands
             T ticket = Global.SupportMgr.GetTicket<T>(ticketId);
             if (ticket == null || ticket.IsClosed())
             {
-                handler.SendSysMessage(CypherStrings.CommandTicketnotexist);
+                handler.SendSysMessage(ForeverStrings.CommandTicketnotexist);
                 return true;
             }
 
@@ -326,7 +326,7 @@ namespace Game.Chat.Commands
             Player player = handler.GetSession() != null ? handler.GetSession().GetPlayer() : null;
             if (player != null && ticket.IsAssignedNotTo(player.GetGUID()))
             {
-                handler.SendSysMessage(CypherStrings.CommandTicketalreadyassigned, ticket.GetId());
+                handler.SendSysMessage(ForeverStrings.CommandTicketalreadyassigned, ticket.GetId());
                 return true;
             }
 
@@ -335,7 +335,7 @@ namespace Game.Chat.Commands
             Global.SupportMgr.UpdateLastChange();
 
             string msg = ticket.FormatViewMessageString(handler, null, ticket.GetAssignedToName(), null, null);
-            msg += string.Format(handler.GetCypherString(CypherStrings.CommandTicketlistaddcomment), player != null ? player.GetName() : "Console", comment);
+            msg += string.Format(handler.GetForeverString(ForeverStrings.CommandTicketlistaddcomment), player != null ? player.GetName() : "Console", comment);
             handler.SendGlobalGMSysMessage(msg);
 
             return true;
@@ -346,13 +346,13 @@ namespace Game.Chat.Commands
             T ticket = Global.SupportMgr.GetTicket<T>(ticketId);
             if (ticket == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandTicketnotexist);
+                handler.SendSysMessage(ForeverStrings.CommandTicketnotexist);
                 return true;
             }
 
             if (!ticket.IsClosed())
             {
-                handler.SendSysMessage(CypherStrings.CommandTicketclosefirst);
+                handler.SendSysMessage(ForeverStrings.CommandTicketclosefirst);
                 return true;
             }
 
@@ -374,13 +374,13 @@ namespace Game.Chat.Commands
         {
             if (Global.SupportMgr.GetOpenTicketCount<T>() != 0)
             {
-                handler.SendSysMessage(CypherStrings.CommandTicketpending);
+                handler.SendSysMessage(ForeverStrings.CommandTicketpending);
                 return true;
             }
             else
             {
                 Global.SupportMgr.ResetTickets<T>();
-                handler.SendSysMessage(CypherStrings.CommandTicketreset);
+                handler.SendSysMessage(ForeverStrings.CommandTicketreset);
             }
 
             return true;
@@ -391,13 +391,13 @@ namespace Game.Chat.Commands
             T ticket = Global.SupportMgr.GetTicket<T>(ticketId);
             if (ticket == null || ticket.IsClosed())
             {
-                handler.SendSysMessage(CypherStrings.CommandTicketnotexist);
+                handler.SendSysMessage(ForeverStrings.CommandTicketnotexist);
                 return true;
             }
             // Ticket must be assigned
             if (!ticket.IsAssigned())
             {
-                handler.SendSysMessage(CypherStrings.CommandTicketnotassigned, ticket.GetId());
+                handler.SendSysMessage(ForeverStrings.CommandTicketnotassigned, ticket.GetId());
                 return true;
             }
 
@@ -418,7 +418,7 @@ namespace Game.Chat.Commands
             AccountTypes mySecurity = handler.GetSession() != null ? handler.GetSession().GetSecurity() : AccountTypes.Console;
             if (security > mySecurity)
             {
-                handler.SendSysMessage(CypherStrings.CommandTicketunassignsecurity);
+                handler.SendSysMessage(ForeverStrings.CommandTicketunassignsecurity);
                 return true;
             }
 
@@ -437,7 +437,7 @@ namespace Game.Chat.Commands
             T ticket = Global.SupportMgr.GetTicket<T>(ticketId);
             if (ticket == null || ticket.IsClosed())
             {
-                handler.SendSysMessage(CypherStrings.CommandTicketnotexist);
+                handler.SendSysMessage(ForeverStrings.CommandTicketnotexist);
                 return true;
             }
 

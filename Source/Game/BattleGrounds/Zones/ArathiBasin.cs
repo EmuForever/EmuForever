@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -10,7 +10,7 @@ using System.Collections.Generic;
 
 namespace Game.BattleGrounds.Zones.ArathisBasin
 {
-    class BgArathiBasin : Battleground
+    partial class BgArathiBasin : Battleground
     {
         TimeTracker _pointsTimer;
         int[] m_HonorScoreTics = new int[SharedConst.PvpTeamsCount];
@@ -41,6 +41,7 @@ namespace Game.BattleGrounds.Zones.ArathisBasin
 
         public override void PostUpdateImpl(TimeSpan diff)
         {
+            TickClassicPoints(diff);
             if (GetStatus() == BattlegroundStatus.InProgress)
             {
                 // Accumulate points
@@ -125,6 +126,8 @@ namespace Game.BattleGrounds.Zones.ArathisBasin
 
         public override void StartingEventOpenDoors()
         {
+            OpenClassicStartDoors();
+            if (GetMapId() == 529) SetClassicSpawnGroup(529060, false);
             // Achievement: Let's Get This Done
             TriggerGameEvent(ABEventIds.StartBattle);
         }
@@ -167,6 +170,15 @@ namespace Game.BattleGrounds.Zones.ArathisBasin
         {
             alliance = 0;
             horde = 0;
+            if (GetMapId() == 529)
+            {
+                foreach (var point in _classicPoints)
+                {
+                    if (point.State == BattlegroundCapturePointState.AllianceCaptured) ++alliance;
+                    if (point.State == BattlegroundCapturePointState.HordeCaptured) ++horde;
+                }
+                return;
+            }
 
             BattlegroundMap map = FindBgMap();
             if (map != null)
@@ -460,6 +472,11 @@ namespace Game.BattleGrounds.Zones.ArathisBasin
 
         public override bool SetupBattleground()
         {
+            if (GetMapId() == 529)
+            {
+                for (int i = 0; i < 5; ++i) UpdateClassicPoint(i);
+                SetClassicSpawnGroup(529060, true);
+            }
             UpdateWorldState(WorldStateIds.ResourcesMax, Misc.MaxTeamScore);
             UpdateWorldState(WorldStateIds.ResourcesWarning, Misc.WarningNearVictoryScore);
 
@@ -489,6 +506,7 @@ namespace Game.BattleGrounds.Zones.ArathisBasin
             _gameobjectsToRemoveOnMatchStart.Clear();
             _doors.Clear();
             _capturePoints.Clear();
+            for (int i = 0; i < _classicPoints.Length; ++i) _classicPoints[i] = new();
         }
 
         public override void EndBattleground(Team winner)

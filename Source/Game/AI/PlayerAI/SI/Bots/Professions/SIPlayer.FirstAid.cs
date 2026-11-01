@@ -19,7 +19,7 @@ namespace Game.AI
         bool TickFirstAidUpkeep()
         {
             if(CommittedToJourney()||_goal=="professions"&&_professionBatchRoot!=null)return false;
-            if (_goal == "social" && (SocialCity == 0 || me.GetZoneId() != SocialCity)) return false;
+            if (SocialMode && (SocialCity == 0 || me.GetZoneId() != SocialCity)) return false;
             if (!SIProfessionKnowledge.IsBuilt) { EnsureProfessionKnowledge(); return false; }
             // spread the first trainer scan of a few hundred bots over five minutes
             if (_nextProfessionTrainingScan == 0 && !_professionTrainingProgressDue && _goal is "quest" or "grind") _nextProfessionTrainingScan = Now + System.Random.Shared.Next(10000, 300001);
@@ -47,7 +47,7 @@ namespace Game.AI
             int count = recipes.Select(recipe => recipe.Product).Distinct().Sum(item => me.GetItemCount(item));
             if (count < BandageRestockBelow) _restockingBandages = true;
             if (count >= BandageTarget) _restockingBandages = false;
-            bool levelling = _goal == "social" && CanAdvanceKnownRecipes(SIProfessionKnowledge.FirstAid);
+            bool levelling = SocialMode && CanAdvanceKnownRecipes(SIProfessionKnowledge.FirstAid);
             if ((!_restockingBandages && !levelling) || me.GetFreeInventorySlotCount() == 0) return false;
             SIRecipe best = recipes.Where(recipe => !_recipeRetryAt.ContainsKey(recipe.Spell.Id) && HasReagentsInBags(recipe) &&
                     (!levelling || RecipeColor(recipe) < 3) && Global.ObjectMgr.GetItemTemplate(recipe.Product) is { } template && me.CanUseItem(template) == InventoryResult.Ok)

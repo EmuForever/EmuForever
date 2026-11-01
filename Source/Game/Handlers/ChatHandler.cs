@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -97,7 +97,7 @@ namespace Game
                     $"CMSG_MESSAGECHAT: Possible hacking-attempt: {GetPlayerInfo()} " +
                     $"tried to send a message in universal language");
 
-                SendNotification(CypherStrings.UnknownLanguage);
+                SendNotification(ForeverStrings.UnknownLanguage);
                 return;
             }
 
@@ -105,7 +105,7 @@ namespace Game
             var languageData = Global.LanguageMgr.GetLanguageDescById(lang);
             if (languageData.Empty())
             {
-                SendNotification(CypherStrings.UnknownLanguage);
+                SendNotification(ForeverStrings.UnknownLanguage);
                 return;
             }
 
@@ -114,7 +114,7 @@ namespace Game
                 // also check SPELL_AURA_COMPREHEND_LANGUAGE (client offers option to speak in that language)
                 if (!sender.HasAuraTypeWithMiscvalue(AuraType.ComprehendLanguage, (int)lang))
                 {
-                    SendNotification(CypherStrings.NotLearnedLanguage);
+                    SendNotification(ForeverStrings.NotLearnedLanguage);
                     return;
                 }
             }
@@ -155,13 +155,13 @@ namespace Game
             if (!CanSpeak())
             {
                 string timeStr = Time.SpanToTimeString(m_mutedUntilTime - LoopTime.ServerTime);
-                SendNotification(CypherStrings.WaitBeforeSpeaking, timeStr);
+                SendNotification(ForeverStrings.WaitBeforeSpeaking, timeStr);
                 return;
             }
 
             if (sender.HasAura(1852) && type != ChatMsg.Whisper)
             {
-                SendNotification(Global.ObjectMgr.GetCypherString(CypherStrings.GmSilence), sender.GetName());
+                SendNotification(Global.ObjectMgr.GetForeverString(ForeverStrings.GmSilence), sender.GetName());
                 return;
             }
 
@@ -180,7 +180,7 @@ namespace Game
 
                     if (sender.GetLevel() < WorldConfig.Values[WorldCfg.ChatSayLevelReq].Int32)
                     {
-                        SendNotification(Global.ObjectMgr.GetCypherString(CypherStrings.SayReq), WorldConfig.Values[WorldCfg.ChatSayLevelReq].Int32);
+                        SendNotification(Global.ObjectMgr.GetForeverString(ForeverStrings.SayReq), WorldConfig.Values[WorldCfg.ChatSayLevelReq].Int32);
                         return;
                     }
 
@@ -193,7 +193,7 @@ namespace Game
 
                     if (sender.GetLevel() < WorldConfig.Values[WorldCfg.ChatEmoteLevelReq].Int32)
                     {
-                        SendNotification(Global.ObjectMgr.GetCypherString(CypherStrings.SayReq), WorldConfig.Values[WorldCfg.ChatEmoteLevelReq].Int32);
+                        SendNotification(Global.ObjectMgr.GetForeverString(ForeverStrings.SayReq), WorldConfig.Values[WorldCfg.ChatEmoteLevelReq].Int32);
                         return;
                     }
 
@@ -206,7 +206,7 @@ namespace Game
 
                     if (sender.GetLevel() < WorldConfig.Values[WorldCfg.ChatYellLevelReq].Int32)
                     {
-                        SendNotification(Global.ObjectMgr.GetCypherString(CypherStrings.SayReq), WorldConfig.Values[WorldCfg.ChatYellLevelReq].Int32);
+                        SendNotification(Global.ObjectMgr.GetForeverString(ForeverStrings.SayReq), WorldConfig.Values[WorldCfg.ChatYellLevelReq].Int32);
                         return;
                     }
 
@@ -251,7 +251,7 @@ namespace Game
                     {
                         if (!sender.IsGameMaster() && sender.GetLevel() < WorldConfig.Values[WorldCfg.ChatWhisperLevelReq].Int32)
                         {
-                            SendNotification(Global.ObjectMgr.GetCypherString(CypherStrings.WhisperReq), WorldConfig.Values[WorldCfg.ChatWhisperLevelReq].Int32);
+                            SendNotification(Global.ObjectMgr.GetForeverString(ForeverStrings.WhisperReq), WorldConfig.Values[WorldCfg.ChatWhisperLevelReq].Int32);
                             return;
                         }
 
@@ -264,7 +264,7 @@ namespace Game
 
                     if (GetPlayer().HasAura(1852) && !receiver.IsGameMaster())
                     {
-                        SendNotification(Global.ObjectMgr.GetCypherString(CypherStrings.GmSilence), GetPlayer().GetName());
+                        SendNotification(Global.ObjectMgr.GetForeverString(ForeverStrings.GmSilence), GetPlayer().GetName());
                         return;
                     }
 
@@ -357,7 +357,7 @@ namespace Game
                     {
                         if (GetPlayer().GetLevel() < WorldConfig.Values[WorldCfg.ChatChannelLevelReq].Int32)
                         {
-                            SendNotification(Global.ObjectMgr.GetCypherString(CypherStrings.ChannelReq), WorldConfig.Values[WorldCfg.ChatChannelLevelReq].Int32);
+                            SendNotification(Global.ObjectMgr.GetForeverString(ForeverStrings.ChannelReq), WorldConfig.Values[WorldCfg.ChatChannelLevelReq].Int32);
                             return;
                         }
                     }
@@ -496,7 +496,7 @@ namespace Game
 
             if (sender.HasAura(1852))
             {
-                SendNotification(CypherStrings.GmSilence, sender.GetName());
+                SendNotification(ForeverStrings.GmSilence, sender.GetName());
                 return;
             }
 
@@ -509,7 +509,7 @@ namespace Game
             }
             else // New AFK mode
             {
-                sender.autoReplyMsg = string.IsNullOrEmpty(packet.Text) ? Global.ObjectMgr.GetCypherString(CypherStrings.PlayerAfkDefault) : packet.Text;
+                sender.autoReplyMsg = string.IsNullOrEmpty(packet.Text) ? Global.ObjectMgr.GetForeverString(ForeverStrings.PlayerAfkDefault) : packet.Text;
 
                 if (sender.IsDND())
                     sender.ToggleDND();
@@ -534,7 +534,7 @@ namespace Game
 
             if (sender.HasAura(1852))
             {
-                SendNotification(CypherStrings.GmSilence, sender.GetName());
+                SendNotification(ForeverStrings.GmSilence, sender.GetName());
                 return;
             }
 
@@ -547,7 +547,7 @@ namespace Game
             }
             else // New DND mode
             {
-                sender.autoReplyMsg = string.IsNullOrEmpty(packet.Text) ? Global.ObjectMgr.GetCypherString(CypherStrings.PlayerDndDefault) : packet.Text;
+                sender.autoReplyMsg = string.IsNullOrEmpty(packet.Text) ? Global.ObjectMgr.GetForeverString(ForeverStrings.PlayerDndDefault) : packet.Text;
 
                 if (sender.IsAFK())
                     sender.ToggleAFK();
@@ -581,7 +581,7 @@ namespace Game
             if (!CanSpeak())
             {
                 string timeStr = Time.SpanToTimeString(m_mutedUntilTime - LoopTime.ServerTime);
-                SendNotification(CypherStrings.WaitBeforeSpeaking, timeStr);
+                SendNotification(ForeverStrings.WaitBeforeSpeaking, timeStr);
                 return;
             }
 

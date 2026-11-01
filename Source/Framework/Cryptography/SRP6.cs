@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using System;
@@ -40,7 +40,7 @@ namespace Framework.Cryptography
 
         public BigInteger? VerifyClientEvidence(BigInteger A, BigInteger clientM1)
         {
-            Cypher.Assert(!_used, "A single SRP6 object must only ever be used to verify ONCE!");
+            Forever.Assert(!_used, "A single SRP6 object must only ever be used to verify ONCE!");
             _used = true;
 
             return DoVerifyClientEvidence(A, clientM1);

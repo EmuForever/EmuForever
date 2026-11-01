@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -21,7 +21,7 @@ namespace Game.Chat
             AllowConsole = allowConsole;
         }
 
-        public CommandAttribute(string command, CypherStrings help, RBACPermissions rbac, bool allowConsole = false)
+        public CommandAttribute(string command, ForeverStrings help, RBACPermissions rbac, bool allowConsole = false)
         {
             Name = command.ToLower();
             Help = help;
@@ -37,7 +37,7 @@ namespace Game.Chat
         /// <summary>
         /// Help String for command.
         /// </summary>
-        public CypherStrings Help { get; set; }
+        public ForeverStrings Help { get; set; }
 
         /// <summary>
         /// Allow Console?
@@ -59,7 +59,7 @@ namespace Game.Chat
     [AttributeUsage(AttributeTargets.Method)]
     public class CommandNonGroupAttribute : CommandAttribute
     {
-        public CommandNonGroupAttribute(string command, CypherStrings help, RBACPermissions rbac, bool allowConsole = false) : base(command, help, rbac, allowConsole) { }
+        public CommandNonGroupAttribute(string command, ForeverStrings help, RBACPermissions rbac, bool allowConsole = false) : base(command, help, rbac, allowConsole) { }
         public CommandNonGroupAttribute(string command, RBACPermissions rbac, bool allowConsole = false) : base(command, rbac, allowConsole) { }
     }
 

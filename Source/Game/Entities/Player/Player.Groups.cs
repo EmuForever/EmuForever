@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -183,7 +183,7 @@ namespace Game.Entities
 
         public void SetPartyType(GroupCategory category, GroupType type)
         {
-            Cypher.Assert(category < GroupCategory.Max);
+            Forever.Assert(category < GroupCategory.Max);
             SetUpdateFieldValue(ref m_values.ModifyValue(m_playerData).ModifyValue(m_playerData.PartyType, (int)category), (byte)type);
         }
 

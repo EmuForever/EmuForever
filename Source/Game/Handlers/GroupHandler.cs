@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -15,7 +15,9 @@ namespace Game
         {
             PartyCommandResult packet = new();
 
-            packet.Name = member;
+            var identity = Global.CharacterCacheStorage.GetCharacterCacheByName(member);
+            packet.Name = identity?.FirstName ?? member;
+            packet.Surname = identity?.Surname ?? string.Empty;
             packet.Command = (byte)operation;
             packet.Result = (byte)res;
             packet.ResultData = val;
@@ -209,7 +211,7 @@ namespace Game
                     }
 
                     // If we're about to create a group there really should be a leader present
-                    Cypher.Assert(leader != null);
+                    Forever.Assert(leader != null);
                     group.RemoveInvite(leader);
                     group.Create(leader);
                     Global.GroupMgr.AddGroup(group);
@@ -259,7 +261,7 @@ namespace Game
 
             Group grp = GetPlayer().GetGroup(packet.PartyIndex);
             // grp is checked already above in CanUninviteFromGroup()
-            Cypher.Assert(grp != null);
+            Forever.Assert(grp != null);
 
             if (grp.IsMember(packet.TargetGUID))
             {

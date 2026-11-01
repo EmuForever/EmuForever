@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -134,7 +134,7 @@ namespace Game.Entities
 
             // If this is set during update SetCantProc(false) call is missing somewhere in the code
             // Having this would prevent spells from being proced, so let's crash
-            Cypher.Assert(m_procDeep == 0);
+            Forever.Assert(m_procDeep == 0);
 
             m_combatManager.Update(diff);
 
@@ -533,10 +533,10 @@ namespace Game.Entities
                 if (IsCharmed())
                     RemoveCharmedBy(null);
 
-                Cypher.Assert(GetCharmedGUID().IsEmpty(), 
+                Forever.Assert(GetCharmedGUID().IsEmpty(), 
                     $"Unit {GetEntry()} has charmed guid when removed from world");
 
-                Cypher.Assert(GetCharmerGUID().IsEmpty(), 
+                Forever.Assert(GetCharmerGUID().IsEmpty(), 
                     $"Unit {GetEntry()} has charmer guid when removed from world");
 
                 Unit owner = GetOwner();
@@ -1058,7 +1058,7 @@ namespace Game.Entities
         public void _EnterVehicle(Vehicle vehicle, sbyte seatId, AuraApplication aurApp)
         {
             // Must be called only from aura handler
-            Cypher.Assert(aurApp != null);
+            Forever.Assert(aurApp != null);
 
             if (!IsAlive() || GetVehicleKit() == vehicle || vehicle.GetBase().IsOnVehicle(this))
                 return;
@@ -1103,7 +1103,7 @@ namespace Game.Entities
                 }
             }
 
-            Cypher.Assert(m_vehicle == null);
+            Forever.Assert(m_vehicle == null);
             vehicle.AddVehiclePassenger(this, seatId);
         }
 
@@ -1129,12 +1129,12 @@ namespace Game.Entities
                     continue;
 
                 // Make sure there is only one ride vehicle aura on target cast by the unit changing seat
-                Cypher.Assert(rideVehicleEffect == null);
+                Forever.Assert(rideVehicleEffect == null);
                 rideVehicleEffect = eff;
             }
 
             // Unit riding a vehicle must always have control vehicle aura on target
-            Cypher.Assert(rideVehicleEffect != null);
+            Forever.Assert(rideVehicleEffect != null);
 
             rideVehicleEffect.ChangeAmount((seatId < 0 ? GetTransSeat() : seatId) + 1);
         }
@@ -1402,7 +1402,7 @@ namespace Game.Entities
 
         public void RefreshAI()
         {
-            Cypher.Assert(!m_aiLocked, "Tried to change current AI during UpdateAI()");
+            Forever.Assert(!m_aiLocked, "Tried to change current AI during UpdateAI()");
             if (i_AIs.Count == 0)
                 i_AI = null;
             else
@@ -1670,7 +1670,7 @@ namespace Game.Entities
         public AuraApplication _CreateAuraApplication(Aura aura, uint effMask)
         {
             // can't apply aura on unit which is going to be deleted - to not create a memory leak
-            Cypher.Assert(!m_cleanupDone);
+            Forever.Assert(!m_cleanupDone);
             // just return if the aura has been already removed
             // this can happen if OnEffectHitTarget() script hook killed the unit or the aura owner (which can be different)
             if (aura.IsRemoved())
@@ -1683,7 +1683,7 @@ namespace Game.Entities
             }
 
             // aura mustn't be already applied on target
-            Cypher.Assert(!aura.IsAppliedOnTarget(GetGUID()), "Unit._CreateAuraApplication: aura musn't be applied on target");
+            Forever.Assert(!aura.IsAppliedOnTarget(GetGUID()), "Unit._CreateAuraApplication: aura musn't be applied on target");
 
             SpellInfo aurSpellInfo = aura.GetSpellInfo();
             var aurId = aurSpellInfo.Id;
@@ -2520,6 +2520,7 @@ namespace Game.Entities
             {
                 StandStateUpdate packet = new(state, animKitId);
                 ToPlayer().SendPacket(packet);
+                ToPlayer().UpdateCampfireRest();
             }
         }
 
@@ -3110,7 +3111,7 @@ namespace Game.Entities
                 {
                     Player he = duel_wasMounted ? victim.GetCharmer().ToPlayer() : victim.ToPlayer();
 
-                    Cypher.Assert(he != null && he.duel != null);
+                    Forever.Assert(he != null && he.duel != null);
 
                     if (duel_wasMounted) // In this case victim==mount
                         victim.SetHealth(1);

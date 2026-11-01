@@ -1,5 +1,5 @@
 #nullable enable annotations
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -76,7 +76,7 @@ namespace Game.Maps
             for (var i = 0; i < i_worldObjects.Count; ++i)
             {
                 WorldObject obj = i_worldObjects[i];
-                Cypher.Assert(obj.IsStoredInWorldObjectGridContainer());
+                Forever.Assert(obj.IsStoredInWorldObjectGridContainer());
                 obj.RemoveFromWorld();
                 obj.ResetMap();
             }
@@ -90,13 +90,25 @@ namespace Game.Maps
             m_terrain.UnloadMMapInstance(GetId(), GetInstanceId());
         }
 
+        // Grids with a terrain file, per map id. Loading "all" grids used to create every one of the
+        // 64x64 grids (and their cell containers): ~400 MB per battleground instance, so a few dozen
+        // bot battlegrounds filled the machine's memory. Only grids that have terrain can hold anything.
+        static readonly System.Collections.Concurrent.ConcurrentDictionary<int, GridCoord[]> _terrainGrids = new();
+
         public void LoadAllCells()
         {
-            for (uint cellX = 0; cellX < MapConst.TotalCellsPerMap; cellX++)
+            GridCoord[] grids = _terrainGrids.GetOrAdd(GetId(), mapId =>
             {
-                for (uint cellY = 0; cellY < MapConst.TotalCellsPerMap; cellY++)
-                    LoadGrid((cellX + 0.5f - MapConst.CenterGridCellId) * MapConst.SizeofCells, (cellY + 0.5f - MapConst.CenterGridCellId) * MapConst.SizeofCells);
-            }
+                var found = new List<GridCoord>();
+                for (int x = 0; x < MapConst.MaxGrids; ++x)
+                    for (int y = 0; y < MapConst.MaxGrids; ++y)
+                        if (TerrainInfo.ExistMap(mapId, (MapConst.MaxGrids - 1) - x, (MapConst.MaxGrids - 1) - y, false))
+                            found.Add(new GridCoord(x, y));
+                return found.ToArray();
+            });
+            foreach (GridCoord grid in grids)
+                LoadGrid((grid.X_coord + 0.5f - MapConst.CenterGridId) * MapConst.SizeofGrids,
+                    (grid.Y_coord + 0.5f - MapConst.CenterGridId) * MapConst.SizeofGrids);
         }
 
         public virtual void InitVisibilityDistance()
@@ -179,7 +191,7 @@ namespace Game.Maps
                 $"Switch object {obj.GetGUID()} from grid[{cell.GetGridX()}, {cell.GetGridY()}] {on}");
 
             Grid ngrid = GetGrid(cell.GetGridX(), cell.GetGridY());
-            Cypher.Assert(ngrid != null);
+            Forever.Assert(ngrid != null);
 
             RemoveFromGrid(obj, cell);
 
@@ -329,7 +341,7 @@ namespace Game.Maps
             EnsureGridLoadedForActiveObject(cell, player);
             AddToGrid(player, cell);
 
-            Cypher.Assert(player.GetMap() == this);
+            Forever.Assert(player.GetMap() == this);
             player.SetMap(this);
             player.AddToWorld();
 
@@ -546,7 +558,7 @@ namespace Game.Maps
 
             if (oldZone != MapConst.InvalidZone)
             {
-                Cypher.Assert(_zonePlayerCountMap[oldZone] != 0, 
+                Forever.Assert(_zonePlayerCountMap[oldZone] != 0, 
                     $"A player left zone {oldZone} (went to {newZone}) - " +
                     $"but there were no players in the zone!");
 
@@ -606,7 +618,10 @@ namespace Game.Maps
                 TimeSpan pending = bot.PendingUpdateDiff;
                 if (pending < UnobservedBotUpdateInterval)
                     break;
-                if (pending < maxStaleness && System.Diagnostics.Stopwatch.GetElapsedTime(started) >= budget)
+                // Starved bots may overrun the budget, but only up to a hard cap: once ticks run longer than
+                // the staleness limit every bot is starved, and forcing them all made each tick longer still.
+                TimeSpan spent = System.Diagnostics.Stopwatch.GetElapsedTime(started);
+                if (spent >= budget && (pending < maxStaleness || spent >= budget * 4))
                     break;
                 // An earlier bot's update can teleport or log out this one.
                 if (!bot.IsInWorld || bot.GetMap() != this)
@@ -1120,7 +1135,7 @@ namespace Game.Maps
 
         public void CreatureRelocation(Creature creature, float x, float y, float z, float ang, bool respawnRelocationOnFail = true)
         {
-            Cypher.Assert(CheckGridIntegrity(creature, false));
+            Forever.Assert(CheckGridIntegrity(creature, false));
 
             var new_cell = new Cell(x, y);
 
@@ -1146,12 +1161,12 @@ namespace Game.Maps
                 RemoveCreatureFromMoveList(creature);
             }
 
-            Cypher.Assert(CheckGridIntegrity(creature, true));
+            Forever.Assert(CheckGridIntegrity(creature, true));
         }
 
         public void GameObjectRelocation(GameObject go, float x, float y, float z, float orientation, bool respawnRelocationOnFail = true)
         {
-            Cypher.Assert(CheckGridIntegrity(go, false));
+            Forever.Assert(CheckGridIntegrity(go, false));
 
             var new_cell = new Cell(x, y);
             if (!respawnRelocationOnFail && GetGrid(new_cell.GetGridX(), new_cell.GetGridY()) == null)
@@ -1175,12 +1190,12 @@ namespace Game.Maps
                 RemoveGameObjectFromMoveList(go);
             }
 
-            Cypher.Assert(CheckGridIntegrity(go, true));
+            Forever.Assert(CheckGridIntegrity(go, true));
         }
 
         public void DynamicObjectRelocation(DynamicObject dynObj, float x, float y, float z, float orientation)
         {
-            Cypher.Assert(CheckGridIntegrity(dynObj, false));
+            Forever.Assert(CheckGridIntegrity(dynObj, false));
             Cell new_cell = new(x, y);
 
             if (GetGrid(new_cell.GetGridX(), new_cell.GetGridY()) == null)
@@ -1206,12 +1221,12 @@ namespace Game.Maps
                 RemoveDynamicObjectFromMoveList(dynObj);
             }
 
-            Cypher.Assert(CheckGridIntegrity(dynObj, true));
+            Forever.Assert(CheckGridIntegrity(dynObj, true));
         }
 
         public void AreaTriggerRelocation(AreaTrigger at, float x, float y, float z, float orientation)
         {
-            Cypher.Assert(CheckGridIntegrity(at, false));
+            Forever.Assert(CheckGridIntegrity(at, false));
             Cell new_cell = new(x, y);
 
             if (GetGrid(new_cell.GetGridX(), new_cell.GetGridY()) == null)
@@ -1236,7 +1251,7 @@ namespace Game.Maps
                 RemoveAreaTriggerFromMoveList(at);
             }
 
-            Cypher.Assert(CheckGridIntegrity(at, true));
+            Forever.Assert(CheckGridIntegrity(at, true));
         }
 
         void AddCreatureToMoveList(Creature c, float x, float y, float z, float ang)
@@ -1674,7 +1689,7 @@ namespace Game.Maps
                 grid.VisitAllGrids(visitor);
             }
 
-            Cypher.Assert(i_objectsToRemove.Empty());
+            Forever.Assert(i_objectsToRemove.Empty());
             SetGrid(null, x, y);
 
             int gx = MapConst.MaxGrids - 1 - x;
@@ -2041,7 +2056,7 @@ namespace Game.Maps
             while (!_updateObjects.Empty())
             {
                 WorldObject obj = _updateObjects[0];
-                Cypher.Assert(obj.IsInWorld);
+                Forever.Assert(obj.IsInWorld);
                 _updateObjects.RemoveAt(0);
                 obj.BuildUpdate(update_players);
             }
@@ -2057,7 +2072,7 @@ namespace Game.Maps
         bool CheckRespawn(RespawnInfo info)
         {
             SpawnData data = Global.ObjectMgr.GetSpawnData(info.type, info.spawnId);
-            Cypher.Assert(data != null, 
+            Forever.Assert(data != null, 
                 $"Invalid respawn info with Type {info.type}, " +
                 $"spawnID {info.spawnId} in respawn queue.");
 
@@ -2099,7 +2114,7 @@ namespace Game.Maps
                         alreadyExists = true;
                     break;
                 default:
-                    Cypher.Assert(false, 
+                    Forever.Assert(false, 
                         $"Invalid spawn Type {info.type} " +
                         $"with spawnId {info.spawnId} on map {GetId()}");
                     return true;
@@ -2216,13 +2231,13 @@ namespace Game.Maps
                     else
                         return false;
                 }
-                Cypher.Assert(!bySpawnIdMap.ContainsKey(info.spawnId),
+                Forever.Assert(!bySpawnIdMap.ContainsKey(info.spawnId),
                     $"Insertion of respawn info with id ({info.type},{info.spawnId}) " +
                     $"into spawn id map failed - state desync.");
             }
             else
             {
-                Cypher.Assert(false, 
+                Forever.Assert(false, 
                     $"Invalid respawn info for spawn id " +
                     $"({info.type},{info.spawnId}) being inserted");
             }
@@ -2272,7 +2287,7 @@ namespace Game.Maps
                 case SpawnObjectType.AreaTrigger:
                     return null;
                 default:
-                    Cypher.Assert(false);
+                    Forever.Assert(false);
                     return null;
             }
         }
@@ -2287,7 +2302,7 @@ namespace Game.Maps
         void DeleteRespawnInfo(RespawnInfo info, SQLTransaction dbTrans = null)
         {
             // Delete from all relevant containers to ensure consistency
-            Cypher.Assert(info != null);
+            Forever.Assert(info != null);
 
             // spawnid store
             var spawnMap = GetRespawnMapForType(info.type);
@@ -2296,7 +2311,7 @@ namespace Game.Maps
 
             var respawnInfo = spawnMap.LookupByKey(info.spawnId);
 
-            Cypher.Assert(respawnInfo != null, 
+            Forever.Assert(respawnInfo != null, 
                 $"Respawn stores inconsistent for map {GetId()}, " +
                 $"spawnid {info.spawnId} (Type {info.type})");
             
@@ -2334,6 +2349,8 @@ namespace Game.Maps
                     Creature obj = new();
                     if (!obj.LoadFromDB(spawnId, this, true, true))
                         obj.Dispose();
+                    else
+                        obj.StartRespawnAggroGrace();
                     break;
                 }
                 case SpawnObjectType.GameObject:
@@ -2344,7 +2361,7 @@ namespace Game.Maps
                     break;
                 }
                 default:
-                    Cypher.Assert(false,
+                    Forever.Assert(false,
                         $"Invalid spawn Type {type} (spawnid {spawnId}) on map {GetId()}");
                     break;
             }
@@ -2395,7 +2412,7 @@ namespace Game.Maps
                 }
                 else
                 { // new respawn time, update heap position
-                    Cypher.Assert(now < next.respawnTime); // infinite loop guard
+                    Forever.Assert(now < next.respawnTime); // infinite loop guard
                     _respawnTimes.Add(next);
                     SaveRespawnInfoDB(next);
                 }
@@ -2404,8 +2421,8 @@ namespace Game.Maps
 
         public void ApplyDynamicModeRespawnScaling(WorldObject obj, long spawnId, ref Seconds respawnDelay, int mode)
         {
-            Cypher.Assert(mode == 1);
-            Cypher.Assert(obj.GetMap() == this);
+            Forever.Assert(mode == 1);
+            Forever.Assert(obj.GetMap() == this);
 
             if (IsBattlegroundOrArena())
                 return;
@@ -2449,7 +2466,7 @@ namespace Game.Maps
 
         bool ShouldBeSpawnedOnGridLoad(SpawnObjectType type, long spawnId)
         {
-            Cypher.Assert(SpawnData.TypeHasData(type));
+            Forever.Assert(SpawnData.TypeHasData(type));
             // check if the object is on its respawn timer
             if (GetRespawnTime(type, spawnId) != ServerTime.Zero)
                 return false;
@@ -2495,7 +2512,7 @@ namespace Game.Maps
             List<SpawnData> toSpawn = new();
             foreach (var data in Global.ObjectMgr.GetSpawnMetadataForGroup(groupId))
             {
-                Cypher.Assert(groupData.mapId == data.MapId);
+                Forever.Assert(groupData.mapId == data.MapId);
 
                 var respawnMap = GetRespawnMapForType(data.type);
                 if (respawnMap == null)
@@ -2567,7 +2584,7 @@ namespace Game.Maps
                         break;
                     }
                     default:
-                        Cypher.Assert(false, 
+                        Forever.Assert(false, 
                             $"Invalid spawn Type {data.type} with spawnId {data.SpawnId}");
                         return false;
                 }
@@ -2595,7 +2612,7 @@ namespace Game.Maps
 
             foreach (var data in Global.ObjectMgr.GetSpawnMetadataForGroup(groupId))
             {
-                Cypher.Assert(groupData.mapId == data.MapId);
+                Forever.Assert(groupData.mapId == data.MapId);
                 if (deleteRespawnTimes)
                     RemoveRespawnTime(data.type, data.SpawnId);
 
@@ -2720,7 +2737,7 @@ namespace Game.Maps
 
         public void AddObjectToRemoveList(WorldObject obj)
         {
-            Cypher.Assert(obj.GetMapId() == GetId() && obj.GetInstanceId() == GetInstanceId());
+            Forever.Assert(obj.GetMapId() == GetId() && obj.GetInstanceId() == GetInstanceId());
 
             // Claim removal before cleanup: aura/summon cleanup can reenter this method.
             // One pending entry per live object bounds the queue by map ownership.
@@ -2733,7 +2750,7 @@ namespace Game.Maps
 
         public void AddObjectToSwitchList(WorldObject obj, bool on)
         {
-            Cypher.Assert(obj.GetMapId() == GetId() && obj.GetInstanceId() == GetInstanceId());
+            Forever.Assert(obj.GetMapId() == GetId() && obj.GetInstanceId() == GetInstanceId());
             // i_objectsToSwitch is iterated only in Map::RemoveAllObjectsInRemoveList() and it uses
             // the contained objects only if GetTypeId() == TYPEID_UNIT , so we can return in all other cases
             if (!obj.IsTypeId(TypeId.Unit))
@@ -2744,7 +2761,7 @@ namespace Game.Maps
             else if (i_objectsToSwitch[obj] != on)
                 i_objectsToSwitch.Remove(obj);
             else
-                Cypher.Assert(false);
+                Forever.Assert(false);
         }
 
         void RemoveAllObjectsInRemoveList()
@@ -3208,7 +3225,7 @@ namespace Game.Maps
 
         void RemoveCorpse(Corpse corpse)
         {
-            Cypher.Assert(corpse != null);
+            Forever.Assert(corpse != null);
 
             corpse.UpdateObjectVisibilityOnDestroy();
             if (corpse.GetCurrentCell() != null)
@@ -5293,7 +5310,7 @@ namespace Game.Maps
                 Log.outError(LogFilter.Maps, 
                     $"InstanceMap:CannotEnter - player {player.GetName()} ({player.GetGUID()}) " +
                     $"already in map {GetId()}, {GetInstanceId()}, {GetDifficultyID()}!");
-                Cypher.Assert(false);
+                Forever.Assert(false);
                 return new TransferAbortParams(TransferAbortReason.Error);
             }
 
@@ -5739,7 +5756,7 @@ namespace Game.Maps
                 Log.outError(LogFilter.Maps, 
                     $"BGMap:CannotEnter - player {player.GetGUID()} is already in map!");
 
-                Cypher.Assert(false);
+                Forever.Assert(false);
                 return new TransferAbortParams(TransferAbortReason.Error);
             }
 
@@ -5773,7 +5790,8 @@ namespace Game.Maps
         {
             if (HavePlayers())
             {
-                foreach (Player player in m_activePlayers)
+                // A teleport can remove the player from m_activePlayers (a bot's port completes at once).
+                foreach (Player player in m_activePlayers.ToArray())
                 {
                     if (!player.IsBeingTeleportedFar())
                         player.TeleportTo(player.GetBattlegroundEntryPoint());
@@ -5886,7 +5904,7 @@ namespace Game.Maps
             if (a.spawnId != b.spawnId)
                 return a.spawnId.CompareTo(b.spawnId);
 
-            Cypher.Assert(a.type != b.type, 
+            Forever.Assert(a.type != b.type, 
                 $"Duplicate respawn entry for spawnId ({a.type},{a.spawnId}) found!");
 
             return a.type.CompareTo(b.type);

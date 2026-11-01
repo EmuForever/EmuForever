@@ -82,13 +82,13 @@ public sealed partial class SIPlayer
             for(int i=1;i<itinerary.Length;++i)
             {
                 Global.ObjectMgr.GetTaxiPath(itinerary[i-1],itinerary[i],out _,out uint fare);rawFare+=fare;
-                ulong legFare=me.ApplyClassicLegacyPriceMod((ulong)Math.Ceiling(fare*discount),4);
+                ulong legFare=me.ApplyClassicLegacyPriceMod((ulong)Math.Ceiling(fare*discount),Game.Systems.Legacy.LegacyEffectEngine.FlightPathPriceType);
                 paidByLeg=legFare>ulong.MaxValue-paidByLeg?ulong.MaxValue:paidByLeg+legFare;
             }
             if(rawFare>uint.MaxValue)continue;
             // Activation checks the discounted total; subsequent path switches
             // round individual fares. Reserve the greater amount for lessons.
-            ulong totalFare=Math.Max(paidByLeg,me.ApplyClassicLegacyPriceMod((ulong)Math.Ceiling(rawFare*discount),4));
+            ulong totalFare=Math.Max(paidByLeg,me.ApplyClassicLegacyPriceMod((ulong)Math.Ceiling(rawFare*discount),Game.Systems.Legacy.LegacyEffectEngine.FlightPathPriceType));
             if(totalFare>(ulong)me.GetMoney())continue;
             if(reservedMoney<0||reservedMoney>me.GetMoney()||(long)totalFare>me.GetMoney()-reservedMoney)continue;
             float seconds=(float)routes.DistanceTo(destination)+Walk(nodes[destination].Pos,goal);

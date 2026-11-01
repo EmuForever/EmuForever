@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -111,9 +111,9 @@ namespace Game.Chat
         WorldObject _target;
     }
 
-    class CypherStringChatBuilder : MessageBuilder
+    class ForeverStringChatBuilder : MessageBuilder
     {
-        public CypherStringChatBuilder(WorldObject obj, ChatMsg msgType, CypherStrings textId, WorldObject target = null, object[] args = null)
+        public ForeverStringChatBuilder(WorldObject obj, ChatMsg msgType, ForeverStrings textId, WorldObject target = null, object[] args = null)
         {
             _source = obj;
             _msgType = msgType;
@@ -124,7 +124,7 @@ namespace Game.Chat
 
         public override ChatPacketSender Invoke(Locale locale)
         {
-            string text = Global.ObjectMgr.GetCypherString(_textId, locale);
+            string text = Global.ObjectMgr.GetForeverString(_textId, locale);
 
             if (_args != null)
                 return new ChatPacketSender(_msgType, Language.Universal, _source, _target, string.Format(text, _args), 0, locale);
@@ -134,7 +134,7 @@ namespace Game.Chat
 
         WorldObject _source;
         ChatMsg _msgType;
-        CypherStrings _textId;
+        ForeverStrings _textId;
         WorldObject _target;
         object[] _args;
     }

@@ -1,4 +1,4 @@
-// Trait packet layout and delta semantics follow the local TrinityCore forever reference.
+// Trait packet layout and delta semantics follow the local EmuForever forever reference.
 using Framework.Constants;
 using Game.DataStorage;
 using Game.Entities;
@@ -26,10 +26,11 @@ namespace Game
 
             // Metadata and granted ranks belong to the server. Client entries are rank deltas, not a replacement inventory.
             TraitConfigPacket state = new(existing);
-            HashSet<int> touched = new();
+            // A tiered node (Legacy 110298) sends one entry per bought tier, so only a repeated node + entry pair is invalid.
+            HashSet<(int, int)> touched = new();
             foreach (TraitEntryPacket change in packet.Config.Entries)
             {
-                if (change.Rank < 0 || change.GrantedRanks < 0 || change.BonusRanks != 0 || !touched.Add(change.TraitNodeID)) { Fail(TalentLearnResult.FailedUnknown); return; }
+                if (change.Rank < 0 || change.GrantedRanks < 0 || change.BonusRanks != 0 || !touched.Add((change.TraitNodeID, change.TraitNodeEntryID))) { Fail(TalentLearnResult.FailedUnknown); return; }
                 TraitEntryPacket old = state.Entries.Find(x => x.TraitNodeID == change.TraitNodeID && x.TraitNodeEntryID == change.TraitNodeEntryID);
                 if (change.GrantedRanks != (old?.GrantedRanks ?? 0)) { Fail(TalentLearnResult.FailedUnknown); return; }
                 if (change.Rank < (old?.Rank ?? 0))

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using System;
@@ -580,7 +580,7 @@ namespace Framework.Dynamic
         {
             // This was adapted to TC to prevent static analysis tools from complaining.
             // If you encounter this assertion check if you repeat a TaskContext more then 1 time!
-            Cypher.Assert(!_consumed, "Bad task logic, task context was consumed already!");
+            Forever.Assert(!_consumed, "Bad task logic, task context was consumed already!");
         }
 
         /// <summary>

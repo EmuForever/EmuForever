@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -23,7 +23,7 @@ namespace Game.Chat
             GameObject obj = handler.GetObjectFromPlayerMapByDbGuid(guidLow);
             if (obj == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandObjnotfound, guidLow);
+                handler.SendSysMessage(ForeverStrings.CommandObjnotfound, guidLow);
                 return false;
             }
 
@@ -50,7 +50,7 @@ namespace Game.Chat
                     Unit owner = Global.ObjAccessor.GetUnit(player, ownerGuid);
                     if (owner == null || !ownerGuid.IsPlayer())
                     {
-                        handler.SendSysMessage(CypherStrings.CommandDelobjrefercreature, ownerGuid.ToString(), obj.GetGUID().ToString());
+                        handler.SendSysMessage(ForeverStrings.CommandDelobjrefercreature, ownerGuid.ToString(), obj.GetGUID().ToString());
                         return false;
                     }
 
@@ -60,11 +60,11 @@ namespace Game.Chat
 
             if (GameObject.DeleteFromDB(spawnId))
             {
-                handler.SendSysMessage(CypherStrings.CommandDelobjmessage, spawnId);
+                handler.SendSysMessage(ForeverStrings.CommandDelobjmessage, spawnId);
                 return true;
             }
 
-            handler.SendSysMessage(CypherStrings.CommandObjnotfound, obj.GetGUID().ToString());
+            handler.SendSysMessage(ForeverStrings.CommandObjnotfound, obj.GetGUID().ToString());
             return false;
         }
 
@@ -91,7 +91,7 @@ namespace Game.Chat
             int n = 0;
             if (!player.GetMap().SpawnGroupDespawn(groupId, deleteRespawnTimes, out n))
             {
-                handler.SendSysMessage(CypherStrings.SpawngroupBadgroup, groupId);
+                handler.SendSysMessage(ForeverStrings.SpawngroupBadgroup, groupId);
                 return false;
             }
 
@@ -114,7 +114,7 @@ namespace Game.Chat
                 spawnData = Global.ObjectMgr.GetGameObjectData(spawnId);
                 if (spawnData == null)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandObjnotfound, spawnId);
+                    handler.SendSysMessage(ForeverStrings.CommandObjnotfound, spawnId);
                     return false;
                 }
 
@@ -129,7 +129,7 @@ namespace Game.Chat
             GameObjectTemplate gameObjectInfo = Global.ObjectMgr.GetGameObjectTemplate(entry);
             if (gameObjectInfo == null)
             {
-                handler.SendSysMessage(CypherStrings.GameobjectNotExist, entry);
+                handler.SendSysMessage(ForeverStrings.GameobjectNotExist, entry);
                 return false;
             }
 
@@ -143,44 +143,44 @@ namespace Game.Chat
             // If we have a real object, send some info about it
             if (thisGO != null)
             {
-                handler.SendSysMessage(CypherStrings.SpawninfoGuidinfo, thisGO.GetGUID().ToString());
-                handler.SendSysMessage(CypherStrings.SpawninfoCompatibilityMode, thisGO.GetRespawnCompatibilityMode());
+                handler.SendSysMessage(ForeverStrings.SpawninfoGuidinfo, thisGO.GetGUID().ToString());
+                handler.SendSysMessage(ForeverStrings.SpawninfoCompatibilityMode, thisGO.GetRespawnCompatibilityMode());
 
                 if (thisGO.GetGameObjectData() != null && thisGO.GetGameObjectData().spawnGroupData.groupId != 0)
                 {
                     SpawnGroupTemplateData groupData = thisGO.ToGameObject().GetGameObjectData().spawnGroupData;
-                    handler.SendSysMessage(CypherStrings.SpawninfoGroupId, groupData.name, groupData.groupId, groupData.flags, thisGO.GetMap().IsSpawnGroupActive(groupData.groupId));
+                    handler.SendSysMessage(ForeverStrings.SpawninfoGroupId, groupData.name, groupData.groupId, groupData.flags, thisGO.GetMap().IsSpawnGroupActive(groupData.groupId));
                 }
 
                 GameObjectOverride goOverride = Global.ObjectMgr.GetGameObjectOverride(spawnId);
                 if (goOverride == null)
                     goOverride = Global.ObjectMgr.GetGameObjectTemplateAddon(entry);
                 if (goOverride != null)
-                    handler.SendSysMessage(CypherStrings.GoinfoAddon, goOverride.Faction, goOverride.Flags);
+                    handler.SendSysMessage(ForeverStrings.GoinfoAddon, goOverride.Faction, goOverride.Flags);
             }
 
             if (spawnData != null)
             {
                 spawnData.rotation.toEulerAnglesZYX(out float yaw, out float pitch, out float roll);
-                handler.SendSysMessage(CypherStrings.SpawninfoSpawnidLocation, spawnData.SpawnId, spawnData.SpawnPoint.GetPositionX(), spawnData.SpawnPoint.GetPositionY(), spawnData.SpawnPoint.GetPositionZ());
-                handler.SendSysMessage(CypherStrings.SpawninfoRotation, yaw, pitch, roll);
+                handler.SendSysMessage(ForeverStrings.SpawninfoSpawnidLocation, spawnData.SpawnId, spawnData.SpawnPoint.GetPositionX(), spawnData.SpawnPoint.GetPositionY(), spawnData.SpawnPoint.GetPositionZ());
+                handler.SendSysMessage(ForeverStrings.SpawninfoRotation, yaw, pitch, roll);
             }
 
-            handler.SendSysMessage(CypherStrings.GoinfoEntry, entry);
-            handler.SendSysMessage(CypherStrings.GoinfoType, type);
-            handler.SendSysMessage(CypherStrings.GoinfoLootid, lootId);
-            handler.SendSysMessage(CypherStrings.GoinfoDisplayid, displayId);
-            handler.SendSysMessage(CypherStrings.GoinfoName, name);
-            handler.SendSysMessage(CypherStrings.GoinfoSize, gameObjectInfo.size);
+            handler.SendSysMessage(ForeverStrings.GoinfoEntry, entry);
+            handler.SendSysMessage(ForeverStrings.GoinfoType, type);
+            handler.SendSysMessage(ForeverStrings.GoinfoLootid, lootId);
+            handler.SendSysMessage(ForeverStrings.GoinfoDisplayid, displayId);
+            handler.SendSysMessage(ForeverStrings.GoinfoName, name);
+            handler.SendSysMessage(ForeverStrings.GoinfoSize, gameObjectInfo.size);
 
-            handler.SendSysMessage(CypherStrings.ObjectinfoAiInfo, gameObjectInfo.AIName, Global.ObjectMgr.GetScriptName(gameObjectInfo.ScriptId));
+            handler.SendSysMessage(ForeverStrings.ObjectinfoAiInfo, gameObjectInfo.AIName, Global.ObjectMgr.GetScriptName(gameObjectInfo.ScriptId));
             var ai = thisGO != null ? thisGO.GetAI() : null;
             if (ai != null)
-                handler.SendSysMessage(CypherStrings.ObjectinfoAiType, nameof(ai));
+                handler.SendSysMessage(ForeverStrings.ObjectinfoAiType, nameof(ai));
 
             GameObjectDisplayInfoRecord modelInfo = CliDB.GameObjectDisplayInfoStorage.LookupByKey(displayId);
             if (modelInfo != null)
-                handler.SendSysMessage(CypherStrings.GoinfoModel, modelInfo.GeoBoxMax.X, modelInfo.GeoBoxMax.Y, modelInfo.GeoBoxMax.Z, modelInfo.GeoBoxMin.X, modelInfo.GeoBoxMin.Y, modelInfo.GeoBoxMin.Z);
+                handler.SendSysMessage(ForeverStrings.GoinfoModel, modelInfo.GeoBoxMax.X, modelInfo.GeoBoxMax.Y, modelInfo.GeoBoxMax.Z, modelInfo.GeoBoxMin.X, modelInfo.GeoBoxMin.Y, modelInfo.GeoBoxMin.Z);
 
             return true;
         }
@@ -191,7 +191,7 @@ namespace Game.Chat
             GameObject obj = handler.GetObjectFromPlayerMapByDbGuid(guidLow);
             if (obj == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandObjnotfound, guidLow);
+                handler.SendSysMessage(ForeverStrings.CommandObjnotfound, guidLow);
                 return false;
             }
 
@@ -201,7 +201,7 @@ namespace Game.Chat
                 pos = new Position(xyz[0], xyz[1], xyz[2]);
                 if (!GridDefines.IsValidMapCoord(obj.GetMapId(), pos))
                 {
-                    handler.SendSysMessage(CypherStrings.InvalidTargetCoord, pos.GetPositionX(), pos.GetPositionY(), obj.GetMapId());
+                    handler.SendSysMessage(ForeverStrings.InvalidTargetCoord, pos.GetPositionX(), pos.GetPositionY(), obj.GetMapId());
                     return false;
                 }
             }
@@ -230,7 +230,7 @@ namespace Game.Chat
             if (obj == null)
                 return false;
 
-            handler.SendSysMessage(CypherStrings.CommandMoveobjmessage, obj.GetSpawnId(), obj.GetGoInfo().name, obj.GetGUID().ToString());
+            handler.SendSysMessage(ForeverStrings.CommandMoveobjmessage, obj.GetSpawnId(), obj.GetGoInfo().name, obj.GetGUID().ToString());
 
             return true;
         }
@@ -269,13 +269,13 @@ namespace Game.Chat
                     if (gameObjectInfo == null)
                         continue;
 
-                    handler.SendSysMessage(CypherStrings.GoListChat, guid, entry, guid, gameObjectInfo.name, x, y, z, mapId, "", "");
+                    handler.SendSysMessage(ForeverStrings.GoListChat, guid, entry, guid, gameObjectInfo.name, x, y, z, mapId, "", "");
 
                     ++count;
                 } while (result.NextRow());
             }
 
-            handler.SendSysMessage(CypherStrings.CommandNearobjmessage, distance, count);
+            handler.SendSysMessage(ForeverStrings.CommandNearobjmessage, distance, count);
             return true;
         }
 
@@ -311,11 +311,11 @@ namespace Game.Chat
             List<WorldObject> creatureList = new();
             if (!player.GetMap().SpawnGroupSpawn(groupId, ignoreRespawn, force, creatureList))
             {
-                handler.SendSysMessage(CypherStrings.SpawngroupBadgroup, groupId);
+                handler.SendSysMessage(ForeverStrings.SpawngroupBadgroup, groupId);
                 return false;
             }
 
-            handler.SendSysMessage(CypherStrings.SpawngroupSpawncount, creatureList.Count);
+            handler.SendSysMessage(ForeverStrings.SpawngroupSpawncount, creatureList.Count);
             foreach (WorldObject obj in creatureList)
                 handler.SendSysMessage($"{obj.GetName()} ({obj.GetGUID()})");
 
@@ -393,7 +393,7 @@ namespace Game.Chat
 
             if (result.IsEmpty())
             {
-                handler.SendSysMessage(CypherStrings.CommandTargetobjnotfound);
+                handler.SendSysMessage(ForeverStrings.CommandTargetobjnotfound);
                 return true;
             }
 
@@ -422,7 +422,7 @@ namespace Game.Chat
 
             if (!found)
             {
-                handler.SendSysMessage(CypherStrings.GameobjectNotExist, id);
+                handler.SendSysMessage(ForeverStrings.GameobjectNotExist, id);
                 return false;
             }
 
@@ -430,13 +430,13 @@ namespace Game.Chat
 
             if (objectInfo == null)
             {
-                handler.SendSysMessage(CypherStrings.GameobjectNotExist, id);
+                handler.SendSysMessage(ForeverStrings.GameobjectNotExist, id);
                 return false;
             }
 
             GameObject target = handler.GetObjectFromPlayerMapByDbGuid(guidLow);
 
-            handler.SendSysMessage(CypherStrings.GameobjectDetail, guidLow, objectInfo.name, guidLow, id, x, y, z, mapId, o, phaseId, phaseGroup);
+            handler.SendSysMessage(ForeverStrings.GameobjectDetail, guidLow, objectInfo.name, guidLow, id, x, y, z, mapId, o, phaseId, phaseGroup);
 
             if (target != null)
             {
@@ -447,7 +447,7 @@ namespace Game.Chat
                 string curRespawnDelayStr = Time.SpanToTimeString(curRespawnDelay, TimeFormat.ShortText);
                 string defRespawnDelayStr = Time.SpanToTimeString(target.GetRespawnDelay(), TimeFormat.ShortText);
 
-                handler.SendSysMessage(CypherStrings.CommandRawpawntimes, defRespawnDelayStr, curRespawnDelayStr);
+                handler.SendSysMessage(ForeverStrings.CommandRawpawntimes, defRespawnDelayStr, curRespawnDelayStr);
             }
 
             return true;
@@ -459,7 +459,7 @@ namespace Game.Chat
             GameObject obj = handler.GetObjectFromPlayerMapByDbGuid(guidLow);
             if (obj == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandObjnotfound, guidLow);
+                handler.SendSysMessage(ForeverStrings.CommandObjnotfound, guidLow);
                 return false;
             }
 
@@ -482,7 +482,7 @@ namespace Game.Chat
             if (obj == null)
                 return false;
 
-            handler.SendSysMessage(CypherStrings.CommandTurnobjmessage, obj.GetSpawnId(), obj.GetGoInfo().name, obj.GetGUID().ToString(), obj.GetOrientation());
+            handler.SendSysMessage(ForeverStrings.CommandTurnobjmessage, obj.GetSpawnId(), obj.GetGoInfo().name, obj.GetGUID().ToString(), obj.GetOrientation());
 
             return true;
         }
@@ -499,7 +499,7 @@ namespace Game.Chat
                 GameObjectTemplate objectInfo = Global.ObjectMgr.GetGameObjectTemplate(objectId);
                 if (objectInfo == null)
                 {
-                    handler.SendSysMessage(CypherStrings.GameobjectNotExist, objectId);
+                    handler.SendSysMessage(ForeverStrings.GameobjectNotExist, objectId);
                     return false;
                 }
 
@@ -509,7 +509,7 @@ namespace Game.Chat
                     Log.outError(LogFilter.Sql, 
                         $"Gameobject (Entry {objectId} GoType: {objectInfo.type}) " +
                         $"have invalid displayId ({objectInfo.displayId}), not spawned.");
-                    handler.SendSysMessage(CypherStrings.GameobjectHaveInvalidData, objectId);
+                    handler.SendSysMessage(ForeverStrings.GameobjectHaveInvalidData, objectId);
                     return false;
                 }
 
@@ -536,7 +536,7 @@ namespace Game.Chat
 
                 // TODO: is it really necessary to add both the real and DB table guid here ?
                 Global.ObjectMgr.AddGameObjectToGrid(Global.ObjectMgr.GetGameObjectData(spawnId));
-                handler.SendSysMessage(CypherStrings.GameobjectAdd, objectId, objectInfo.name, spawnId, player.GetPositionX(), player.GetPositionY(), player.GetPositionZ());
+                handler.SendSysMessage(ForeverStrings.GameobjectAdd, objectId, objectInfo.name, spawnId, player.GetPositionX(), player.GetPositionY(), player.GetPositionZ());
                 return true;
             }
 
@@ -549,7 +549,7 @@ namespace Game.Chat
                 Quaternion rotation = Quaternion.CreateFromRotationMatrix(Extensions.fromEulerAnglesZYX(player.GetOrientation(), 0.0f, 0.0f));
                 if (Global.ObjectMgr.GetGameObjectTemplate(objectId) == null)
                 {
-                    handler.SendSysMessage(CypherStrings.GameobjectNotExist, objectId);
+                    handler.SendSysMessage(ForeverStrings.GameobjectNotExist, objectId);
                     return false;
                 }
 
@@ -571,18 +571,50 @@ namespace Game.Chat
                 GameObject obj = handler.GetObjectFromPlayerMapByDbGuid(guidLow);
                 if (obj == null)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandObjnotfound, guidLow);
+                    handler.SendSysMessage(ForeverStrings.CommandObjnotfound, guidLow);
                     return false;
                 }
 
                 if (phaseId == 0)
                 {
-                    handler.SendSysMessage(CypherStrings.BadValue);
+                    handler.SendSysMessage(ForeverStrings.BadValue);
                     return false;
                 }
 
                 PhasingHandler.AddPhase(obj, phaseId, true);
                 obj.SaveToDB();
+                return true;
+            }
+
+            // .gobject set scale <entry> <scale>: resizes the nearest object of that entry (within 50 yd) at once and saves the
+            // size on its template, so every spawn of the entry keeps it after a restart.
+            [Command("scale", RBACPermissions.CommandGobjectSetState)]
+            static bool HandleGameObjectSetScaleCommand(CommandHandler handler, int entry, float scale)
+            {
+                if (scale <= 0.0f || scale > 50.0f)
+                {
+                    handler.SendSysMessage(ForeverStrings.BadValue);
+                    return false;
+                }
+
+                GameObjectTemplate template = Global.ObjectMgr.GetGameObjectTemplate(entry);
+                if (template == null)
+                {
+                    handler.SendSysMessage(ForeverStrings.GameobjectNotExist, entry);
+                    return false;
+                }
+
+                GameObject obj = handler.GetSession().GetPlayer().FindNearestGameObject(entry, 50.0f);
+                if (obj == null)
+                {
+                    handler.SendSysMessage($"No gameobject {entry} within 50 yards.");
+                    return false;
+                }
+
+                template.size = scale;
+                obj.SetObjectScale(scale);
+                DB.World.Execute("UPDATE gameobject_template SET size = {0} WHERE entry = {1}", scale.ToString(System.Globalization.CultureInfo.InvariantCulture), entry);
+                handler.SendSysMessage($"Gameobject {entry} ({template.name}) size set to {scale} and saved.");
                 return true;
             }
 
@@ -595,7 +627,7 @@ namespace Game.Chat
                 GameObject obj = handler.GetObjectFromPlayerMapByDbGuid(guidLow);
                 if (obj == null)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandObjnotfound, guidLow);
+                    handler.SendSysMessage(ForeverStrings.CommandObjnotfound, guidLow);
                     return false;
                 }
 

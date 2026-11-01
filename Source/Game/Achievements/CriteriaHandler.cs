@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -277,6 +277,23 @@ namespace Game.Achievements
                         int reputation = referencePlayer.GetReputationMgr().GetReputation(criteria.Entry.Asset);
                         if (reputation > 0)
                             SetCriteriaProgress(criteria, (uint)reputation, referencePlayer);
+                        break;
+                    }
+                    // Classic 1.60 Legacy "Master of <battleground>": standing gained with the faction, Exalted at 42000.
+                    // Highest, so standing earned before this criteria type was tracked still counts at the login check.
+                    case CriteriaType.ReputationAmountGained:
+                    {
+                        int reputation = referencePlayer.GetReputationMgr().GetReputation(criteria.Entry.Asset);
+                        if (reputation > 0)
+                            SetCriteriaProgress(criteria, reputation, referencePlayer, ProgressType.Highest);
+                        break;
+                    }
+                    // Asset = the renown currency; its quantity is the level (Classic 1.60 Legacy PvP ranks: 3473 of faction 2800).
+                    case CriteriaType.ReachRenownLevel:
+                    {
+                        int renown = referencePlayer.GetRenownLevel(criteria.Entry.Asset);
+                        if (renown > 0)
+                            SetCriteriaProgress(criteria, renown, referencePlayer, ProgressType.Highest);
                         break;
                     }
                     case CriteriaType.TotalExaltedFactions:
@@ -794,6 +811,8 @@ namespace Game.Achievements
                 case CriteriaType.LootItem:
                 case CriteriaType.BankSlotsPurchased:
                 case CriteriaType.ReputationGained:
+                case CriteriaType.ReputationAmountGained:
+                case CriteriaType.ReachRenownLevel:
                 case CriteriaType.TotalExaltedFactions:
                 case CriteriaType.RollNeed:
                 case CriteriaType.RollGreed:
@@ -1052,7 +1071,8 @@ namespace Game.Achievements
                     else
                     {
                         // login case.
-                        if (!referencePlayer.GetQuestRewardStatus(criteria.Entry.Asset))
+                        if (!referencePlayer.GetQuestRewardStatus(criteria.Entry.Asset) &&
+                            !Game.Systems.Legacy.LegacyManager.TrackingQuestEarned(referencePlayer, criteria.Entry.Asset))
                             return false;
                     }
                     CriteriaDataSet data = Global.CriteriaMgr.GetCriteriaDataSet(criteria);
@@ -1124,6 +1144,8 @@ namespace Game.Achievements
                     break;
                 }
                 case CriteriaType.ReputationGained:
+                case CriteriaType.ReputationAmountGained:
+                case CriteriaType.ReachRenownLevel:
                     if (miscValue1 != 0 && miscValue1 != criteria.Entry.Asset)
                         return false;
                     break;
@@ -3268,15 +3290,15 @@ namespace Game.Achievements
             int questObjectiveCriterias = 0;
             foreach (CriteriaRecord criteriaEntry in CliDB.CriteriaStorage.Values)
             {
-                Cypher.Assert(criteriaEntry.Type < CriteriaType.Count, 
+                Forever.Assert(criteriaEntry.Type < CriteriaType.Count, 
                     $"CriteriaType.Count must be greater than or equal to {criteriaEntry.Type + 1} " +
                     $"but is currently equal to {CriteriaType.Count}");
 
-                Cypher.Assert(criteriaEntry.StartEvent < (byte)CriteriaStartEvent.Count, 
+                Forever.Assert(criteriaEntry.StartEvent < (byte)CriteriaStartEvent.Count, 
                     $"CriteriaStartEvent.Count must be greater than or equal to {criteriaEntry.StartEvent + 1} " +
                     $"but is currently equal to {CriteriaStartEvent.Count}");
 
-                Cypher.Assert(criteriaEntry.FailEvent < (byte)CriteriaFailEvent.Count, 
+                Forever.Assert(criteriaEntry.FailEvent < (byte)CriteriaFailEvent.Count, 
                     $"CriteriaFailEvent.Count must be greater than or equal to {criteriaEntry.FailEvent + 1} " +
                     $"but is currently equal to {CriteriaFailEvent.Count}");
 
@@ -3482,6 +3504,8 @@ namespace Game.Achievements
                 case CriteriaType.LootItem:
                 case CriteriaType.RevealWorldMapOverlay:
                 case CriteriaType.ReputationGained:
+                case CriteriaType.ReputationAmountGained:
+                case CriteriaType.ReachRenownLevel:
                 case CriteriaType.EquipItemInSlot:
                 case CriteriaType.DeliverKillingBlowToClass:
                 case CriteriaType.DeliverKillingBlowToRace:

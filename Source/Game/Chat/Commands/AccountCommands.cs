@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -11,7 +11,7 @@ namespace Game.Chat
     [CommandGroup("account")]
     class AccountCommands
     {
-        [Command("", CypherStrings.CommandAccountHelp, RBACPermissions.CommandAccount)]
+        [Command("", ForeverStrings.CommandAccountHelp, RBACPermissions.CommandAccount)]
         static bool HandleAccountCommand(CommandHandler handler)
         {
             if (handler.GetSession() == null)
@@ -19,20 +19,20 @@ namespace Game.Chat
 
             // GM Level
             AccountTypes securityLevel = handler.GetSession().GetSecurity();
-            handler.SendSysMessage(CypherStrings.AccountLevel, securityLevel);
+            handler.SendSysMessage(ForeverStrings.AccountLevel, securityLevel);
 
             // Security level required
             WorldSession session = handler.GetSession();
             bool hasRBAC = (session.HasPermission(RBACPermissions.EmailConfirmForPassChange));
             uint pwConfig = 0; // 0 - PW_NONE, 1 - PW_EMAIL, 2 - PW_RBAC
 
-            handler.SendSysMessage(CypherStrings.AccountSecType, (pwConfig == 0 ? "Lowest level: No Email input required." :
+            handler.SendSysMessage(ForeverStrings.AccountSecType, (pwConfig == 0 ? "Lowest level: No Email input required." :
                 pwConfig == 1 ? "Highest level: Email input required." : pwConfig == 2 ? "Special level: Your account may require email input depending on settings. That is the case if another lien is printed." :
                 "Unknown security level: Notify technician for details."));
 
             // RBAC required display - is not displayed for console
             if (pwConfig == 2 && hasRBAC)
-                handler.SendSysMessage(CypherStrings.RbacEmailRequired);
+                handler.SendSysMessage(ForeverStrings.RbacEmailRequired);
 
             // Email display if sufficient rights
             if (session.HasPermission(RBACPermissions.MayCheckOwnEmail))
@@ -47,20 +47,20 @@ namespace Game.Chat
                 if (!result.IsEmpty())
                 {
                     emailoutput = result.Read<string>(0);
-                    handler.SendSysMessage(CypherStrings.CommandEmailOutput, emailoutput);
+                    handler.SendSysMessage(ForeverStrings.CommandEmailOutput, emailoutput);
                 }
             }
 
             return true;
         }
 
-        [Command("2fa remove", CypherStrings.CommandAcc2faRemoveHelp, RBACPermissions.CommandAccount2FaRemove)]
+        [Command("2fa remove", ForeverStrings.CommandAcc2faRemoveHelp, RBACPermissions.CommandAccount2FaRemove)]
         static bool HandleAccount2FARemoveCommand(CommandHandler handler, uint? token)
         {
             /*var masterKey = Global.SecretMgr.GetSecret(Secrets.TOTPMasterKey);
             if (!masterKey.IsAvailable())
             {
-                handler.SendSysMessage(CypherStrings.TwoFACommandsNotSetup);
+                handler.SendSysMessage(ForeverStrings.TwoFACommandsNotSetup);
                 return false;
             }
 
@@ -74,13 +74,13 @@ namespace Game.Chat
                 if (result.IsEmpty())
                 {
                     Log.outError(LogFilter.Misc, $"Account {accountId} not found in login database when processing .account 2fa setup command.");
-                    handler.SendSysMessage(CypherStrings.UnknownError);
+                    handler.SendSysMessage(ForeverStrings.UnknownError);
                     return false;
                 }
 
                 if (result.IsNull(0))
                 { // 2FA not enabled
-                    handler.SendSysMessage(CypherStrings.TwoFANotSetup);
+                    handler.SendSysMessage(ForeverStrings.TwoFANotSetup);
                     return false;
                 }
 
@@ -95,7 +95,7 @@ namespace Game.Chat
                     if (!success)
                     {
                         Log.outError(LogFilter.Misc, $"Account {accountId} has invalid ciphertext in TOTP token.");
-                        handler.SendSysMessage(CypherStrings.UnknownError);
+                        handler.SendSysMessage(ForeverStrings.UnknownError);
                         return false;
                     }
                 }
@@ -106,24 +106,24 @@ namespace Game.Chat
                     stmt.AddNull(0);
                     stmt.AddValue(1, accountId);
                     DB.Login.Execute(stmt);
-                    handler.SendSysMessage(CypherStrings.TwoFARemoveComplete);
+                    handler.SendSysMessage(ForeverStrings.TwoFARemoveComplete);
                     return true;
                 }
                 else
-                    handler.SendSysMessage(CypherStrings.TwoFAInvalidToken);
+                    handler.SendSysMessage(ForeverStrings.TwoFAInvalidToken);
             }
 
-            handler.SendSysMessage(CypherStrings.TwoFARemoveNeedToken);*/
+            handler.SendSysMessage(ForeverStrings.TwoFARemoveNeedToken);*/
             return false;
         }
 
-        [Command("2fa setup", CypherStrings.CommandAcc2faSetupHelp, RBACPermissions.CommandAccount2FaSetup)]
+        [Command("2fa setup", ForeverStrings.CommandAcc2faSetupHelp, RBACPermissions.CommandAccount2FaSetup)]
         static bool HandleAccount2FASetupCommand(CommandHandler handler, uint? token)
         {
             /*var masterKey = Global.SecretMgr.GetSecret(Secrets.TOTPMasterKey);
             if (!masterKey.IsAvailable())
             {
-                handler.SendSysMessage(CypherStrings.TwoFACommandsNotSetup);
+                handler.SendSysMessage(ForeverStrings.TwoFACommandsNotSetup);
                 return false;
             }
 
@@ -137,13 +137,13 @@ namespace Game.Chat
                 if (result.IsEmpty())
                 {
                     Log.outError(LogFilter.Misc, $"Account {accountId} not found in login database when processing .account 2fa setup command.");
-                    handler.SendSysMessage(CypherStrings.UnknownError);
+                    handler.SendSysMessage(ForeverStrings.UnknownError);
                     return false;
                 }
 
                 if (!result.IsNull(0))
                 {
-                    handler.SendSysMessage(CypherStrings.TwoFAAlreadySetup);
+                    handler.SendSysMessage(ForeverStrings.TwoFAAlreadySetup);
                     return false;
                 }
             }
@@ -166,24 +166,24 @@ namespace Game.Chat
                     stmt.AddValue(1, accountId);
                     DB.Login.Execute(stmt);
                     suggestions.Remove(accountId);
-                    handler.SendSysMessage(CypherStrings.TwoFASetupComplete);
+                    handler.SendSysMessage(ForeverStrings.TwoFASetupComplete);
                     return true;
                 }
                 else
-                    handler.SendSysMessage(CypherStrings.TwoFAInvalidToken);
+                    handler.SendSysMessage(ForeverStrings.TwoFAInvalidToken);
             }
 
             // new suggestion, or no token specified, output TOTP parameters
-            handler.SendSysMessage(CypherStrings.TwoFASecretSuggestion, suggestions[accountId].ToBase32());*/
+            handler.SendSysMessage(ForeverStrings.TwoFASecretSuggestion, suggestions[accountId].ToBase32());*/
             return false;
         }
 
-        [Command("addon", CypherStrings.CommandAccAddonHelp, RBACPermissions.CommandAccountAddon)]
+        [Command("addon", ForeverStrings.CommandAccAddonHelp, RBACPermissions.CommandAccountAddon)]
         static bool HandleAccountAddonCommand(CommandHandler handler, byte expansion)
         {
             if (expansion > WorldConfig.Values[WorldCfg.Expansion].Int32)
             {
-                handler.SendSysMessage(CypherStrings.ImproperValue);
+                handler.SendSysMessage(ForeverStrings.ImproperValue);
                 return false;
             }
 
@@ -192,18 +192,18 @@ namespace Game.Chat
             stmt.SetInt32(1, handler.GetSession().GetAccountId());
             DB.Login.Execute(stmt);
 
-            handler.SendSysMessage(CypherStrings.AccountAddon, expansion);
+            handler.SendSysMessage(ForeverStrings.AccountAddon, expansion);
             return true;
         }
 
-        [Command("create", CypherStrings.CommandAccCreateHelp, RBACPermissions.CommandAccountCreate, true)]
+        [Command("create", ForeverStrings.CommandAccCreateHelp, RBACPermissions.CommandAccountCreate, true)]
         static bool HandleAccountCreateCommand(CommandHandler handler, string accountName, string password, [OptionalArg] string email)
         {
             email = email == null ? "" : email;
 
             if (accountName.Contains("@"))
             {
-                handler.SendSysMessage(CypherStrings.AccountUseBnetCommands);
+                handler.SendSysMessage(ForeverStrings.AccountUseBnetCommands);
                 return false;
             }
 
@@ -211,7 +211,7 @@ namespace Game.Chat
             switch (result)
             {
                 case AccountOpResult.Ok:
-                    handler.SendSysMessage(CypherStrings.AccountCreated, accountName);
+                    handler.SendSysMessage(ForeverStrings.AccountCreated, accountName);
                     if (handler.GetSession() != null)
                     {
                         Log.outInfo(LogFilter.Player, 
@@ -221,32 +221,32 @@ namespace Game.Chat
                     }
                     break;
                 case AccountOpResult.NameTooLong:
-                    handler.SendSysMessage(CypherStrings.AccountNameTooLong);
+                    handler.SendSysMessage(ForeverStrings.AccountNameTooLong);
                     return false;
                 case AccountOpResult.PassTooLong:
-                    handler.SendSysMessage(CypherStrings.AccountPassTooLong);
+                    handler.SendSysMessage(ForeverStrings.AccountPassTooLong);
                     return false;
                 case AccountOpResult.NameAlreadyExist:
-                    handler.SendSysMessage(CypherStrings.AccountAlreadyExist);
+                    handler.SendSysMessage(ForeverStrings.AccountAlreadyExist);
                     return false;
                 case AccountOpResult.DBInternalError:
-                    handler.SendSysMessage(CypherStrings.AccountNotCreatedSqlError, accountName);
+                    handler.SendSysMessage(ForeverStrings.AccountNotCreatedSqlError, accountName);
                     return false;
                 default:
-                    handler.SendSysMessage(CypherStrings.AccountNotCreated, accountName);
+                    handler.SendSysMessage(ForeverStrings.AccountNotCreated, accountName);
                     return false;
             }
 
             return true;
         }
 
-        [Command("delete", CypherStrings.CommandAccDeleteHelp, RBACPermissions.CommandAccountDelete, true)]
+        [Command("delete", ForeverStrings.CommandAccDeleteHelp, RBACPermissions.CommandAccountDelete, true)]
         static bool HandleAccountDeleteCommand(CommandHandler handler, string accountName)
         {
             int accountId = Global.AccountMgr.GetId(accountName);
             if (accountId == 0)
             {
-                handler.SendSysMessage(CypherStrings.AccountNotExist, accountName);
+                handler.SendSysMessage(ForeverStrings.AccountNotExist, accountName);
                 return false;
             }
 
@@ -257,28 +257,28 @@ namespace Game.Chat
             switch (result)
             {
                 case AccountOpResult.Ok:
-                    handler.SendSysMessage(CypherStrings.AccountDeleted, accountName);
+                    handler.SendSysMessage(ForeverStrings.AccountDeleted, accountName);
                     break;
                 case AccountOpResult.NameNotExist:
-                    handler.SendSysMessage(CypherStrings.AccountNotExist, accountName);
+                    handler.SendSysMessage(ForeverStrings.AccountNotExist, accountName);
                     return false;
                 case AccountOpResult.DBInternalError:
-                    handler.SendSysMessage(CypherStrings.AccountNotDeletedSqlError, accountName);
+                    handler.SendSysMessage(ForeverStrings.AccountNotDeletedSqlError, accountName);
                     return false;
                 default:
-                    handler.SendSysMessage(CypherStrings.AccountNotDeleted, accountName);
+                    handler.SendSysMessage(ForeverStrings.AccountNotDeleted, accountName);
                     return false;
             }
 
             return true;
         }
 
-        [Command("email", CypherStrings.CommandAccEmailHelp, RBACPermissions.CommandAccountEmail)]
+        [Command("email", ForeverStrings.CommandAccEmailHelp, RBACPermissions.CommandAccountEmail)]
         static bool HandleAccountEmailCommand(CommandHandler handler, string oldEmail, string password, string email, string emailConfirm)
         {
             if (!Global.AccountMgr.CheckEmail(handler.GetSession().GetAccountId(), oldEmail))
             {
-                handler.SendSysMessage(CypherStrings.CommandWrongemail);
+                handler.SendSysMessage(ForeverStrings.CommandWrongemail);
                 Global.ScriptMgr.OnFailedEmailChange(handler.GetSession().GetAccountId());
                 Log.outInfo(LogFilter.Player, 
                     $"Account: {handler.GetSession().GetAccountId()} (IP: {handler.GetSession().GetRemoteAddress()}) " +
@@ -289,7 +289,7 @@ namespace Game.Chat
 
             if (!Global.AccountMgr.CheckPassword(handler.GetSession().GetAccountId(), password))
             {
-                handler.SendSysMessage(CypherStrings.CommandWrongoldpassword);
+                handler.SendSysMessage(ForeverStrings.CommandWrongoldpassword);
                 Global.ScriptMgr.OnFailedEmailChange(handler.GetSession().GetAccountId());
                 Log.outInfo(LogFilter.Player, 
                     $"Account: {handler.GetSession().GetAccountId()} (IP: {handler.GetSession().GetRemoteAddress()}) " +
@@ -300,14 +300,14 @@ namespace Game.Chat
 
             if (email == oldEmail)
             {
-                handler.SendSysMessage(CypherStrings.OldEmailIsNewEmail);
+                handler.SendSysMessage(ForeverStrings.OldEmailIsNewEmail);
                 Global.ScriptMgr.OnFailedEmailChange(handler.GetSession().GetAccountId());
                 return false;
             }
 
             if (email != emailConfirm)
             {
-                handler.SendSysMessage(CypherStrings.NewEmailsNotMatch);
+                handler.SendSysMessage(ForeverStrings.NewEmailsNotMatch);
                 Global.ScriptMgr.OnFailedEmailChange(handler.GetSession().GetAccountId());
                 Log.outInfo(LogFilter.Player, 
                     $"Account: {handler.GetSession().GetAccountId()} (IP: {handler.GetSession().GetRemoteAddress()}) " +
@@ -321,7 +321,7 @@ namespace Game.Chat
             switch (result)
             {
                 case AccountOpResult.Ok:
-                    handler.SendSysMessage(CypherStrings.CommandEmail);
+                    handler.SendSysMessage(ForeverStrings.CommandEmail);
                     Global.ScriptMgr.OnEmailChange(handler.GetSession().GetAccountId());
                     Log.outInfo(LogFilter.Player, 
                         $"Account: {handler.GetSession().GetAccountId()} (IP: {handler.GetSession().GetRemoteAddress()}) " +
@@ -329,18 +329,18 @@ namespace Game.Chat
                         $"Changed Email from [{oldEmail}] to [{email}].");
                     break;
                 case AccountOpResult.EmailTooLong:
-                    handler.SendSysMessage(CypherStrings.EmailTooLong);
+                    handler.SendSysMessage(ForeverStrings.EmailTooLong);
                     Global.ScriptMgr.OnFailedEmailChange(handler.GetSession().GetAccountId());
                     return false;
                 default:
-                    handler.SendSysMessage(CypherStrings.CommandNotchangeemail);
+                    handler.SendSysMessage(ForeverStrings.CommandNotchangeemail);
                     return false;
             }
 
             return true;
         }
 
-        [Command("password", CypherStrings.CommandAccPasswordHelp, RBACPermissions.CommandAccountPassword)]
+        [Command("password", ForeverStrings.CommandAccPasswordHelp, RBACPermissions.CommandAccountPassword)]
         static bool HandleAccountPasswordCommand(CommandHandler handler, string oldPassword, string newPassword, string confirmPassword, [OptionalArg] string confirmEmail)
         {
             // First, we check config. What security Type (sec Type) is it ? Depending on it, the command branches out
@@ -349,7 +349,7 @@ namespace Game.Chat
             // We compare the old, saved password to the entered old password - no Chance for the unauthorized.
             if (!Global.AccountMgr.CheckPassword(handler.GetSession().GetAccountId(), oldPassword))
             {
-                handler.SendSysMessage(CypherStrings.CommandWrongoldpassword);
+                handler.SendSysMessage(ForeverStrings.CommandWrongoldpassword);
                 Global.ScriptMgr.OnFailedPasswordChange(handler.GetSession().GetAccountId());
                 Log.outInfo(LogFilter.Player, 
                     $"Account: {handler.GetSession().GetAccountId()} (IP: {handler.GetSession().GetRemoteAddress()}) " +
@@ -361,7 +361,7 @@ namespace Game.Chat
             if ((pwConfig == 1 || (pwConfig == 2 && handler.GetSession().HasPermission(RBACPermissions.EmailConfirmForPassChange))) // ...if either PW_EMAIL or PW_RBAC with the Permission is active...
                 && !Global.AccountMgr.CheckEmail(handler.GetSession().GetAccountId(), confirmEmail)) // ... and returns false if the comparison fails.
             {
-                handler.SendSysMessage(CypherStrings.CommandWrongemail);
+                handler.SendSysMessage(ForeverStrings.CommandWrongemail);
                 Global.ScriptMgr.OnFailedPasswordChange(handler.GetSession().GetAccountId());
                 Log.outInfo(LogFilter.Player, 
                     $"Account: {handler.GetSession().GetAccountId()} (IP: {handler.GetSession().GetRemoteAddress()}) " +
@@ -373,7 +373,7 @@ namespace Game.Chat
             // Making sure that newly entered password is correctly entered.
             if (newPassword != confirmPassword)
             {
-                handler.SendSysMessage(CypherStrings.NewPasswordsNotMatch);
+                handler.SendSysMessage(ForeverStrings.NewPasswordsNotMatch);
                 Global.ScriptMgr.OnFailedPasswordChange(handler.GetSession().GetAccountId());
                 return false;
             }
@@ -383,18 +383,18 @@ namespace Game.Chat
             switch (result)
             {
                 case AccountOpResult.Ok:
-                    handler.SendSysMessage(CypherStrings.CommandPassword);
+                    handler.SendSysMessage(ForeverStrings.CommandPassword);
                     Global.ScriptMgr.OnPasswordChange(handler.GetSession().GetAccountId());
                     Log.outInfo(LogFilter.Player, 
                         $"Account: {handler.GetSession().GetAccountId()} (IP: {handler.GetSession().GetRemoteAddress()}) " +
                         $"Character:[{handler.GetSession().GetPlayer().GetName()}] (GUID: {handler.GetSession().GetPlayer().GetGUID()}) Changed Password.");
                     break;
                 case AccountOpResult.PassTooLong:
-                    handler.SendSysMessage(CypherStrings.PasswordTooLong);
+                    handler.SendSysMessage(ForeverStrings.PasswordTooLong);
                     Global.ScriptMgr.OnFailedPasswordChange(handler.GetSession().GetAccountId());
                     return false;
                 default:
-                    handler.SendSysMessage(CypherStrings.CommandNotchangepassword);
+                    handler.SendSysMessage(ForeverStrings.CommandNotchangepassword);
                     return false;
             }
 
@@ -404,7 +404,7 @@ namespace Game.Chat
         [CommandGroup("lock")]
         class AccountLockCommands
         {
-            [Command("country", CypherStrings.CommandAccLockCountryHelp, RBACPermissions.CommandAccountLockCountry)]
+            [Command("country", ForeverStrings.CommandAccLockCountryHelp, RBACPermissions.CommandAccountLockCountry)]
             static bool HandleAccountLockCountryCommand(CommandHandler handler, bool state)
             {
                 if (state)
@@ -423,7 +423,7 @@ namespace Game.Chat
                         stmt.AddValue(0, country);
                         stmt.AddValue(1, handler.GetSession().GetAccountId());
                         DB.Login.Execute(stmt);
-                        handler.SendSysMessage(CypherStrings.CommandAcclocklocked);
+                        handler.SendSysMessage(ForeverStrings.CommandAcclocklocked);
                     }
                     else
                     {
@@ -437,12 +437,12 @@ namespace Game.Chat
                     stmt.SetString(0, "00");
                     stmt.SetInt32(1, handler.GetSession().GetAccountId());
                     DB.Login.Execute(stmt);
-                    handler.SendSysMessage(CypherStrings.CommandAcclockunlocked);
+                    handler.SendSysMessage(ForeverStrings.CommandAcclockunlocked);
                 }
                 return true;
             }
 
-            [Command("ip", CypherStrings.CommandAccLockIpHelp, RBACPermissions.CommandAccountLockIp)]
+            [Command("ip", ForeverStrings.CommandAccLockIpHelp, RBACPermissions.CommandAccountLockIp)]
             static bool HandleAccountLockIpCommand(CommandHandler handler, bool state)
             {
                 PreparedStatement stmt = LoginDatabase.GetPreparedStatement(LoginStatements.UPD_ACCOUNT_LOCK);
@@ -450,12 +450,12 @@ namespace Game.Chat
                 if (state)
                 {
                     stmt.SetBool(0, true);                                     // locked
-                    handler.SendSysMessage(CypherStrings.CommandAcclocklocked);
+                    handler.SendSysMessage(ForeverStrings.CommandAcclocklocked);
                 }
                 else
                 {
                     stmt.SetBool(0, false);                                    // unlocked
-                    handler.SendSysMessage(CypherStrings.CommandAcclockunlocked);
+                    handler.SendSysMessage(ForeverStrings.CommandAcclockunlocked);
                 }
 
                 stmt.SetInt32(1, handler.GetSession().GetAccountId());
@@ -468,31 +468,31 @@ namespace Game.Chat
         [CommandGroup("onlinelist")]
         class AccountOnlineListCommands
         {
-            [Command("", CypherStrings.CommandAccOnlinelistHelp, RBACPermissions.CommandAccountOnlineList, true)]
+            [Command("", ForeverStrings.CommandAccOnlinelistHelp, RBACPermissions.CommandAccountOnlineList, true)]
             static bool HandleAccountOnlineListCommand(CommandHandler handler)
             {
                 return HandleAccountOnlineListCommandWithParameters(handler, null, null, null, null);
             }
 
-            [Command("ip", CypherStrings.CommandAccOnlinelistHelp, RBACPermissions.CommandAccountOnlineList, true)]
+            [Command("ip", ForeverStrings.CommandAccOnlinelistHelp, RBACPermissions.CommandAccountOnlineList, true)]
             static bool HandleAccountOnlineListWithIpFilterCommand(CommandHandler handler, string ipAddress)
             {
                 return HandleAccountOnlineListCommandWithParameters(handler, ipAddress, null, null, null);
             }
 
-            [Command("limit", CypherStrings.CommandAccOnlinelistHelp, RBACPermissions.CommandAccountOnlineList, true)]
+            [Command("limit", ForeverStrings.CommandAccOnlinelistHelp, RBACPermissions.CommandAccountOnlineList, true)]
             static bool HandleAccountOnlineListWithLimitCommand(CommandHandler handler, uint limit)
             {
                 return HandleAccountOnlineListCommandWithParameters(handler, null, limit, null, null);
             }
 
-            [Command("map", CypherStrings.CommandAccOnlinelistHelp, RBACPermissions.CommandAccountOnlineList, true)]
+            [Command("map", ForeverStrings.CommandAccOnlinelistHelp, RBACPermissions.CommandAccountOnlineList, true)]
             static bool HandleAccountOnlineListWithMapFilterCommand(CommandHandler handler, uint mapId)
             {
                 return HandleAccountOnlineListCommandWithParameters(handler, null, null, mapId, null);
             }
 
-            [Command("zone", CypherStrings.CommandAccOnlinelistHelp, RBACPermissions.CommandAccountOnlineList, true)]
+            [Command("zone", ForeverStrings.CommandAccOnlinelistHelp, RBACPermissions.CommandAccountOnlineList, true)]
             static bool HandleAccountOnlineListWithZoneFilterCommand(CommandHandler handler, uint zoneId)
             {
                 return HandleAccountOnlineListCommandWithParameters(handler, null, null, null, zoneId);
@@ -528,12 +528,12 @@ namespace Game.Chat
                     if (sessionsMatchCount == 0)
                     {
                         ///- Display the list of account/characters online on the first matched sessions
-                        handler.SendSysMessage(CypherStrings.AccountListBarHeader);
-                        handler.SendSysMessage(CypherStrings.AccountListHeader);
-                        handler.SendSysMessage(CypherStrings.AccountListBar);
+                        handler.SendSysMessage(ForeverStrings.AccountListBarHeader);
+                        handler.SendSysMessage(ForeverStrings.AccountListHeader);
+                        handler.SendSysMessage(ForeverStrings.AccountListBar);
                     }
 
-                    handler.SendSysMessage(CypherStrings.AccountListLine,
+                    handler.SendSysMessage(ForeverStrings.AccountListLine,
                         session.GetAccountName(),
                         session.GetPlayerName(),
                         session.GetRemoteAddress(),
@@ -552,11 +552,11 @@ namespace Game.Chat
                 // Header is printed on first matched session. If it wasn't printed then no sessions matched the criteria
                 if (sessionsMatchCount == 0)
                 {
-                    handler.SendSysMessage(CypherStrings.AccountListEmpty);
+                    handler.SendSysMessage(ForeverStrings.AccountListEmpty);
                     return true;
                 }
 
-                handler.SendSysMessage(CypherStrings.AccountListBar);
+                handler.SendSysMessage(ForeverStrings.AccountListBar);
                 return true;
             }
         }
@@ -564,13 +564,13 @@ namespace Game.Chat
         [CommandGroup("set")]
         class AccountSetCommands
         {
-            [Command("2fa", CypherStrings.CommandAccSet2faHelp, RBACPermissions.CommandAccountSet2Fa, true)]
+            [Command("2fa", ForeverStrings.CommandAccSet2faHelp, RBACPermissions.CommandAccountSet2Fa, true)]
             static bool HandleAccountSet2FACommand(CommandHandler handler, string accountName, string secret)
             {
                 /*uint targetAccountId = Global.AccountMgr.GetId(accountName);
                 if (targetAccountId == 0)
                 {
-                    handler.SendSysMessage(CypherStrings.AccountNotExist, accountName);
+                    handler.SendSysMessage(ForeverStrings.AccountNotExist, accountName);
                     return false;
                 }
 
@@ -584,26 +584,26 @@ namespace Game.Chat
                     stmt.AddNull(0);
                     stmt.AddValue(1, targetAccountId);
                     DB.Login.Execute(stmt);
-                    handler.SendSysMessage(CypherStrings.TwoFARemoveComplete);
+                    handler.SendSysMessage(ForeverStrings.TwoFARemoveComplete);
                     return true;
                 }
 
                 var masterKey = Global.SecretMgr.GetSecret(Secrets.TOTPMasterKey);
                 if (!masterKey.IsAvailable())
                 {
-                    handler.SendSysMessage(CypherStrings.TwoFACommandsNotSetup);
+                    handler.SendSysMessage(ForeverStrings.TwoFACommandsNotSetup);
                     return false;
                 }
 
                 var decoded = secret.FromBase32();
                 if (decoded == null)
                 {
-                    handler.SendSysMessage(CypherStrings.TwoFASecretInvalid);
+                    handler.SendSysMessage(ForeverStrings.TwoFASecretInvalid);
                     return false;
                 }
                 if (128 < (decoded.Length + 12 + 12))
                 {
-                    handler.SendSysMessage(CypherStrings.TwoFASecretTooLong);
+                    handler.SendSysMessage(ForeverStrings.TwoFASecretTooLong);
                     return false;
                 }
 
@@ -614,11 +614,11 @@ namespace Game.Chat
                 stmt.AddValue(0, decoded);
                 stmt.AddValue(1, targetAccountId);
                 DB.Login.Execute(stmt);
-                handler.SendSysMessage(CypherStrings.TwoFASecretSetComplete, accountName);*/
+                handler.SendSysMessage(ForeverStrings.TwoFASecretSetComplete, accountName);*/
                 return true;
             }
 
-            [Command("addon", CypherStrings.CommandAccSetAddonHelp, RBACPermissions.CommandAccountSetAddon, true)]
+            [Command("addon", ForeverStrings.CommandAccSetAddonHelp, RBACPermissions.CommandAccountSetAddon, true)]
             static bool HandleAccountSetAddonCommand(CommandHandler handler, [OptionalArg] string accountName, byte expansion)
             {
                 int accountId;
@@ -630,7 +630,7 @@ namespace Game.Chat
                     accountId = Global.AccountMgr.GetId(accountName);
                     if (accountId == 0)
                     {
-                        handler.SendSysMessage(CypherStrings.AccountNotExist, accountName);
+                        handler.SendSysMessage(ForeverStrings.AccountNotExist, accountName);
                         return false;
                     }
                 }
@@ -660,17 +660,17 @@ namespace Game.Chat
 
                 DB.Login.Execute(stmt);
 
-                handler.SendSysMessage(CypherStrings.AccountSetaddon, accountName, accountId, expansion);
+                handler.SendSysMessage(ForeverStrings.AccountSetaddon, accountName, accountId, expansion);
                 return true;
             }
 
-            [Command("password", CypherStrings.CommandAccSetPasswordHelp, RBACPermissions.CommandAccountSetPassword, true)]
+            [Command("password", ForeverStrings.CommandAccSetPasswordHelp, RBACPermissions.CommandAccountSetPassword, true)]
             static bool HandleAccountSetPasswordCommand(CommandHandler handler, string accountName, string password, string confirmPassword)
             {
                 int targetAccountId = Global.AccountMgr.GetId(accountName);
                 if (targetAccountId == 0)
                 {
-                    handler.SendSysMessage(CypherStrings.AccountNotExist, accountName);
+                    handler.SendSysMessage(ForeverStrings.AccountNotExist, accountName);
                     return false;
                 }
 
@@ -681,7 +681,7 @@ namespace Game.Chat
 
                 if (!password.Equals(confirmPassword))
                 {
-                    handler.SendSysMessage(CypherStrings.NewPasswordsNotMatch);
+                    handler.SendSysMessage(ForeverStrings.NewPasswordsNotMatch);
                     return false;
                 }
 
@@ -689,24 +689,24 @@ namespace Game.Chat
                 switch (result)
                 {
                     case AccountOpResult.Ok:
-                        handler.SendSysMessage(CypherStrings.CommandPassword);
+                        handler.SendSysMessage(ForeverStrings.CommandPassword);
                         break;
                     case AccountOpResult.NameNotExist:
-                        handler.SendSysMessage(CypherStrings.AccountNotExist, accountName);
+                        handler.SendSysMessage(ForeverStrings.AccountNotExist, accountName);
                         return false;
                     case AccountOpResult.PassTooLong:
-                        handler.SendSysMessage(CypherStrings.PasswordTooLong);
+                        handler.SendSysMessage(ForeverStrings.PasswordTooLong);
                         return false;
                     default:
-                        handler.SendSysMessage(CypherStrings.CommandNotchangepassword);
+                        handler.SendSysMessage(ForeverStrings.CommandNotchangepassword);
                         return false;
                 }
 
                 return true;
             }
 
-            [Command("seclevel", CypherStrings.CommandAccSetSeclevelHelp, RBACPermissions.CommandAccountSetSecLevel, true)]
-            [Command("gmlevel", CypherStrings.CommandAccSetSeclevelHelp, RBACPermissions.CommandAccountSetSecLevel, true)]
+            [Command("seclevel", ForeverStrings.CommandAccSetSeclevelHelp, RBACPermissions.CommandAccountSetSecLevel, true)]
+            [Command("gmlevel", ForeverStrings.CommandAccSetSeclevelHelp, RBACPermissions.CommandAccountSetSecLevel, true)]
             static bool HandleAccountSetSecLevelCommand(CommandHandler handler, [OptionalArg] string accountName, byte securityLevel, int? realmId)
             {
                 int accountId;
@@ -715,7 +715,7 @@ namespace Game.Chat
                     accountId = Global.AccountMgr.GetId(accountName);
                     if (accountId == 0)
                     {
-                        handler.SendSysMessage(CypherStrings.AccountNotExist, accountName);
+                        handler.SendSysMessage(ForeverStrings.AccountNotExist, accountName);
                         return false;
                     }
                 }
@@ -731,7 +731,7 @@ namespace Game.Chat
 
                 if (securityLevel > (uint)AccountTypes.Console)
                 {
-                    handler.SendSysMessage(CypherStrings.BadValue);
+                    handler.SendSysMessage(ForeverStrings.BadValue);
                     return false;
                 }
 
@@ -750,7 +750,7 @@ namespace Game.Chat
                 AccountTypes targetSecurity = Global.AccountMgr.GetSecurity(accountId, realmID);
                 if (targetSecurity >= playerSecurity || (AccountTypes)securityLevel >= playerSecurity)
                 {
-                    handler.SendSysMessage(CypherStrings.YoursSecurityIsLow);
+                    handler.SendSysMessage(ForeverStrings.YoursSecurityIsLow);
                     return false;
                 }
                 PreparedStatement stmt;
@@ -765,7 +765,7 @@ namespace Game.Chat
 
                     if (!result.IsEmpty())
                     {
-                        handler.SendSysMessage(CypherStrings.YoursSecurityIsLow);
+                        handler.SendSysMessage(ForeverStrings.YoursSecurityIsLow);
                         return false;
                     }
                 }
@@ -773,26 +773,26 @@ namespace Game.Chat
                 // Check if provided realmID has a negative value other than -1
                 if (realmID < -1)
                 {
-                    handler.SendSysMessage(CypherStrings.InvalidRealmid);
+                    handler.SendSysMessage(ForeverStrings.InvalidRealmid);
                     return false;
                 }
 
                 Global.AccountMgr.UpdateAccountAccess(null, accountId, securityLevel, realmID);
 
-                handler.SendSysMessage(CypherStrings.YouChangeSecurity, accountName, securityLevel);
+                handler.SendSysMessage(ForeverStrings.YouChangeSecurity, accountName, securityLevel);
                 return true;
             }
 
             [CommandGroup("sec")]
             class SetSecCommands
             {
-                [Command("email", CypherStrings.CommandAccSetSecEmailHelp, RBACPermissions.CommandAccountSetSecEmail, true)]
+                [Command("email", ForeverStrings.CommandAccSetSecEmailHelp, RBACPermissions.CommandAccountSetSecEmail, true)]
                 static bool HandleAccountSetEmailCommand(CommandHandler handler, string accountName, string email, string confirmEmail)
                 {
                     int targetAccountId = Global.AccountMgr.GetId(accountName);
                     if (targetAccountId == 0)
                     {
-                        handler.SendSysMessage(CypherStrings.AccountNotExist, accountName);
+                        handler.SendSysMessage(ForeverStrings.AccountNotExist, accountName);
                         return false;
                     }
 
@@ -803,7 +803,7 @@ namespace Game.Chat
 
                     if (!email.Equals(confirmEmail))
                     {
-                        handler.SendSysMessage(CypherStrings.NewEmailsNotMatch);
+                        handler.SendSysMessage(ForeverStrings.NewEmailsNotMatch);
                         return false;
                     }
 
@@ -811,30 +811,30 @@ namespace Game.Chat
                     switch (result)
                     {
                         case AccountOpResult.Ok:
-                            handler.SendSysMessage(CypherStrings.CommandEmail);
+                            handler.SendSysMessage(ForeverStrings.CommandEmail);
                             Log.outInfo(LogFilter.Player, $"ChangeEmail: Account {accountName} [Id: {targetAccountId}] had it's email changed to {email}.");
                             break;
                         case AccountOpResult.NameNotExist:
-                            handler.SendSysMessage(CypherStrings.AccountNotExist, accountName);
+                            handler.SendSysMessage(ForeverStrings.AccountNotExist, accountName);
                             return false;
                         case AccountOpResult.EmailTooLong:
-                            handler.SendSysMessage(CypherStrings.EmailTooLong);
+                            handler.SendSysMessage(ForeverStrings.EmailTooLong);
                             return false;
                         default:
-                            handler.SendSysMessage(CypherStrings.CommandNotchangeemail);
+                            handler.SendSysMessage(ForeverStrings.CommandNotchangeemail);
                             return false;
                     }
 
                     return true;
                 }
 
-                [Command("regmail", CypherStrings.CommandAccSetSecRegmailHelp, RBACPermissions.CommandAccountSetSecRegmail, true)]
+                [Command("regmail", ForeverStrings.CommandAccSetSecRegmailHelp, RBACPermissions.CommandAccountSetSecRegmail, true)]
                 static bool HandleAccountSetRegEmailCommand(CommandHandler handler, string accountName, string email, string confirmEmail)
                 {
                     int targetAccountId = Global.AccountMgr.GetId(accountName);
                     if (targetAccountId == 0)
                     {
-                        handler.SendSysMessage(CypherStrings.AccountNotExist, accountName);
+                        handler.SendSysMessage(ForeverStrings.AccountNotExist, accountName);
                         return false;
                     }
 
@@ -845,7 +845,7 @@ namespace Game.Chat
 
                     if (!email.Equals(confirmEmail))
                     {
-                        handler.SendSysMessage(CypherStrings.NewEmailsNotMatch);
+                        handler.SendSysMessage(ForeverStrings.NewEmailsNotMatch);
                         return false;
                     }
 
@@ -853,18 +853,18 @@ namespace Game.Chat
                     switch (result)
                     {
                         case AccountOpResult.Ok:
-                            handler.SendSysMessage(CypherStrings.CommandEmail);
+                            handler.SendSysMessage(ForeverStrings.CommandEmail);
                             Log.outInfo(LogFilter.Player, 
                                 $"ChangeRegEmail: Account {accountName} [Id: {targetAccountId}] had it's Registration Email changed to {email}.");
                             break;
                         case AccountOpResult.NameNotExist:
-                            handler.SendSysMessage(CypherStrings.AccountNotExist, accountName);
+                            handler.SendSysMessage(ForeverStrings.AccountNotExist, accountName);
                             return false;
                         case AccountOpResult.EmailTooLong:
-                            handler.SendSysMessage(CypherStrings.EmailTooLong);
+                            handler.SendSysMessage(ForeverStrings.EmailTooLong);
                             return false;
                         default:
-                            handler.SendSysMessage(CypherStrings.CommandNotchangeemail);
+                            handler.SendSysMessage(ForeverStrings.CommandNotchangeemail);
                             return false;
                     }
 

@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -127,7 +127,7 @@ namespace Game.Spells
             }
 
             if (m_caster != null && m_caster.GetTypeId() == TypeId.Player)
-                Cypher.Assert(m_caster.ToPlayer().m_spellModTakingSpell != this);
+                Forever.Assert(m_caster.ToPlayer().m_spellModTakingSpell != this);
         }
 
         void InitExplicitTargets(SpellCastTargets targets)
@@ -146,7 +146,7 @@ namespace Game.Spells
                 // for unit case allow corpse target mask because player with not released corpse is a unit target
                 if ((target.ToUnit() != null && !neededTargets.HasAnyFlag(SpellCastTargetFlags.UnitMask | SpellCastTargetFlags.CorpseMask))
                     || (target.IsTypeId(TypeId.GameObject) && !neededTargets.HasFlag(SpellCastTargetFlags.GameobjectMask))
-                    || (target.IsTypeId(TypeId.Corpse) && !neededTargets.HasFlag(SpellCastTargetFlags.CorpseMask)))
+                    || (target.IsTypeId(TypeId.Corpse) && !neededTargets.HasAnyFlag(SpellCastTargetFlags.CorpseMask)))
                     m_targets.RemoveObjectTarget();
             }
             else
@@ -499,7 +499,7 @@ namespace Game.Spells
                                     m_targets.SetSrc(m_caster);
                                     break;
                                 default:
-                                    Cypher.Assert(false, 
+                                    Forever.Assert(false, 
                                         "Spell.SelectEffectImplicitTargets: " +
                                         "received not implemented select target reference Type " +
                                         "for TARGET_TYPE_OBJECT_SRC");
@@ -519,7 +519,7 @@ namespace Game.Spells
                                     SelectImplicitDestDestTargets(spellEffectInfo, targetType, targetIndex);
                                     break;
                                 default:
-                                    Cypher.Assert(false, 
+                                    Forever.Assert(false, 
                                         "Spell.SelectEffectImplicitTargets: " +
                                         "received not implemented select target reference Type " +
                                         "for TARGET_TYPE_OBJECT_DEST");
@@ -536,7 +536,7 @@ namespace Game.Spells
                                     SelectImplicitTargetObjectTargets(spellEffectInfo, targetType);
                                     break;
                                 default:
-                                    Cypher.Assert(false, 
+                                    Forever.Assert(false, 
                                         "Spell.SelectEffectImplicitTargets: " +
                                         "received not implemented select target reference Type " +
                                         "for TARGET_TYPE_OBJECT");
@@ -552,7 +552,7 @@ namespace Game.Spells
                         $"effect {spellEffectInfo.EffectIndex} is not implemented yet!");
                     break;
                 default:
-                    Cypher.Assert(false, 
+                    Forever.Assert(false, 
                         "Spell.SelectEffectImplicitTargets: " +
                         "received not implemented select target category");
                     break;
@@ -563,7 +563,7 @@ namespace Game.Spells
         {
             if (targetType.GetReferenceType() != SpellTargetReferenceTypes.Caster)
             {
-                Cypher.Assert(false, 
+                Forever.Assert(false, 
                     "Spell.SelectImplicitChannelTargets: " +
                     "received not implemented target reference Type");
                 return;
@@ -645,7 +645,7 @@ namespace Game.Spells
                     break;
                 }
                 default:
-                    Cypher.Assert(false, 
+                    Forever.Assert(false, 
                         "Spell.SelectImplicitChannelTargets: " +
                         "received not implemented target Type");
                     break;
@@ -656,7 +656,7 @@ namespace Game.Spells
         {
             if (targetType.GetReferenceType() != SpellTargetReferenceTypes.Caster)
             {
-                Cypher.Assert(false, 
+                Forever.Assert(false, 
                     "Spell.SelectImplicitNearbyTargets: " +
                     "received not implemented target reference Type");
                 return;
@@ -679,7 +679,7 @@ namespace Game.Spells
                     range = m_spellInfo.GetMaxRange(IsPositive(), m_caster, this);
                     break;
                 default:
-                    Cypher.Assert(false, 
+                    Forever.Assert(false, 
                         "Spell.SelectImplicitNearbyTargets: " +
                         "received not implemented selection check Type");
                     break;
@@ -865,7 +865,7 @@ namespace Game.Spells
                     m_targets.SetDst(dest);
                     break;
                 default:
-                    Cypher.Assert(false, 
+                    Forever.Assert(false, 
                         "Spell.SelectImplicitNearbyTargets: " +
                         "received not implemented target object Type");
                     break;
@@ -966,7 +966,7 @@ namespace Game.Spells
                     break;
                 }
                 default:
-                    Cypher.Assert(false, 
+                    Forever.Assert(false, 
                         "Spell.SelectImplicitAreaTargets: " +
                         "received not implemented target reference Type");
                     return;
@@ -990,7 +990,7 @@ namespace Game.Spells
                     center = referer.GetPosition();
                     break;
                 default:
-                    Cypher.Assert(false, 
+                    Forever.Assert(false, 
                         "Spell.SelectImplicitAreaTargets: " +
                         "received not implemented target reference Type");
                     return;
@@ -1625,7 +1625,7 @@ namespace Game.Spells
                     dst = m_targets.GetUnitTarget();
                     break;
                 default:
-                    Cypher.Assert(false, 
+                    Forever.Assert(false, 
                         "Spell.SelectImplicitLineTargets: " +
                         "received not implemented target reference Type");
                     return;
@@ -3965,7 +3965,7 @@ namespace Game.Spells
                 }
                 case SpellCastResult.CantUntalent:
                 {
-                    Cypher.Assert(param1.HasValue);
+                    Forever.Assert(param1.HasValue);
                     packet.FailedArg1 = (int)param1;
                     break;
                 }
@@ -8173,7 +8173,7 @@ namespace Game.Spells
                         hookType = SpellScriptHookType.EffectHitTarget;
                         break;
                     default:
-                        Cypher.Assert(false);
+                        Forever.Assert(false);
                         return false;
                 }
 
@@ -9881,9 +9881,9 @@ namespace Game.Spells
                         // handle effects on caster if the spell has travel time but also affects the caster in some way
                         TimeSpan n_offset = m_Spell.HandleDelayed(default);
                         if (m_Spell.m_spellInfo.LaunchDelay != 0)
-                            Cypher.Assert(n_offset == m_Spell.m_spellInfo.LaunchDelay);
+                            Forever.Assert(n_offset == m_Spell.m_spellInfo.LaunchDelay);
                         else
-                            Cypher.Assert(n_offset == m_Spell.GetDelayMoment(), $"{n_offset} == {m_Spell.GetDelayMoment()}");
+                            Forever.Assert(n_offset == m_Spell.GetDelayMoment(), $"{n_offset} == {m_Spell.GetDelayMoment()}");
 
                         // re-plan the event for the delay moment
                         m_Spell.GetCaster().m_Events.AddEvent(this, e_time + n_offset, false);

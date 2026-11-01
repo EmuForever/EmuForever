@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.﻿
 
 namespace Framework.Constants
@@ -343,7 +343,7 @@ namespace Framework.Constants
         RacialMechagnome = 2774,
         RacialVulpera = 2775,
         LanguageVulpera = 2776,
-        SoulCyphering = 2777,
+        SoulForevering = 2777,
         AbominableStitching = 2787,
         AscensionCrafting = 2791,
         PetMammoth = 2805,
@@ -352,7 +352,7 @@ namespace Framework.Constants
         RacialDracthyr = 2808,
         Evoker = 2810,
         StygiaCrafting = 2811,
-        LanguageCypher = 2817,
+        LanguageForever = 2817,
         PhotoformSynthesis = 2819,
         ArcanaManipulation = 2821,
         DragonIslesBlacksmithing = 2822,

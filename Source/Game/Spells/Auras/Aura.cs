@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -66,7 +66,7 @@ namespace Game.Spells
             _effectsToApply = effMask;
             _needClientUpdate = false;
 
-            Cypher.Assert(GetTarget() != null && GetBase() != null);
+            Forever.Assert(GetTarget() != null && GetBase() != null);
 
             // Try find slot for aura
             byte slot = 0;
@@ -163,9 +163,9 @@ namespace Game.Spells
                     $"but _HandleEffect was called");
                 return;
             }
-            Cypher.Assert(aurEff != null);
-            Cypher.Assert(HasEffect(effIndex) == (!apply));
-            Cypher.Assert(Convert.ToBoolean((1 << effIndex) & _effectsToApply));
+            Forever.Assert(aurEff != null);
+            Forever.Assert(HasEffect(effIndex) == (!apply));
+            Forever.Assert(Convert.ToBoolean((1 << effIndex) & _effectsToApply));
 
             Log.outDebug(LogFilter.Spells, 
                 $"AuraApplication._HandleEffect: {aurEff.GetAuraType()}, " +
@@ -173,13 +173,13 @@ namespace Game.Spells
 
             if (apply)
             {
-                Cypher.Assert(!Convert.ToBoolean(_effectMask & (1 << effIndex)));
+                Forever.Assert(!Convert.ToBoolean(_effectMask & (1 << effIndex)));
                 _effectMask |= (uint)(1 << effIndex);
                 aurEff.HandleEffect(this, AuraEffectHandleModes.Real, true);
             }
             else
             {
-                Cypher.Assert(Convert.ToBoolean(_effectMask & (1 << effIndex)));
+                Forever.Assert(Convert.ToBoolean(_effectMask & (1 << effIndex)));
                 _effectMask &= ~(uint)(1 << effIndex);
                 aurEff.HandleEffect(this, AuraEffectHandleModes.Real, false);
             }
@@ -231,7 +231,7 @@ namespace Game.Spells
 
         public void BuildUpdatePacket(ref AuraInfo auraInfo, bool remove)
         {
-            Cypher.Assert(_target.HasVisibleAura(this) != remove);
+            Forever.Assert(_target.HasVisibleAura(this) != remove);
 
             auraInfo.Slot = GetSlot();
             if (remove)
@@ -327,7 +327,7 @@ namespace Game.Spells
         public uint GetEffectMask() { return _effectMask; }
         public bool HasEffect(int effect)
         {
-            Cypher.Assert(effect < SpellConst.MaxEffects);
+            Forever.Assert(effect < SpellConst.MaxEffects);
             return Convert.ToBoolean(_effectMask & (1 << effect));
         }
         public bool IsPositive() { return _flags.HasAnyFlag(AuraFlags.Positive); }
@@ -416,7 +416,7 @@ namespace Game.Spells
             foreach (var itr in m_loadedScripts.ToList())
                 itr._Unload();
 
-            Cypher.Assert(m_applications.Empty());
+            Forever.Assert(m_applications.Empty());
             _DeleteRemovedApplications();
         }
 
@@ -443,10 +443,10 @@ namespace Game.Spells
 
         public virtual void _ApplyForTarget(Unit target, Unit caster, AuraApplication auraApp)
         {
-            Cypher.Assert(target != null);
-            Cypher.Assert(auraApp != null);
+            Forever.Assert(target != null);
+            Forever.Assert(auraApp != null);
             // aura mustn't be already applied on target
-            //Cypher.Assert(!IsAppliedOnTarget(target.GetGUID()) && "Aura._ApplyForTarget: aura musn't be already applied on target");
+            //Forever.Assert(!IsAppliedOnTarget(target.GetGUID()) && "Aura._ApplyForTarget: aura musn't be already applied on target");
 
             m_applications[target.GetGUID()] = auraApp;
 
@@ -462,9 +462,9 @@ namespace Game.Spells
         }
         public virtual void _UnapplyForTarget(Unit target, Unit caster, AuraApplication auraApp)
         {
-            Cypher.Assert(target != null);
-            Cypher.Assert(auraApp.HasRemoveMode());
-            Cypher.Assert(auraApp != null);
+            Forever.Assert(target != null);
+            Forever.Assert(auraApp.HasRemoveMode());
+            Forever.Assert(auraApp != null);
 
             var app = m_applications.LookupByKey(target.GetGUID());
 
@@ -474,11 +474,11 @@ namespace Game.Spells
                 Log.outError(LogFilter.Spells, 
                     $"Aura._UnapplyForTarget, target: {target.GetGUID()}, caster: {(caster != null ? caster.GetGUID().ToString() : "")}, " +
                     $"spell: {auraApp.GetBase().GetSpellInfo().Id} was not found in owners application map!");
-                Cypher.Assert(false);
+                Forever.Assert(false);
             }
 
             // aura has to be already applied
-            Cypher.Assert(app == auraApp);
+            Forever.Assert(app == auraApp);
             m_applications.Remove(target.GetGUID());
 
             _removedApplications.Add(auraApp);
@@ -493,7 +493,7 @@ namespace Game.Spells
         // and marks aura as removed
         public void _Remove(AuraRemoveMode removeMode)
         {
-            Cypher.Assert(!m_isRemoved);
+            Forever.Assert(!m_isRemoved);
             m_isRemoved = true;
             foreach (var pair in m_applications.ToList())
             {
@@ -647,7 +647,7 @@ namespace Game.Spells
                 if (aurApp != null)
                 {
                     // owner has to be in world, or effect has to be applied to self
-                    Cypher.Assert((!m_owner.IsInWorld && m_owner == pair.Key) || m_owner.IsInMap(pair.Key));
+                    Forever.Assert((!m_owner.IsInWorld && m_owner == pair.Key) || m_owner.IsInMap(pair.Key));
                     pair.Key._ApplyAura(aurApp, pair.Value);
                 }
             }
@@ -670,7 +670,7 @@ namespace Game.Spells
                 if (GetApplicationOfTarget(unit.GetGUID()) != null)
                 {
                     // owner has to be in world, or effect has to be applied to self
-                    Cypher.Assert((!GetOwner().IsInWorld && GetOwner() == unit) || GetOwner().IsInMap(unit));
+                    Forever.Assert((!GetOwner().IsInWorld && GetOwner() == unit) || GetOwner().IsInMap(unit));
                     unit._ApplyAuraEffect(this, effIndex);
                 }
             }
@@ -678,7 +678,7 @@ namespace Game.Spells
 
         public void UpdateOwner(Milliseconds diff, WorldObject owner)
         {
-            Cypher.Assert(owner == m_owner);
+            Forever.Assert(owner == m_owner);
 
             Unit caster = GetCaster();
             // Apply spellmods for channeled auras
@@ -1107,9 +1107,9 @@ namespace Game.Spells
 
         public void UnregisterSingleTarget()
         {
-            Cypher.Assert(m_isSingleTarget);
+            Forever.Assert(m_isSingleTarget);
             Unit caster = GetCaster();
-            Cypher.Assert(caster != null);
+            Forever.Assert(caster != null);
             caster.GetSingleCastAuras().Remove(this);
             SetIsSingleTarget(false);
         }
@@ -1204,7 +1204,7 @@ namespace Game.Spells
 
         public void RecalculateAmountOfEffects()
         {
-            Cypher.Assert(!IsRemoved());
+            Forever.Assert(!IsRemoved());
             Unit caster = GetCaster();
             foreach (AuraEffect effect in GetAuraEffects())
             {
@@ -1215,7 +1215,7 @@ namespace Game.Spells
 
         public void HandleAllEffects(AuraApplication aurApp, AuraEffectHandleModes mode, bool apply)
         {
-            Cypher.Assert(!IsRemoved());
+            Forever.Assert(!IsRemoved());
             foreach (AuraEffect effect in GetAuraEffects())
             {
                 if (effect != null && !IsRemoved())
@@ -1745,7 +1745,7 @@ namespace Game.Spells
                 return;
 
             SpellProcEntry procEntry = Global.SpellMgr.GetSpellProcEntry(GetSpellInfo());
-            Cypher.Assert(procEntry != null);
+            Forever.Assert(procEntry != null);
 
             PrepareProcChargeDrop(procEntry, eventInfo);
 
@@ -2569,13 +2569,13 @@ namespace Game.Spells
 
         public Unit GetUnitOwner()
         {
-            Cypher.Assert(GetAuraType() == AuraObjectType.Unit);
+            Forever.Assert(GetAuraType() == AuraObjectType.Unit);
             return m_owner.ToUnit();
         }
 
         public DynamicObject GetDynobjOwner()
         {
-            Cypher.Assert(GetAuraType() == AuraObjectType.DynObj);
+            Forever.Assert(GetAuraType() == AuraObjectType.DynObj);
             return m_owner.ToDynamicObject();
         }
 
@@ -2690,8 +2690,8 @@ namespace Game.Spells
         //Static Methods
         public static uint BuildEffectMaskForOwner(SpellInfo spellProto, uint availableEffectMask, WorldObject owner)
         {
-            Cypher.Assert(spellProto != null);
-            Cypher.Assert(owner != null);
+            Forever.Assert(spellProto != null);
+            Forever.Assert(owner != null);
             uint effMask = 0;
             switch (owner.GetTypeId())
             {
@@ -2718,7 +2718,7 @@ namespace Game.Spells
 
         public static Aura TryRefreshStackOrCreate(AuraCreateInfo createInfo, bool updateEffectMask = true)
         {
-            Cypher.Assert(createInfo.Caster != null || !createInfo.CasterGUID.IsEmpty());
+            Forever.Assert(createInfo.Caster != null || !createInfo.CasterGUID.IsEmpty());
 
             createInfo.IsRefresh = false;
 
@@ -2817,19 +2817,19 @@ namespace Game.Spells
                         effMask = createInfo._targetEffectMask;
 
                     effMask = BuildEffectMaskForOwner(createInfo.GetSpellInfo(), effMask, createInfo.GetOwner());
-                    Cypher.Assert(effMask != 0);
+                    Forever.Assert(effMask != 0);
 
                     Unit unit = createInfo.GetOwner().ToUnit();
                     aura.ToUnitAura().AddStaticApplication(unit, effMask);
                     break;
                 case TypeId.DynamicObject:
                     createInfo._auraEffectMask = BuildEffectMaskForOwner(createInfo.GetSpellInfo(), createInfo._auraEffectMask, createInfo.GetOwner());
-                    Cypher.Assert(createInfo._auraEffectMask != 0);
+                    Forever.Assert(createInfo._auraEffectMask != 0);
 
                     aura = new DynObjAura(createInfo);
                     break;
                 default:
-                    Cypher.Assert(false);
+                    Forever.Assert(false);
                     return null;
             }
 
@@ -3072,9 +3072,9 @@ namespace Game.Spells
         public DynObjAura(AuraCreateInfo createInfo) : base(createInfo)
         {
             LoadScripts();
-            Cypher.Assert(GetDynobjOwner() != null);
-            Cypher.Assert(GetDynobjOwner().IsInWorld);
-            Cypher.Assert(GetDynobjOwner().GetMap() == createInfo.Caster.GetMap());
+            Forever.Assert(GetDynobjOwner() != null);
+            Forever.Assert(GetDynobjOwner().IsInWorld);
+            Forever.Assert(GetDynobjOwner().GetMap() == createInfo.Caster.GetMap());
             _InitEffects(createInfo._auraEffectMask, createInfo.Caster, createInfo.BaseAmount);
             GetDynobjOwner().SetAura(this);
 
@@ -3223,11 +3223,11 @@ namespace Game.Spells
             _auraEffectMask = auraEffMask;
             _owner = owner;
 
-            Cypher.Assert(spellInfo != null);
-            Cypher.Assert(auraEffMask != 0);
-            Cypher.Assert(owner != null);
+            Forever.Assert(spellInfo != null);
+            Forever.Assert(auraEffMask != 0);
+            Forever.Assert(owner != null);
 
-            Cypher.Assert(auraEffMask <= SpellConst.MaxEffectMask);
+            Forever.Assert(auraEffMask <= SpellConst.MaxEffectMask);
         }
 
         public void SetCasterGUID(ObjectGuid guid) { CasterGUID = guid; }

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -53,14 +53,14 @@ namespace Game.Chat.Commands
             Player player = handler.GetSelectedPlayer();
             if (player == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
             Aura aura = player.AddAura(isInstance ? Spells.LFGDundeonDeserter : Spells.BGDeserter, player);
             if (aura == null)
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
             aura.SetDuration((Seconds)time);
@@ -73,7 +73,7 @@ namespace Game.Chat.Commands
             Player player = handler.GetSelectedPlayer();
             if (player == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 

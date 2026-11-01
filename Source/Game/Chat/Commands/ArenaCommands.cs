@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -15,7 +15,7 @@ namespace Game.Chat
         {
             if (Global.ArenaTeamMgr.GetArenaTeamByName(name) != null)
             {
-                handler.SendSysMessage(CypherStrings.ArenaErrorNameExists, name);
+                handler.SendSysMessage(ForeverStrings.ArenaErrorNameExists, name);
                 return false;
             }
             
@@ -26,7 +26,7 @@ namespace Game.Chat
 
             if (Global.CharacterCacheStorage.GetCharacterArenaTeamIdByGuid(captain.GetGUID(), (byte)type) != 0)
             {
-                handler.SendSysMessage(CypherStrings.ArenaErrorSize, captain.GetName());
+                handler.SendSysMessage(ForeverStrings.ArenaErrorSize, captain.GetName());
                 return false;
             }
 
@@ -34,12 +34,12 @@ namespace Game.Chat
 
             if (!arena.Create(captain.GetGUID(), (byte)type, name, 4293102085, 101, 4293253939, 4, 4284049911))
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 
             Global.ArenaTeamMgr.AddArenaTeam(arena);
-            handler.SendSysMessage(CypherStrings.ArenaCreate, arena.GetName(), arena.GetId(), arena.GetArenaType(), arena.GetCaptain());
+            handler.SendSysMessage(ForeverStrings.ArenaCreate, arena.GetName(), arena.GetId(), arena.GetArenaType(), arena.GetCaptain());
 
             return true;
         }
@@ -50,20 +50,20 @@ namespace Game.Chat
             ArenaTeam arena = Global.ArenaTeamMgr.GetArenaTeamById(teamId);
             if (arena == null)
             {
-                handler.SendSysMessage(CypherStrings.ArenaErrorNotFound, teamId);
+                handler.SendSysMessage(ForeverStrings.ArenaErrorNotFound, teamId);
                 return false;
             }
 
             if (arena.IsFighting())
             {
-                handler.SendSysMessage(CypherStrings.ArenaErrorCombat);
+                handler.SendSysMessage(ForeverStrings.ArenaErrorCombat);
                 return false;
             }
 
             string name = arena.GetName();
             arena.Disband();
 
-            handler.SendSysMessage(CypherStrings.ArenaDisband, name, teamId);
+            handler.SendSysMessage(ForeverStrings.ArenaDisband, name, teamId);
             return true;
         }
 
@@ -73,29 +73,29 @@ namespace Game.Chat
             ArenaTeam arena = Global.ArenaTeamMgr.GetArenaTeamByName(oldName);
             if (arena == null)
             {
-                handler.SendSysMessage(CypherStrings.ArenaErrorNameNotFound, oldName);
+                handler.SendSysMessage(ForeverStrings.ArenaErrorNameNotFound, oldName);
                 return false;
             }
 
             if (Global.ArenaTeamMgr.GetArenaTeamByName(newName) != null)
             {
-                handler.SendSysMessage(CypherStrings.ArenaErrorNameExists, oldName);
+                handler.SendSysMessage(ForeverStrings.ArenaErrorNameExists, oldName);
                 return false;
             }
 
             if (arena.IsFighting())
             {
-                handler.SendSysMessage(CypherStrings.ArenaErrorCombat);
+                handler.SendSysMessage(ForeverStrings.ArenaErrorCombat);
                 return false;
             }
 
             if (!arena.SetName(newName))
             {
-                handler.SendSysMessage(CypherStrings.ArenaRename, arena.GetId(), oldName, newName);
+                handler.SendSysMessage(ForeverStrings.ArenaRename, arena.GetId(), oldName, newName);
                 return true;
             }
 
-            handler.SendSysMessage(CypherStrings.BadValue);
+            handler.SendSysMessage(ForeverStrings.BadValue);
             return false;
         }
 
@@ -105,13 +105,13 @@ namespace Game.Chat
             ArenaTeam arena = Global.ArenaTeamMgr.GetArenaTeamById(teamId);
             if (arena == null)
             {
-                handler.SendSysMessage(CypherStrings.ArenaErrorNotFound, teamId);
+                handler.SendSysMessage(ForeverStrings.ArenaErrorNotFound, teamId);
                 return false;
             }
 
             if (arena.IsFighting())
             {
-                handler.SendSysMessage(CypherStrings.ArenaErrorCombat);
+                handler.SendSysMessage(ForeverStrings.ArenaErrorCombat);
                 return false;
             }
 
@@ -122,13 +122,13 @@ namespace Game.Chat
             
             if (!arena.IsMember(target.GetGUID()))
             {
-                handler.SendSysMessage(CypherStrings.ArenaErrorNotMember, target.GetName(), arena.GetName());
+                handler.SendSysMessage(ForeverStrings.ArenaErrorNotMember, target.GetName(), arena.GetName());
                 return false;
             }
 
             if (arena.GetCaptain() == target.GetGUID())
             {
-                handler.SendSysMessage(CypherStrings.ArenaErrorCaptain, target.GetName(), arena.GetName());
+                handler.SendSysMessage(ForeverStrings.ArenaErrorCaptain, target.GetName(), arena.GetName());
                 return false;
             }
 
@@ -136,7 +136,7 @@ namespace Game.Chat
                 return false;
 
             arena.SetCaptain(target.GetGUID());
-            handler.SendSysMessage(CypherStrings.ArenaCaptain, arena.GetName(), arena.GetId(), oldCaptainName, target.GetName());
+            handler.SendSysMessage(ForeverStrings.ArenaCaptain, arena.GetName(), arena.GetId(), oldCaptainName, target.GetName());
 
             return true;
         }
@@ -147,13 +147,13 @@ namespace Game.Chat
             ArenaTeam arena = Global.ArenaTeamMgr.GetArenaTeamById(teamId);
             if (arena == null)
             {
-                handler.SendSysMessage(CypherStrings.ArenaErrorNotFound, teamId);
+                handler.SendSysMessage(ForeverStrings.ArenaErrorNotFound, teamId);
                 return false;
             }
 
-            handler.SendSysMessage(CypherStrings.ArenaInfoHeader, arena.GetName(), arena.GetId(), arena.GetRating(), arena.GetArenaType(), arena.GetArenaType());
+            handler.SendSysMessage(ForeverStrings.ArenaInfoHeader, arena.GetName(), arena.GetId(), arena.GetRating(), arena.GetArenaType(), arena.GetArenaType());
             foreach (var member in arena.GetMembers())
-                handler.SendSysMessage(CypherStrings.ArenaInfoMembers, member.Name, member.Guid, member.PersonalRating, (arena.GetCaptain() == member.Guid ? "- Captain" : ""));
+                handler.SendSysMessage(ForeverStrings.ArenaInfoMembers, member.Name, member.Guid, member.PersonalRating, (arena.GetCaptain() == member.Guid ? "- Captain" : ""));
 
             return true;
         }
@@ -171,7 +171,7 @@ namespace Game.Chat
                 {
                     if (handler.GetSession() != null)
                     {
-                        handler.SendSysMessage(CypherStrings.ArenaLookup, team.GetName(), team.GetId(), team.GetArenaType(), team.GetArenaType());
+                        handler.SendSysMessage(ForeverStrings.ArenaLookup, team.GetName(), team.GetId(), team.GetArenaType(), team.GetArenaType());
                         found = true;
                         continue;
                     }
@@ -179,7 +179,7 @@ namespace Game.Chat
             }
 
             if (!found)
-                handler.SendSysMessage(CypherStrings.ArenaErrorNameNotFound, needle);
+                handler.SendSysMessage(ForeverStrings.ArenaErrorNameNotFound, needle);
 
             return true;
         }

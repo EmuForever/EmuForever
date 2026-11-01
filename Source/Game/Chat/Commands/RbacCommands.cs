@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -16,27 +16,27 @@ namespace Game.Chat.Commands
             if (!permId.HasValue)
             {
                 var permissions = Global.AccountMgr.GetRBACPermissionList();
-                handler.SendSysMessage(CypherStrings.RbacListPermissionsHeader);
+                handler.SendSysMessage(ForeverStrings.RbacListPermissionsHeader);
                 foreach (var (_, permission) in permissions)
-                    handler.SendSysMessage(CypherStrings.RbacListElement, permission.GetId(), permission.GetName());
+                    handler.SendSysMessage(ForeverStrings.RbacListElement, permission.GetId(), permission.GetName());
             }
             else
             {
                 RBACPermission permission = Global.AccountMgr.GetRBACPermission((RBACPermissions)permId.Value);
                 if (permission == null)
                 {
-                    handler.SendSysMessage(CypherStrings.RbacWrongParameterId, permId.Value);
+                    handler.SendSysMessage(ForeverStrings.RbacWrongParameterId, permId.Value);
                     return false;
                 }
 
-                handler.SendSysMessage(CypherStrings.RbacListPermissionsHeader);
-                handler.SendSysMessage(CypherStrings.RbacListElement, permission.GetId(), permission.GetName());
-                handler.SendSysMessage(CypherStrings.RbacListPermsLinkedHeader);
+                handler.SendSysMessage(ForeverStrings.RbacListPermissionsHeader);
+                handler.SendSysMessage(ForeverStrings.RbacListElement, permission.GetId(), permission.GetName());
+                handler.SendSysMessage(ForeverStrings.RbacListPermsLinkedHeader);
                 foreach (var linkedPerm in permission.GetLinkedPermissions())
                 {
                     RBACPermission rbacPermission = Global.AccountMgr.GetRBACPermission(linkedPerm);
                     if (rbacPermission != null)
-                        handler.SendSysMessage(CypherStrings.RbacListElement, rbacPermission.GetId(), rbacPermission.GetName());
+                        handler.SendSysMessage(ForeverStrings.RbacListElement, rbacPermission.GetId(), rbacPermission.GetName());
                 }
             }
 
@@ -68,19 +68,19 @@ namespace Game.Chat.Commands
                 switch (result)
                 {
                     case RBACCommandResult.CantAddAlreadyAdded:
-                        handler.SendSysMessage(CypherStrings.RbacPermDeniedInList, permId, permission.GetName(),
+                        handler.SendSysMessage(ForeverStrings.RbacPermDeniedInList, permId, permission.GetName(),
                             realmId.Value, data.rbac.GetId(), data.rbac.GetName());
                         break;
                     case RBACCommandResult.InGrantedList:
-                        handler.SendSysMessage(CypherStrings.RbacPermDeniedInGrantedList, permId, permission.GetName(),
+                        handler.SendSysMessage(ForeverStrings.RbacPermDeniedInGrantedList, permId, permission.GetName(),
                             realmId.Value, data.rbac.GetId(), data.rbac.GetName());
                         break;
                     case RBACCommandResult.OK:
-                        handler.SendSysMessage(CypherStrings.RbacPermDenied, permId, permission.GetName(),
+                        handler.SendSysMessage(ForeverStrings.RbacPermDenied, permId, permission.GetName(),
                             realmId.Value, data.rbac.GetId(), data.rbac.GetName());
                         break;
                     case RBACCommandResult.IdDoesNotExists:
-                        handler.SendSysMessage(CypherStrings.RbacWrongParameterId, permId);
+                        handler.SendSysMessage(ForeverStrings.RbacWrongParameterId, permId);
                         break;
                     default:
                         break;
@@ -111,19 +111,19 @@ namespace Game.Chat.Commands
                 switch (result)
                 {
                     case RBACCommandResult.CantAddAlreadyAdded:
-                        handler.SendSysMessage(CypherStrings.RbacPermGrantedInList, permId, permission.GetName(),
+                        handler.SendSysMessage(ForeverStrings.RbacPermGrantedInList, permId, permission.GetName(),
                             realmId.Value, data.rbac.GetId(), data.rbac.GetName());
                         break;
                     case RBACCommandResult.InDeniedList:
-                        handler.SendSysMessage(CypherStrings.RbacPermGrantedInDeniedList, permId, permission.GetName(),
+                        handler.SendSysMessage(ForeverStrings.RbacPermGrantedInDeniedList, permId, permission.GetName(),
                             realmId.Value, data.rbac.GetId(), data.rbac.GetName());
                         break;
                     case RBACCommandResult.OK:
-                        handler.SendSysMessage(CypherStrings.RbacPermGranted, permId, permission.GetName(),
+                        handler.SendSysMessage(ForeverStrings.RbacPermGranted, permId, permission.GetName(),
                             realmId.Value, data.rbac.GetId(), data.rbac.GetName());
                         break;
                     case RBACCommandResult.IdDoesNotExists:
-                        handler.SendSysMessage(CypherStrings.RbacWrongParameterId, permId);
+                        handler.SendSysMessage(ForeverStrings.RbacWrongParameterId, permId);
                         break;
                     default:
                         break;
@@ -142,41 +142,41 @@ namespace Game.Chat.Commands
 
                 RBACCommandData data = GetRBACData(account);
 
-                handler.SendSysMessage(CypherStrings.RbacListHeaderGranted, data.rbac.GetId(), data.rbac.GetName());
+                handler.SendSysMessage(ForeverStrings.RbacListHeaderGranted, data.rbac.GetId(), data.rbac.GetName());
                 var granted = data.rbac.GetGrantedPermissions();
                 if (granted.Empty())
-                    handler.SendSysMessage(CypherStrings.RbacListEmpty);
+                    handler.SendSysMessage(ForeverStrings.RbacListEmpty);
                 else
                 {
                     foreach (var id in granted)
                     {
                         RBACPermission  permission = Global.AccountMgr.GetRBACPermission(id);
-                        handler.SendSysMessage(CypherStrings.RbacListElement, permission.GetId(), permission.GetName());
+                        handler.SendSysMessage(ForeverStrings.RbacListElement, permission.GetId(), permission.GetName());
                     }
                 }
 
-                handler.SendSysMessage(CypherStrings.RbacListHeaderDenied, data.rbac.GetId(), data.rbac.GetName());
+                handler.SendSysMessage(ForeverStrings.RbacListHeaderDenied, data.rbac.GetId(), data.rbac.GetName());
                 var denied = data.rbac.GetDeniedPermissions();
                 if (denied.Empty())
-                    handler.SendSysMessage(CypherStrings.RbacListEmpty);
+                    handler.SendSysMessage(ForeverStrings.RbacListEmpty);
                 else
                 {
                     foreach (var id in denied)
                     {
                         RBACPermission  permission = Global.AccountMgr.GetRBACPermission(id);
-                        handler.SendSysMessage(CypherStrings.RbacListElement, permission.GetId(), permission.GetName());
+                        handler.SendSysMessage(ForeverStrings.RbacListElement, permission.GetId(), permission.GetName());
                     }
                 }
-                handler.SendSysMessage(CypherStrings.RbacListHeaderBySecLevel, data.rbac.GetId(), data.rbac.GetName(), data.rbac.GetSecurityLevel());
+                handler.SendSysMessage(ForeverStrings.RbacListHeaderBySecLevel, data.rbac.GetId(), data.rbac.GetName(), data.rbac.GetSecurityLevel());
                 var defaultPermissions = Global.AccountMgr.GetRBACDefaultPermissions(data.rbac.GetSecurityLevel());
                 if (defaultPermissions.Empty())
-                    handler.SendSysMessage(CypherStrings.RbacListEmpty);
+                    handler.SendSysMessage(ForeverStrings.RbacListEmpty);
                 else
                 {
                     foreach (var id in defaultPermissions)
                     {
                         RBACPermission  permission = Global.AccountMgr.GetRBACPermission(id);
-                        handler.SendSysMessage(CypherStrings.RbacListElement, permission.GetId(), permission.GetName());
+                        handler.SendSysMessage(ForeverStrings.RbacListElement, permission.GetId(), permission.GetName());
                     }
                 }
 
@@ -205,15 +205,15 @@ namespace Game.Chat.Commands
                 switch (result)
                 {
                     case RBACCommandResult.CantRevokeNotInList:
-                        handler.SendSysMessage(CypherStrings.RbacPermRevokedNotInList, permId, permission.GetName(),
+                        handler.SendSysMessage(ForeverStrings.RbacPermRevokedNotInList, permId, permission.GetName(),
                             realmId.Value, data.rbac.GetId(), data.rbac.GetName());
                         break;
                     case RBACCommandResult.OK:
-                        handler.SendSysMessage(CypherStrings.RbacPermRevoked, permId, permission.GetName(),
+                        handler.SendSysMessage(ForeverStrings.RbacPermRevoked, permId, permission.GetName(),
                             realmId.Value, data.rbac.GetId(), data.rbac.GetName());
                         break;
                     case RBACCommandResult.IdDoesNotExists:
-                        handler.SendSysMessage(CypherStrings.RbacWrongParameterId, permId);
+                        handler.SendSysMessage(ForeverStrings.RbacWrongParameterId, permId);
                         break;
                     default:
                         break;

@@ -39,7 +39,7 @@ namespace Game.AI
             return CanCollectQuestBatch(pending, _workingQuestBatch);
         }
 
-        public string Plan => PartyFollowing && !PartyErrand ? Status : _auctionMailDestination.HasValue ? "Collect auction purchases" : _task?.Label ?? "none";
+        public string Plan => _auctionMailDestination.HasValue ? "Collect auction purchases" : _task?.Label ?? "none";
 
         static SIQuestKnowledge Knowledge => SIQuestKnowledge.Instance;
 
@@ -469,8 +469,7 @@ namespace Game.AI
             ReleaseQuestTarget();
             _task = task;
             AuthorizeQuestTravel(task);
-            if (task != null && _goal == "social") { _socialWalkDestination = null; _socialTravellingToCity = false; }
-            if (task != null && SIServiceSelection.OwnsTrip(task.Kind)) MarkPartyErrand();
+            if (task != null && SocialMode) { _socialWalkDestination = null; _socialOnStreet = false; _socialTravellingToCity = false; }
             if (task == null) return;
             task.Resume(Now);
             if (!task.Started)

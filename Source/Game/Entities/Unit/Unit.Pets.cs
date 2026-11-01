@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -63,14 +63,14 @@ namespace Game.Entities
                 }
                 else
                 {
-                    Cypher.Assert(IsCreature());
+                    Forever.Assert(IsCreature());
                     if (IsPossessed() || IsVehicle())
                         newAI = new PossessedAI(ToCreature());
                     else
                         newAI = new PetAI(ToCreature());
                 }
 
-                Cypher.Assert(newAI != null);
+                Forever.Assert(newAI != null);
                 SetAI(newAI);
                 newAI.OnCharmed(true);
             }
@@ -244,12 +244,12 @@ namespace Game.Entities
                         if (GetGUID() == unit.GetCharmerGUID())
                             continue;
 
-                        Cypher.Assert(unit.GetOwnerGUID() == GetGUID());
+                        Forever.Assert(unit.GetOwnerGUID() == GetGUID());
                         if (unit.GetOwnerGUID() != GetGUID())
                         {
-                            Cypher.Assert(false);
+                            Forever.Assert(false);
                         }
-                        Cypher.Assert(unit.IsTypeId(TypeId.Unit));
+                        Forever.Assert(unit.IsTypeId(TypeId.Unit));
 
                         if (!unit.HasUnitTypeMask(UnitTypeMask.Guardian))
                             continue;
@@ -282,8 +282,8 @@ namespace Game.Entities
             if (charmer.IsTypeId(TypeId.Player))
                 charmer.RemoveAurasByType(AuraType.Mounted);
 
-            Cypher.Assert(type != CharmType.Possess || charmer.IsTypeId(TypeId.Player));
-            Cypher.Assert((type == CharmType.Vehicle) == (GetVehicleKit() != null 
+            Forever.Assert(type != CharmType.Possess || charmer.IsTypeId(TypeId.Player));
+            Forever.Assert((type == CharmType.Vehicle) == (GetVehicleKit() != null 
                 && GetVehicleKit().IsControllableVehicle()));
 
             Log.outDebug(LogFilter.Unit, 
@@ -464,11 +464,11 @@ namespace Game.Entities
                 return;
 
             if (charmer != null)
-                Cypher.Assert(charmer == GetCharmer());
+                Forever.Assert(charmer == GetCharmer());
             else
                 charmer = GetCharmer();
 
-            Cypher.Assert(charmer != null);
+            Forever.Assert(charmer != null);
 
             CharmType type;
             if (HasUnitState(UnitState.Possessed))
@@ -496,8 +496,8 @@ namespace Game.Entities
             if (type != CharmType.Vehicle)
                 LastCharmerGUID = charmer.GetGUID();
 
-            Cypher.Assert(type != CharmType.Possess || charmer.IsTypeId(TypeId.Player));
-            Cypher.Assert(type != CharmType.Vehicle || (IsTypeId(TypeId.Unit) && IsVehicle()));
+            Forever.Assert(type != CharmType.Possess || charmer.IsTypeId(TypeId.Player));
+            Forever.Assert(type != CharmType.Vehicle || (IsTypeId(TypeId.Unit) && IsVehicle()));
 
             charmer.SetCharm(this, false);
             m_combatManager.RevalidateCombat();
@@ -594,7 +594,7 @@ namespace Game.Entities
             {
                 if (IsTypeId(TypeId.Player))
                 {
-                    Cypher.Assert(GetCharmedGUID().IsEmpty(), 
+                    Forever.Assert(GetCharmedGUID().IsEmpty(), 
                         $"Player {GetName()} is trying to charm unit {charm.GetEntry()}, " +
                         $"but it already has a charmed unit {GetCharmedGUID()}");
 
@@ -611,7 +611,7 @@ namespace Game.Entities
                 // PvP, FFAPvP
                 charm.ReplaceAllPvpFlags(GetPvpFlags());
 
-                Cypher.Assert(charm.GetCharmerGUID().IsEmpty(), 
+                Forever.Assert(charm.GetCharmerGUID().IsEmpty(), 
                     $"Unit {charm.GetEntry()} is being charmed, " +
                     $"but it already has a charmer {charm.GetCharmerGUID()}");
 
@@ -631,7 +631,7 @@ namespace Game.Entities
 
                 if (IsPlayer())
                 {
-                    Cypher.Assert(GetCharmedGUID() == charm.GetGUID(), 
+                    Forever.Assert(GetCharmedGUID() == charm.GetGUID(), 
                         $"Player {GetName()} is trying to uncharm unit {charm.GetEntry()}, " +
                         $"but it has another charmed unit {GetCharmedGUID()}");
 
@@ -639,7 +639,7 @@ namespace Game.Entities
                     m_charmed = null;
                 }
 
-                Cypher.Assert(charm.GetCharmerGUID() == GetGUID(), 
+                Forever.Assert(charm.GetCharmerGUID() == GetGUID(), 
                     $"Unit {charm.GetEntry()} is being uncharmed, " +
                     $"but it has another charmer {charm.GetCharmerGUID()}");
 
@@ -860,7 +860,7 @@ namespace Game.Entities
 
         public void UpdatePetCombatState()
         {
-            Cypher.Assert(!IsPet()); // player pets do not use UNIT_FLAG_PET_IN_COMBAT for this purpose - but player pets should also never have minions of their own to call this
+            Forever.Assert(!IsPet()); // player pets do not use UNIT_FLAG_PET_IN_COMBAT for this purpose - but player pets should also never have minions of their own to call this
 
             bool state = false;
             foreach (Unit minion in m_Controlled)

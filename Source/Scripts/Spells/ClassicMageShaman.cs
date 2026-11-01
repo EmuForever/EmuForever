@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -11,7 +11,7 @@ using System;
 using System.Collections.Generic;
 using static Global;
 
-// Classic 1.60 (WoW Forever) mage and shaman talents, ported from the reference TrinityCore
+// Classic 1.60 (WoW Forever) mage and shaman talents, ported from the reference EmuForever
 // (src/server/scripts/Custom/Classic/world/talents/classic_talents_mage_shaman.cpp). In the client data these talents are dummy auras
 // (most with proc data) and have no server side behaviour; the scripts implement the Forever tooltips. Rank values come from the talent's
 // aura amounts (the core applies the trait rank curve), never from hardcoded ranks.

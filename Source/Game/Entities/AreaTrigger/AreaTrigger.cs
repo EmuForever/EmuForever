@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -452,7 +452,7 @@ namespace Game.Entities
 
         float GetScaleCurveValueAtProgress(ScaleCurve scaleCurve, float x)
         {
-            Cypher.Assert(scaleCurve.OverrideActive, "ScaleCurve must be active to evaluate it");
+            Forever.Assert(scaleCurve.OverrideActive, "ScaleCurve must be active to evaluate it");
 
             // unpack ParameterCurve
             if ((scaleCurve.ParameterCurve & 1u) != 0)
@@ -754,7 +754,7 @@ namespace Game.Entities
                 if (player != null)
                 {
                     if (player.IsDebugAreaTriggers)
-                        player.SendSysMessage(CypherStrings.DebugAreatriggerEntityEntered, GetEntry(), IsCustom(), IsStaticSpawn(), _spawnId);
+                        player.SendSysMessage(ForeverStrings.DebugAreatriggerEntityEntered, GetEntry(), IsCustom(), IsStaticSpawn(), _spawnId);
 
                     player.UpdateQuestObjectiveProgress(QuestObjectiveType.AreaTriggerEnter, GetEntry(), 1);
                 }
@@ -773,7 +773,7 @@ namespace Game.Entities
                     if (player != null)
                     {
                         if (player.IsDebugAreaTriggers)
-                            player.SendSysMessage(CypherStrings.DebugAreatriggerEntityLeft, GetEntry(), IsCustom(), IsStaticSpawn(), _spawnId);
+                            player.SendSysMessage(ForeverStrings.DebugAreatriggerEntityLeft, GetEntry(), IsCustom(), IsStaticSpawn(), _spawnId);
 
                         player.UpdateQuestObjectiveProgress(QuestObjectiveType.AreaTriggerExit, GetEntry(), 1);
                     }
@@ -1096,7 +1096,7 @@ namespace Game.Entities
         void InitOrbit(AreaTriggerOrbitInfo orbit, Milliseconds timeToTarget)
         {
             // Circular movement requires either a center position or an attached unit
-            Cypher.Assert(orbit.Center.HasValue || orbit.PathTarget.HasValue);
+            Forever.Assert(orbit.Center.HasValue || orbit.PathTarget.HasValue);
 
             // should be sent in object create packets only
             DoWithSuppressingObjectUpdates(() =>

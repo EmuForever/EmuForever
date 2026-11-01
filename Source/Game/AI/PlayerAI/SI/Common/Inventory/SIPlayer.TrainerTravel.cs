@@ -47,7 +47,7 @@ public sealed partial class SIPlayer
             .Select(spawn=>(SISpawn?)spawn).FirstOrDefault();
         if(found is not SISpawn nearest)return null;
         var best=new SITrainerTrip(nearest,null,Array.Empty<int>(),Vector3.Distance(Here,nearest.Position)/Math.Max(1,me.GetSpeed(UnitMoveType.Run)),0);
-        if(_goal=="social")return best; // City errands cannot take a taxi out of town.
+        if(SocialMode)return best; // City errands cannot take a taxi out of town.
 
         var flight=ChooseFlightTrip(nearest.Position,prices[nearest.Entry],0);
         return flight==null?best:new(nearest,flight.Boarding,flight.Nodes,flight.Seconds,flight.Fare);

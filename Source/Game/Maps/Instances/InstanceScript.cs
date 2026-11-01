@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -127,7 +127,7 @@ namespace Game.Maps
         {
             foreach (var data in objectData)
             {
-                Cypher.Assert(!objectInfo.ContainsKey(data.entry));
+                Forever.Assert(!objectInfo.ContainsKey(data.entry));
                 objectInfo[data.entry] = data.type;
             }
         }
@@ -248,7 +248,7 @@ namespace Game.Maps
 
         public BossInfo GetBossInfo(int id)
         {
-            Cypher.Assert(id < bosses.Count);
+            Forever.Assert(id < bosses.Count);
             return bosses[id];
         }
 

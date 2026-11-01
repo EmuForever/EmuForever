@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -166,7 +166,7 @@ namespace Game.Entities
         }
     }
 
-    // Classic 1.60.1 ItemEnchantment layout (TrinityCore-forever UF::ItemEnchantment).
+    // Classic 1.60.1 ItemEnchantment layout (EmuForever-forever UF::ItemEnchantment).
     public class ItemEnchantment : HasChangesMask
     {
         public UpdateField<int> ID = new(0, 1);
@@ -497,7 +497,7 @@ namespace Game.Entities
             changesMask.AND(allowedMaskForTarget);
         }
 
-        // Generated from TrinityCore-forever UF::ItemData::WriteUpdate (genupdate.py): reference bit numbering.
+        // Generated from EmuForever-forever UF::ItemData::WriteUpdate (genupdate.py): reference bit numbering.
         const int RefChangeMaskLength = 41;
 
         static UpdateMask ToRefMask(UpdateMask ours)
@@ -715,7 +715,7 @@ namespace Game.Entities
         }
     }
 
-    // Classic 1.60.1 ContainerData layout (TrinityCore-forever UF::ContainerData): 98 slots.
+    // Classic 1.60.1 ContainerData layout (EmuForever-forever UF::ContainerData): 98 slots.
     public class ContainerData : HasChangesMask
     {
         public UpdateField<int> NumSlots = new(0, 1);
@@ -1329,7 +1329,7 @@ namespace Game.Entities
             changesMask.AND(allowedMaskForTarget);
         }
 
-        // Generated from TrinityCore-forever UF::UnitData::WriteUpdate (genupdate.py): reference bit numbering.
+        // Generated from EmuForever-forever UF::UnitData::WriteUpdate (genupdate.py): reference bit numbering.
         const int RefChangeMaskLength = 233;
 
         public void WriteUpdate(WorldPacket data, UpdateMask ourChangesMask, bool ignoreNestedChangesMask, Unit owner, Player receiver)
@@ -2413,7 +2413,7 @@ namespace Game.Entities
         public int ChrCustomizationChoiceID;
     }
 
-    // Classic 1.60.1 QuestLog layout (TrinityCore-forever UF::QuestLog).
+    // Classic 1.60.1 QuestLog layout (EmuForever-forever UF::QuestLog).
     public class QuestLog : HasChangesMask
     {
         public UpdateField<int> QuestID = new(0, 1);
@@ -2665,7 +2665,7 @@ namespace Game.Entities
 
         public void WriteCreate(WorldPacket data, UpdateFieldFlag fieldVisibilityFlags, Player owner, Player receiver)
         {
-            // Classic 1.60.1 PlayerData create layout (TrinityCore-forever UF::PlayerData::WriteCreate).
+            // Classic 1.60.1 PlayerData create layout (EmuForever-forever UF::PlayerData::WriteCreate).
             // Fields this core does not model are written with the reference server's defaults.
             uint superDistrictId = (uint)Framework.Configuration.ConfigMgr.GetDefaultValue("SuperDistrictID", 2);
 
@@ -2768,8 +2768,10 @@ namespace Game.Entities
             for (int i = 0; i < VisualItemReplacements.Size(); ++i)
                 data.WriteInt32(VisualItemReplacements[i]);
 
-            string name = owner.GetName() ?? "";
-            string surname = Global.CharacterCacheStorage.GetCharacterSurnameByGuid(owner.GetGUID()) ?? "";
+            // These are separate client identity fields, just like the name
+            // query. A full name here is displayed with the surname twice.
+            string name = owner.GetFirstName() ?? "";
+            string surname = owner.GetSurname();
             data.WriteBits(name.GetByteCount(), 6);
             data.WriteBits(surname.GetByteCount(), 9);
             if (fieldVisibilityFlags.HasFlag(UpdateFieldFlag.PartyMember))
@@ -2801,7 +2803,7 @@ namespace Game.Entities
             changesMask.AND(allowedMaskForTarget);
         }
 
-        // Generated from TrinityCore-forever UF::PlayerData::WriteUpdate (genupdate.py): reference bit numbering.
+        // Generated from EmuForever-forever UF::PlayerData::WriteUpdate (genupdate.py): reference bit numbering.
         const int RefChangeMaskLength = 326;
 
         static UpdateMask ToRefMask(UpdateMask ours)
@@ -3176,7 +3178,7 @@ namespace Game.Entities
             }
         }
 
-        // Generated from TrinityCore-forever UF::SkillInfo::WriteUpdate (genupdate.py): reference bit numbering.
+        // Generated from EmuForever-forever UF::SkillInfo::WriteUpdate (genupdate.py): reference bit numbering.
         const int RefChangeMaskLength = 2101;
 
         static UpdateMask ToRefMask(UpdateMask ours)
@@ -3560,7 +3562,7 @@ namespace Game.Entities
             data.WriteUInt32(CompletionCount);
         }
 
-        // Generated from TrinityCore-forever UF::CompletedProject::WriteUpdate (genupdate.py): reference bit numbering.
+        // Generated from EmuForever-forever UF::CompletedProject::WriteUpdate (genupdate.py): reference bit numbering.
         const int RefChangeMaskLength = 4;
 
         static UpdateMask ToRefMask(UpdateMask ours)
@@ -3920,7 +3922,7 @@ namespace Game.Entities
             data.WriteString(Name);
         }
 
-        // Generated from TrinityCore-forever UF::StablePetInfo::WriteUpdate (genupdate.py): reference bit numbering.
+        // Generated from EmuForever-forever UF::StablePetInfo::WriteUpdate (genupdate.py): reference bit numbering.
         const int RefChangeMaskLength = 13;
 
         static UpdateMask ToRefMask(UpdateMask ours)
@@ -4306,7 +4308,7 @@ namespace Game.Entities
 
         public void WriteCreate(WorldPacket data, UpdateFieldFlag fieldVisibilityFlags, Player owner, Player receiver)
         {
-            // Classic 1.60.1 ActivePlayerData create layout (TrinityCore-forever UF::ActivePlayerData::WriteCreate).
+            // Classic 1.60.1 ActivePlayerData create layout (EmuForever-forever UF::ActivePlayerData::WriteCreate).
             // This core keeps the WotLK field model; fields it does not have are written with the reference defaults.
             for (int i = 0; i < ClassicInventorySlots.Count; ++i)
                 data.WritePackedGuid(GetClassicInvSlot(i));
@@ -4769,7 +4771,7 @@ namespace Game.Entities
             WriteUpdate(data, _changesMask, false, owner, receiver);
         }
 
-        // Generated from TrinityCore-forever UF::ActivePlayerData::WriteUpdate (genupdate.py): reference bit numbering.
+        // Generated from EmuForever-forever UF::ActivePlayerData::WriteUpdate (genupdate.py): reference bit numbering.
         const int RefChangeMaskLength = 402;
 
         static UpdateMask ToRefMask(UpdateMask ours)
@@ -6061,7 +6063,7 @@ namespace Game.Entities
             WriteUpdate(data, _changesMask, false, owner, receiver);
         }
 
-        // Generated from TrinityCore-forever UF::GameObjectData::WriteUpdate (genupdate.py): reference bit numbering.
+        // Generated from EmuForever-forever UF::GameObjectData::WriteUpdate (genupdate.py): reference bit numbering.
         const int RefChangeMaskLength = 27;
 
         static UpdateMask ToRefMask(UpdateMask ours)

@@ -5,7 +5,7 @@ VisualStudioVersion = 17.8.34309.116
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BattleNot", "Source\BattleNot\BattleNot.csproj", "{EEBFCEE3-CFAC-4D2E-927F-8E24E07A4218}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WorldServer", "Source\WorldServer\WorldServer.csproj", "{E5DF8709-16D8-4357-976A-DF54AD3DDD66}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ForeverWorld", "Source\ForeverWorld\ForeverWorld.csproj", "{E5DF8709-16D8-4357-976A-DF54AD3DDD66}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Scripts", "Source\Scripts\Scripts.csproj", "{3B8C9AB8-2DC3-4655-BF67-AE2001D3B4F6}"
 EndProject

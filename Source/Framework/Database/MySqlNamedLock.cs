@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace Framework.Database
 {
-    // Connection-scoped serialization shared by WorldServer and BattleNot. A
+    // Connection-scoped serialization shared by ForeverWorld and BattleNot. A
     // pooled connection must never be returned while still owning an advisory lock.
     public sealed class MySqlNamedLock : IDisposable, IAsyncDisposable
     {

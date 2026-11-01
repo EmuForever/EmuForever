@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -51,9 +51,9 @@ namespace Game.Entities
         public void Dispose()
         {
             // @Uninstall must be called before this.
-            Cypher.Assert(_status == Status.UnInstalling);
+            Forever.Assert(_status == Status.UnInstalling);
             foreach (var pair in Seats)
-                Cypher.Assert(pair.Value.IsEmpty());
+                Forever.Assert(pair.Value.IsEmpty());
         }
 
         public void Install()
@@ -298,7 +298,7 @@ namespace Game.Entities
                 $"installing accessory (Entry: {entry}) on seat: {seatId}");
 
             TempSummon accessory = _me.SummonCreature(entry, _me, (TempSummonType)type, summonTime);
-            Cypher.Assert(accessory != null);
+            Forever.Assert(accessory != null);
 
             if (minion)
                 accessory.AddUnitTypeMask(UnitTypeMask.Accessory);
@@ -369,11 +369,11 @@ namespace Game.Entities
                 if (!seat.Value.IsEmpty())
                 {
                     Unit passenger = Global.ObjAccessor.GetUnit(GetBase(), seat.Value.Passenger.Guid);
-                    Cypher.Assert(passenger != null);
+                    Forever.Assert(passenger != null);
                     passenger.ExitVehicle();
                 }
 
-                Cypher.Assert(seat.Value.IsEmpty());
+                Forever.Assert(seat.Value.IsEmpty());
             }
 
             return true;
@@ -389,7 +389,7 @@ namespace Game.Entities
                 return null;
 
             var seat = GetSeatKeyValuePairForPassenger(unit);
-            Cypher.Assert(seat.Value != null);
+            Forever.Assert(seat.Value != null);
 
             Log.outDebug( LogFilter.Vehicle, 
                 $"Unit {unit.GetName()} exit vehicle entry {_me.GetEntry()} " +
@@ -430,7 +430,7 @@ namespace Game.Entities
 
         public void RelocatePassengers()
         {
-            Cypher.Assert(_me.GetMap() != null);
+            Forever.Assert(_me.GetMap() != null);
 
             List<Tuple<Unit, Position>> seatRelocation = new();
 
@@ -440,7 +440,7 @@ namespace Game.Entities
                 Unit passenger = Global.ObjAccessor.GetUnit(GetBase(), pair.Value.Passenger.Guid);
                 if (passenger != null)
                 {
-                    Cypher.Assert(passenger.IsInWorld);
+                    Forever.Assert(passenger.IsInWorld);
 
                     float px, py, pz, po;
                     passenger.m_movementInfo.transport.pos.GetPosition(out px, out py, out pz, out po);
@@ -671,15 +671,15 @@ namespace Game.Entities
 
         public override bool Execute(TimeSpan e_time, TimeSpan p_time)
         {
-            Cypher.Assert(Passenger.IsInWorld);
-            Cypher.Assert(Target != null && Target.GetBase().IsInWorld);
+            Forever.Assert(Passenger.IsInWorld);
+            Forever.Assert(Target != null && Target.GetBase().IsInWorld);
 
             var vehicleAuras = Target.GetBase().GetAuraEffectsByType(AuraType.ControlVehicle);
             var aurEffect = vehicleAuras.Find(aurEff => aurEff.GetCasterGUID() == Passenger.GetGUID());
-            Cypher.Assert(aurEffect != null);
+            Forever.Assert(aurEffect != null);
 
             var aurApp = aurEffect.GetBase().GetApplicationOfTarget(Target.GetBase().GetGUID());
-            Cypher.Assert(aurApp != null && !aurApp.HasRemoveMode());
+            Forever.Assert(aurApp != null && !aurApp.HasRemoveMode());
 
             Target.RemovePendingEventsForSeat(Seat.Key);
             Target.RemovePendingEventsForPassenger(Passenger);
@@ -702,7 +702,7 @@ namespace Game.Entities
             Seat.Value.Passenger.IsGravityDisabled = Passenger.HasUnitMovementFlag(MovementFlag.DisableGravity);
             if (Seat.Value.SeatInfo.CanEnterOrExit)
             {
-                Cypher.Assert(Target.UsableSeatNum != 0);
+                Forever.Assert(Target.UsableSeatNum != 0);
                 --Target.UsableSeatNum;
                 if (Target.UsableSeatNum == 0)
                 {

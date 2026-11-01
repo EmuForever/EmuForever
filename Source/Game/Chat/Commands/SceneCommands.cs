@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -16,7 +16,7 @@ namespace Game.Chat
             Player target = handler.GetSelectedPlayerOrSelf();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
@@ -34,7 +34,7 @@ namespace Game.Chat
             if (player != null)
             {
                 player.GetSceneMgr().ToggleDebugSceneMode();
-                handler.SendSysMessage(player.GetSceneMgr().IsInDebugSceneMode() ? CypherStrings.CommandSceneDebugOn : CypherStrings.CommandSceneDebugOff);
+                handler.SendSysMessage(player.GetSceneMgr().IsInDebugSceneMode() ? ForeverStrings.CommandSceneDebugOn : ForeverStrings.CommandSceneDebugOff);
             }
 
             return true;
@@ -46,7 +46,7 @@ namespace Game.Chat
             Player target = handler.GetSelectedPlayerOrSelf();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
@@ -63,7 +63,7 @@ namespace Game.Chat
             Player target = handler.GetSelectedPlayerOrSelf();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 

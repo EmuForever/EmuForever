@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -207,7 +207,7 @@ namespace Game.Maps
                     Log.outError(LogFilter.Maps, 
                         $"Please place MAP-files (*.map) in the appropriate directory " +
                         $"({Global.WorldMgr.GetDataPath() + "/maps/"}), " +
-                        $"or correct the DataDir setting in your worldserver.conf file.");
+                        $"or correct the DataDir setting in your foreverworld.conf file.");
                 }
             }
             else
@@ -245,7 +245,7 @@ namespace Game.Maps
                         break;
                     case LoadResult.FileNotFound:
                         Log.outError(LogFilter.Maps, $"VMap file '{Global.WorldMgr.GetDataPath() + "/vmaps/" + name}' does not exist");
-                        Log.outError(LogFilter.Maps, $"Please place VMAP files (*.vmtree and *.vmtile) in the vmap directory ({Global.WorldMgr.GetDataPath() + "/vmaps/"}), or correct the DataDir setting in your worldserver.conf file.");
+                        Log.outError(LogFilter.Maps, $"Please place VMAP files (*.vmtree and *.vmtile) in the vmap directory ({Global.WorldMgr.GetDataPath() + "/vmaps/"}), or correct the DataDir setting in your foreverworld.conf file.");
                         return false;
                     case LoadResult.VersionMismatch:
                         Log.outError(LogFilter.Maps, $"VMap file '{Global.WorldMgr.GetDataPath() + "/vmaps/" + name}' couldn't be loaded");

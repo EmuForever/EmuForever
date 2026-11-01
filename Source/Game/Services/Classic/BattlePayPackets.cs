@@ -10,7 +10,7 @@ using System.Text;
 
 namespace Game.Services.Classic;
 
-// Classic 1.60 layout from TrinityCore TokenPackets at 855d360d.
+// Classic 1.60 layout from EmuForever TokenPackets at 855d360d.
 // Store prices use four decimal places, rather than copper or floating point.
 static class BattlePayPackets
 {

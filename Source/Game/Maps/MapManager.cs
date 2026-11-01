@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -75,7 +75,7 @@ namespace Game.Entities
                 $"map instance {instanceId} for {mapId} created with difficulty {difficulty}");
 
             InstanceMap map = new InstanceMap(mapId, i_gridCleanUpDelay, instanceId, difficulty, team, instanceLock);
-            Cypher.Assert(map.IsDungeon());
+            Forever.Assert(map.IsDungeon());
 
             map.LoadRespawnTimes();
             map.LoadCorpseData();
@@ -98,7 +98,7 @@ namespace Game.Entities
                 $"MapInstanced::CreateBattleground: map bg {instanceId} for {mapId} created.");
 
             BattlegroundMap map = new BattlegroundMap(mapId, i_gridCleanUpDelay, instanceId, Difficulty.None);
-            Cypher.Assert(map.IsBattlegroundOrArena());
+            Forever.Assert(map.IsBattlegroundOrArena());
             map.SetBG(bg);
             bg.SetBgMap(map);
             map.InitSpawnGroupState();
@@ -396,7 +396,7 @@ namespace Game.Entities
             }
 
             int newInstanceId = _nextInstanceId;
-            Cypher.Assert(newInstanceId < _freeInstanceIds.Length && newInstanceId > 0);
+            Forever.Assert(newInstanceId < _freeInstanceIds.Length && newInstanceId > 0);
             _freeInstanceIds[newInstanceId] = false;
 
             // Find the lowest available id starting from the current NextInstanceId

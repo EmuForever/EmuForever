@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Collections;
@@ -635,8 +635,9 @@ namespace Game
             }
 
             CharacterCreateInfo createInfo = charCreate.CreateInfo;
+            createInfo.Surname=NormalizeCreationSurname(createInfo.Surname);
             PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_CHECK_NAME);
-            stmt.SetString(0, charCreate.CreateInfo.Name);
+            stmt.SetString(0,Player.FormatFullName(charCreate.CreateInfo.Name,NormalizeCreationSurname(charCreate.CreateInfo.Surname)));
 
             _queryProcessor.AddCallback(DB.Characters.AsyncQuery(stmt).WithChainingCallback((queryCallback, result) =>
             {
@@ -787,7 +788,7 @@ namespace Game
                     }
 
                     // Check name uniqueness in the same step as saving to database
-                    if (Global.CharacterCacheStorage.GetCharacterCacheByName(createInfo.Name) != null)
+                    if (Global.CharacterCacheStorage.GetCharacterCacheByFullName(createInfo.Name,NormalizeCreationSurname(createInfo.Surname)) != null)
                     {
                         SendCharCreate(ResponseCodes.CharCreateNameInUse);
                         return;
@@ -814,14 +815,7 @@ namespace Game
 
                     // Player created, save it now
                     newChar.SaveToDB(loginTransaction, characterTransaction, true);
-                    string surname = NormalizeCreationSurname(createInfo.Surname);
-                    if (!string.IsNullOrEmpty(surname))
-                    {
-                        PreparedStatement surnameStatement = CharacterDatabase.GetPreparedStatement(CharStatements.UPD_CHARACTER_SURNAME);
-                        surnameStatement.SetString(0, surname);
-                        surnameStatement.SetInt64(1, newChar.GetGUID().GetCounter());
-                        characterTransaction.Append(surnameStatement);
-                    }
+                    string surname=NormalizeCreationSurname(createInfo.Surname);
                     createInfo.CharCount += 1;
 
                     stmt = LoginDatabase.GetPreparedStatement(LoginStatements.REP_REALM_CHARACTERS);
@@ -1195,14 +1189,14 @@ namespace Game
             if (pCurrChar.HasAtLoginFlag(AtLoginFlags.ResetSpells))
             {
                 pCurrChar.ResetSpells();
-                SendNotification(CypherStrings.ResetSpells);
+                SendNotification(ForeverStrings.ResetSpells);
             }
 
             if (pCurrChar.HasAtLoginFlag(AtLoginFlags.ResetTalents))
             {
                 pCurrChar.ResetTalents(true);
                 pCurrChar.SendTalentsInfoData();              // original talents send already in to SendInitialPacketsBeforeAddToMap, resend reset state
-                SendNotification(CypherStrings.ResetTalents);
+                SendNotification(ForeverStrings.ResetTalents);
             }
 
             bool firstLogin = pCurrChar.HasAtLoginFlag(AtLoginFlags.FirstLogin);
@@ -1297,7 +1291,7 @@ namespace Game
                 pCurrChar.SetTaxiCheater(true);
 
             if (pCurrChar.IsGameMaster())
-                SendNotification(CypherStrings.GmOn);
+                SendNotification(ForeverStrings.GmOn);
 
             string IP_str = GetRemoteAddress();
             Log.outDebug(LogFilter.Network, 
@@ -1354,7 +1348,7 @@ namespace Game
             // TODO: Do something with this packet
         }
 
-        // Port of the reference SendFeatureSystemStatus (E:\trinitycore_new, Classic 1.60.1). Field names follow the retail order,
+        // Port of the reference SendFeatureSystemStatus (E:\emuforever_new, Classic 1.60.1). Field names follow the retail order,
         // which is not the Classic meaning of every bit: e.g. Classic LfdEnabled / LfrEnabled sit where retail has
         // PlayerIdentityOptionsEnabled / IsPlayerContentTrackingEnabled (C_LFGInfo.CanPlayerUseGroupFinder), and the client starts
         // its clubs from the bit retail calls RedeemForBalanceAvailable.
@@ -1571,7 +1565,7 @@ namespace Game
 
             // Ensure that there is no character with the desired new name
             PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_CHECK_NAME);
-            stmt.SetString(0, checkCharacterNameAvailability.Name);
+            stmt.SetString(0,Player.FormatFullName(checkCharacterNameAvailability.Name,NormalizeCreationSurname(checkCharacterNameAvailability.Surname)));
 
             var sequenceIndex = checkCharacterNameAvailability.SequenceIndex;
             _queryProcessor.AddCallback(DB.Characters.AsyncQuery(stmt).WithCallback(result =>
@@ -1623,7 +1617,7 @@ namespace Game
             // Ensure that there is no character with the desired new name
             PreparedStatement stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_FREE_NAME);
             stmt.SetInt64(0, request.RenameInfo.Guid.GetCounter());
-            stmt.SetString(1, request.RenameInfo.NewName);
+            stmt.SetString(1,Player.FormatFullName(request.RenameInfo.NewName,Global.CharacterCacheStorage.GetCharacterSurnameByGuid(request.RenameInfo.Guid)));
 
             _queryProcessor.AddCallback(DB.Characters.AsyncQuery(stmt).WithCallback(HandleCharRenameCallBack, request.RenameInfo));
         }
@@ -1868,7 +1862,7 @@ namespace Game
 
             // character with this name already exist
             // @todo: make async
-            ObjectGuid newGuid = Global.CharacterCacheStorage.GetCharacterGuidByName(customizeInfo.CharName);
+            ObjectGuid newGuid = Global.CharacterCacheStorage.GetCharacterCacheByFullName(customizeInfo.CharName,Global.CharacterCacheStorage.GetCharacterSurnameByGuid(customizeInfo.CharGUID))?.Guid ?? ObjectGuid.Empty;
             if (!newGuid.IsEmpty())
             {
                 if (newGuid != customizeInfo.CharGUID)
@@ -2172,7 +2166,7 @@ namespace Game
             }
 
             // character with this name already exist
-            ObjectGuid newGuid = Global.CharacterCacheStorage.GetCharacterGuidByName(factionChangeInfo.Name);
+            ObjectGuid newGuid = Global.CharacterCacheStorage.GetCharacterCacheByFullName(factionChangeInfo.Name,Global.CharacterCacheStorage.GetCharacterSurnameByGuid(factionChangeInfo.Guid))?.Guid ?? ObjectGuid.Empty;
             if (!newGuid.IsEmpty())
             {
                 if (newGuid != factionChangeInfo.Guid)
@@ -2686,7 +2680,7 @@ namespace Game
                 }
 
                 stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_CHECK_NAME);
-                stmt.SetString(0, undeleteInfo.Name);
+                stmt.SetString(0,Player.FormatFullName(undeleteInfo.Name,Global.CharacterCacheStorage.GetCharacterSurnameByGuid(undeleteInfo.CharacterGuid)));
                 queryCallback.SetNextQuery(DB.Characters.AsyncQuery(stmt));
             }).WithChainingCallback((queryCallback, result) =>
             {
@@ -2920,7 +2914,7 @@ namespace Game
         }
 
         static string NormalizeCreationSurname(string surname) =>
-            surname == null || surname.EnumerateRunes().Count() > 48 ? string.Empty : surname;
+            surname == null || surname.EnumerateRunes().Count() > 48 ? string.Empty : surname.Trim();
 
         void CompleteCommittedCharacterCreation(Player character, string surname, SQLTransaction loginTransaction)
         {
@@ -2931,9 +2925,9 @@ namespace Game
                 {
                     try
                     {
-                        Global.CharacterCacheStorage.AddCharacterCacheEntry(character.GetGUID(), GetAccountId(), character.GetName(),
-                            (byte)character.GetNativeGender(), (byte)character.GetRace(), (byte)character.GetClass(), (byte)character.GetLevel(), false);
-                        Global.CharacterCacheStorage.UpdateCharacterSurname(character.GetGUID(), surname);
+                        Global.CharacterCacheStorage.AddCharacterCacheEntry(character.GetGUID(), GetAccountId(), character.GetFirstName(),
+                            (byte)character.GetNativeGender(), (byte)character.GetRace(), (byte)character.GetClass(), (byte)character.GetLevel(), false,surname);
+
                     }
                     finally { DB.Login.CommitTransaction(loginTransaction); }
                 },

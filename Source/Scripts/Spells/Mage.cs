@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -1001,7 +1001,7 @@ namespace Scripts.Spells.Mage
             SpellInfo igniteDot = SpellMgr.GetSpellInfo(SpellIds.Ignite, GetCastDifficulty());
             int pct = aurEff.GetAmount();
 
-            Cypher.Assert(igniteDot.GetMaxTicks() > 0);
+            Forever.Assert(igniteDot.GetMaxTicks() > 0);
             int amount = MathFunctions.CalculatePct(eventInfo.GetDamageInfo().GetDamage(), pct) / igniteDot.GetMaxTicks();
 
             CastSpellExtraArgs args = new(aurEff);

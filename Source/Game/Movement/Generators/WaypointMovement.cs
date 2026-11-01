@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -116,7 +116,7 @@ namespace Game.Movement
             if (_path == null || _path.Nodes.Empty())
                 return false;
 
-            Cypher.Assert(_currentNode < _path.Nodes.Count, 
+            Forever.Assert(_currentNode < _path.Nodes.Count, 
                 $"WaypointMovementGenerator::GetResetPosition: " +
                 $"tried to reference a node id ({_currentNode}) " +
                 $"which is not included in path ({_path.Id})");
@@ -296,7 +296,7 @@ namespace Game.Movement
             if (_path == null || _path.Nodes.Empty())
                 return;
 
-            Cypher.Assert(_currentNode < _path.Nodes.Count, 
+            Forever.Assert(_currentNode < _path.Nodes.Count, 
                 $"WaypointMovementGenerator.OnArrived: " +
                 $"tried to reference a node id ({_currentNode}) " +
                 $"which is not included in path ({_path.Id})");
@@ -350,7 +350,7 @@ namespace Game.Movement
             {
                 if (ComputeNextNode())
                 {
-                    Cypher.Assert(_currentNode < _path.Nodes.Count,
+                    Forever.Assert(_currentNode < _path.Nodes.Count,
                         $"WaypointMovementGenerator.StartMove: " +
                         $"tried to reference a node id ({_currentNode}) " +
                         $"which is not included in path ({_path.Id})");
@@ -403,7 +403,7 @@ namespace Game.Movement
                     ai.WaypointStarted(_path.Nodes[_currentNode].Id, _path.Id);
             }
 
-            Cypher.Assert(_currentNode < _path.Nodes.Count, 
+            Forever.Assert(_currentNode < _path.Nodes.Count, 
                 $"WaypointMovementGenerator.StartMove: " +
                 $"tried to reference a node id ({_currentNode}) " +
                 $"which is not included in path ({_path.Id})");

@@ -27,7 +27,7 @@ namespace Game.Chat.Commands
             if (words.Length is < 1 or > 2 || !TryName(words[0], 2, 12, out string first))
                 throw new ArgumentException("Use \"first surname\"; first name must have 2-12 letters.");
             string surname = "";
-            if (words.Length == 2 && !TryName(words[1], 1, 32, out surname))
+            if (words.Length == 2 && !TryName(words[1], 1, 48, out surname))
                 throw new ArgumentException("Surname must have 1-32 letters.");
             return (first, surname);
         }
@@ -42,7 +42,7 @@ namespace Game.Chat.Commands
         {
             if (!IsOperator(h)) return false;
             if (ConfigMgr.GetDefaultValue("SI.Enabled", true)) return true;
-            h.SendSysMessage("SI is disabled. Set SI.Enabled = 1 and restart worldserver.");
+            h.SendSysMessage("SI is disabled. Set SI.Enabled = 1 and restart foreverworld.");
             return false;
         }
         static bool Run(CommandHandler h, Action action)
@@ -141,25 +141,21 @@ namespace Game.Chat.Commands
                     QueueRandomCreation(h, words);
                     return;
                 }
-                if (words.Count != 3) throw new ArgumentException("Use .si create random <horde|alliance> [count], or .si create \"first surname\" <race> <class>.");
-                CreateNamed(h, words[0], words[1], words[2]);
+                var options = NamedCreationOptions(words);
+                CreateNamed(h, words[0], options.Race, options.Class);
             });
         }
 
-        static void CreateNamed(CommandHandler h, string fullName, string race, string playerClass,
-            Gender? gender = null, Action<bool> completed = null)
+        static void CreateNamed(CommandHandler h, string fullName, Race raceId, Class classId,
+            Gender? gender = null, Action<bool, ObjectGuid> completed = null, long? generation = null)
         {
+            long requestGeneration=generation??SpawnQueue.Generation;
             var (name, last) = ParseFullName(fullName);
-            race = race.Replace("_", "").Replace("-", "");
-            playerClass = playerClass.Replace("_", "").Replace("-", "");
-            if (!Enum.TryParse(race, true, out Race raceId) || !Enum.IsDefined(raceId) || raceId == Race.None
-                || !Enum.TryParse(playerClass, true, out Class classId) || !Enum.IsDefined(classId) || classId == Class.None
-                || Global.ObjectMgr.GetPlayerInfo(raceId, classId) == null)
-                throw new ArgumentException("That race/class combination is not supported by this world.");
+            ValidateCreationCombination(raceId,classId);
             string displayName = (name + " " + last).Trim();
-            if (Global.CharacterCacheStorage.GetCharacterCacheByFirstName(name) != null)
-                throw new InvalidOperationException("That first name is already taken. Choose another first name.");
-            if (!Creating.TryAdd(name, 0)) throw new InvalidOperationException("Creation is already in progress for this name.");
+            if (Global.CharacterCacheStorage.GetCharacterCacheByFullName(name,last) != null)
+                throw new InvalidOperationException("That full name is already taken. Choose another first name or surname.");
+            if (!Creating.TryAdd(displayName, 0)) throw new InvalidOperationException("Creation is already in progress for this name.");
             byte expansionValue = (byte)WorldConfig.Values[WorldCfg.Expansion].Int32;
             Task<int> preparation = Task.Run(() =>
             {
@@ -183,6 +179,7 @@ namespace Game.Chat.Commands
                 try
                 {
                     int account = preparation.GetAwaiter().GetResult();
+                    if(!SpawnQueue.IsCurrent(requestGeneration))return true;
                     WorldSession session = NewSession(account);
                     CharacterCreateInfo info = new() { Name = name, Surname = last, RaceId = raceId, ClassId = classId,
                         Sex = gender ?? (RandomNumberGenerator.GetInt32(2) == 0 ? Gender.Male : Gender.Female) };
@@ -192,20 +189,21 @@ namespace Game.Chat.Commands
                     {
                         try
                         {
+                            if(!SpawnQueue.IsCurrent(requestGeneration))session.KickPlayer("SI creation login cancelled by despawn all");
                             if (result != ResponseCodes.CharCreateSuccess)
                                 ReportCreationFailure(h, $"SI creation {displayName}: {result} ({(int)result}).");
                             else
-                                h.SendSysMessage($"Created SI player {displayName}: character {guid.GetCounter()}, account {unchecked((uint)account)}. Use .si spawn {name}.");
+                                h.SendSysMessage(CreationMessage(displayName,Player.TeamForRace(raceId),raceId,classId));
                         }
-                        finally { Creating.TryRemove(name, out _); completed?.Invoke(result == ResponseCodes.CharCreateSuccess); }
-                    });
+                        finally { Creating.TryRemove(displayName, out _); completed?.Invoke(result == ResponseCodes.CharCreateSuccess,guid); }
+                    }, spawnOnSuccess:true);
                     Global.WorldMgr.AddSession(session);
                     queued = true;
                 }
                 catch (Exception error) { ReportCreationFailure(h, $"SI creation {displayName} failed: {error.GetBaseException().Message}"); }
                 finally
                 {
-                    if (!queued) { Creating.TryRemove(name, out _); completed?.Invoke(false); }
+                    if (!queued) { Creating.TryRemove(displayName, out _); completed?.Invoke(false,ObjectGuid.Empty); }
                 }
                 return true;
             });
@@ -224,7 +222,7 @@ namespace Game.Chat.Commands
             });
         }
 
-        static void SpawnCharacter(CommandHandler h, ObjectGuid guid)
+        static void SpawnCharacter(CommandHandler h, ObjectGuid guid, bool announce = true)
         {
             if (Editing.Contains(guid)) throw new InvalidOperationException("This SI character has a pending rename/delete.");
             var c = Global.CharacterCacheStorage.GetCharacterCacheByGuid(guid);
@@ -235,7 +233,7 @@ namespace Game.Chat.Commands
             WorldSession session = NewSession(c.AccountId);
             session.SetSICharacter(guid);
             Global.WorldMgr.AddSession(session);
-            h.SendSysMessage($"Spawning {siPlayer.NormalizeStoredName(c.Name, c.Surname)} {c.Surname}, character {guid.GetCounter()}, at its saved location; initial goal: questing.");
+            if(announce)h.SendSysMessage($"Spawning {siPlayer.NormalizeStoredName(c.Name, c.Surname)} {c.Surname}, character {guid.GetCounter()}, at its saved location; initial goal: questing.");
         }
 
         [Command("despawn", Permission, true)]
@@ -348,6 +346,19 @@ namespace Game.Chat.Commands
         static bool Guard(CommandHandler h, StringArguments a) => Order(h, TargetText(a), "guard");
         [Command("grind", Permission, true)]
         static bool Grind(CommandHandler h, StringArguments a) => Order(h, TargetText(a), "grind");
+        [Command("bg", Permission, true)]
+        static bool Battleground(CommandHandler h, StringArguments a)
+        {
+            string target = TargetText(a);
+            if (!target.Equals("all", StringComparison.OrdinalIgnoreCase)) return Order(h, target, "bg");
+            return Run(h, () =>
+            {
+                int count = 0;
+                foreach (var session in Global.WorldMgr.GetAllSessions())
+                    if (session.GetPlayer()?.Controller is { } controller) { controller.Order("bg"); ++count; }
+                h.SendSysMessage($"Battleground goal requested for {count} online SI player(s). Characters below level 10 return to questing.");
+            });
+        }
         [Command("attack", Permission, true)]
         static bool Attack(CommandHandler h, StringArguments a) => Order(h, TargetText(a), "attack");
         [Command("duel", Permission, true)]
@@ -374,17 +385,20 @@ namespace Game.Chat.Commands
         static bool ExplicitOrder(CommandHandler h, StringArguments a)
         {
             string[] words = TargetText(a).Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (words.Length < 1 || words[^1] is not ("follow" or "guard" or "grind" or "duel" or "gather" or "professions" or "social" or "attack" or "pause" or "resume" or "quest" or "rest" or "save" or "teleport")) return false;
+            if (words.Length < 1 || words[^1] is not ("follow" or "guard" or "grind" or "bg" or "duel" or "gather" or "professions" or "social" or "attack" or "pause" or "resume" or "quest" or "rest" or "save" or "teleport")) return false;
             return Order(h, string.Join(' ', words[..^1]), words[^1]);
         }
         [Command("", Permission, true)]
         [Command("help", Permission, true)]
         static bool Help(CommandHandler h)
         {
-            h.SendSysMessage(".si create random <horde|alliance> [count=1, max=1000]; .si create \"first surname\" <race> <class>.");
+            h.SendSysMessage(".si create random <horde|alliance> [race class]; .si create \"first surname\" <horde|alliance> <race> <class>. Creates and automatically spawns; skyborn/skyborne selects that faction's Skyborn race.");
+            h.SendSysMessage(".si populate <1-10000>: fill an evenly split SI population, reusing offline characters and creating missing faction members. Online SI players are counted and kept; odd totals give Alliance one extra. .si despawn all cancels pending work.");
             h.SendSysMessage(".si me [on|off]: toggle SI control of your logged-in character; off returns manual control. No target or separate bot login is needed.");
             h.SendSysMessage(".si spawn|despawn all; .si spawncount <1-10000>; .si delete [GUID|\"name\"]; .si rename [GUID|\"name\"] <random|\"first surname\">.");
             h.SendSysMessage(".si quest|grind|pause|resume|follow|guard|attack|rest|save|teleport|info [GUID|\"name\"]; .si list [all]; .si status [all].");
+            h.SendSysMessage(".si bg [all|GUID|\"name\"]: visit battlemasters, queue, use Social activity while waiting, accept invites and play objectives. Characters below level 10 return to questing. Requeues after each match. Another work order cancels waiting queues; an active match is finished first.");
+            h.SendSysMessage(".si social [GUID|\"name\"]: city professions, trading and walking on authored city paths. Strolling avoids banks; deliberate banking errands and auction-house visits are allowed.");
             h.SendSysMessage(".si nav show spawns selectable point NPCs; .si nav info|ban|unban|move uses your selected marker. Chickens = enabled; cows = blacklisted. Bans and moves are permanent. Use .si nav help for arguments.");
             h.SendSysMessage("An SI target takes priority over a supplied GUID/name. With it selected: .si quest; .si rename random; .si rename \"first surname\". Explicit all applies to the roster. Online renames save and relog the bot.");
             return true;
@@ -415,7 +429,7 @@ namespace Game.Chat.Commands
                 return c != null && !c.IsDeleted ? guid : ObjectGuid.Empty;
             }
             if (words.Length is < 1 or > 2 || !ObjectManager.NormalizePlayerName(ref words[0])) return ObjectGuid.Empty;
-            var character = Global.CharacterCacheStorage.GetCharacterCacheByFirstName(words[0]);
+            var character = Global.CharacterCacheStorage.GetCharacterCacheByName(string.Join(" ",words));
             return character != null && !character.IsDeleted && (words.Length == 1
                 || string.Equals(character.Surname, words[1], StringComparison.OrdinalIgnoreCase)) ? character.Guid : ObjectGuid.Empty;
         }

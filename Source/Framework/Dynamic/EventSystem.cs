@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using System;
@@ -121,7 +121,7 @@ namespace Framework.Dynamic
 
         public void ScheduleAbort()
         {
-            Cypher.Assert(IsRunning(), 
+            Forever.Assert(IsRunning(), 
                 "Tried to scheduled the abortion of an event twice!");
 
             m_abortState = AbortState.Scheduled;
@@ -129,7 +129,7 @@ namespace Framework.Dynamic
 
         public void SetAborted()
         {
-            Cypher.Assert(!IsAborted(), 
+            Forever.Assert(!IsAborted(), 
                 "Tried to abort an already aborted event!");
 
             m_abortState = AbortState.Aborted;

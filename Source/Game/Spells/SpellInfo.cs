@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -1653,8 +1653,11 @@ namespace Game.Spells
                     if (Dispel == DispelType.Poison)
                         _spellSpecific = SpellSpecificType.Sting;
 
-                    // only hunter aspects have this (but not all aspects in hunter family)
-                    if (SpellFamilyFlags & new FlagArray128(0x00200000, 0x00000000, 0x00001010, 0x00000000))
+                    // Classic 1.60 class masks of the aspects: Cheetah/Pack 0x200000, Hawk 0x100000, Monkey 0x80000, Viper [1] 0x40000,
+                    // Beast [2] 0x10. Wild (20043, 20190) and Falcon (469145) have no mask, so they go by ID. With only the
+                    // 3.3.5 bits Hawk, Monkey and Wild were not aspects and a hunter could keep every aspect up at once.
+                    if (SpellFamilyFlags & new FlagArray128(0x00380000, 0x00040000, 0x00001010, 0x00000000)
+                        || Id == 20043 || Id == 20190 || Id == 469145)
                         _spellSpecific = SpellSpecificType.Aspect;
 
                     break;

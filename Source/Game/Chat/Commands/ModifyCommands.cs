@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -21,7 +21,7 @@ namespace Game.Chat
             int maxHp = hp;
             if (CheckModifyResources(handler, target, ref hp, ref maxHp))
             {
-                NotifyModification(handler, target, CypherStrings.YouChangeHp, CypherStrings.YoursHpChanged, hp, maxHp);
+                NotifyModification(handler, target, ForeverStrings.YouChangeHp, ForeverStrings.YoursHpChanged, hp, maxHp);
                 target.SetMaxHealth((uint)maxHp);
                 target.SetHealth((uint)hp);
                 return true;
@@ -36,7 +36,7 @@ namespace Game.Chat
             int maxMana = mana;
             if (CheckModifyResources(handler, target, ref mana, ref maxMana))
             {
-                NotifyModification(handler, target, CypherStrings.YouChangeMana, CypherStrings.YoursManaChanged, mana, maxMana);
+                NotifyModification(handler, target, ForeverStrings.YouChangeMana, ForeverStrings.YoursManaChanged, mana, maxMana);
                 target.SetMaxPower(PowerType.Mana, maxMana);
                 target.SetPower(PowerType.Mana, mana);
                 return true;
@@ -53,7 +53,7 @@ namespace Game.Chat
             int maxEnergy = energy;
             if (CheckModifyResources(handler, target, ref energy, ref maxEnergy, energyMultiplier))
             {
-                NotifyModification(handler, target, CypherStrings.YouChangeEnergy, CypherStrings.YoursEnergyChanged, energy / energyMultiplier, maxEnergy / energyMultiplier);
+                NotifyModification(handler, target, ForeverStrings.YouChangeEnergy, ForeverStrings.YoursEnergyChanged, energy / energyMultiplier, maxEnergy / energyMultiplier);
                 target.SetMaxPower(PowerType.Energy, maxEnergy);
                 target.SetPower(PowerType.Energy, energy);
                 return true;
@@ -69,7 +69,7 @@ namespace Game.Chat
             int maxRage = rage;
             if (CheckModifyResources(handler, target, ref rage, ref maxRage, rageMultiplier))
             {
-                NotifyModification(handler, target, CypherStrings.YouChangeRage, CypherStrings.YoursRageChanged, rage / rageMultiplier, maxRage / rageMultiplier);
+                NotifyModification(handler, target, ForeverStrings.YouChangeRage, ForeverStrings.YoursRageChanged, rage / rageMultiplier, maxRage / rageMultiplier);
                 target.SetMaxPower(PowerType.Rage, maxRage);
                 target.SetPower(PowerType.Rage, rage);
                 return true;
@@ -85,7 +85,7 @@ namespace Game.Chat
             int maxRune = rune;
             if (CheckModifyResources(handler, target, ref rune, ref maxRune, runeMultiplier))
             {
-                NotifyModification(handler, target, CypherStrings.YouChangeRunicPower, CypherStrings.YoursRunicPowerChanged, rune / runeMultiplier, maxRune / runeMultiplier);
+                NotifyModification(handler, target, ForeverStrings.YouChangeRunicPower, ForeverStrings.YoursRunicPowerChanged, rune / runeMultiplier, maxRune / runeMultiplier);
                 target.SetMaxPower(PowerType.RunicPower, maxRune);
                 target.SetPower(PowerType.RunicPower, rune);
                 return true;
@@ -99,7 +99,7 @@ namespace Game.Chat
             Creature target = handler.GetSelectedCreature();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCreature);
                 return false;
             }
 
@@ -114,17 +114,17 @@ namespace Game.Chat
 
             if (!factionid.HasValue)
             {
-                handler.SendSysMessage(CypherStrings.CurrentFaction, target.GetGUID().ToString(), target.GetFaction(), flag.Value, npcflag.Value, dyflag.Value);
+                handler.SendSysMessage(ForeverStrings.CurrentFaction, target.GetGUID().ToString(), target.GetFaction(), flag.Value, npcflag.Value, dyflag.Value);
                 return true;
             }
 
             if (!CliDB.FactionTemplateStorage.ContainsKey(factionid.Value))
             {
-                handler.SendSysMessage(CypherStrings.WrongFaction, factionid.Value);
+                handler.SendSysMessage(ForeverStrings.WrongFaction, factionid.Value);
                 return false;
             }
 
-            handler.SendSysMessage(CypherStrings.YouChangeFaction, target.GetGUID().ToString(), factionid.Value, flag.Value, npcflag.Value, dyflag.Value);
+            handler.SendSysMessage(ForeverStrings.YouChangeFaction, target.GetGUID().ToString(), factionid.Value, flag.Value, npcflag.Value, dyflag.Value);
 
             target.SetFaction(factionid.Value);
             target.ReplaceAllUnitFlags((UnitFlags)flag);
@@ -159,7 +159,7 @@ namespace Game.Chat
             Player target = handler.GetSelectedPlayerOrSelf();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
@@ -167,9 +167,9 @@ namespace Game.Chat
             if (handler.HasLowerSecurity(target, ObjectGuid.Empty))
                 return false;
 
-            handler.SendSysMessage(CypherStrings.YouChangeSpellflatid, spellflatid, val, mark, handler.GetNameLink(target));
+            handler.SendSysMessage(ForeverStrings.YouChangeSpellflatid, spellflatid, val, mark, handler.GetNameLink(target));
             if (handler.NeedReportToTarget(target))
-                target.SendSysMessage(CypherStrings.YoursSpellflatidChanged, handler.GetNameLink(), spellflatid, val, mark);
+                target.SendSysMessage(ForeverStrings.YoursSpellflatidChanged, handler.GetNameLink(), spellflatid, val, mark);
 
             SetSpellModifier packet = new(ServerOpcodes.SetFlatSpellModifier);
             SpellModifierInfo spellMod = new();
@@ -194,7 +194,7 @@ namespace Game.Chat
             Unit target = handler.GetSelectedUnit();
             if (CheckModifySpeed(handler, args, target, out scale, 0.1f, 10.0f, false))
             {
-                NotifyModification(handler, target, CypherStrings.YouChangeSize, CypherStrings.YoursSizeChanged, scale);
+                NotifyModification(handler, target, ForeverStrings.YouChangeSize, ForeverStrings.YoursSizeChanged, scale);
                 target.SetObjectScale(scale);
                 return true;
             }
@@ -206,14 +206,14 @@ namespace Game.Chat
         {
             if (!CliDB.CreatureDisplayInfoStorage.HasRecord(mount))
             {
-                handler.SendSysMessage(CypherStrings.NoMount);
+                handler.SendSysMessage(ForeverStrings.NoMount);
                 return false;
             }
 
             Player target = handler.GetSelectedPlayerOrSelf();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
@@ -224,7 +224,7 @@ namespace Game.Chat
             if (!CheckModifySpeed(handler, target, speed, 0.1f, 50.0f))
                 return false;
 
-            NotifyModification(handler, target, CypherStrings.YouGiveMount, CypherStrings.MountGived);
+            NotifyModification(handler, target, ForeverStrings.YouGiveMount, ForeverStrings.MountGived);
             target.Mount(mount);
             target.SetSpeedRate(UnitMoveType.Run, speed);
             target.SetSpeedRate(UnitMoveType.Flight, speed);
@@ -237,7 +237,7 @@ namespace Game.Chat
             Player target = handler.GetSelectedPlayerOrSelf();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
@@ -252,12 +252,12 @@ namespace Game.Chat
             {
                 long newmoney = targetMoney + moneyToAdd;
 
-                Log.outDebug(LogFilter.ChatSystem, Global.ObjectMgr.GetCypherString(CypherStrings.CurrentMoney), targetMoney, moneyToAdd, newmoney);
+                Log.outDebug(LogFilter.ChatSystem, Global.ObjectMgr.GetForeverString(ForeverStrings.CurrentMoney), targetMoney, moneyToAdd, newmoney);
                 if (newmoney <= 0)
                 {
-                    handler.SendSysMessage(CypherStrings.YouTakeAllMoney, handler.GetNameLink(target));
+                    handler.SendSysMessage(ForeverStrings.YouTakeAllMoney, handler.GetNameLink(target));
                     if (handler.NeedReportToTarget(target))
-                        target.SendSysMessage(CypherStrings.YoursAllMoneyGone, handler.GetNameLink());
+                        target.SendSysMessage(ForeverStrings.YoursAllMoneyGone, handler.GetNameLink());
 
                     target.SetMoney(0);
                 }
@@ -267,17 +267,17 @@ namespace Game.Chat
                     if (newmoney > PlayerConst.MaxMoneyAmount)
                         newmoney = PlayerConst.MaxMoneyAmount;
 
-                    handler.SendSysMessage(CypherStrings.YouTakeMoney, moneyToAddMsg, handler.GetNameLink(target));
+                    handler.SendSysMessage(ForeverStrings.YouTakeMoney, moneyToAddMsg, handler.GetNameLink(target));
                     if (handler.NeedReportToTarget(target))
-                        target.SendSysMessage(CypherStrings.YoursMoneyTaken, handler.GetNameLink(), moneyToAddMsg);
+                        target.SendSysMessage(ForeverStrings.YoursMoneyTaken, handler.GetNameLink(), moneyToAddMsg);
                     target.SetMoney(newmoney);
                 }
             }
             else
             {
-                handler.SendSysMessage(CypherStrings.YouGiveMoney, moneyToAdd, handler.GetNameLink(target));
+                handler.SendSysMessage(ForeverStrings.YouGiveMoney, moneyToAdd, handler.GetNameLink(target));
                 if (handler.NeedReportToTarget(target))
-                    target.SendSysMessage(CypherStrings.YoursMoneyGiven, handler.GetNameLink(), moneyToAdd);
+                    target.SendSysMessage(ForeverStrings.YoursMoneyGiven, handler.GetNameLink(), moneyToAdd);
 
                 if ((ulong)moneyToAdd >= PlayerConst.MaxMoneyAmount)
                     moneyToAdd = Convert.ToInt64(PlayerConst.MaxMoneyAmount);
@@ -287,7 +287,7 @@ namespace Game.Chat
                 target.ModifyMoney(moneyToAdd);
             }
 
-            Log.outDebug(LogFilter.ChatSystem, Global.ObjectMgr.GetCypherString(CypherStrings.NewMoney), targetMoney, moneyToAdd, target.GetMoney());
+            Log.outDebug(LogFilter.ChatSystem, Global.ObjectMgr.GetForeverString(ForeverStrings.NewMoney), targetMoney, moneyToAdd, target.GetMoney());
             return true;
         }
 
@@ -300,7 +300,7 @@ namespace Game.Chat
             Player target = handler.GetSelectedPlayerOrSelf();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
@@ -313,7 +313,7 @@ namespace Game.Chat
             //target.ModifyCurrency(CurrencyTypes.HonorPoints, amount, true, true);
             handler.SendSysMessage("NOT IMPLEMENTED: {0} honor NOT added.", amount);
 
-            //handler.SendSysMessage(CypherStrings.CommandModifyHonor, handler.GetNameLink(target), target.GetCurrency((uint)CurrencyTypes.HonorPoints));
+            //handler.SendSysMessage(ForeverStrings.CommandModifyHonor, handler.GetNameLink(target), target.GetCurrency((uint)CurrencyTypes.HonorPoints));
             return true;
         }
 
@@ -343,7 +343,7 @@ namespace Game.Chat
             Player target = handler.GetSelectedPlayerOrSelf();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
@@ -364,13 +364,13 @@ namespace Game.Chat
             var factionEntry = CliDB.FactionStorage.LookupByKey(factionId);
             if (factionEntry == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandFactionUnknown, factionId);
+                handler.SendSysMessage(ForeverStrings.CommandFactionUnknown, factionId);
                 return false;
             }
 
             if (factionEntry.ReputationIndex < 0)
             {
-                handler.SendSysMessage(CypherStrings.CommandFactionNorepError, factionEntry.Name[handler.GetSessionDbcLocale()], factionId);
+                handler.SendSysMessage(ForeverStrings.CommandFactionNorepError, factionEntry.Name[handler.GetSessionDbcLocale()], factionId);
                 return false;
             }
 
@@ -384,7 +384,7 @@ namespace Game.Chat
                 {
                     amount = ReputationMgr.ReputationRankThresholds[i];
 
-                    string rankName = handler.GetCypherString(ReputationMgr.ReputationRankStrIndex[rank]);
+                    string rankName = handler.GetForeverString(ReputationMgr.ReputationRankStrIndex[rank]);
                     if (string.IsNullOrEmpty(rankName))
                         continue;
 
@@ -393,7 +393,7 @@ namespace Game.Chat
 
                     if (i == ReputationMgr.ReputationRankThresholds.Length - 1)
                     {
-                        handler.SendSysMessage(CypherStrings.CommandInvalidParam, rankTxt);
+                        handler.SendSysMessage(ForeverStrings.CommandInvalidParam, rankTxt);
                         return false;
                     }
                 }
@@ -409,7 +409,7 @@ namespace Game.Chat
 
                     if (!int.TryParse(deltaTxt, out int delta) || delta < 0 || delta >= toNextRank)
                     {
-                        handler.SendSysMessage(CypherStrings.CommandFactionDelta, Math.Max(0, toNextRank - 1));
+                        handler.SendSysMessage(ForeverStrings.CommandFactionDelta, Math.Max(0, toNextRank - 1));
                         return false;
                     }
                     amount += delta;
@@ -418,7 +418,7 @@ namespace Game.Chat
 
             target.GetReputationMgr().SetOneFactionReputation(factionEntry, amount, false);
             target.GetReputationMgr().SendState(target.GetReputationMgr().GetState(factionEntry));
-            handler.SendSysMessage(CypherStrings.CommandModifyRep, factionEntry.Name[handler.GetSessionDbcLocale()], factionId, handler.GetNameLink(target), target.GetReputationMgr().GetReputation(factionEntry));
+            handler.SendSysMessage(ForeverStrings.CommandModifyRep, factionEntry.Name[handler.GetSessionDbcLocale()], factionId, handler.GetNameLink(target), target.GetReputationMgr().GetReputation(factionEntry));
 
             return true;
         }
@@ -428,7 +428,7 @@ namespace Game.Chat
         {
             if (phaseId != 0 && !CliDB.PhaseStorage.ContainsKey(phaseId))
             {
-                handler.SendSysMessage(CypherStrings.PhaseNotfound);
+                handler.SendSysMessage(ForeverStrings.PhaseNotfound);
                 return false;
             }
 
@@ -439,7 +439,7 @@ namespace Game.Chat
                 MapRecord visibleMap = CliDB.MapStorage.LookupByKey(visibleMapId.Value);
                 if (visibleMap == null || visibleMap.ParentMapID != target.GetMapId())
                 {
-                    handler.SendSysMessage(CypherStrings.PhaseNotfound);
+                    handler.SendSysMessage(ForeverStrings.PhaseNotfound);
                     return false;
                 }
 
@@ -469,7 +469,7 @@ namespace Game.Chat
             Player target = handler.GetSelectedPlayerOrSelf();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
@@ -483,24 +483,24 @@ namespace Game.Chat
             PowerTypeRecord powerType = Global.DB2Mgr.GetPowerTypeByName(powerTypeToken);
             if (powerType == null)
             {
-                handler.SendSysMessage(CypherStrings.InvalidPowerName);
+                handler.SendSysMessage(ForeverStrings.InvalidPowerName);
                 return false;
             }
 
             if (target.GetPowerIndex(powerType.PowerTypeEnum) == (int)PowerType.Max)
             {
-                handler.SendSysMessage(CypherStrings.InvalidPowerName);
+                handler.SendSysMessage(ForeverStrings.InvalidPowerName);
                 return false;
             }
 
             int powerAmount = args.NextInt32();
             if (powerAmount < 1)
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 
-            NotifyModification(handler, target, CypherStrings.YouChangePower, CypherStrings.YourPowerChanged, powerType.NameGlobalStringTag, powerAmount, powerAmount);
+            NotifyModification(handler, target, ForeverStrings.YouChangePower, ForeverStrings.YourPowerChanged, powerType.NameGlobalStringTag, powerAmount, powerAmount);
             powerAmount *= powerType.DisplayModifier;
             target.SetMaxPower(powerType.PowerTypeEnum, powerAmount);
             target.SetPower(powerType.PowerTypeEnum, powerAmount);
@@ -528,7 +528,7 @@ namespace Game.Chat
             Player target = handler.GetSelectedPlayerOrSelf();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
@@ -555,7 +555,7 @@ namespace Game.Chat
             }
             else
             {
-                handler.SendSysMessage(CypherStrings.MustMaleOrFemale);
+                handler.SendSysMessage(ForeverStrings.MustMaleOrFemale);
                 return false;
             }
 
@@ -599,10 +599,10 @@ namespace Game.Chat
 
             target.SetCustomizations(customizations);
 
-            handler.SendSysMessage(CypherStrings.YouChangeGender, handler.GetNameLink(target), gender);
+            handler.SendSysMessage(ForeverStrings.YouChangeGender, handler.GetNameLink(target), gender);
 
             if (handler.NeedReportToTarget(target))
-                target.SendSysMessage(CypherStrings.YourGenderChanged, gender, handler.GetNameLink());
+                target.SendSysMessage(ForeverStrings.YourGenderChanged, gender, handler.GetNameLink());
 
             return true;
         }
@@ -616,7 +616,7 @@ namespace Game.Chat
             Player target = handler.GetSelectedPlayerOrSelf();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
 
                 return false;
             }
@@ -644,14 +644,14 @@ namespace Game.Chat
 
             if (xp < 1)
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 
             Player target = handler.GetSelectedPlayerOrSelf();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
@@ -711,7 +711,7 @@ namespace Game.Chat
                 Player target = handler.GetSelectedPlayerOrSelf();
                 if (CheckModifySpeed(handler, args, target, out allSpeed, 0.1f, 50.0f))
                 {
-                    NotifyModification(handler, target, CypherStrings.YouChangeAspeed, CypherStrings.YoursAspeedChanged, allSpeed);
+                    NotifyModification(handler, target, ForeverStrings.YouChangeAspeed, ForeverStrings.YoursAspeedChanged, allSpeed);
                     target.SetSpeedRate(UnitMoveType.Walk, allSpeed);
                     target.SetSpeedRate(UnitMoveType.Run, allSpeed);
                     target.SetSpeedRate(UnitMoveType.Swim, allSpeed);
@@ -728,7 +728,7 @@ namespace Game.Chat
                 Player target = handler.GetSelectedPlayerOrSelf();
                 if (CheckModifySpeed(handler, args, target, out swimSpeed, 0.1f, 50.0f))
                 {
-                    NotifyModification(handler, target, CypherStrings.YouChangeSwimSpeed, CypherStrings.YoursSwimSpeedChanged, swimSpeed);
+                    NotifyModification(handler, target, ForeverStrings.YouChangeSwimSpeed, ForeverStrings.YoursSwimSpeedChanged, swimSpeed);
                     target.SetSpeedRate(UnitMoveType.Swim, swimSpeed);
                     return true;
                 }
@@ -742,7 +742,7 @@ namespace Game.Chat
                 Player target = handler.GetSelectedPlayerOrSelf();
                 if (CheckModifySpeed(handler, args, target, out backSpeed, 0.1f, 50.0f))
                 {
-                    NotifyModification(handler, target, CypherStrings.YouChangeBackSpeed, CypherStrings.YoursBackSpeedChanged, backSpeed);
+                    NotifyModification(handler, target, ForeverStrings.YouChangeBackSpeed, ForeverStrings.YoursBackSpeedChanged, backSpeed);
                     target.SetSpeedRate(UnitMoveType.RunBack, backSpeed);
                     return true;
                 }
@@ -756,7 +756,7 @@ namespace Game.Chat
                 Player target = handler.GetSelectedPlayerOrSelf();
                 if (CheckModifySpeed(handler, args, target, out flySpeed, 0.1f, 50.0f, false))
                 {
-                    NotifyModification(handler, target, CypherStrings.YouChangeFlySpeed, CypherStrings.YoursFlySpeedChanged, flySpeed);
+                    NotifyModification(handler, target, ForeverStrings.YouChangeFlySpeed, ForeverStrings.YoursFlySpeedChanged, flySpeed);
                     target.SetSpeedRate(UnitMoveType.Flight, flySpeed);
                     return true;
                 }
@@ -770,7 +770,7 @@ namespace Game.Chat
                 Player target = handler.GetSelectedPlayerOrSelf();
                 if (CheckModifySpeed(handler, args, target, out Speed, 0.1f, 50.0f))
                 {
-                    NotifyModification(handler, target, CypherStrings.YouChangeSpeed, CypherStrings.YoursSpeedChanged, Speed);
+                    NotifyModification(handler, target, ForeverStrings.YouChangeSpeed, ForeverStrings.YoursSpeedChanged, Speed);
                     target.SetSpeedRate(UnitMoveType.Run, Speed);
                     return true;
                 }
@@ -778,7 +778,7 @@ namespace Game.Chat
             }
         }
 
-        static void NotifyModification(CommandHandler handler, Unit target, CypherStrings resourceMessage, CypherStrings resourceReportMessage, params object[] args)
+        static void NotifyModification(CommandHandler handler, Unit target, ForeverStrings resourceMessage, ForeverStrings resourceReportMessage, params object[] args)
         {
             Player player = target.ToPlayer();
             if (player != null)
@@ -799,13 +799,13 @@ namespace Game.Chat
 
             if (res < 1 || resmax < 1 || resmax < res)
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
@@ -819,13 +819,13 @@ namespace Game.Chat
         {
             if (speed > maximumBound || speed < minimumBound)
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
@@ -838,7 +838,7 @@ namespace Game.Chat
 
                 if (player.IsInFlight() && checkInFlight)
                 {
-                    handler.SendSysMessage(CypherStrings.CharInFlight, handler.GetNameLink(player));
+                    handler.SendSysMessage(ForeverStrings.CharInFlight, handler.GetNameLink(player));
                     return false;
                 }
             }

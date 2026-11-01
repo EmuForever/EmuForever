@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -82,8 +82,8 @@ namespace Game.Networking.Packets
         {
             CanAccept = canAccept;
 
-            InviterName = inviter.GetName();
-            InviterSurname = Global.CharacterCacheStorage.GetCharacterSurnameByGuid(inviter.GetGUID()) ?? string.Empty;
+            InviterName = inviter.GetFirstName();
+            InviterSurname = inviter.GetSurname();
             InviterGUID = inviter.GetGUID();
             InviterBNetAccountId = inviter.GetSession().GetAccountGUID();
 
@@ -1370,8 +1370,11 @@ namespace Game.Networking.Packets
         public void Write(WorldPacket data)
         {
             // Forever layout: TC operator<<(PartyPlayerInfo)
+            // The client combines this identity field with the surname in its
+            // GUID name cache. Group members retain full names internally.
+            string firstName = Global.CharacterCacheStorage.GetCharacterCacheByGuid(GUID)?.FirstName ?? Name;
             string voiceStateID = VoiceStateID ?? string.Empty;
-            data.WriteBits(Name.GetByteCount(), 6);
+            data.WriteBits(firstName.GetByteCount(), 6);
             data.WriteBits(voiceStateID.GetByteCount() + 1, 9);   // SizedCString; client 70291+ reads 9 bits (6 before)
             data.WriteBit(Connected);
             data.WriteBit(FromSocialQueue);
@@ -1384,7 +1387,7 @@ namespace Game.Networking.Packets
             data.WriteUInt8(Class);
             data.WriteUInt8(FactionGroup);
             Leaver.Write(data);
-            data.WriteString(Name);
+            data.WriteString(firstName);
             if (!voiceStateID.IsEmpty())
             {
                 data.WriteString(voiceStateID);

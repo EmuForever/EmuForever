@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -32,7 +32,7 @@ namespace Game.Chat
             Player _player = handler.GetSession().GetPlayer();
             if (target == _player || targetGuid == _player.GetGUID())
             {
-                handler.SendSysMessage(CypherStrings.CantTeleportSelf);
+                handler.SendSysMessage(ForeverStrings.CantTeleportSelf);
                 return false;
             }
 
@@ -50,7 +50,7 @@ namespace Game.Chat
                     // only allow if gm mode is on
                     if (!_player.IsGameMaster())
                     {
-                        handler.SendSysMessage(CypherStrings.CannotGoToBgGm, chrNameLink);
+                        handler.SendSysMessage(ForeverStrings.CannotGoToBgGm, chrNameLink);
                         return false;
                     }
                     // if both players are in different bgs
@@ -74,7 +74,7 @@ namespace Game.Chat
                         // we are in group, we can go only if we are in the player group
                         if (_player.GetGroup() != target.GetGroup())
                         {
-                            handler.SendSysMessage(CypherStrings.CannotGoToInstParty, chrNameLink);
+                            handler.SendSysMessage(ForeverStrings.CannotGoToInstParty, chrNameLink);
                             return false;
                         }
                     }
@@ -83,7 +83,7 @@ namespace Game.Chat
                         // we are not in group, let's verify our GM mode
                         if (!_player.IsGameMaster())
                         {
-                            handler.SendSysMessage(CypherStrings.CannotGoToInstGm, chrNameLink);
+                            handler.SendSysMessage(ForeverStrings.CannotGoToInstGm, chrNameLink);
                             return false;
                         }
                     }
@@ -97,7 +97,7 @@ namespace Game.Chat
                         _player.SetDungeonDifficultyID(target.GetDungeonDifficultyID());
                 }
 
-                handler.SendSysMessage(CypherStrings.AppearingAt, chrNameLink);
+                handler.SendSysMessage(ForeverStrings.AppearingAt, chrNameLink);
 
                 // stop flight if need
                 if (_player.IsInFlight())
@@ -123,7 +123,7 @@ namespace Game.Chat
 
                 string nameLink = handler.PlayerLink(targetName);
 
-                handler.SendSysMessage(CypherStrings.AppearingAt, nameLink);
+                handler.SendSysMessage(ForeverStrings.AppearingAt, nameLink);
 
                 // to point where player stay (if loaded)
                 WorldLocation loc;
@@ -171,7 +171,7 @@ namespace Game.Chat
                 target = Global.ObjAccessor.FindPlayerByName(args.NextString());
                 if (target == null)
                 {
-                    handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                    handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                     return false;
                 }
             }
@@ -196,7 +196,7 @@ namespace Game.Chat
             Creature caster = handler.GetSelectedCreature();
             if (caster == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCreature);
                 return false;
             }
 
@@ -219,7 +219,7 @@ namespace Game.Chat
             Unit target = handler.GetSelectedUnit();
             if (target == null || handler.GetSession().GetPlayer().GetTarget().IsEmpty())
             {
-                handler.SendSysMessage(CypherStrings.SelectCharOrCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCharOrCreature);
                 return false;
             }
             Player player = target.ToPlayer();
@@ -289,19 +289,19 @@ namespace Game.Chat
             GameObject go = handler.GetObjectFromPlayerMapByDbGuid(spawnId);
             if (go == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandObjnotfound, spawnId);
+                handler.SendSysMessage(ForeverStrings.CommandObjnotfound, spawnId);
                 return false;
             }
 
             if (!go.IsDestructibleBuilding())
             {
-                handler.SendSysMessage(CypherStrings.InvalidGameobjectType);
+                handler.SendSysMessage(ForeverStrings.InvalidGameobjectType);
                 return false;
             }
 
             go.ModifyHealth(-damage, handler.GetSession().GetPlayer());
             handler.SendSysMessage(
-                CypherStrings.GameobjectDamaged, go.GetName(), spawnId, -damage, go.GetGoValue().Building.Health);
+                ForeverStrings.GameobjectDamaged, go.GetName(), spawnId, -damage, go.GetGoValue().Building.Health);
             return true;
         }
 
@@ -312,19 +312,19 @@ namespace Game.Chat
 
             if (!enableArg.HasValue)
             {
-                handler.GetSession().SendNotification(player.IsDeveloper() ? CypherStrings.DevOn : CypherStrings.DevOff);
+                handler.GetSession().SendNotification(player.IsDeveloper() ? ForeverStrings.DevOn : ForeverStrings.DevOff);
                 return true;
             }
 
             if (enableArg.Value)
             {
                 player.SetDeveloper(true);
-                handler.GetSession().SendNotification(CypherStrings.DevOn);
+                handler.GetSession().SendNotification(ForeverStrings.DevOn);
             }
             else
             {
                 player.SetDeveloper(false);
-                handler.GetSession().SendNotification(CypherStrings.DevOff);
+                handler.GetSession().SendNotification(ForeverStrings.DevOff);
             }
 
             return true;
@@ -336,7 +336,7 @@ namespace Game.Chat
             Unit target = handler.GetSelectedUnit();
             if (target == null && handler.GetPlayer().GetTarget().IsEmpty())
             {
-                handler.SendSysMessage(CypherStrings.SelectCharOrCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCharOrCreature);
                 return false;
             }
 
@@ -359,13 +359,13 @@ namespace Game.Chat
             // If player is not mounted, so go out :)
             if (!player.IsMounted())
             {
-                handler.SendSysMessage(CypherStrings.CharNonMounted);
+                handler.SendSysMessage(ForeverStrings.CharNonMounted);
                 return false;
             }
 
             if (player.IsInFlight())
             {
-                handler.SendSysMessage(CypherStrings.CharInFlight);
+                handler.SendSysMessage(ForeverStrings.CharInFlight);
                 return false;
             }
 
@@ -392,7 +392,7 @@ namespace Game.Chat
                         obj = Global.ObjAccessor.FindPlayer(ObjectGuid.Create(HighGuid.Player, guidLow));
                         if (obj == null)
                         {
-                            handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                            handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                         }
                         break;
                     }
@@ -401,7 +401,7 @@ namespace Game.Chat
                         obj = handler.GetCreatureFromPlayerMapByDbGuid(guidLow);
                         if (obj == null)
                         {
-                            handler.SendSysMessage(CypherStrings.CommandNocreaturefound);
+                            handler.SendSysMessage(ForeverStrings.CommandNocreaturefound);
                         }
                         break;
                     }
@@ -410,7 +410,7 @@ namespace Game.Chat
                         obj = handler.GetObjectFromPlayerMapByDbGuid(guidLow);
                         if (obj == null)
                         {
-                            handler.SendSysMessage(CypherStrings.CommandNogameobjectfound);
+                            handler.SendSysMessage(ForeverStrings.CommandNogameobjectfound);
                         }
                         break;
                     }
@@ -426,12 +426,12 @@ namespace Game.Chat
 
                 if (obj == null)
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCharOrCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCharOrCreature);
                     return false;
                 }
             }
 
-            handler.SendSysMessage(CypherStrings.Distance, handler.GetSession().GetPlayer().GetDistance(obj), 
+            handler.SendSysMessage(ForeverStrings.Distance, handler.GetSession().GetPlayer().GetDistance(obj), 
                 handler.GetSession().GetPlayer().GetDistance2d(obj), handler.GetSession().GetPlayer().GetExactDist(obj), 
                 handler.GetSession().GetPlayer().GetExactDist2d(obj));
             return true;
@@ -502,13 +502,13 @@ namespace Game.Chat
             {
                 if (player == null) // can be null if some previous selection failed
                 {
-                    handler.SendSysMessage(CypherStrings.CommandFreezeWrong);
+                    handler.SendSysMessage(ForeverStrings.CommandFreezeWrong);
                     return true;
                 }
                 else if (player == handler.GetSession().GetPlayer())
                 {
                     // Can't freeze himself
-                    handler.SendSysMessage(CypherStrings.CommandFreezeError);
+                    handler.SendSysMessage(ForeverStrings.CommandFreezeError);
                     return true;
                 }
                 else // Apply the effect
@@ -522,7 +522,7 @@ namespace Game.Chat
                         if (freezeDuration != 0)
                             freeze.SetDuration(freezeDuration);
 
-                        handler.SendSysMessage(CypherStrings.CommandFreeze, player.GetName());
+                        handler.SendSysMessage(ForeverStrings.CommandFreeze, player.GetName());
                         // save player
                         player.SaveToDB();
                         return true;
@@ -549,7 +549,7 @@ namespace Game.Chat
                         obj = Global.ObjAccessor.FindPlayer(ObjectGuid.Create(HighGuid.Player, guidLow));
                         if (obj == null)
                         {
-                            handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                            handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                         }
                         break;
                     }
@@ -558,7 +558,7 @@ namespace Game.Chat
                         obj = handler.GetCreatureFromPlayerMapByDbGuid(guidLow);
                         if (obj == null)
                         {
-                            handler.SendSysMessage(CypherStrings.CommandNocreaturefound);
+                            handler.SendSysMessage(ForeverStrings.CommandNocreaturefound);
                         }
                         break;
                     }
@@ -567,7 +567,7 @@ namespace Game.Chat
                         obj = handler.GetObjectFromPlayerMapByDbGuid(guidLow);
                         if (obj == null)
                         {
-                            handler.SendSysMessage(CypherStrings.CommandNogameobjectfound);
+                            handler.SendSysMessage(ForeverStrings.CommandNogameobjectfound);
                         }
                         break;
                     }
@@ -583,7 +583,7 @@ namespace Game.Chat
 
                 if (obj == null)
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCharOrCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCharOrCreature);
                     return false;
                 }
             }
@@ -622,16 +622,16 @@ namespace Game.Chat
             if (haveVMap)
             {
                 if (obj.IsOutdoors())
-                    handler.SendSysMessage(CypherStrings.GpsPositionOutdoors);
+                    handler.SendSysMessage(ForeverStrings.GpsPositionOutdoors);
                 else
-                    handler.SendSysMessage(CypherStrings.GpsPositionIndoors);
+                    handler.SendSysMessage(ForeverStrings.GpsPositionIndoors);
             }
             else
-                handler.SendSysMessage(CypherStrings.GpsNoVmap);
+                handler.SendSysMessage(ForeverStrings.GpsNoVmap);
 
-            string unknown = handler.GetCypherString(CypherStrings.Unknown);
+            string unknown = handler.GetForeverString(ForeverStrings.Unknown);
 
-            handler.SendSysMessage(CypherStrings.MapPosition,
+            handler.SendSysMessage(ForeverStrings.MapPosition,
                 mapId, (mapEntry != null ? mapEntry.MapName[handler.GetSessionDbcLocale()] : unknown),
                 zoneId, (zoneEntry != null ? zoneEntry.AreaName[handler.GetSessionDbcLocale()] : unknown),
                 areaId, (areaEntry != null ? areaEntry.AreaName[handler.GetSessionDbcLocale()] : unknown),
@@ -641,13 +641,13 @@ namespace Game.Chat
             if (transport != null)
             {
                 handler.SendSysMessage(
-                    CypherStrings.TransportPosition, transport.GetGoInfo().MoTransport.SpawnMap, 
+                    ForeverStrings.TransportPosition, transport.GetGoInfo().MoTransport.SpawnMap, 
                     obj.GetTransOffsetX(), obj.GetTransOffsetY(), obj.GetTransOffsetZ(), obj.GetTransOffsetO(),
                     transport.GetEntry(), transport.GetName());
             }
 
             handler.SendSysMessage(
-                CypherStrings.GridPosition, cell.GetGridX(), cell.GetGridY(), cell.GetCellX(), 
+                ForeverStrings.GridPosition, cell.GetGridX(), cell.GetGridY(), cell.GetCellX(), 
                 cell.GetCellY(), obj.GetInstanceId(), zoneX, zoneY, groundZ, floorZ, 
                 map.GetMinHeight(obj.GetPhaseShift(), obj.GetPositionX(), 
                 obj.GetPositionY()), haveMap, haveVMap, haveMMap);
@@ -659,7 +659,7 @@ namespace Game.Chat
             if (liquidStatus != null)
             {
                 handler.SendSysMessage(
-                    CypherStrings.LiquidStatus, liquidStatus.level, liquidStatus.depth_level, 
+                    ForeverStrings.LiquidStatus, liquidStatus.level, liquidStatus.depth_level, 
                     liquidStatus.entry, liquidStatus.type_flags, status);
             }
 
@@ -675,11 +675,11 @@ namespace Game.Chat
 
             if (guid.IsEmpty())
             {
-                handler.SendSysMessage(CypherStrings.NoSelection);
+                handler.SendSysMessage(ForeverStrings.NoSelection);
                 return false;
             }
 
-            handler.SendSysMessage(CypherStrings.ObjectGuid, guid.ToString(), guid.GetHigh());
+            handler.SendSysMessage(ForeverStrings.ObjectGuid, guid.ToString(), guid.GetHigh());
             return true;
         }
 
@@ -699,34 +699,34 @@ namespace Game.Chat
             Player playerTarget = handler.GetSelectedPlayer();
             if (playerTarget == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
             AreaTableRecord area = CliDB.AreaTableStorage.LookupByKey(areaId);
             if (area == null)
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 
             if (area.AreaBit < 0)
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 
             int offset = area.AreaBit / ActivePlayerData.ExploredZonesBits;
             if (offset >= PlayerConst.ExploredZonesSize)
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 
             ulong val = 1ul << (area.AreaBit % ActivePlayerData.ExploredZonesBits);
             playerTarget.RemoveExploredZones(offset, val);
 
-            handler.SendSysMessage(CypherStrings.UnexploreArea);
+            handler.SendSysMessage(ForeverStrings.UnexploreArea);
             return true;
         }
 
@@ -759,7 +759,7 @@ namespace Game.Chat
 
             if (handler.GetSession() != null && target == handler.GetSession().GetPlayer())
             {
-                handler.SendSysMessage(CypherStrings.CommandKickself);
+                handler.SendSysMessage(ForeverStrings.CommandKickself);
                 return false;
             }
 
@@ -775,12 +775,12 @@ namespace Game.Chat
             if (WorldConfig.Values[WorldCfg.ShowKickInWorld].Bool)
             {
                 Global.WorldMgr.SendWorldText(
-                    CypherStrings.CommandKickmessageWorld, 
+                    ForeverStrings.CommandKickmessageWorld, 
                     handler.GetSession() != null ? handler.GetSession().GetPlayerName() : "Server", 
                     playerName, kickReasonStr);
             }
             else
-                handler.SendSysMessage(CypherStrings.CommandKickmessage, playerName);
+                handler.SendSysMessage(ForeverStrings.CommandKickmessage, playerName);
 
             target.GetSession().KickPlayer("HandleKickPlayerCommand GM Command");
 
@@ -803,7 +803,7 @@ namespace Game.Chat
             WorldSafeLocsEntry graveyard = Global.ObjectMgr.GetWorldSafeLoc(graveyardId);
             if (graveyard == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandGraveyardnoexist, graveyardId);
+                handler.SendSysMessage(ForeverStrings.CommandGraveyardnoexist, graveyardId);
                 return false;
             }
 
@@ -814,14 +814,14 @@ namespace Game.Chat
             AreaTableRecord areaEntry = CliDB.AreaTableStorage.LookupByKey(zoneId);
             if (areaEntry == null || areaEntry.HasFlag(AreaFlags.IsSubzone))
             {
-                handler.SendSysMessage(CypherStrings.CommandGraveyardwrongzone, graveyardId, zoneId);
+                handler.SendSysMessage(ForeverStrings.CommandGraveyardwrongzone, graveyardId, zoneId);
                 return false;
             }
 
             if (Global.ObjectMgr.AddGraveyardLink(graveyardId, zoneId, team, true))
-                handler.SendSysMessage(CypherStrings.CommandGraveyardlinked, graveyardId, zoneId);
+                handler.SendSysMessage(ForeverStrings.CommandGraveyardlinked, graveyardId, zoneId);
             else
-                handler.SendSysMessage(CypherStrings.CommandGraveyardalrlinked, graveyardId, zoneId);
+                handler.SendSysMessage(ForeverStrings.CommandGraveyardalrlinked, graveyardId, zoneId);
 
             return true;
         }
@@ -834,12 +834,12 @@ namespace Game.Chat
             SQLResult result = DB.Characters.Query(stmt);
             if (result.IsEmpty())
             {
-                handler.SendSysMessage(CypherStrings.CommandNoFrozenPlayers);
+                handler.SendSysMessage(ForeverStrings.CommandNoFrozenPlayers);
                 return true;
             }
 
             // Header of the names
-            handler.SendSysMessage(CypherStrings.CommandListFreeze);
+            handler.SendSysMessage(ForeverStrings.CommandListFreeze);
 
             // Output of the results
             do
@@ -853,10 +853,10 @@ namespace Game.Chat
                     frozen.SaveToDB();
                 // Notify the freeze duration
                 if (remaintime == -1) // Permanent duration
-                    handler.SendSysMessage(CypherStrings.CommandPermaFrozenPlayer, player);
+                    handler.SendSysMessage(ForeverStrings.CommandPermaFrozenPlayer, player);
                 else
                     // show time left (seconds)
-                    handler.SendSysMessage(CypherStrings.CommandTempFrozenPlayer, player, (Seconds)remaintime);
+                    handler.SendSysMessage(ForeverStrings.CommandTempFrozenPlayer, player, (Seconds)remaintime);
             }
             while (result.NextRow());
 
@@ -878,13 +878,13 @@ namespace Game.Chat
             Unit unit = handler.GetSelectedUnit();
             if (unit == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCharOrCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCharOrCreature);
 
                 return false;
             }
 
             handler.SendSysMessage(
-                CypherStrings.MovegensList, 
+                ForeverStrings.MovegensList, 
                 unit.IsTypeId(TypeId.Player) ? "Player" : "Creature", 
                 unit.GetGUID().ToString());
 
@@ -903,68 +903,68 @@ namespace Game.Chat
                 switch (info.Type)
                 {
                     case MovementGeneratorType.Idle:
-                        handler.SendSysMessage(CypherStrings.MovegensIdle);
+                        handler.SendSysMessage(ForeverStrings.MovegensIdle);
                         break;
                     case MovementGeneratorType.Random:
-                        handler.SendSysMessage(CypherStrings.MovegensRandom);
+                        handler.SendSysMessage(ForeverStrings.MovegensRandom);
                         break;
                     case MovementGeneratorType.Waypoint:
-                        handler.SendSysMessage(CypherStrings.MovegensWaypoint);
+                        handler.SendSysMessage(ForeverStrings.MovegensWaypoint);
                         break;
                     case MovementGeneratorType.Confused:
-                        handler.SendSysMessage(CypherStrings.MovegensConfused);
+                        handler.SendSysMessage(ForeverStrings.MovegensConfused);
                         break;
                     case MovementGeneratorType.Chase:
                         if (info.TargetGUID.IsEmpty())
-                            handler.SendSysMessage(CypherStrings.MovegensChaseNull);
+                            handler.SendSysMessage(ForeverStrings.MovegensChaseNull);
                         else if (info.TargetGUID.IsPlayer())
                         {
                             handler.SendSysMessage(
-                                CypherStrings.MovegensChasePlayer, info.TargetName, info.TargetGUID.ToString());
+                                ForeverStrings.MovegensChasePlayer, info.TargetName, info.TargetGUID.ToString());
                         }
                         else
                         {
                             handler.SendSysMessage(
-                                CypherStrings.MovegensChaseCreature, info.TargetName, info.TargetGUID.ToString());
+                                ForeverStrings.MovegensChaseCreature, info.TargetName, info.TargetGUID.ToString());
                         }
                         break;
                     case MovementGeneratorType.Follow:
                         if (info.TargetGUID.IsEmpty())
-                            handler.SendSysMessage(CypherStrings.MovegensFollowNull);
+                            handler.SendSysMessage(ForeverStrings.MovegensFollowNull);
                         else if (info.TargetGUID.IsPlayer())
                         {
                             handler.SendSysMessage(
-                                CypherStrings.MovegensFollowPlayer, info.TargetName, info.TargetGUID.ToString());
+                                ForeverStrings.MovegensFollowPlayer, info.TargetName, info.TargetGUID.ToString());
                         }
                         else
                         {
                             handler.SendSysMessage(
-                                CypherStrings.MovegensFollowCreature, info.TargetName, info.TargetGUID.ToString());
+                                ForeverStrings.MovegensFollowCreature, info.TargetName, info.TargetGUID.ToString());
                         }
                         break;
                     case MovementGeneratorType.Home:
                         if (unit.IsTypeId(TypeId.Unit))
-                            handler.SendSysMessage(CypherStrings.MovegensHomeCreature, x, y, z);
+                            handler.SendSysMessage(ForeverStrings.MovegensHomeCreature, x, y, z);
                         else
-                            handler.SendSysMessage(CypherStrings.MovegensHomePlayer);
+                            handler.SendSysMessage(ForeverStrings.MovegensHomePlayer);
                         break;
                     case MovementGeneratorType.Flight:
-                        handler.SendSysMessage(CypherStrings.MovegensFlight);
+                        handler.SendSysMessage(ForeverStrings.MovegensFlight);
                         break;
                     case MovementGeneratorType.Point:
-                        handler.SendSysMessage(CypherStrings.MovegensPoint, x, y, z);
+                        handler.SendSysMessage(ForeverStrings.MovegensPoint, x, y, z);
                         break;
                     case MovementGeneratorType.Fleeing:
-                        handler.SendSysMessage(CypherStrings.MovegensFear);
+                        handler.SendSysMessage(ForeverStrings.MovegensFear);
                         break;
                     case MovementGeneratorType.Distract:
-                        handler.SendSysMessage(CypherStrings.MovegensDistract);
+                        handler.SendSysMessage(ForeverStrings.MovegensDistract);
                         break;
                     case MovementGeneratorType.Effect:
-                        handler.SendSysMessage(CypherStrings.MovegensEffect);
+                        handler.SendSysMessage(ForeverStrings.MovegensEffect);
                         break;
                     default:
-                        handler.SendSysMessage(CypherStrings.MovegensUnknown, info.Type);
+                        handler.SendSysMessage(ForeverStrings.MovegensUnknown, info.Type);
                         break;
                 }
             }
@@ -978,13 +978,13 @@ namespace Game.Chat
             TimeSpan muteLength = (Minutes)muteTime;
             string muteReasonStr = muteReason;
             if (muteReason.IsEmpty())
-                muteReasonStr = handler.GetCypherString(CypherStrings.NoReason);
+                muteReasonStr = handler.GetForeverString(ForeverStrings.NoReason);
 
             if (player == null)
                 player = PlayerIdentifier.FromTarget(handler);
             if (player == null)
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
@@ -1009,7 +1009,7 @@ namespace Game.Chat
             if (gmPlayer != null)
                 muteBy = gmPlayer.GetName();
             else
-                muteBy = handler.GetCypherString(CypherStrings.Console);
+                muteBy = handler.GetForeverString(ForeverStrings.Console);
 
             if (target != null)
             {
@@ -1040,16 +1040,16 @@ namespace Game.Chat
             if (WorldConfig.Values[WorldCfg.ShowMuteInWorld].Bool)
             {
                 Global.WorldMgr.SendWorldText(
-                    CypherStrings.CommandMutemessageWorld, muteBy, nameLink, muteTime, muteReasonStr);
+                    ForeverStrings.CommandMutemessageWorld, muteBy, nameLink, muteTime, muteReasonStr);
             }
             if (target != null)
             {
-                target.SendSysMessage(CypherStrings.YourChatDisabled, muteTime, muteBy, muteReasonStr);
-                handler.SendSysMessage(CypherStrings.YouDisableChat, nameLink, muteTime, muteReasonStr);
+                target.SendSysMessage(ForeverStrings.YourChatDisabled, muteTime, muteBy, muteReasonStr);
+                handler.SendSysMessage(ForeverStrings.YouDisableChat, nameLink, muteTime, muteReasonStr);
             }
             else
             {
-                handler.SendSysMessage(CypherStrings.CommandDisableChatDelayed, nameLink, muteTime, muteReasonStr);
+                handler.SendSysMessage(ForeverStrings.CommandDisableChatDelayed, nameLink, muteTime, muteReasonStr);
             }
 
             return true;
@@ -1062,7 +1062,7 @@ namespace Game.Chat
             int accountId = Global.AccountMgr.GetId(accountName);
             if (accountId == 0)
             {
-                handler.SendSysMessage(CypherStrings.AccountNotExist, accountName);
+                handler.SendSysMessage(ForeverStrings.AccountNotExist, accountName);
                 return false;
             }
 
@@ -1072,11 +1072,11 @@ namespace Game.Chat
             SQLResult result = DB.Login.Query(stmt);
             if (result.IsEmpty())
             {
-                handler.SendSysMessage(CypherStrings.CommandMutehistoryEmpty, accountName);
+                handler.SendSysMessage(ForeverStrings.CommandMutehistoryEmpty, accountName);
                 return true;
             }
 
-            handler.SendSysMessage(CypherStrings.CommandMutehistory, accountName);
+            handler.SendSysMessage(ForeverStrings.CommandMutehistory, accountName);
             do
             {
                 // we have to manually set the string for mutedate
@@ -1086,7 +1086,7 @@ namespace Game.Chat
                 string buffer = sqlTime.ToShortTimeString();
 
                 handler.SendSysMessage(
-                    CypherStrings.CommandMutehistoryOutput, buffer, result.Read<uint>(1), 
+                    ForeverStrings.CommandMutehistoryOutput, buffer, result.Read<uint>(1), 
                     result.Read<string>(2), result.Read<string>(3));
             } while (result.NextRow());
 
@@ -1117,34 +1117,34 @@ namespace Game.Chat
                 GraveyardData data = Global.ObjectMgr.FindGraveyardData(graveyardId, zoneId);
                 if (data == null)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandGraveyarderror, graveyardId);
+                    handler.SendSysMessage(ForeverStrings.CommandGraveyarderror, graveyardId);
                     return false;
                 }
 
-                string team_name = handler.GetCypherString(CypherStrings.CommandGraveyardNoteam);
+                string team_name = handler.GetForeverString(ForeverStrings.CommandGraveyardNoteam);
 
                 if (team == 0)
-                    team_name = handler.GetCypherString(CypherStrings.CommandGraveyardAny);
+                    team_name = handler.GetForeverString(ForeverStrings.CommandGraveyardAny);
                 else if (team == Team.Horde)
-                    team_name = handler.GetCypherString(CypherStrings.CommandGraveyardHorde);
+                    team_name = handler.GetForeverString(ForeverStrings.CommandGraveyardHorde);
                 else if (team == Team.Alliance)
-                    team_name = handler.GetCypherString(CypherStrings.CommandGraveyardAlliance);
+                    team_name = handler.GetForeverString(ForeverStrings.CommandGraveyardAlliance);
 
-                handler.SendSysMessage(CypherStrings.CommandGraveyardnearest, graveyardId, team_name, zoneId);
+                handler.SendSysMessage(ForeverStrings.CommandGraveyardnearest, graveyardId, team_name, zoneId);
             }
             else
             {
                 string team_name = "";
 
                 if (team == Team.Horde)
-                    team_name = handler.GetCypherString(CypherStrings.CommandGraveyardHorde);
+                    team_name = handler.GetForeverString(ForeverStrings.CommandGraveyardHorde);
                 else if (team == Team.Alliance)
-                    team_name = handler.GetCypherString(CypherStrings.CommandGraveyardAlliance);
+                    team_name = handler.GetForeverString(ForeverStrings.CommandGraveyardAlliance);
 
                 if (team == 0)
-                    handler.SendSysMessage(CypherStrings.CommandZonenograveyards, zoneId);
+                    handler.SendSysMessage(ForeverStrings.CommandZonenograveyards, zoneId);
                 else
-                    handler.SendSysMessage(CypherStrings.CommandZonenografaction, zoneId, team_name);
+                    handler.SendSysMessage(ForeverStrings.CommandZonenografaction, zoneId, team_name);
             }
 
             return true;
@@ -1198,29 +1198,29 @@ namespace Game.Chat
              */
 
             // Account data print variables
-            string userName = handler.GetCypherString(CypherStrings.Error);
+            string userName = handler.GetForeverString(ForeverStrings.Error);
             int accId;
             long lowguid = targetGuid.GetCounter();
-            string eMail = handler.GetCypherString(CypherStrings.Error);
-            string regMail = handler.GetCypherString(CypherStrings.Error);
+            string eMail = handler.GetForeverString(ForeverStrings.Error);
+            string regMail = handler.GetForeverString(ForeverStrings.Error);
             uint security = 0;
-            string lastIp = handler.GetCypherString(CypherStrings.Error);
+            string lastIp = handler.GetForeverString(ForeverStrings.Error);
             byte locked = 0;
-            string lastLogin = handler.GetCypherString(CypherStrings.Error);
+            string lastLogin = handler.GetForeverString(ForeverStrings.Error);
             uint failedLogins = 0;
             uint latency = 0;
-            string OS = handler.GetCypherString(CypherStrings.Unknown);
+            string OS = handler.GetForeverString(ForeverStrings.Unknown);
 
             // Mute data print variables
             ServerTime mutedUntilTime = ServerTime.Zero;
-            string muteReason = handler.GetCypherString(CypherStrings.NoReason);
-            string muteBy = handler.GetCypherString(CypherStrings.Unknown);
+            string muteReason = handler.GetForeverString(ForeverStrings.NoReason);
+            string muteBy = handler.GetForeverString(ForeverStrings.Unknown);
 
             // Ban data print variables
             ServerTime bannedUntilTime = ServerTime.Zero;
-            string banType = handler.GetCypherString(CypherStrings.Unknown);
-            string banReason = handler.GetCypherString(CypherStrings.NoReason);
-            string bannedBy = handler.GetCypherString(CypherStrings.Unknown);
+            string banType = handler.GetForeverString(ForeverStrings.Unknown);
+            string banReason = handler.GetForeverString(ForeverStrings.NoReason);
+            string bannedBy = handler.GetForeverString(ForeverStrings.Unknown);
 
             // Character data print variables
             Race raceid;
@@ -1266,7 +1266,7 @@ namespace Game.Chat
                 mutedUntilTime = target.GetSession().m_mutedUntilTime;
                 mapId = target.GetMapId();
                 areaId = target.GetAreaId();
-                alive = target.IsAlive() ? handler.GetCypherString(CypherStrings.Yes) : handler.GetCypherString(CypherStrings.No);
+                alive = target.IsAlive() ? handler.GetForeverString(ForeverStrings.Yes) : handler.GetForeverString(ForeverStrings.No);
                 gender = target.GetNativeGender();
             }
             // get additional information from DB
@@ -1297,9 +1297,9 @@ namespace Game.Chat
                 PlayerFlags playerFlags = (PlayerFlags)result.Read<uint>(10);
 
                 if (health == 0 || playerFlags.HasAnyFlag(PlayerFlags.Ghost))
-                    alive = handler.GetCypherString(CypherStrings.No);
+                    alive = handler.GetForeverString(ForeverStrings.No);
                 else
-                    alive = handler.GetCypherString(CypherStrings.Yes);
+                    alive = handler.GetForeverString(ForeverStrings.Yes);
             }
 
             // Query the prepared statement for login data
@@ -1325,10 +1325,10 @@ namespace Game.Chat
                     }
                     else
                     {
-                        eMail = handler.GetCypherString(CypherStrings.Unauthorized);
-                        regMail = handler.GetCypherString(CypherStrings.Unauthorized);
-                        lastIp = handler.GetCypherString(CypherStrings.Unauthorized);
-                        lastLogin = handler.GetCypherString(CypherStrings.Unauthorized);
+                        eMail = handler.GetForeverString(ForeverStrings.Unauthorized);
+                        regMail = handler.GetForeverString(ForeverStrings.Unauthorized);
+                        lastIp = handler.GetForeverString(ForeverStrings.Unauthorized);
+                        lastLogin = handler.GetForeverString(ForeverStrings.Unauthorized);
                     }
                     mutedUntilTime = (ServerTime)(UnixTime64)result0.Read<long>(6); //TODO: change to signed in DB
                     muteReason = result0.Read<string>(7);
@@ -1351,7 +1351,7 @@ namespace Game.Chat
 
                 if (!result2.IsEmpty())
                 {
-                    banType = handler.GetCypherString(CypherStrings.Account);
+                    banType = handler.GetForeverString(ForeverStrings.Account);
                     bool permanent = result2.Read<ulong>(1) != 0;
                     bannedUntilTime = !permanent ? (ServerTime)(UnixTime)result2.Read<int>(0) : ServerTime.Zero;
                     bannedBy = result2.Read<string>(2);
@@ -1359,7 +1359,7 @@ namespace Game.Chat
                 }
             }
 
-            if (banType == handler.GetCypherString(CypherStrings.Unknown))
+            if (banType == handler.GetForeverString(ForeverStrings.Unknown))
             {                
                 stmt = CharacterDatabase.GetPreparedStatement(CharStatements.SEL_PINFO_BANS);
                 stmt.SetInt64(0, lowguid);
@@ -1367,7 +1367,7 @@ namespace Game.Chat
                 {
                     if (!result3.IsEmpty())
                     {
-                        banType = handler.GetCypherString(CypherStrings.Character);
+                        banType = handler.GetForeverString(ForeverStrings.Character);
                         bool permanent = result3.Read<ulong>(1) != 0;
                         bannedUntilTime = !permanent ? (ServerTime)(UnixTime)result2.Read<int>(0) : ServerTime.Zero;
                         bannedBy = result3.Read<string>(2);
@@ -1413,62 +1413,62 @@ namespace Game.Chat
             // Initiate output
             // Output I. LANG_PINFO_PLAYER
             handler.SendSysMessage(
-                CypherStrings.PinfoPlayer, 
-                target != null ? "" : handler.GetCypherString(CypherStrings.Offline), 
+                ForeverStrings.PinfoPlayer, 
+                target != null ? "" : handler.GetForeverString(ForeverStrings.Offline), 
                 nameLink, targetGuid.ToString());
 
             // Output II. LANG_PINFO_GM_ACTIVE if character is gamemaster
             if (target != null && target.IsGameMaster())
-                handler.SendSysMessage(CypherStrings.PinfoGmActive);
+                handler.SendSysMessage(ForeverStrings.PinfoGmActive);
 
             // Output III. LANG_PINFO_BANNED if ban exists and is applied
             if (bannedUntilTime > Time.Zero)
             {
                 handler.SendSysMessage(
-                    CypherStrings.PinfoBanned, banType, banReason, 
+                    ForeverStrings.PinfoBanned, banType, banReason, 
                     bannedUntilTime != Time.Infinity ? 
                     Time.SpanToTimeString(bannedUntilTime - LoopTime.ServerTime, TimeFormat.ShortText) 
-                    : handler.GetCypherString(CypherStrings.Permanently), bannedBy);
+                    : handler.GetForeverString(ForeverStrings.Permanently), bannedBy);
             }
             // Output IV. LANG_PINFO_MUTED if mute is applied
             if (mutedUntilTime > Time.Zero)
             {
                 handler.SendSysMessage(
-                    CypherStrings.PinfoMuted, muteReason, 
+                    ForeverStrings.PinfoMuted, muteReason, 
                     Time.SpanToTimeString(mutedUntilTime - LoopTime.ServerTime, TimeFormat.ShortText), 
                     muteBy);
             }
 
             // Output V. LANG_PINFO_ACC_ACCOUNT
-            handler.SendSysMessage(CypherStrings.PinfoAccAccount, userName, accId, security);
+            handler.SendSysMessage(ForeverStrings.PinfoAccAccount, userName, accId, security);
 
             // Output VI. LANG_PINFO_ACC_LASTLOGIN
-            handler.SendSysMessage(CypherStrings.PinfoAccLastlogin, lastLogin, failedLogins);
+            handler.SendSysMessage(ForeverStrings.PinfoAccLastlogin, lastLogin, failedLogins);
 
             // Output VII. LANG_PINFO_ACC_OS
-            handler.SendSysMessage(CypherStrings.PinfoAccOs, OS, latency);
+            handler.SendSysMessage(ForeverStrings.PinfoAccOs, OS, latency);
 
             // Output VIII. LANG_PINFO_ACC_REGMAILS
-            handler.SendSysMessage(CypherStrings.PinfoAccRegmails, regMail, eMail);
+            handler.SendSysMessage(ForeverStrings.PinfoAccRegmails, regMail, eMail);
 
             // Output IX. LANG_PINFO_ACC_IP
-            handler.SendSysMessage(CypherStrings.PinfoAccIp, lastIp, locked != 0 ? 
-                handler.GetCypherString(CypherStrings.Yes) : handler.GetCypherString(CypherStrings.No));
+            handler.SendSysMessage(ForeverStrings.PinfoAccIp, lastIp, locked != 0 ? 
+                handler.GetForeverString(ForeverStrings.Yes) : handler.GetForeverString(ForeverStrings.No));
 
             // Output X. LANG_PINFO_CHR_LEVEL
             if (level != WorldConfig.Values[WorldCfg.MaxPlayerLevel].Int32)
-                handler.SendSysMessage(CypherStrings.PinfoChrLevelLow, level, xp, xptotal, (xptotal - xp));
+                handler.SendSysMessage(ForeverStrings.PinfoChrLevelLow, level, xp, xptotal, (xptotal - xp));
             else
-                handler.SendSysMessage(CypherStrings.PinfoChrLevelHigh, level);
+                handler.SendSysMessage(ForeverStrings.PinfoChrLevelHigh, level);
 
             // Output XI. LANG_PINFO_CHR_RACE
-            handler.SendSysMessage(CypherStrings.PinfoChrRace, 
-                gender == 0 ? handler.GetCypherString(CypherStrings.CharacterGenderMale) 
-                : handler.GetCypherString(CypherStrings.CharacterGenderFemale),
+            handler.SendSysMessage(ForeverStrings.PinfoChrRace, 
+                gender == 0 ? handler.GetForeverString(ForeverStrings.CharacterGenderMale) 
+                : handler.GetForeverString(ForeverStrings.CharacterGenderFemale),
                 Global.DB2Mgr.GetChrRaceName(raceid, locale), Global.DB2Mgr.GetClassName(classid, locale));
 
             // Output XII. LANG_PINFO_CHR_ALIVE
-            handler.SendSysMessage(CypherStrings.PinfoChrAlive, alive);
+            handler.SendSysMessage(ForeverStrings.PinfoChrAlive, alive);
 
             // Output XIII. phases
             if (target != null)
@@ -1478,7 +1478,7 @@ namespace Game.Chat
             long gold = money / MoneyConstants.Gold;
             long silv = (money % MoneyConstants.Gold) / MoneyConstants.Silver;
             long copp = (money % MoneyConstants.Gold) % MoneyConstants.Silver;
-            handler.SendSysMessage(CypherStrings.PinfoChrMoney, gold, silv, copp);
+            handler.SendSysMessage(ForeverStrings.PinfoChrMoney, gold, silv, copp);
 
             // Position data
             MapRecord map = CliDB.MapStorage.LookupByKey(mapId);
@@ -1499,26 +1499,26 @@ namespace Game.Chat
             }
 
             if (zoneName == null)
-                zoneName = handler.GetCypherString(CypherStrings.Unknown);
+                zoneName = handler.GetForeverString(ForeverStrings.Unknown);
 
             if (areaName != null)
-                handler.SendSysMessage(CypherStrings.PinfoChrMapWithArea, map.MapName[locale], zoneName, areaName);
+                handler.SendSysMessage(ForeverStrings.PinfoChrMapWithArea, map.MapName[locale], zoneName, areaName);
             else
-                handler.SendSysMessage(CypherStrings.PinfoChrMap, map.MapName[locale], zoneName);
+                handler.SendSysMessage(ForeverStrings.PinfoChrMap, map.MapName[locale], zoneName);
 
             // Output XVII. - XVIX. if they are not empty
             if (!guildName.IsEmpty())
             {
-                handler.SendSysMessage(CypherStrings.PinfoChrGuild, guildName, guildId);
-                handler.SendSysMessage(CypherStrings.PinfoChrGuildRank, guildRank, guildRankId);
+                handler.SendSysMessage(ForeverStrings.PinfoChrGuild, guildName, guildId);
+                handler.SendSysMessage(ForeverStrings.PinfoChrGuildRank, guildRank, guildRankId);
                 if (!note.IsEmpty())
-                    handler.SendSysMessage(CypherStrings.PinfoChrGuildNote, note);
+                    handler.SendSysMessage(ForeverStrings.PinfoChrGuildNote, note);
                 if (!officeNote.IsEmpty())
-                    handler.SendSysMessage(CypherStrings.PinfoChrGuildOnote, officeNote);
+                    handler.SendSysMessage(ForeverStrings.PinfoChrGuildOnote, officeNote);
             }
 
             // Output XX. LANG_PINFO_CHR_PLAYEDTIME
-            handler.SendSysMessage(CypherStrings.PinfoChrPlayedtime, 
+            handler.SendSysMessage(ForeverStrings.PinfoChrPlayedtime, 
                 Time.SpanToTimeString(totalPlayerTime, TimeFormat.ShortText, true));
 
             // Mail Data - an own query, because it may or may not be useful.
@@ -1535,7 +1535,7 @@ namespace Game.Chat
 
                     // Output XXI. LANG_INFO_CHR_MAILS if at least one mail is given
                     if (totalmail >= 1)
-                        handler.SendSysMessage(CypherStrings.PinfoChrMails, readmail, totalmail);
+                        handler.SendSysMessage(ForeverStrings.PinfoChrMails, readmail, totalmail);
                 }
             }
 
@@ -1547,13 +1547,13 @@ namespace Game.Chat
         {
             if (!CliDB.SoundKitStorage.ContainsKey(soundId))
             {
-                handler.SendSysMessage(CypherStrings.SoundNotExist, soundId);
+                handler.SendSysMessage(ForeverStrings.SoundNotExist, soundId);
                 return false;
             }
 
             Global.WorldMgr.SendGlobalMessage(new PlaySound(handler.GetSession().GetPlayer().GetGUID(), soundId, broadcastTextId.GetValueOrDefault(0)));
 
-            handler.SendSysMessage(CypherStrings.CommandPlayedToAll, soundId);
+            handler.SendSysMessage(ForeverStrings.CommandPlayedToAll, soundId);
             return true;
         }
 
@@ -1585,13 +1585,13 @@ namespace Game.Chat
 
                     uint alliance_victories = result.Read<uint>(1);
 
-                    handler.SendSysMessage(CypherStrings.Pvpstats, alliance_victories, horde_victories);
+                    handler.SendSysMessage(ForeverStrings.Pvpstats, alliance_victories, horde_victories);
                 }
                 else
                     return false;
             }
             else
-                handler.SendSysMessage(CypherStrings.PvpstatsDisabled);
+                handler.SendSysMessage(ForeverStrings.PvpstatsDisabled);
 
             return true;
         }
@@ -1610,7 +1610,7 @@ namespace Game.Chat
 
             if (target.IsBeingTeleported())
             {
-                handler.SendSysMessage(CypherStrings.IsTeleported, handler.GetNameLink(target));
+                handler.SendSysMessage(ForeverStrings.IsTeleported, handler.GetNameLink(target));
 
                 return false;
             }
@@ -1636,9 +1636,9 @@ namespace Game.Chat
             // Repair items
             target.DurabilityRepairAll(false, 0, false);
 
-            handler.SendSysMessage(CypherStrings.YouRepairItems, handler.GetNameLink(target));
+            handler.SendSysMessage(ForeverStrings.YouRepairItems, handler.GetNameLink(target));
             if (handler.NeedReportToTarget(target))
-                target.SendSysMessage(CypherStrings.YourItemsRepaired, handler.GetNameLink());
+                target.SendSysMessage(ForeverStrings.YourItemsRepaired, handler.GetNameLink());
 
             return true;
         }
@@ -1654,7 +1654,7 @@ namespace Game.Chat
             {
                 if (target.IsPet())
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCreature);
                     return false;
                 }
 
@@ -1706,7 +1706,7 @@ namespace Game.Chat
         static bool HandleSaveAllCommand(CommandHandler handler)
         {
             Global.ObjAccessor.SaveAllPlayers();
-            handler.SendSysMessage(CypherStrings.PlayersSaved);
+            handler.SendSysMessage(ForeverStrings.PlayersSaved);
             return true;
         }
 
@@ -1723,7 +1723,7 @@ namespace Game.Chat
                     target.SaveToDB();
                 else
                     player.SaveToDB();
-                handler.SendSysMessage(CypherStrings.PlayerSaved);
+                handler.SendSysMessage(ForeverStrings.PlayerSaved);
                 return true;
             }
 
@@ -1741,34 +1741,34 @@ namespace Game.Chat
             Player playerTarget = handler.GetSelectedPlayer();
             if (playerTarget == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
             AreaTableRecord area = CliDB.AreaTableStorage.LookupByKey(areaId);
             if (area == null)
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 
             if (area.AreaBit < 0)
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 
             int offset = area.AreaBit / ActivePlayerData.ExploredZonesBits;
             if (offset >= PlayerConst.ExploredZonesSize)
             {
-                handler.SendSysMessage(CypherStrings.BadValue);
+                handler.SendSysMessage(ForeverStrings.BadValue);
                 return false;
             }
 
             ulong val = 1ul << (area.AreaBit % ActivePlayerData.ExploredZonesBits);
             playerTarget.AddExploredZones(offset, val);
 
-            handler.SendSysMessage(CypherStrings.ExploreArea);
+            handler.SendSysMessage(ForeverStrings.ExploreArea);
             return true;
         }
 
@@ -1785,7 +1785,7 @@ namespace Game.Chat
             Player _player = handler.GetSession().GetPlayer();
             if (target == _player || targetGuid == _player.GetGUID())
             {
-                handler.SendSysMessage(CypherStrings.CantTeleportSelf);
+                handler.SendSysMessage(ForeverStrings.CantTeleportSelf);
 
                 return false;
             }
@@ -1799,7 +1799,7 @@ namespace Game.Chat
 
                 if (target.IsBeingTeleported() && target.Controller==null && !target.GetSession().IsServerControlled)
                 {
-                    handler.SendSysMessage(CypherStrings.IsTeleported, nameLink);
+                    handler.SendSysMessage(ForeverStrings.IsTeleported, nameLink);
 
                     return false;
                 }
@@ -1810,7 +1810,7 @@ namespace Game.Chat
                     // only allow if gm mode is on
                     if (!_player.IsGameMaster())
                     {
-                        handler.SendSysMessage(CypherStrings.CannotGoToBgGm, nameLink);
+                        handler.SendSysMessage(ForeverStrings.CannotGoToBgGm, nameLink);
                         return false;
                     }
                     // if both players are in different bgs
@@ -1838,7 +1838,7 @@ namespace Game.Chat
                     {
                         if ((targetMap.GetId() != map.GetId()) || (targetMap.GetInstanceId() != map.GetInstanceId()))
                         {
-                            handler.SendSysMessage(CypherStrings.CannotSummonToInst);
+                            handler.SendSysMessage(ForeverStrings.CannotSummonToInst);
                             return false;
                         }
                     }
@@ -1846,14 +1846,14 @@ namespace Game.Chat
                     // check if we're already in a different instance of the same map
                     if ((targetMap.GetId() == map.GetId()) && (targetMap.GetInstanceId() != map.GetInstanceId()))
                     {
-                        handler.SendSysMessage(CypherStrings.CannotSummonInstInst, nameLink);
+                        handler.SendSysMessage(ForeverStrings.CannotSummonInstInst, nameLink);
                         return false;
                     }
                 }
 
-                handler.SendSysMessage(CypherStrings.Summoning, nameLink, "");
+                handler.SendSysMessage(ForeverStrings.Summoning, nameLink, "");
                 if (handler.NeedReportToTarget(target))
-                    target.SendSysMessage(CypherStrings.SummonedBy, handler.PlayerLink(_player.GetName()));
+                    target.SendSysMessage(ForeverStrings.SummonedBy, handler.PlayerLink(_player.GetName()));
 
                 // stop flight if need
                 // before GM
@@ -1882,7 +1882,7 @@ namespace Game.Chat
                 string nameLink = handler.PlayerLink(targetName);
 
                 handler.SendSysMessage(
-                    CypherStrings.Summoning, nameLink, handler.GetCypherString(CypherStrings.Offline));
+                    ForeverStrings.Summoning, nameLink, handler.GetForeverString(ForeverStrings.Offline));
 
                 // in point where GM stay
                 Player.SavePositionInDB(
@@ -1927,7 +1927,7 @@ namespace Game.Chat
 
             if (player != null)
             {
-                handler.SendSysMessage(CypherStrings.CommandUnfreeze, name);
+                handler.SendSysMessage(ForeverStrings.CommandUnfreeze, name);
 
                 // Remove Freeze spell (allowing movement and spells)
                 // Player Flags + Neutral faction removal is now
@@ -1942,7 +1942,7 @@ namespace Game.Chat
                     ObjectGuid guid = Global.CharacterCacheStorage.GetCharacterGuidByName(name);
                     if (guid.IsEmpty())
                     {
-                        handler.SendSysMessage(CypherStrings.CommandFreezeWrong);
+                        handler.SendSysMessage(ForeverStrings.CommandFreezeWrong);
                         return true;
                     }
 
@@ -1951,12 +1951,12 @@ namespace Game.Chat
                     stmt.SetInt64(0, guid.GetCounter());
                     DB.Characters.Execute(stmt);
 
-                    handler.SendSysMessage(CypherStrings.CommandUnfreeze, name);
+                    handler.SendSysMessage(ForeverStrings.CommandUnfreeze, name);
                     return true;
                 }
                 else
                 {
-                    handler.SendSysMessage(CypherStrings.CommandFreezeWrong);
+                    handler.SendSysMessage(ForeverStrings.CommandFreezeWrong);
                     return true;
                 }
             }
@@ -1992,7 +1992,7 @@ namespace Game.Chat
             {
                 if (target.GetSession().CanSpeak())
                 {
-                    handler.SendSysMessage(CypherStrings.ChatAlreadyEnabled);
+                    handler.SendSysMessage(ForeverStrings.ChatAlreadyEnabled);
                     return false;
                 }
 
@@ -2007,11 +2007,11 @@ namespace Game.Chat
             DB.Login.Execute(stmt);
 
             if (target != null)
-                target.SendSysMessage(CypherStrings.YourChatEnabled);
+                target.SendSysMessage(ForeverStrings.YourChatEnabled);
 
             string nameLink = handler.PlayerLink(targetName);
 
-            handler.SendSysMessage(CypherStrings.YouEnableChat, nameLink);
+            handler.SendSysMessage(ForeverStrings.YouEnableChat, nameLink);
 
             return true;
         }
@@ -2118,7 +2118,7 @@ namespace Game.Chat
             // Weather is OFF
             if (!WorldConfig.Values[WorldCfg.Weather].Bool)
             {
-                handler.SendSysMessage(CypherStrings.WeatherDisabled);
+                handler.SendSysMessage(ForeverStrings.WeatherDisabled);
                 return false;
             }
 
@@ -2128,7 +2128,7 @@ namespace Game.Chat
             Weather weather = player.GetMap().GetOrGenerateZoneDefaultWeather(zoneid);
             if (weather == null)
             {
-                handler.SendSysMessage(CypherStrings.NoWeather);
+                handler.SendSysMessage(ForeverStrings.NoWeather);
                 return false;
             }
 
@@ -2164,7 +2164,7 @@ namespace Game.Chat
 
                     if (record == null)
                     {
-                        handler.SendSysMessage(CypherStrings.CommandCouldnotfind, itemName);
+                        handler.SendSysMessage(ForeverStrings.CommandCouldnotfind, itemName);
                         return false;
                     }
                     itemId = record.Id;
@@ -2200,7 +2200,7 @@ namespace Game.Chat
             ItemTemplate itemTemplate = Global.ObjectMgr.GetItemTemplate(itemId);
             if (itemTemplate == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandItemidinvalid, itemId);
+                handler.SendSysMessage(ForeverStrings.CommandItemidinvalid, itemId);
                 handler.SetSentErrorMessage(true);
                 return false;
             }
@@ -2214,7 +2214,7 @@ namespace Game.Chat
                 {
                     // output the amount of items successfully destroyed
                     handler.SendSysMessage(
-                        CypherStrings.Removeitem, itemId, destroyedItemCount, 
+                        ForeverStrings.Removeitem, itemId, destroyedItemCount, 
                         handler.GetNameLink(playerTarget));
 
                     // check to see if we were unable to destroy all of the amount requested.
@@ -2223,7 +2223,7 @@ namespace Game.Chat
                     {
                         // output message for the amount of items we couldn't destroy
                         handler.SendSysMessage(
-                            CypherStrings.RemoveitemFailure, itemId, unableToDestroyItemCount, 
+                            ForeverStrings.RemoveitemFailure, itemId, unableToDestroyItemCount, 
                             handler.GetNameLink(playerTarget));
                     }
                 }
@@ -2231,7 +2231,7 @@ namespace Game.Chat
                 {
                     // failed to destroy items of the amount requested
                     handler.SendSysMessage(
-                        CypherStrings.RemoveitemFailure, itemId, -count, handler.GetNameLink(playerTarget));
+                        ForeverStrings.RemoveitemFailure, itemId, -count, handler.GetNameLink(playerTarget));
                 }
                 return true;
             }
@@ -2249,7 +2249,7 @@ namespace Game.Chat
 
             if (count == 0)   // can't add any
             {
-                handler.SendSysMessage(CypherStrings.ItemCannotCreate, itemId, noSpaceForCount);
+                handler.SendSysMessage(ForeverStrings.ItemCannotCreate, itemId, noSpaceForCount);
                 handler.SetSentErrorMessage(true);
                 return false;
             }
@@ -2269,13 +2269,13 @@ namespace Game.Chat
             if (count > 0 && item != null)
             {
                 player.SendNewItem(item, count, false, true);
-                handler.SendSysMessage(CypherStrings.Additem, itemId, count, handler.GetNameLink(playerTarget));
+                handler.SendSysMessage(ForeverStrings.Additem, itemId, count, handler.GetNameLink(playerTarget));
                 if (player != playerTarget)
                     playerTarget.SendNewItem(item, count, true, false);
             }
 
             if (noSpaceForCount > 0)
-                handler.SendSysMessage(CypherStrings.ItemCannotCreate, itemId, noSpaceForCount);
+                handler.SendSysMessage(ForeverStrings.ItemCannotCreate, itemId, noSpaceForCount);
 
             return true;
         }
@@ -2286,7 +2286,7 @@ namespace Game.Chat
             // prevent generation all items with itemset field value '0'
             if (itemSetId == 0)
             {
-                handler.SendSysMessage(CypherStrings.NoItemsFromItemsetFound, itemSetId);
+                handler.SendSysMessage(ForeverStrings.NoItemsFromItemsetFound, itemSetId);
                 handler.SetSentErrorMessage(true);
                 return false;
             }
@@ -2300,7 +2300,7 @@ namespace Game.Chat
             if (playerTarget == null)
                 playerTarget = player;
 
-            Log.outDebug(LogFilter.Server, Global.ObjectMgr.GetCypherString(CypherStrings.Additemset), itemSetId);
+            Log.outDebug(LogFilter.Server, Global.ObjectMgr.GetForeverString(ForeverStrings.Additemset), itemSetId);
 
             bool found = false;
             var its = Global.ObjectMgr.GetItemTemplates();
@@ -2330,13 +2330,13 @@ namespace Game.Chat
                 else
                 {
                     player.SendEquipError(msg, null, null, template.Value.GetId());
-                    handler.SendSysMessage(CypherStrings.ItemCannotCreate, template.Value.GetId(), 1);
+                    handler.SendSysMessage(ForeverStrings.ItemCannotCreate, template.Value.GetId(), 1);
                 }
             }
 
             if (!found)
             {
-                handler.SendSysMessage(CypherStrings.CommandNoitemsetfound, itemSetId);
+                handler.SendSysMessage(ForeverStrings.CommandNoitemsetfound, itemSetId);
                 handler.SetSentErrorMessage(true);
                 return false;
             }
@@ -2377,7 +2377,7 @@ namespace Game.Chat
 
                     if (itr == null)
                     {
-                        handler.SendSysMessage(CypherStrings.CommandCouldnotfind, itemName);
+                        handler.SendSysMessage(ForeverStrings.CommandCouldnotfind, itemName);
                         handler.SetSentErrorMessage(true);
                         return false;
                     }
@@ -2413,7 +2413,7 @@ namespace Game.Chat
             ItemTemplate itemTemplate = Global.ObjectMgr.GetItemTemplate(itemId);
             if (itemTemplate == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandItemidinvalid, itemId);
+                handler.SendSysMessage(ForeverStrings.CommandItemidinvalid, itemId);
                 handler.SetSentErrorMessage(true);
                 return false;
             }
@@ -2427,7 +2427,7 @@ namespace Game.Chat
                 {
                     // output the amount of items successfully destroyed
                     handler.SendSysMessage(
-                        CypherStrings.Removeitem, itemId, destroyedItemCount, 
+                        ForeverStrings.Removeitem, itemId, destroyedItemCount, 
                         handler.GetNameLink(playerTarget));
 
                     // check to see if we were unable to destroy all of the amount requested.
@@ -2436,14 +2436,14 @@ namespace Game.Chat
                     {
                         // output message for the amount of items we couldn't destroy
                         handler.SendSysMessage(
-                            CypherStrings.RemoveitemFailure, itemId, unableToDestroyItemCount, 
+                            ForeverStrings.RemoveitemFailure, itemId, unableToDestroyItemCount, 
                             handler.GetNameLink(playerTarget));
                     }
                 }
                 else
                 {
                     // failed to destroy items of the amount requested
-                    handler.SendSysMessage(CypherStrings.RemoveitemFailure, itemId, -count, 
+                    handler.SendSysMessage(ForeverStrings.RemoveitemFailure, itemId, -count, 
                         handler.GetNameLink(playerTarget));
                 }
 
@@ -2463,7 +2463,7 @@ namespace Game.Chat
 
             if (count == 0 || dest.Empty())                         // can't add any
             {
-                handler.SendSysMessage(CypherStrings.ItemCannotCreate, itemId, noSpaceForCount);
+                handler.SendSysMessage(ForeverStrings.ItemCannotCreate, itemId, noSpaceForCount);
                 handler.SetSentErrorMessage(true);
                 return false;
             }
@@ -2490,7 +2490,7 @@ namespace Game.Chat
             }
 
             if (noSpaceForCount > 0)
-                handler.SendSysMessage(CypherStrings.ItemCannotCreate, itemId, noSpaceForCount);
+                handler.SendSysMessage(ForeverStrings.ItemCannotCreate, itemId, noSpaceForCount);
 
             return true;
         }

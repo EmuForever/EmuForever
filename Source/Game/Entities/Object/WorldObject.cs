@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -55,7 +55,7 @@ namespace Game.Entities
                     Log.outFatal(LogFilter.Misc, 
                         $"WorldObject.Dispose() Corpse Type: {ToCorpse().GetCorpseType()} ({GetGUID()}) deleted but still in map!!");
 
-                    Cypher.Assert(false);
+                    Forever.Assert(false);
                 }
                 ResetMap();
             }
@@ -70,7 +70,7 @@ namespace Game.Entities
                 if (item != null)
                     Log.outFatal(LogFilter.Misc, $"Item slot {item.InventorySlot}");
 
-                Cypher.Assert(false);
+                Forever.Assert(false);
             }
 
             if (m_objectUpdated)
@@ -78,7 +78,7 @@ namespace Game.Entities
                 Log.outFatal(LogFilter.Misc, 
                     $"WorldObject.Dispose() {GetGUID()} deleted but still in update list!!");
 
-                Cypher.Assert(false);
+                Forever.Assert(false);
             }
         }
 
@@ -86,6 +86,7 @@ namespace Game.Entities
         {
             m_objectUpdated = false;
             m_guid = guid;
+            m_movementInfo.Guid = guid;
         }
 
         public virtual void AddToWorld()
@@ -245,7 +246,7 @@ namespace Game.Entities
 
         public void SendOutOfRangeForPlayer(Player target)
         {
-            Cypher.Assert(target != null);
+            Forever.Assert(target != null);
 
             UpdateData updateData = new(target.GetMapId());
             BuildOutOfRangeUpdateBlock(updateData);
@@ -663,7 +664,7 @@ namespace Game.Entities
             if (flags.SmoothPhasing)
             {
                 SmoothPhasingInfo smoothPhasingInfo = GetSmoothPhasing().GetInfoForSeer(target.GetGUID());
-                Cypher.Assert(smoothPhasingInfo != null);
+                Forever.Assert(smoothPhasingInfo != null);
 
                 data.WriteBit(smoothPhasingInfo.ReplaceActive);
                 data.WriteBit(smoothPhasingInfo.StopAnimKits);
@@ -1111,7 +1112,7 @@ namespace Game.Entities
 
         public void SetVisibilityDistanceOverride(VisibilityDistanceType type)
         {
-            Cypher.Assert(type < VisibilityDistanceType.Max);
+            Forever.Assert(type < VisibilityDistanceType.Max);
             if (GetTypeId() == TypeId.Player)
                 return;
 
@@ -1557,8 +1558,8 @@ namespace Game.Entities
 
         public virtual void SetMap(Map map)
         {
-            Cypher.Assert(map != null);
-            Cypher.Assert(!IsInWorld);
+            Forever.Assert(map != null);
+            Forever.Assert(!IsInWorld);
 
             if (_currMap == map)
                 return;
@@ -1576,8 +1577,8 @@ namespace Game.Entities
             if (_currMap == null)
                 return;
 
-            Cypher.Assert(_currMap != null);
-            Cypher.Assert(!IsInWorld);
+            Forever.Assert(_currMap != null);
+            Forever.Assert(!IsInWorld);
 
             if (IsStoredInWorldObjectGridContainer())
                 _currMap.RemoveWorldObject(this);
@@ -1753,7 +1754,7 @@ namespace Game.Entities
 
         public void SummonCreatureGroup(byte group, out List<TempSummon> list)
         {
-            Cypher.Assert((IsTypeId(TypeId.GameObject) || IsTypeId(TypeId.Unit)), "Only GOs and creatures can summon npc groups!");
+            Forever.Assert((IsTypeId(TypeId.GameObject) || IsTypeId(TypeId.Unit)), "Only GOs and creatures can summon npc groups!");
             list = new List<TempSummon>();
             var data = Global.ObjectMgr.GetSummonGroup(GetEntry(), IsTypeId(TypeId.GameObject) ? SummonerType.GameObject : SummonerType.Creature, group);
             if (data.Empty())
@@ -2688,7 +2689,7 @@ namespace Game.Entities
         // function based on function Unit::CanAttack from 13850 client
         public bool IsValidAttackTarget(WorldObject target, SpellInfo bySpell = null)
         {
-            Cypher.Assert(target != null);
+            Forever.Assert(target != null);
 
             // some positive spells can be casted at hostile target
             bool isPositiveSpell = bySpell != null && bySpell.IsPositive();
@@ -2869,7 +2870,7 @@ namespace Game.Entities
         // function based on function Unit::CanAssist from 13850 client
         public bool IsValidAssistTarget(WorldObject target, SpellInfo bySpell = null, bool spellCheck = true)
         {
-            Cypher.Assert(target != null);
+            Forever.Assert(target != null);
 
             // some negative spells can be casted at friendly target
             bool isNegativeSpell = bySpell != null && !bySpell.IsPositive();
@@ -4078,6 +4079,13 @@ namespace Game.Entities
 
     public class MovementInfo
     {
+        public MovementInfo Snapshot()
+        {
+            var snapshot=(MovementInfo)MemberwiseClone();
+            snapshot.Pos=new Position(Pos);
+            snapshot.transport.pos=new Position(transport.pos);
+            return snapshot;
+        }
         public ObjectGuid Guid { get; set; }
         MovementFlag flags;
         MovementFlag2 flags2;

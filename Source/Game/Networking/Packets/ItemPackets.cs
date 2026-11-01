@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -1032,7 +1032,7 @@ namespace Game.Networking.Packets
         public int ItemID;
         public List<int> BonusListIDs = new();
 
-        // Classic 1.60.1 (TrinityCore-forever ItemBonusKey): ItemID, BonusListIDs count, Modifications count, the IDs, the
+        // Classic 1.60.1 (EmuForever-forever ItemBonusKey): ItemID, BonusListIDs count, Modifications count, the IDs, the
         // modifications. This core keeps no modifications here, so the count is 0 like the reference server sends.
         public void Write(WorldPacket data)
         {

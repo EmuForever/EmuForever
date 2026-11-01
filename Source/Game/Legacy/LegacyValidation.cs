@@ -10,13 +10,13 @@ namespace Game.Systems.Legacy
         // Called before walking costs/conditions: malformed nodes must never reach those lookups.
         public static bool EntriesBelongToConfig(TraitConfigPacket config)
         {
-            HashSet<int> nodes = new();
+            HashSet<(int, int)> nodes = new(); // tiered nodes carry one entry per tier
             foreach (TraitEntryPacket entry in config.Entries)
             {
                 TraitNodeRecord node = CliDB.TraitNodeStorage.LookupByKey(entry.TraitNodeID);
                 TraitNodeEntryRecord definition = CliDB.TraitNodeEntryStorage.LookupByKey(entry.TraitNodeEntryID);
                 if (node == null || definition == null || entry.Rank < 0 || entry.GrantedRanks < 0 || entry.BonusRanks != 0 ||
-                    (long)entry.Rank + entry.GrantedRanks > definition.MaxRanks || !nodes.Add(entry.TraitNodeID)) return false;
+                    (long)entry.Rank + entry.GrantedRanks > definition.MaxRanks || !nodes.Add((entry.TraitNodeID, entry.TraitNodeEntryID))) return false;
                 TraitTreeRecord tree = CliDB.TraitTreeStorage.LookupByKey(node.TraitTreeID);
                 if (tree == null || (config.Type == TraitConfigType.Generic && tree.TraitSystemID != config.TraitSystemID)) return false;
                 if (LegacyManager.IsLegacy(config) && !LegacyDefinitions.IsTree(tree.Id)) return false;

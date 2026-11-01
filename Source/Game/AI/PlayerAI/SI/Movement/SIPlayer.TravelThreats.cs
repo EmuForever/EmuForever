@@ -18,7 +18,6 @@ public sealed partial class SIPlayer
     bool TryBeginTravelClearanceFight()
     {
         if(!WorkingGoal||AvoidAggroOnLongJourney||
-            PartyFollowing && !PartyErrand ||
             _encounter.Active||_siDuelActive||!me.IsAlive()||me.IsInCombat()||MovementSuspended||
             _mageRetreatUntil>Now||Now<_nextTravelAggroCheck)return false;
         _nextTravelAggroCheck=Now+250;

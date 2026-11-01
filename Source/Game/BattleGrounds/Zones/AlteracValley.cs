@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -69,7 +69,7 @@ namespace Game.BattleGrounds.Zones.AlteracValley
         int MinesCaptured;
     }
 
-    class BgAlteracValley : Battleground
+    partial class BgAlteracValley : Battleground
     {
         int[] _teamResources = new int[SharedConst.PvpTeamsCount];
         int[][] m_Team_QuestStatus = new int[SharedConst.PvpTeamsCount][]; //[x][y] x=team y=questcounter
@@ -95,6 +95,7 @@ namespace Game.BattleGrounds.Zones.AlteracValley
 
             for (byte i = 0; i < 2; i++) //forloop for both teams (it just make 0 == alliance and 1 == horde also for both mines 0=north 1=south
             {
+                m_Team_QuestStatus[i] = new int[9];
                 for (byte j = 0; j < 9; j++)
                     m_Team_QuestStatus[i][j] = 0;
 
@@ -322,7 +323,7 @@ namespace Game.BattleGrounds.Zones.AlteracValley
 
         void UpdateScore(Team team, short points)
         {
-            Cypher.Assert(team == Team.Alliance || team == Team.Horde);
+            Forever.Assert(team == Team.Alliance || team == Team.Horde);
             int teamindex = GetTeamIndexByTeamId(team);
             _teamResources[teamindex] += points;
 
@@ -426,6 +427,8 @@ namespace Game.BattleGrounds.Zones.AlteracValley
 
         public override void StartingEventOpenDoors()
         {
+            OpenClassicStartDoors();
+            if (GetMapId() == 30) SetClassicSpawnGroup(302530, false);
             Log.outDebug(LogFilter.Battleground, "BG_AV: start spawning mine stuff");
 
             UpdateWorldState(WorldStateIds.ShowHordeReinforcements, 1);
@@ -503,7 +506,8 @@ namespace Game.BattleGrounds.Zones.AlteracValley
             if (gameobject == null)
                 return;
 
-            AVNodes node = GetNodeThroughObject(gameobject.GetEntry());
+            AVNodes node = GetNodeThroughObject(gameobject);
+            if (_nodes[(int)node].State != AVStates.PointAssaulted) return;
             DestroyNode(node);
             UpdateNodeWorldState(node);
 
@@ -554,6 +558,8 @@ namespace Game.BattleGrounds.Zones.AlteracValley
                 return;
 
             mineInfo.Owner = team;
+            _mineInfo[(int)mine] = mineInfo;
+            SyncClassicAVGroups();
 
             SendMineWorldStates(mine);
 
@@ -685,7 +691,7 @@ namespace Game.BattleGrounds.Zones.AlteracValley
                 case GameObjectIds.IcewingBunkerControlledBanner:
                 case GameObjectIds.SouthBunkerControlledBanner:
                 case GameObjectIds.NorthBunkerControlledBanner:
-                    EventPlayerAssaultsPoint(player, target.GetEntry());
+                    EventPlayerAssaultsPoint(player, target);
                     break;
                 // Graveyards
                 case GameObjectIds.AidStationAllianceContested:
@@ -709,17 +715,17 @@ namespace Game.BattleGrounds.Zones.AlteracValley
                 case GameObjectIds.IcewingBunkerContestedBanner:
                 case GameObjectIds.SouthBunkerContestedBanner:
                 case GameObjectIds.NorthBunkerContestedBanner:
-                    EventPlayerDefendsPoint(player, target.GetEntry());
+                    EventPlayerDefendsPoint(player, target);
                     break;
                 // Snowfall Special cases (Either Defend/Assault)
                 case GameObjectIds.SnowfallAllianceContested:
                 case GameObjectIds.SnowfallHordeContested:
                 {
-                    AVNodes node = GetNodeThroughObject(target.GetEntry());
+                    AVNodes node = GetNodeThroughObject(target);
                     if (_nodes[(int)node].TotalOwner == Team.Other)
-                        EventPlayerAssaultsPoint(player, target.GetEntry());
+                        EventPlayerAssaultsPoint(player, target);
                     else
-                        EventPlayerDefendsPoint(player, target.GetEntry());
+                        EventPlayerDefendsPoint(player, target);
                     break;
                 }
                 default:
@@ -727,7 +733,7 @@ namespace Game.BattleGrounds.Zones.AlteracValley
             }
         }
 
-        void EventPlayerDefendsPoint(Player player, int obj)
+        void EventPlayerDefendsPoint(Player player, GameObject obj)
         {
             AVNodes node = GetNodeThroughObject(obj);
 
@@ -770,7 +776,7 @@ namespace Game.BattleGrounds.Zones.AlteracValley
             GetBgMap().UpdateSpawnGroupConditions();
         }
 
-        void EventPlayerAssaultsPoint(Player player, int obj)
+        void EventPlayerAssaultsPoint(Player player, GameObject obj)
         {
             AVNodes node = GetNodeThroughObject(obj);
             Team owner = _nodes[(int)node].Owner; //maybe name it prevowner
@@ -822,6 +828,7 @@ namespace Game.BattleGrounds.Zones.AlteracValley
 
             if (node == AVNodes.SnowfallGrave)
                 UpdateWorldState(WorldStateIds.SnowfallGraveyardUncontrolled, _nodes[(int)node].Owner == Team.Other ? 1 : 0);
+            SyncClassicAVGroups();
         }
 
         void SendMineWorldStates(AlteracValleyMine mine)
@@ -840,6 +847,7 @@ namespace Game.BattleGrounds.Zones.AlteracValley
 
         public override bool SetupBattleground()
         {
+            SyncClassicAVGroups();
             return true;
         }
 

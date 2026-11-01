@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -87,7 +87,7 @@ namespace Game.Entities
             if (owner != null)
             {
                 owner.RemoveGameObject(this, false);
-                Cypher.Assert(GetOwnerGUID().IsEmpty());
+                Forever.Assert(GetOwnerGUID().IsEmpty());
                 return;
             }
 
@@ -179,7 +179,7 @@ namespace Game.Entities
 
         bool Create(int entry, Map map, Position pos, Quaternion rotation, int animProgress, GameObjectState goState, int artKit, bool dynamic, long spawnid)
         {
-            Cypher.Assert(map != null);
+            Forever.Assert(map != null);
             SetMap(map);
 
             Relocate(pos);
@@ -625,7 +625,7 @@ namespace Game.Entities
 
                             // Type 0 despawns after being triggered, Type 1 does not.
                             // @todo This is activation radius. Casting radius must be selected from spell 
-                            float radius = goInfo.Trap.radius / 2.0f; // this division seems to date back to when the field was called diameter, don't think it is still relevant.
+                            float radius = TrapActivationRadius(goInfo, GetMap().IsBattlegroundOrArena());
                             if (radius == 0f)
                                 break;
 
@@ -760,12 +760,21 @@ namespace Game.Entities
                                 CastSpellExtraArgs args = new();
                                 args.SetOriginalCaster(GetOwnerGUID());
                                 if (goInfo.Trap.spell != 0)
-                                    CastSpell(target, goInfo.Trap.spell, args);
+                                {
+                                    // Battleground runes and other self buffs target their caster, and a gameobject cannot
+                                    // hold an aura: whoever set the trap off casts those on itself.
+                                    SpellInfo trapSpell = Global.SpellMgr.GetSpellInfo(goInfo.Trap.spell, GetMap().GetDifficultyID());
+                                    if (IsBattlegroundBuffTrap(goInfo, GetMap().IsBattlegroundOrArena()) ||
+                                        trapSpell != null && trapSpell.GetEffects().All(effect => effect.TargetA.GetTarget() == Targets.UnitCaster))
+                                        target.CastSpell(target, goInfo.Trap.spell, true);
+                                    else
+                                        CastSpell(target, goInfo.Trap.spell, args);
+                                }
 
                                 // Template value or 4 seconds
                                 m_cooldownTime = LoopTime.ServerTime + (goInfo.Trap.cooldown != 0 ? goInfo.Trap.cooldown : (Seconds)4);
 
-                                if (goInfo.Trap.charges == 1)
+                                if (goInfo.Trap.charges == 1 || IsBattlegroundBuffTrap(goInfo, GetMap().IsBattlegroundOrArena()))
                                     SetLootState(LootState.JustDeactivated);
                                 else if (goInfo.Trap.charges == 0)
                                     SetLootState(LootState.Ready);
@@ -1073,7 +1082,7 @@ namespace Game.Entities
 
             if (data.SpawnId == 0)
                 data.SpawnId = m_spawnId;
-            Cypher.Assert(data.SpawnId == m_spawnId);
+            Forever.Assert(data.SpawnId == m_spawnId);
 
             data.Id = GetEntry();
             data.MapId = GetMapId();
@@ -2924,7 +2933,7 @@ namespace Game.Entities
         public void SetDestructibleState(GameObjectDestructibleState state, WorldObject attackerOrHealer = null, bool setHealth = false)
         {
             // the user calling this must know he is already operating on destructible gameobject
-            Cypher.Assert(GetGoType() == GameObjectTypes.DestructibleBuilding);
+            Forever.Assert(GetGoType() == GameObjectTypes.DestructibleBuilding);
 
             switch (state)
             {
@@ -3733,7 +3742,7 @@ namespace Game.Entities
             // Owner already found and different than expected owner - remove object from old owner
             if (!owner.IsEmpty() && !GetOwnerGUID().IsEmpty() && GetOwnerGUID() != owner)
             {
-                Cypher.Assert(false);
+                Forever.Assert(false);
             }
             m_spawnedByDefault = false;                     // all object with owner is despawned after delay
             SetUpdateFieldValue(m_values.ModifyValue(m_gameObjectData).ModifyValue(m_gameObjectData.CreatedBy), owner);
@@ -3773,6 +3782,12 @@ namespace Game.Entities
                 (m_respawnTime != ServerTime.Zero && !m_spawnedByDefault) ||
                 (m_respawnTime == ServerTime.Zero && m_spawnedByDefault);
         }
+        internal static bool IsBattlegroundBuffTrap(GameObjectTemplate template, bool battleground) =>
+            battleground && template.type == GameObjectTypes.Trap && template.Trap.radius == 0 &&
+            template.Trap.cooldown == (Seconds)3 && template.Trap.spell != 0;
+
+        internal static float TrapActivationRadius(GameObjectTemplate template, bool battleground) =>
+            IsBattlegroundBuffTrap(template, battleground) ? 3 : template.Trap.radius / 2.0f;
         public bool IsSpawnedByDefault() { return m_spawnedByDefault; }
         public void SetSpawnedByDefault(bool b) { m_spawnedByDefault = b; }
         public TimeSpan GetRespawnDelay() { return m_respawnDelayTime; }
@@ -4311,7 +4326,7 @@ namespace Game.Entities
 
             public override void OnStateChanged(GameObjectState oldState, GameObjectState newState)
             {
-                Cypher.Assert(newState >= GameObjectState.TransportActive);
+                Forever.Assert(newState >= GameObjectState.TransportActive);
 
                 // transports without stop frames just keep animating in state 24
                 if (_stopFrames.Empty())
@@ -4325,9 +4340,9 @@ namespace Game.Entities
 
                 if (newState != GameObjectState.TransportActive)
                 {
-                    Cypher.Assert(newState < (GameObjectState.TransportStopped + 9));
+                    Forever.Assert(newState < (GameObjectState.TransportStopped + 9));
                     int stopFrame = newState - GameObjectState.TransportStopped;
-                    Cypher.Assert(stopFrame < _stopFrames.Count);
+                    Forever.Assert(stopFrame < _stopFrames.Count);
                     stopPathProgress = _stopFrames[stopFrame];
                 }
 

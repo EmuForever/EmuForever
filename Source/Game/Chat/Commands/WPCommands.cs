@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -96,7 +96,7 @@ namespace Game.Chat.Commands
 
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCreature);
                 //handler->SetSentErrorMessage(true);
                 return false;
             }
@@ -195,7 +195,7 @@ namespace Game.Chat.Commands
                 Global.WaypointMgr.ReloadPath(path.Id);
                 Global.WaypointMgr.VisualizePath(handler.GetPlayer(), path, displayId);
 
-                handler.SendSysMessage(CypherStrings.WaypointRemoved);
+                handler.SendSysMessage(ForeverStrings.WaypointRemoved);
                 return true;
             }
             else if (subCommand == "move")
@@ -209,7 +209,7 @@ namespace Game.Chat.Commands
                 Global.WaypointMgr.ReloadPath(path.Id);
                 Global.WaypointMgr.VisualizePath(handler.GetPlayer(), path, displayId);
 
-                handler.SendSysMessage(CypherStrings.WaypointChanged);
+                handler.SendSysMessage(ForeverStrings.WaypointChanged);
                 return true;
             }
 
@@ -245,7 +245,7 @@ namespace Game.Chat.Commands
 
                 if (target == null)
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCreature);
                     //handler->SetSentErrorMessage(true);
                     return false;
                 }
@@ -258,7 +258,7 @@ namespace Game.Chat.Commands
                 // Warn if player also selected a creature
                 // . Creature selection is ignored <-
                 if (target != null)
-                    handler.SendSysMessage(CypherStrings.WaypointCreatselected);
+                    handler.SendSysMessage(ForeverStrings.WaypointCreatselected);
 
                 pathId = optionalPathId.Value;
             }
@@ -268,7 +268,7 @@ namespace Game.Chat.Commands
             {
                 if (target == null || target.GetEntry() != 1)
                 {
-                    handler.SendSysMessage(CypherStrings.WaypointVpSelect);
+                    handler.SendSysMessage(ForeverStrings.WaypointVpSelect);
                     return false;
                 }
 
@@ -340,7 +340,7 @@ namespace Game.Chat.Commands
 
                 Global.WaypointMgr.DevisualizePath(handler.GetPlayer(), path);
 
-                handler.SendSysMessage(CypherStrings.WaypointVpAllremoved);
+                handler.SendSysMessage(ForeverStrings.WaypointVpAllremoved);
                 return true;
             }
 

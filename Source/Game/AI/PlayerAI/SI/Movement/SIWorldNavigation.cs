@@ -224,6 +224,13 @@ public sealed class SINavMeshPlanner
     const int SteepDetours=3;
     const float SteepAvoidRadius=5;
     Vector3? _steepAt;
+    internal bool Walkable(SIPathPosition from,Vector3[] points)
+    {
+        if(points.Length<2)return false;
+        var scene=Prepare(from.MapId,from.Point,points[^1],30);
+        var (poly,_)=Snap(scene,from.Point,true,0);
+        return poly!=0&&WalkingFailure(scene,points,poly)==null;
+    }
     SIGroundPath PlanOnFilter(SIPathPosition from,SIPathPosition to,Func<bool> cancelled,float limit,float legLength)
     {
         var baseline=Filter.Threats;var origin=Filter.Origin;var avoided=ImmutableArray.CreateBuilder<SITravelThreat>();
@@ -233,12 +240,48 @@ public sealed class SINavMeshPlanner
             {
                 _steepAt=null;
                 var path=PlanCorridor(from,to,cancelled,limit,legLength);
-                if(path.Success||_steepAt is not Vector3 at||attempt>=SteepDetours)return path;
+                if(path.Success||_steepAt is not Vector3 at)return path;
+                if(attempt>=SteepDetours)
+                {
+                    // A cost penalty can keep choosing the same narrow polygon
+                    // corridor. Try actual waypoints on either side of the bad
+                    // stretch; both halves must pass the full walking checks.
+                    Filter.Use(baseline,origin);
+                    return SlopeDetour(from,to,at,cancelled,limit,legLength)??path;
+                }
                 avoided.Add(new SITravelThreat(at,SteepAvoidRadius,false));
                 Filter.Use(baseline.AddRange(avoided),origin);
             }
         }
         finally{if(avoided.Count>0)Filter.Use(baseline,origin);}
+    }
+
+    SIGroundPath SlopeDetour(SIPathPosition from,SIPathPosition to,Vector3 blocked,Func<bool> cancelled,float limit,float legLength)
+    {
+        var direction=to.Point-from.Point;direction.Z=0;
+        if(direction.LengthSquared()<1)return null;
+        var side=Vector3.Normalize(new Vector3(-direction.Y,direction.X,0));
+        foreach(float offset in new[]{4f,-4f,8f,-8f,14f,-14f})
+        {
+            if(cancelled())throw new OperationCanceledException();
+            var anchor=blocked+side*offset;
+            var first=PlanCorridor(from,new(from.MapId,anchor),cancelled,limit,legLength+40);
+            if(!first.Success||!first.Complete||first.Partial)continue;
+            var second=PlanCorridor(new(from.MapId,first.Points[^1]),to,cancelled,limit,legLength+40);
+            if(!second.Success)continue;
+            var joined=first.Points.Concat(second.Points.Skip(1)).ToArray();
+            float length=0;for(int i=1;i<joined.Length;++i)length+=Vector3.Distance(joined[i-1],joined[i]);
+            if(length>Vector3.Distance(from.Point,to.Point)*1.75f+20)continue;
+            var prefix=SIMovementRoute.Prefix(joined,legLength);
+            var scene=Prepare(from.MapId,from.Point,prefix[^1],30);
+            var (startPoly,_)=Snap(scene,from.Point,true,0);
+            // The join is an ordinary walking edge, not another start-floor
+            // correction. Check the continuous slope window across it too.
+            if(startPoly==0||WalkingFailure(scene,prefix,startPoly)!=null)continue;
+            return new(prefix.ToImmutableArray())
+                {Complete=second.Complete&&length<=legLength+.01f,Partial=second.Partial};
+        }
+        return null;
     }
 
     SIGroundPath PlanCorridor(SIPathPosition from,SIPathPosition to,Func<bool> cancelled,float limit,float legLength)
@@ -289,11 +332,12 @@ public sealed class SINavMeshPlanner
         }
         if(partial&&reached&&Vector2.Distance(new(route[^1].X,route[^1].Y),new(from.Point.X,from.Point.Y))<2)
             return SIGroundPath.Failed(SIGroundPath.UnreachableError);
-        float length=0;for(int i=1;i<route.Count;++i)length+=Vector3.Distance(route[i-1],route[i]);
-        var prefix=SIMovementRoute.Prefix(route,legLength);
+        var approach=SIMovementRoute.ApproachDestination(route,to,out bool inRange);
+        float length=0;for(int i=1;i<approach.Length;++i)length+=Vector3.Distance(approach[i-1],approach[i]);
+        var prefix=SIMovementRoute.Prefix(approach,legLength);
         string failure=WalkingFailure(scene,prefix,pa);
         if(failure!=null)return SIGroundPath.Failed(failure);
-        return new(prefix.ToImmutableArray()){Complete=!partial&&reached&&length<=legLength+.01f,Partial=partial};
+        return new(prefix.ToImmutableArray()){Complete=(inRange||!partial&&reached)&&length<=legLength+.01f,Partial=partial&&!inRange};
     }
 
     // Why a walker could not follow these corners, or null when it can. A too-steep spot is kept in _steepAt.
@@ -371,13 +415,13 @@ public sealed class SINavMeshPlanner
         return true;
     }
 
-    // TrinityCore's FindSmoothPath: walk the corridor in short steps on the detail surface, so every
+    // EmuForever's FindSmoothPath: walk the corridor in short steps on the detail surface, so every
     // point carries real ground height and the line never cuts through a hillside or a wall corner.
     List<Vector3> Smooth(Scene scene,Vector3 start,Vector3 end,ulong[] corridor,int count,Func<bool> cancelled,float legLength,out bool reached)
     {
         reached=false;
         var query=scene.Query;var result=new List<Vector3>();
-        // The surface walk can circle on some polygon arrangements (TrinityCore's "most likely a loop").
+        // The surface walk can circle on some polygon arrangements (EmuForever's "most likely a loop").
         // Bound it by the funnel length; the caller then follows the funnel corners instead.
         float funnel=CornerLength(query,start,end,corridor,count);
         float bound=Math.Min(legLength,funnel)*1.6f+40;

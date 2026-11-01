@@ -8,7 +8,7 @@ using System.Text.Json;
 
 namespace Game.Networking
 {
-    // The core's named opcodes follow TrinityCore's forever header. The Classic
+    // The core's named opcodes follow EmuForever's forever header. The Classic
     // client uses a different wire numbering; keep that difference at the socket.
     internal static class ClassicOpcodeMap
     {

@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace Game.Entities
 {
-    // A normal persistent Player whose decisions are owned by worldserver.
+    // A normal persistent Player whose decisions are owned by foreverworld.
     public sealed partial class siPlayer : Player
     {
         internal static string NormalizeStoredName(string name, string surname)

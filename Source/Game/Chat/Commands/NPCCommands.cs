@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -38,7 +38,7 @@ namespace Game.Chat
             Player player = handler.GetSession().GetPlayer();
             if (!player.GetMap().SpawnGroupDespawn(groupId, deleteRespawnTimes, out int despawnedCount))
             {
-                handler.SendSysMessage(CypherStrings.SpawngroupBadgroup, groupId);
+                handler.SendSysMessage(ForeverStrings.SpawngroupBadgroup, groupId);
                 return false;
             }
             handler.SendSysMessage($"Despawned a total of {despawnedCount} objects.");
@@ -52,13 +52,13 @@ namespace Game.Chat
             Creature creatureTarget = handler.GetSelectedCreature();
             if (creatureTarget == null || creatureTarget.IsPet())
             {
-                handler.SendSysMessage(CypherStrings.SelectCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCreature);
                 return false;
             }
 
             if (creatureTarget.IsAIEnabled())
             {
-                handler.SendSysMessage(CypherStrings.CreatureNotAiEnabled);
+                handler.SendSysMessage(ForeverStrings.CreatureNotAiEnabled);
                 return false;
             }
 
@@ -75,7 +75,7 @@ namespace Game.Chat
             Creature target = handler.GetSelectedCreature();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCreature);
                 return false;
             }
 
@@ -102,65 +102,65 @@ namespace Game.Chat
             string curRespawnDelayStr = Time.SpanToTimeString(curRespawnDelay, TimeFormat.ShortText);
             string defRespawnDelayStr = Time.SpanToTimeString(target.GetRespawnDelay(), TimeFormat.ShortText);
 
-            handler.SendSysMessage(CypherStrings.NpcinfoChar, target.GetName(), target.GetSpawnId(), target.GetGUID().ToString(), entry, faction, npcflags, displayid, nativeid);
+            handler.SendSysMessage(ForeverStrings.NpcinfoChar, target.GetName(), target.GetSpawnId(), target.GetGUID().ToString(), entry, faction, npcflags, displayid, nativeid);
             if (target.GetCreatureData() != null && target.GetCreatureData().spawnGroupData.groupId != 0)
             {
                 SpawnGroupTemplateData groupData = target.GetCreatureData().spawnGroupData;
-                handler.SendSysMessage(CypherStrings.SpawninfoGroupId, groupData.name, groupData.groupId, groupData.flags, target.GetMap().IsSpawnGroupActive(groupData.groupId));
+                handler.SendSysMessage(ForeverStrings.SpawninfoGroupId, groupData.name, groupData.groupId, groupData.flags, target.GetMap().IsSpawnGroupActive(groupData.groupId));
             }
-            handler.SendSysMessage(CypherStrings.SpawninfoCompatibilityMode, target.GetRespawnCompatibilityMode());
-            handler.SendSysMessage(CypherStrings.NpcinfoLevel, target.GetLevel());
-            handler.SendSysMessage(CypherStrings.NpcinfoEquipment, target.GetCurrentEquipmentId(), target.GetOriginalEquipmentId());
-            handler.SendSysMessage(CypherStrings.NpcinfoHealth, target.GetCreateHealth(), target.GetMaxHealth(), target.GetHealth());
-            handler.SendSysMessage(CypherStrings.NpcinfoMovementData, target.GetMovementTemplate().ToString());
+            handler.SendSysMessage(ForeverStrings.SpawninfoCompatibilityMode, target.GetRespawnCompatibilityMode());
+            handler.SendSysMessage(ForeverStrings.NpcinfoLevel, target.GetLevel());
+            handler.SendSysMessage(ForeverStrings.NpcinfoEquipment, target.GetCurrentEquipmentId(), target.GetOriginalEquipmentId());
+            handler.SendSysMessage(ForeverStrings.NpcinfoHealth, target.GetCreateHealth(), target.GetMaxHealth(), target.GetHealth());
+            handler.SendSysMessage(ForeverStrings.NpcinfoMovementData, target.GetMovementTemplate().ToString());
 
-            handler.SendSysMessage(CypherStrings.NpcinfoUnitFieldFlags, (uint)target.m_unitData.Flags);
+            handler.SendSysMessage(ForeverStrings.NpcinfoUnitFieldFlags, (uint)target.m_unitData.Flags);
             foreach (UnitFlags value in Enum.GetValues(typeof(UnitFlags)))
                 if (target.HasUnitFlag(value))
                     handler.SendSysMessage($"{value} (0x{value:X})");
 
-            handler.SendSysMessage(CypherStrings.NpcinfoUnitFieldFlags2, (uint)target.m_unitData.Flags2);
+            handler.SendSysMessage(ForeverStrings.NpcinfoUnitFieldFlags2, (uint)target.m_unitData.Flags2);
             foreach (UnitFlags2 value in Enum.GetValues(typeof(UnitFlags2)))
                 if (target.HasUnitFlag2(value))
                     handler.SendSysMessage($"{value} (0x{value:X})");
 
-            handler.SendSysMessage(CypherStrings.NpcinfoUnitFieldFlags3, (uint)target.m_unitData.Flags3);
+            handler.SendSysMessage(ForeverStrings.NpcinfoUnitFieldFlags3, (uint)target.m_unitData.Flags3);
             foreach (UnitFlags3 value in Enum.GetValues(typeof(UnitFlags3)))
                 if (target.HasUnitFlag3(value))
                     handler.SendSysMessage($"{value} (0x{value:X})");
 
-            handler.SendSysMessage(CypherStrings.NpcinfoDynamicFlags, target.GetDynamicFlags());
-            handler.SendSysMessage(CypherStrings.CommandRawpawntimes, defRespawnDelayStr, curRespawnDelayStr);
+            handler.SendSysMessage(ForeverStrings.NpcinfoDynamicFlags, target.GetDynamicFlags());
+            handler.SendSysMessage(ForeverStrings.CommandRawpawntimes, defRespawnDelayStr, curRespawnDelayStr);
 
             CreatureTemplateStats creatureDifficulty = target.GetCreatureTemplateStats();
-            handler.SendSysMessage(CypherStrings.NpcinfoLoot, creatureDifficulty.LootID, creatureDifficulty.PickPocketLootID, creatureDifficulty.SkinLootID);
-            handler.SendSysMessage(CypherStrings.NpcinfoDungeonId, target.GetInstanceId());
+            handler.SendSysMessage(ForeverStrings.NpcinfoLoot, creatureDifficulty.LootID, creatureDifficulty.PickPocketLootID, creatureDifficulty.SkinLootID);
+            handler.SendSysMessage(ForeverStrings.NpcinfoDungeonId, target.GetInstanceId());
 
             CreatureData data = Global.ObjectMgr.GetCreatureData(target.GetSpawnId());
             if (data != null)
-                handler.SendSysMessage(CypherStrings.NpcinfoPhases, data.PhaseId, data.PhaseGroup);
+                handler.SendSysMessage(ForeverStrings.NpcinfoPhases, data.PhaseId, data.PhaseGroup);
 
             PhasingHandler.PrintToChat(handler, target);
 
-            handler.SendSysMessage(CypherStrings.NpcinfoArmor, target.GetArmor());
-            handler.SendSysMessage(CypherStrings.NpcinfoPosition, target.GetPositionX(), target.GetPositionY(), target.GetPositionZ());
-            handler.SendSysMessage(CypherStrings.ObjectinfoAiInfo, target.GetAIName(), target.GetScriptName());
-            handler.SendSysMessage(CypherStrings.ObjectinfoStringIds, target.GetStringIds()[0], target.GetStringIds()[1], target.GetStringIds()[2]);
-            handler.SendSysMessage(CypherStrings.NpcinfoReactstate, target.GetReactState());
+            handler.SendSysMessage(ForeverStrings.NpcinfoArmor, target.GetArmor());
+            handler.SendSysMessage(ForeverStrings.NpcinfoPosition, target.GetPositionX(), target.GetPositionY(), target.GetPositionZ());
+            handler.SendSysMessage(ForeverStrings.ObjectinfoAiInfo, target.GetAIName(), target.GetScriptName());
+            handler.SendSysMessage(ForeverStrings.ObjectinfoStringIds, target.GetStringIds()[0], target.GetStringIds()[1], target.GetStringIds()[2]);
+            handler.SendSysMessage(ForeverStrings.NpcinfoReactstate, target.GetReactState());
             var ai = target.GetAI();
             if (ai != null)
-                handler.SendSysMessage(CypherStrings.ObjectinfoAiType, nameof(ai));
-            handler.SendSysMessage(CypherStrings.NpcinfoFlagsExtra, cInfo.FlagsExtra);
+                handler.SendSysMessage(ForeverStrings.ObjectinfoAiType, nameof(ai));
+            handler.SendSysMessage(ForeverStrings.NpcinfoFlagsExtra, cInfo.FlagsExtra);
             foreach (var value in Enum.GetValues(typeof(CreatureFlagsExtra)))
                 if (cInfo.FlagsExtra.HasAnyFlag((CreatureFlagsExtra)value))
                     handler.SendSysMessage($"{(CreatureFlagsExtra)value} (0x{value:X})");
 
-            handler.SendSysMessage(CypherStrings.NpcinfoNpcFlags, target.m_unitData.NpcFlags[0]);
+            handler.SendSysMessage(ForeverStrings.NpcinfoNpcFlags, target.m_unitData.NpcFlags[0]);
             foreach (NPCFlags1 value in Enum.GetValues(typeof(NPCFlags1)))
                 if (npcflags1.HasAnyFlag(value))
                     handler.SendSysMessage($"{value} (0x{value:X})");
 
-            handler.SendSysMessage(CypherStrings.NpcinfoMechanicImmune, mechanicImmuneMask);
+            handler.SendSysMessage(ForeverStrings.NpcinfoMechanicImmune, mechanicImmuneMask);
             foreach (int value in Enum.GetValues(typeof(Mechanics)))
                 if (mechanicImmuneMask.HasAnyFlag(1ul << (value - 1)))
                     handler.SendSysMessage($"{value} (0x{value:X})");
@@ -185,13 +185,13 @@ namespace Game.Chat
             CreatureData data = Global.ObjectMgr.GetCreatureData(lowguid);
             if (data == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandCreatguidnotfound, lowguid);
+                handler.SendSysMessage(ForeverStrings.CommandCreatguidnotfound, lowguid);
                 return false;
             }
 
             if (player.GetMapId() != data.MapId)
             {
-                handler.SendSysMessage(CypherStrings.CommandCreatureatsamemap, lowguid);
+                handler.SendSysMessage(ForeverStrings.CommandCreatureatsamemap, lowguid);
                 return false;
             }
 
@@ -213,7 +213,7 @@ namespace Game.Chat
             if (creature != null)
                 creature.DespawnOrUnsummon((Seconds)0, (Seconds)1);
 
-            handler.SendSysMessage(CypherStrings.CommandCreaturemoved);
+            handler.SendSysMessage(ForeverStrings.CommandCreaturemoved);
             return true;
         }
 
@@ -252,7 +252,7 @@ namespace Game.Chat
                         continue;
 
                     handler.SendSysMessage(
-                        CypherStrings.CreatureListChat, guid, guid, 
+                        ForeverStrings.CreatureListChat, guid, guid, 
                         creatureTemplate.Name, x, y, z, mapId, "", "");
 
                     ++count;
@@ -260,7 +260,7 @@ namespace Game.Chat
                 while (result.NextRow());
             }
 
-            handler.SendSysMessage(CypherStrings.CommandNearNpcMessage, distance, count);
+            handler.SendSysMessage(ForeverStrings.CommandNearNpcMessage, distance, count);
 
             return true;
         }
@@ -271,7 +271,7 @@ namespace Game.Chat
             Creature target = handler.GetSelectedCreature();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCreature);
                 return false;
             }
 
@@ -289,7 +289,7 @@ namespace Game.Chat
             Creature creature = handler.GetSelectedCreature();
             if (creature == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCreature);
                 return false;
             }
 
@@ -318,44 +318,44 @@ namespace Game.Chat
             Creature creatureTarget = handler.GetSelectedCreature();
             if (creatureTarget == null || creatureTarget.IsPet())
             {
-                handler.SendSysMessage(CypherStrings.SelectCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCreature);
                 return false;
             }
 
             Loot loot = creatureTarget._loot;
             if (creatureTarget.IsDead() || loot == null || loot.IsLooted())
             {
-                handler.SendSysMessage(CypherStrings.CommandNotDeadOrNoLoot, creatureTarget.GetName());
+                handler.SendSysMessage(ForeverStrings.CommandNotDeadOrNoLoot, creatureTarget.GetName());
                 return false;
             }
 
             handler.SendSysMessage(
-                CypherStrings.CommandNpcShowlootHeader, 
+                ForeverStrings.CommandNpcShowlootHeader, 
                 creatureTarget.GetName(), creatureTarget.GetEntry());
 
             handler.SendSysMessage(
-                CypherStrings.CommandNpcShowlootMoney, 
+                ForeverStrings.CommandNpcShowlootMoney, 
                 loot.gold / MoneyConstants.Gold, 
                 (loot.gold % MoneyConstants.Gold) / MoneyConstants.Silver, 
                 loot.gold % MoneyConstants.Silver);
 
             if (all.Equals("all", StringComparison.OrdinalIgnoreCase)) // nonzero from strcmp <. not equal
             {
-                handler.SendSysMessage(CypherStrings.CommandNpcShowlootLabel, "Standard items", loot.items.Count);
+                handler.SendSysMessage(ForeverStrings.CommandNpcShowlootLabel, "Standard items", loot.items.Count);
                 foreach (LootItem item in loot.items)
                     if (!item.is_looted)
                         _ShowLootEntry(handler, item.itemid, item.count);
             }
             else
             {
-                handler.SendSysMessage(CypherStrings.CommandNpcShowlootLabel, "Standard items", loot.items.Count);
+                handler.SendSysMessage(ForeverStrings.CommandNpcShowlootLabel, "Standard items", loot.items.Count);
                 foreach (LootItem item in loot.items)
                     if (!item.is_looted && !item.freeforall && item.conditions.IsEmpty())
                         _ShowLootEntry(handler, item.itemid, item.count);
 
                 if (!loot.GetPlayerFFAItems().Empty())
                 {
-                    handler.SendSysMessage(CypherStrings.CommandNpcShowlootLabel2, "FFA items per allowed player");
+                    handler.SendSysMessage(ForeverStrings.CommandNpcShowlootLabel2, "FFA items per allowed player");
                     _IterateNotNormalLootMap(handler, loot.GetPlayerFFAItems(), loot.items);
                 }
             }
@@ -395,11 +395,11 @@ namespace Game.Chat
             List<WorldObject> creatureList = new();
             if (!player.GetMap().SpawnGroupSpawn(groupId, ignoreRespawn, force, creatureList))
             {
-                handler.SendSysMessage(CypherStrings.SpawngroupBadgroup, groupId);
+                handler.SendSysMessage(ForeverStrings.SpawngroupBadgroup, groupId);
                 return false;
             }
 
-            handler.SendSysMessage(CypherStrings.SpawngroupSpawncount, creatureList.Count);
+            handler.SendSysMessage(ForeverStrings.SpawngroupSpawncount, creatureList.Count);
 
             return true;
         }
@@ -410,7 +410,7 @@ namespace Game.Chat
             Creature creatureTarget = handler.GetSelectedCreature();
             if (creatureTarget == null || creatureTarget.IsPet())
             {
-                handler.SendSysMessage(CypherStrings.SelectCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCreature);
                 return false;
             }
 
@@ -418,7 +418,7 @@ namespace Game.Chat
 
             if (!player.GetPetGUID().IsEmpty())
             {
-                handler.SendSysMessage(CypherStrings.YouAlreadyHavePet);
+                handler.SendSysMessage(ForeverStrings.YouAlreadyHavePet);
                 return false;
             }
 
@@ -426,7 +426,7 @@ namespace Game.Chat
 
             if (!cInfo.IsTameable(player.CanTameExoticPets(), creatureTarget.GetCreatureTemplateStats()))
             {
-                handler.SendSysMessage(CypherStrings.CreatureNonTameable, cInfo.Entry);
+                handler.SendSysMessage(ForeverStrings.CreatureNonTameable, cInfo.Entry);
                 return false;
             }
 
@@ -434,7 +434,7 @@ namespace Game.Chat
             Pet pet = player.CreateTamedPetFrom(creatureTarget);
             if (pet == null)
             {
-                handler.SendSysMessage(CypherStrings.CreatureNonTameable, cInfo.Entry);
+                handler.SendSysMessage(ForeverStrings.CreatureNonTameable, cInfo.Entry);
                 return false;
             }
 
@@ -477,7 +477,7 @@ namespace Game.Chat
             Creature creature = handler.GetSelectedCreature();
             if (creature == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCreature);
                 return false;
             }
 
@@ -491,14 +491,14 @@ namespace Game.Chat
         {
             if (text.IsEmpty())
             {
-                handler.SendSysMessage(CypherStrings.CmdSyntax);
+                handler.SendSysMessage(ForeverStrings.CmdSyntax);
                 return false;
             }
 
             Creature creature = handler.GetSelectedCreature();
             if (creature == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCreature);
                 return false;
             }
 
@@ -520,7 +520,7 @@ namespace Game.Chat
             Creature creature = handler.GetSelectedCreature();
             if (creature == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCreature);
                 return false;
             }
 
@@ -541,8 +541,8 @@ namespace Game.Chat
                 name = itemTemplate.GetName(handler.GetSessionDbcLocale());
 
             handler.SendSysMessage(alternateString 
-                ? CypherStrings.CommandNpcShowlootEntry2 
-                : CypherStrings.CommandNpcShowlootEntry,
+                ? ForeverStrings.CommandNpcShowlootEntry2 
+                : ForeverStrings.CommandNpcShowlootEntry,
                 itemCount, 
                 ItemConst.ItemQualityColors[(int)(itemTemplate != null ? itemTemplate.GetQuality() : ItemQuality.Poor)], 
                 itemId, name, itemId);
@@ -558,7 +558,7 @@ namespace Game.Chat
 
                 Player player = Global.ObjAccessor.FindConnectedPlayer(key);
                 handler.SendSysMessage(
-                    CypherStrings.CommandNpcShowlootSublabel, 
+                    ForeverStrings.CommandNpcShowlootSublabel, 
                     player != null ? player.GetName() : $"Offline player (GUID {key})", 
                     list.Count);
 
@@ -635,14 +635,14 @@ namespace Game.Chat
             {
                 if (itemId == 0)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandNeeditemsend);
+                    handler.SendSysMessage(ForeverStrings.CommandNeeditemsend);
                     return false;
                 }
 
                 Creature vendor = handler.GetSelectedCreature();
                 if (vendor == null)
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCreature);
                     return false;
                 }
 
@@ -679,7 +679,7 @@ namespace Game.Chat
                 ItemTemplate itemTemplate = Global.ObjectMgr.GetItemTemplate(itemId);
 
                 handler.SendSysMessage(
-                    CypherStrings.ItemAddedToList, itemId, itemTemplate.GetName(), 
+                    ForeverStrings.ItemAddedToList, itemId, itemTemplate.GetName(), 
                     maxcount, incrtime, extendedcost);
                 return true;
             }
@@ -691,7 +691,7 @@ namespace Game.Chat
                 CreatureData data = Global.ObjectMgr.GetCreatureData(lowGuid);
                 if (data == null)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandCreatguidnotfound, lowGuid);
+                    handler.SendSysMessage(ForeverStrings.CommandCreatguidnotfound, lowGuid);
                     return false;
                 }
 
@@ -701,7 +701,7 @@ namespace Game.Chat
                 stmt.SetInt64(1, lowGuid);
                 DB.World.Execute(stmt);
 
-                handler.SendSysMessage(CypherStrings.WaypointAdded);
+                handler.SendSysMessage(ForeverStrings.WaypointAdded);
 
                 return true;
             }
@@ -712,7 +712,7 @@ namespace Game.Chat
                 Creature creature = handler.GetSelectedCreature();
                 if (creature == null || creature.GetSpawnId() == 0)
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCreature);
                     return false;
                 }
 
@@ -791,7 +791,7 @@ namespace Game.Chat
                     Creature creature = handler.GetSelectedCreature();
                     if (creature == null || creature.IsPet() || creature.IsTotem())
                     {
-                        handler.SendSysMessage(CypherStrings.SelectCreature);
+                        handler.SendSysMessage(ForeverStrings.SelectCreature);
                         return false;
                     }
 
@@ -799,7 +799,7 @@ namespace Game.Chat
                     if (summon != null)
                     {
                         summon.UnSummon();
-                        handler.SendSysMessage(CypherStrings.CommandDelcreatmessage);
+                        handler.SendSysMessage(ForeverStrings.CommandDelcreatmessage);
                         return true;
                     }
                     spawnId = creature.GetSpawnId();
@@ -807,11 +807,11 @@ namespace Game.Chat
 
                 if (Creature.DeleteFromDB(spawnId))
                 {
-                    handler.SendSysMessage(CypherStrings.CommandDelcreatmessage);
+                    handler.SendSysMessage(ForeverStrings.CommandDelcreatmessage);
                     return true;
                 }
 
-                handler.SendSysMessage(CypherStrings.CommandCreatguidnotfound, spawnId);
+                handler.SendSysMessage(ForeverStrings.CommandCreatguidnotfound, spawnId);
                 return false;
             }
 
@@ -821,7 +821,7 @@ namespace Game.Chat
                 Creature vendor = handler.GetSelectedCreature();
                 if (vendor == null || !vendor.IsVendor())
                 {
-                    handler.SendSysMessage(CypherStrings.CommandVendorselection);
+                    handler.SendSysMessage(ForeverStrings.CommandVendorselection);
                     return false;
                 }
 
@@ -830,12 +830,12 @@ namespace Game.Chat
 
                 if (!Global.ObjectMgr.RemoveVendorItem(vendor.GetEntry(), itemId, ItemVendorType.Item))
                 {
-                    handler.SendSysMessage(CypherStrings.ItemNotInList, itemId);
+                    handler.SendSysMessage(ForeverStrings.ItemNotInList, itemId);
                     return false;
                 }
 
                 ItemTemplate itemTemplate = Global.ObjectMgr.GetItemTemplate(itemId);
-                handler.SendSysMessage(CypherStrings.ItemDeletedFromList, itemId, itemTemplate.GetName());
+                handler.SendSysMessage(ForeverStrings.ItemDeletedFromList, itemId, itemTemplate.GetName());
                 return true;
             }
         }
@@ -851,14 +851,14 @@ namespace Game.Chat
 
                 if (creature == null)
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCreature);
                     return false;
                 }
 
                 // Follow player - Using pet's default dist and angle
                 creature.GetMotionMaster().MoveFollow(player, SharedConst.PetFollowDist, creature.GetFollowAngle());
 
-                handler.SendSysMessage(CypherStrings.CreatureFollowYouNow, creature.GetName());
+                handler.SendSysMessage(ForeverStrings.CreatureFollowYouNow, creature.GetName());
                 return true;
             }
 
@@ -870,7 +870,7 @@ namespace Game.Chat
 
                 if (creature == null)
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCreature);
                     return false;
                 }
 
@@ -886,12 +886,12 @@ namespace Game.Chat
 
                 if (movement != null)
                 {
-                    handler.SendSysMessage(CypherStrings.CreatureNotFollowYou, creature.GetName());
+                    handler.SendSysMessage(ForeverStrings.CreatureNotFollowYou, creature.GetName());
                     return false;
                 }
 
                 creature.GetMotionMaster().Remove(movement);
-                handler.SendSysMessage(CypherStrings.CreatureNotFollowYouNow, creature.GetName());
+                handler.SendSysMessage(ForeverStrings.CreatureNotFollowYouNow, creature.GetName());
                 return true;
             }
         }
@@ -923,7 +923,7 @@ namespace Game.Chat
                 Creature creature = handler.GetSelectedCreature();
                 if (creature == null)
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCreature);
                     return false;
                 }
 
@@ -938,7 +938,7 @@ namespace Game.Chat
                     : "No AI or Script Name Set");
 
                 handler.SendSysMessage(
-                    CypherStrings.NpcSetdata, creature.GetGUID(), creature.GetEntry(), 
+                    ForeverStrings.NpcSetdata, creature.GetGUID(), creature.GetEntry(), 
                     creature.GetName(), data_1, data_2, AIorScript);
 
                 return true;
@@ -953,14 +953,14 @@ namespace Game.Chat
                 Unit unit = handler.GetSelectedUnit();
                 if (unit == null || !unit.IsTypeId(TypeId.Unit))
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCreature);
                     return false;
                 }
                 Creature creature = unit.ToCreature();
                 if (creature.UpdateEntry(newEntryNum))
-                    handler.SendSysMessage(CypherStrings.Done);
+                    handler.SendSysMessage(ForeverStrings.Done);
                 else
-                    handler.SendSysMessage(CypherStrings.Error);
+                    handler.SendSysMessage(ForeverStrings.Error);
                 return true;
 
             }
@@ -970,14 +970,14 @@ namespace Game.Chat
             {
                 if (!CliDB.FactionTemplateStorage.ContainsKey(factionId))
                 {
-                    handler.SendSysMessage(CypherStrings.WrongFaction, factionId);
+                    handler.SendSysMessage(ForeverStrings.WrongFaction, factionId);
                     return false;
                 }
 
                 Creature creature = handler.GetSelectedCreature();
                 if (creature == null)
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCreature);
                     return false;
                 }
 
@@ -1008,7 +1008,7 @@ namespace Game.Chat
                 Creature creature = handler.GetSelectedCreature();
                 if (creature == null)
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCreature);
                     return false;
                 }
 
@@ -1020,7 +1020,7 @@ namespace Game.Chat
                 stmt.SetInt32(1, creature.GetEntry());
                 DB.World.Execute(stmt);
 
-                handler.SendSysMessage(CypherStrings.ValueSavedRejoin);
+                handler.SendSysMessage(ForeverStrings.ValueSavedRejoin);
 
                 return true;
             }
@@ -1030,14 +1030,14 @@ namespace Game.Chat
             {
                 if (lvl < 1 || lvl > WorldConfig.Values[WorldCfg.MaxPlayerLevel].Int32 + 3)
                 {
-                    handler.SendSysMessage(CypherStrings.BadValue);
+                    handler.SendSysMessage(ForeverStrings.BadValue);
                     return false;
                 }
 
                 Creature creature = handler.GetSelectedCreature();
                 if (creature == null || creature.IsPet())
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCreature);
                     return false;
                 }
 
@@ -1055,7 +1055,7 @@ namespace Game.Chat
                 Creature creature = handler.GetSelectedCreature();
                 if (creature == null)
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCreature);
                     return false;
                 }
 
@@ -1085,13 +1085,13 @@ namespace Game.Chat
                 Creature creature = handler.GetSelectedCreature();
                 if (creature == null || creature.IsPet())
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCreature);
                     return false;
                 }
 
                 if (!CliDB.CreatureDisplayInfoStorage.ContainsKey(displayId))
                 {
-                    handler.SendSysMessage(CypherStrings.CommandInvalidParam, displayId);
+                    handler.SendSysMessage(ForeverStrings.CommandInvalidParam, displayId);
                     return false;
                 }
 
@@ -1138,7 +1138,7 @@ namespace Game.Chat
                         CreatureData data = Global.ObjectMgr.GetCreatureData(lowguid);
                         if (data == null)
                         {
-                            handler.SendSysMessage(CypherStrings.CommandCreatguidnotfound, lowguid);
+                            handler.SendSysMessage(ForeverStrings.CommandCreatguidnotfound, lowguid);
                             return false;
                         }
                     }
@@ -1186,11 +1186,11 @@ namespace Game.Chat
 
                 if (!doNotDelete)
                 {
-                    handler.SendSysMessage(CypherStrings.MoveTypeSet, type);
+                    handler.SendSysMessage(ForeverStrings.MoveTypeSet, type);
                 }
                 else
                 {
-                    handler.SendSysMessage(CypherStrings.MoveTypeSetNodel, type);
+                    handler.SendSysMessage(ForeverStrings.MoveTypeSetNodel, type);
                 }
 
                 return true;
@@ -1201,14 +1201,14 @@ namespace Game.Chat
             {
                 if (phaseId == 0)
                 {
-                    handler.SendSysMessage(CypherStrings.PhaseNotfound);
+                    handler.SendSysMessage(ForeverStrings.PhaseNotfound);
                     return false;
                 }
 
                 Creature creature = handler.GetSelectedCreature();
                 if (creature == null || creature.IsPet())
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCreature);
                     return false;
                 }
 
@@ -1231,7 +1231,7 @@ namespace Game.Chat
                 Creature creature = handler.GetSelectedCreature();
                 if (creature == null || creature.IsPet())
                 {
-                    handler.SendSysMessage(CypherStrings.SelectCreature);
+                    handler.SendSysMessage(ForeverStrings.SelectCreature);
                     return false;
                 }
 
@@ -1249,7 +1249,7 @@ namespace Game.Chat
             {
                 if (option < 0.0f)
                 {
-                    handler.SendSysMessage(CypherStrings.BadValue);
+                    handler.SendSysMessage(ForeverStrings.BadValue);
                     return false;
                 }
 
@@ -1281,7 +1281,7 @@ namespace Game.Chat
 
                 DB.World.Execute(stmt);
 
-                handler.SendSysMessage(CypherStrings.CommandWanderDistance, option);
+                handler.SendSysMessage(ForeverStrings.CommandWanderDistance, option);
                 return true;
             }
 
@@ -1298,7 +1298,7 @@ namespace Game.Chat
                 DB.World.Execute(stmt);
 
                 creature.SetRespawnDelay((Seconds)spawnTime);
-                handler.SendSysMessage(CypherStrings.CommandSpawntime, spawnTime);
+                handler.SendSysMessage(ForeverStrings.CommandSpawntime, spawnTime);
 
                 return true;
             }

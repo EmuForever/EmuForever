@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -19,21 +19,21 @@ namespace Game.Chat
         {
             if (tele == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandTeleNotfound);
+                handler.SendSysMessage(ForeverStrings.CommandTeleNotfound);
                 return false;
             }
 
             Player player = handler.GetPlayer();
             if (player.IsInCombat() && !handler.GetSession().HasPermission(RBACPermissions.CommandTeleName))
             {
-                handler.SendSysMessage(CypherStrings.YouInCombat);
+                handler.SendSysMessage(ForeverStrings.YouInCombat);
                 return false;
             }
 
             var map = CliDB.MapStorage.LookupByKey(tele.mapId);
             if (map == null || (map.IsBattlegroundOrArena && (player.GetMapId() != tele.mapId || !player.IsGameMaster())))
             {
-                handler.SendSysMessage(CypherStrings.CannotTeleToBg);
+                handler.SendSysMessage(ForeverStrings.CannotTeleToBg);
                 return false;
             }
 
@@ -56,7 +56,7 @@ namespace Game.Chat
 
             if (Global.ObjectMgr.GetGameTeleExactName(name) != null)
             {
-                handler.SendSysMessage(CypherStrings.CommandTpAlreadyexist);
+                handler.SendSysMessage(ForeverStrings.CommandTpAlreadyexist);
                 return false;
             }
 
@@ -71,11 +71,11 @@ namespace Game.Chat
 
             if (Global.ObjectMgr.AddGameTele(tele))
             {
-                handler.SendSysMessage(CypherStrings.CommandTpAdded);
+                handler.SendSysMessage(ForeverStrings.CommandTpAdded);
             }
             else
             {
-                handler.SendSysMessage(CypherStrings.CommandTpAddedErr);
+                handler.SendSysMessage(ForeverStrings.CommandTpAddedErr);
                 return false;
             }
 
@@ -87,12 +87,12 @@ namespace Game.Chat
         {
             if (tele == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandTeleNotfound);
+                handler.SendSysMessage(ForeverStrings.CommandTeleNotfound);
                 return false;
             }
 
             Global.ObjectMgr.DeleteGameTele(tele.name);
-            handler.SendSysMessage(CypherStrings.CommandTpDeleted);
+            handler.SendSysMessage(ForeverStrings.CommandTpDeleted);
             return true;
         }
 
@@ -101,14 +101,14 @@ namespace Game.Chat
         {
             if (tele == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandTeleNotfound);
+                handler.SendSysMessage(ForeverStrings.CommandTeleNotfound);
                 return false;
             }
 
             Player target = handler.GetSelectedPlayer();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
@@ -119,7 +119,7 @@ namespace Game.Chat
             MapRecord map = CliDB.MapStorage.LookupByKey(tele.mapId);
             if (map == null || map.IsBattlegroundOrArena)
             {
-                handler.SendSysMessage(CypherStrings.CannotTeleToBg);
+                handler.SendSysMessage(ForeverStrings.CannotTeleToBg);
                 return false;
             }
 
@@ -128,7 +128,7 @@ namespace Game.Chat
             Group grp = target.GetGroup();
             if (grp == null)
             {
-                handler.SendSysMessage(CypherStrings.NotInGroup, nameLink);
+                handler.SendSysMessage(ForeverStrings.NotInGroup, nameLink);
                 return false;
             }
 
@@ -146,13 +146,13 @@ namespace Game.Chat
 
                 if (player.IsBeingTeleported())
                 {
-                    handler.SendSysMessage(CypherStrings.IsTeleported, plNameLink);
+                    handler.SendSysMessage(ForeverStrings.IsTeleported, plNameLink);
                     continue;
                 }
 
-                handler.SendSysMessage(CypherStrings.TeleportingTo, plNameLink, "", tele.name);
+                handler.SendSysMessage(ForeverStrings.TeleportingTo, plNameLink, "", tele.name);
                 if (handler.NeedReportToTarget(player))
-                    player.SendSysMessage(CypherStrings.TeleportedToBy, nameLink);
+                    player.SendSysMessage(ForeverStrings.TeleportedToBy, nameLink);
 
                 // stop flight if need
                 if (player.IsInFlight())
@@ -170,7 +170,7 @@ namespace Game.Chat
         {
             if (!GridDefines.IsValidMapCoord(mapId, pos) || Global.ObjectMgr.IsTransportMap(mapId))
             {
-                handler.SendSysMessage(CypherStrings.InvalidTargetCoord, pos.GetPositionX(), pos.GetPositionY(), mapId);
+                handler.SendSysMessage(ForeverStrings.InvalidTargetCoord, pos.GetPositionX(), pos.GetPositionY(), mapId);
                 return false;
             }
 
@@ -185,13 +185,13 @@ namespace Game.Chat
 
                 if (target.IsBeingTeleported() == true)
                 {
-                    handler.SendSysMessage(CypherStrings.IsTeleported, chrNameLink);
+                    handler.SendSysMessage(ForeverStrings.IsTeleported, chrNameLink);
                     return false;
                 }
 
-                handler.SendSysMessage(CypherStrings.TeleportingTo, chrNameLink, "", locationName);
+                handler.SendSysMessage(ForeverStrings.TeleportingTo, chrNameLink, "", locationName);
                 if (handler.NeedReportToTarget(target))
-                    target.SendSysMessage(CypherStrings.TeleportedToBy, handler.GetNameLink());
+                    target.SendSysMessage(ForeverStrings.TeleportedToBy, handler.GetNameLink());
 
                 // stop flight if need
                 if (target.IsInFlight())
@@ -209,7 +209,7 @@ namespace Game.Chat
 
                 string nameLink = handler.PlayerLink(player.GetName());
 
-                handler.SendSysMessage(CypherStrings.TeleportingTo, nameLink, handler.GetCypherString(CypherStrings.Offline), locationName);
+                handler.SendSysMessage(ForeverStrings.TeleportingTo, nameLink, handler.GetForeverString(ForeverStrings.Offline), locationName);
 
                 Player.SavePositionInDB(new WorldLocation(mapId, pos), Global.TerrainMgr.GetZoneId(PhasingHandler.EmptyPhaseShift, new WorldLocation(mapId, pos)), player.GetGUID(), null);
             }
@@ -269,7 +269,7 @@ namespace Game.Chat
                     CreatureData spawnpoint = Global.ObjectMgr.GetCreatureData(spawnId);
                     if (spawnpoint == null)
                     {
-                        handler.SendSysMessage(CypherStrings.CommandGocreatnotfound);
+                        handler.SendSysMessage(ForeverStrings.CommandGocreatnotfound);
                         return false;
                     }
 
@@ -294,14 +294,14 @@ namespace Game.Chat
                             spawnpoint = creatureData;
                         else
                         {
-                            handler.SendSysMessage(CypherStrings.CommandGocreatmultiple);
+                            handler.SendSysMessage(ForeverStrings.CommandGocreatmultiple);
                             break;
                         }
                     }
 
                     if (spawnpoint == null)
                     {
-                        handler.SendSysMessage(CypherStrings.CommandGocreatnotfound);
+                        handler.SendSysMessage(ForeverStrings.CommandGocreatnotfound);
                         return false;
                     }
 
@@ -323,12 +323,12 @@ namespace Game.Chat
                     SQLResult result = DB.World.Query($"SELECT c.position_x, c.position_y, c.position_z, c.orientation, c.map, ct.name FROM creature c INNER JOIN creature_template ct ON c.id = ct.entry WHERE ct.name LIKE '{normalizedName}'");
                     if (result.IsEmpty())
                     {
-                        handler.SendSysMessage(CypherStrings.CommandGocreatnotfound);
+                        handler.SendSysMessage(ForeverStrings.CommandGocreatnotfound);
                         return false;
                     }
 
                     if (result.NextRow())
-                        handler.SendSysMessage(CypherStrings.CommandGocreatmultiple);
+                        handler.SendSysMessage(ForeverStrings.CommandGocreatmultiple);
 
                     return DoNameTeleport(handler, player, result.Read<ushort>(4), new Position(result.Read<float>(0), result.Read<float>(1), result.Read<float>(2), result.Read<float>(3)), result.Read<string>(5));
                 }

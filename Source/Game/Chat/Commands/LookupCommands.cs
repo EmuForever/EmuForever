@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -54,7 +54,7 @@ namespace Game.Chat
                 {
                     if (maxResults != 0 && count++ == maxResults)
                     {
-                        handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                        handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                         return true;
                     }
 
@@ -73,7 +73,7 @@ namespace Game.Chat
             }
 
             if (!found)
-                handler.SendSysMessage(CypherStrings.CommandNoareafound);
+                handler.SendSysMessage(ForeverStrings.CommandNoareafound);
 
             return true;
         }
@@ -102,14 +102,14 @@ namespace Game.Chat
                         {
                             if (maxResults != 0 && count++ == maxResults)
                             {
-                                handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                                handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                                 return true;
                             }
 
                             if (handler.GetSession() != null)
-                                handler.SendSysMessage(CypherStrings.CreatureEntryListChat, id, id, name);
+                                handler.SendSysMessage(ForeverStrings.CreatureEntryListChat, id, id, name);
                             else
-                                handler.SendSysMessage(CypherStrings.CreatureEntryListConsole, id, name);
+                                handler.SendSysMessage(ForeverStrings.CreatureEntryListConsole, id, name);
 
                             if (!found)
                                 found = true;
@@ -127,14 +127,14 @@ namespace Game.Chat
                 {
                     if (maxResults != 0 && count++ == maxResults)
                     {
-                        handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                        handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                         return true;
                     }
 
                     if (handler.GetSession() != null)
-                        handler.SendSysMessage(CypherStrings.CreatureEntryListChat, id, id, _name);
+                        handler.SendSysMessage(ForeverStrings.CreatureEntryListChat, id, id, _name);
                     else
-                        handler.SendSysMessage(CypherStrings.CreatureEntryListConsole, id, _name);
+                        handler.SendSysMessage(ForeverStrings.CreatureEntryListConsole, id, _name);
 
                     if (!found)
                         found = true;
@@ -142,7 +142,7 @@ namespace Game.Chat
             }
 
             if (!found)
-                handler.SendSysMessage(CypherStrings.CommandNocreaturefound);
+                handler.SendSysMessage(ForeverStrings.CommandNocreaturefound);
 
             return true;
         }
@@ -170,16 +170,16 @@ namespace Game.Chat
                 {
                     if (maxResults != 0 && count++ == maxResults)
                     {
-                        handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                        handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                         return true;
                     }
 
-                    string active = activeEvents.Contains(id) ? handler.GetCypherString(CypherStrings.Active) : "";
+                    string active = activeEvents.Contains(id) ? handler.GetForeverString(ForeverStrings.Active) : "";
 
                     if (handler.GetSession() != null)
-                        handler.SendSysMessage(CypherStrings.EventEntryListChat, id, id, eventData.description, active);
+                        handler.SendSysMessage(ForeverStrings.EventEntryListChat, id, id, eventData.description, active);
                     else
-                        handler.SendSysMessage(CypherStrings.EventEntryListConsole, id, eventData.description, active);
+                        handler.SendSysMessage(ForeverStrings.EventEntryListConsole, id, eventData.description, active);
 
                     if (!found)
                         found = true;
@@ -187,7 +187,7 @@ namespace Game.Chat
             }
 
             if (!found)
-                handler.SendSysMessage(CypherStrings.Noeventfound);
+                handler.SendSysMessage(ForeverStrings.Noeventfound);
 
             return true;
         }
@@ -234,7 +234,7 @@ namespace Game.Chat
                 {
                     if (maxResults != 0 && count++ == maxResults)
                     {
-                        handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                        handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                         return true;
                     }
 
@@ -248,26 +248,26 @@ namespace Game.Chat
 
                     if (factionState != null) // and then target != NULL also
                     {
-                        CypherStrings index = target.GetReputationMgr().GetReputationRankStrIndex(factionEntry);
-                        string rankName = handler.GetCypherString(index);
+                        ForeverStrings index = target.GetReputationMgr().GetReputationRankStrIndex(factionEntry);
+                        string rankName = handler.GetForeverString(index);
 
                         ss.AppendFormat(" {0}|h|r ({1})", rankName, target.GetReputationMgr().GetReputation(factionEntry));
 
                         if (factionState.Flags.HasFlag(ReputationFlags.Visible))
-                            ss.Append(handler.GetCypherString(CypherStrings.FactionVisible));
+                            ss.Append(handler.GetForeverString(ForeverStrings.FactionVisible));
                         if (factionState.Flags.HasFlag(ReputationFlags.AtWar))
-                            ss.Append(handler.GetCypherString(CypherStrings.FactionAtwar));
+                            ss.Append(handler.GetForeverString(ForeverStrings.FactionAtwar));
                         if (factionState.Flags.HasFlag(ReputationFlags.Peaceful))
-                            ss.Append(handler.GetCypherString(CypherStrings.FactionPeaceForced));
+                            ss.Append(handler.GetForeverString(ForeverStrings.FactionPeaceForced));
                         if (factionState.Flags.HasFlag(ReputationFlags.Hidden))
-                            ss.Append(handler.GetCypherString(CypherStrings.FactionHidden));
+                            ss.Append(handler.GetForeverString(ForeverStrings.FactionHidden));
                         if (factionState.Flags.HasFlag(ReputationFlags.Header))
-                            ss.Append(handler.GetCypherString(CypherStrings.FactionInvisibleForced));
+                            ss.Append(handler.GetForeverString(ForeverStrings.FactionInvisibleForced));
                         if (factionState.Flags.HasFlag(ReputationFlags.Inactive))
-                            ss.Append(handler.GetCypherString(CypherStrings.FactionInactive));
+                            ss.Append(handler.GetForeverString(ForeverStrings.FactionInactive));
                     }
                     else
-                        ss.Append(handler.GetCypherString(CypherStrings.FactionNoreputation));
+                        ss.Append(handler.GetForeverString(ForeverStrings.FactionNoreputation));
 
                     handler.SendSysMessage(ss.ToString());
 
@@ -278,7 +278,7 @@ namespace Game.Chat
             }
 
             if (!found)
-                handler.SendSysMessage(CypherStrings.CommandFactionNotfound);
+                handler.SendSysMessage(ForeverStrings.CommandFactionNotfound);
             return true;
         }
 
@@ -319,22 +319,22 @@ namespace Game.Chat
                 {
                     if (maxResults != 0 && count++ == maxResults)
                     {
-                        handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                        handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                         return true;
                     }
 
                     // send item set in "id - [namedlink locale]" format
                     if (handler.GetSession() != null)
-                        handler.SendSysMessage(CypherStrings.ItemsetListChat, set.Id, set.Id, name, "");
+                        handler.SendSysMessage(ForeverStrings.ItemsetListChat, set.Id, set.Id, name, "");
                     else
-                        handler.SendSysMessage(CypherStrings.ItemsetListConsole, set.Id, name, "");
+                        handler.SendSysMessage(ForeverStrings.ItemsetListConsole, set.Id, name, "");
 
                     if (!found)
                         found = true;
                 }
             }
             if (!found)
-                handler.SendSysMessage(CypherStrings.CommandNoitemsetfound);
+                handler.SendSysMessage(ForeverStrings.CommandNoitemsetfound);
 
             return true;
         }
@@ -361,14 +361,14 @@ namespace Game.Chat
                         {
                             if (maxResults != 0 && count++ == maxResults)
                             {
-                                handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                                handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                                 return true;
                             }
 
                             if (handler.GetSession() != null)
-                                handler.SendSysMessage(CypherStrings.GoEntryListChat, template.entry, template.entry, name);
+                                handler.SendSysMessage(ForeverStrings.GoEntryListChat, template.entry, template.entry, name);
                             else
-                                handler.SendSysMessage(CypherStrings.GoEntryListConsole, template.entry, name);
+                                handler.SendSysMessage(ForeverStrings.GoEntryListConsole, template.entry, name);
 
                             if (!found)
                                 found = true;
@@ -386,14 +386,14 @@ namespace Game.Chat
                 {
                     if (maxResults != 0 && count++ == maxResults)
                     {
-                        handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                        handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                         return true;
                     }
 
                     if (handler.GetSession() != null)
-                        handler.SendSysMessage(CypherStrings.GoEntryListChat, template.entry, template.entry, _name);
+                        handler.SendSysMessage(ForeverStrings.GoEntryListChat, template.entry, template.entry, _name);
                     else
-                        handler.SendSysMessage(CypherStrings.GoEntryListConsole, template.entry, _name);
+                        handler.SendSysMessage(ForeverStrings.GoEntryListConsole, template.entry, _name);
 
                     if (!found)
                         found = true;
@@ -401,7 +401,7 @@ namespace Game.Chat
             }
 
             if (!found)
-                handler.SendSysMessage(CypherStrings.CommandNogameobjectfound);
+                handler.SendSysMessage(ForeverStrings.CommandNogameobjectfound);
 
             return true;
         }
@@ -443,7 +443,7 @@ namespace Game.Chat
                 {
                     if (maxResults != 0 && count++ == maxResults)
                     {
-                        handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                        handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                         return true;
                     }
 
@@ -451,21 +451,21 @@ namespace Game.Chat
                     string knownStr = "";
                     if (target != null && target.HasSkill(skillInfo.Id))
                     {
-                        knownStr = handler.GetCypherString(CypherStrings.Known);
+                        knownStr = handler.GetForeverString(ForeverStrings.Known);
                         uint curValue = target.GetPureSkillValue(skillInfo.Id);
                         uint maxValue = target.GetPureMaxSkillValue(skillInfo.Id);
                         uint permValue = target.GetSkillPermBonusValue(skillInfo.Id);
                         uint tempValue = target.GetSkillTempBonusValue(skillInfo.Id);
 
-                        string valFormat = handler.GetCypherString(CypherStrings.SkillValues);
+                        string valFormat = handler.GetForeverString(ForeverStrings.SkillValues);
                         valStr = string.Format(valFormat, curValue, maxValue, permValue, tempValue);
                     }
 
                     // send skill in "id - [namedlink locale]" format
                     if (handler.GetSession() != null)
-                        handler.SendSysMessage(CypherStrings.SkillListChat, skillInfo.Id, skillInfo.Id, name, "", knownStr, valStr);
+                        handler.SendSysMessage(ForeverStrings.SkillListChat, skillInfo.Id, skillInfo.Id, name, "", knownStr, valStr);
                     else
-                        handler.SendSysMessage(CypherStrings.SkillListConsole, skillInfo.Id, name, "", knownStr, valStr);
+                        handler.SendSysMessage(ForeverStrings.SkillListConsole, skillInfo.Id, name, "", knownStr, valStr);
 
                     if (!found)
                         found = true;
@@ -473,7 +473,7 @@ namespace Game.Chat
 
             }
             if (!found)
-                handler.SendSysMessage(CypherStrings.CommandNoskillfound);
+                handler.SendSysMessage(ForeverStrings.CommandNoskillfound);
 
             return true;
         }
@@ -497,16 +497,16 @@ namespace Game.Chat
 
                 if (maxResults != 0 && count++ == maxResults)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                    handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                     return true;
                 }
 
                 // send taxinode in "id - [name] (Map:m X:x Y:y Z:z)" format
                 if (handler.GetSession() != null)
-                    handler.SendSysMessage(CypherStrings.TaxinodeEntryListChat, nodeEntry.Id, nodeEntry.Id, name, "",
+                    handler.SendSysMessage(ForeverStrings.TaxinodeEntryListChat, nodeEntry.Id, nodeEntry.Id, name, "",
                         nodeEntry.ContinentID, nodeEntry.Pos.X, nodeEntry.Pos.Y, nodeEntry.Pos.Z);
                 else
-                    handler.SendSysMessage(CypherStrings.TaxinodeEntryListConsole, nodeEntry.Id, name, "",
+                    handler.SendSysMessage(ForeverStrings.TaxinodeEntryListConsole, nodeEntry.Id, name, "",
                         nodeEntry.ContinentID, nodeEntry.Pos.X, nodeEntry.Pos.Y, nodeEntry.Pos.Z);
 
                 if (!found)
@@ -514,7 +514,7 @@ namespace Game.Chat
 
             }
             if (!found)
-                handler.SendSysMessage(CypherStrings.CommandNotaxinodefound);
+                handler.SendSysMessage(ForeverStrings.CommandNotaxinodefound);
 
             return true;
         }
@@ -546,12 +546,12 @@ namespace Game.Chat
             }
 
             if (reply.Capacity == 0)
-                handler.SendSysMessage(CypherStrings.CommandTeleNolocation);
+                handler.SendSysMessage(ForeverStrings.CommandTeleNolocation);
             else
-                handler.SendSysMessage(CypherStrings.CommandTeleLocation, reply.ToString());
+                handler.SendSysMessage(ForeverStrings.CommandTeleLocation, reply.ToString());
 
             if (limitReached)
-                handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
 
             return true;
         }
@@ -600,22 +600,22 @@ namespace Game.Chat
                     {
                         if (maxResults != 0 && counter == maxResults)
                         {
-                            handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                            handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                             return true;
                         }
 
-                        string knownStr = target != null && target.HasTitle(titleInfo) ? handler.GetCypherString(CypherStrings.Known) : "";
+                        string knownStr = target != null && target.HasTitle(titleInfo) ? handler.GetForeverString(ForeverStrings.Known) : "";
 
                         string activeStr = target != null && target.m_playerData.PlayerTitle == titleInfo.MaskID
-                            ? handler.GetCypherString(CypherStrings.Active) : "";
+                            ? handler.GetForeverString(ForeverStrings.Active) : "";
 
                         string titleNameStr = string.Format(name.ConvertFormatSyntax(), targetName);
 
                         // send title in "id (idx:idx) - [namedlink locale]" format
                         if (handler.GetSession() != null)
-                            handler.SendSysMessage(CypherStrings.TitleListChat, titleInfo.Id, titleInfo.MaskID, titleInfo.Id, titleNameStr, "", knownStr, activeStr);
+                            handler.SendSysMessage(ForeverStrings.TitleListChat, titleInfo.Id, titleInfo.MaskID, titleInfo.Id, titleNameStr, "", knownStr, activeStr);
                         else
-                            handler.SendSysMessage(CypherStrings.TitleListConsole, titleInfo.Id, titleInfo.MaskID, titleNameStr, "", knownStr, activeStr);
+                            handler.SendSysMessage(ForeverStrings.TitleListConsole, titleInfo.Id, titleInfo.MaskID, titleNameStr, "", knownStr, activeStr);
 
                         ++counter;
                     }
@@ -623,7 +623,7 @@ namespace Game.Chat
 
             }
             if (counter == 0)  // if counter == 0 then we found nth
-                handler.SendSysMessage(CypherStrings.CommandNotitlefound);
+                handler.SendSysMessage(ForeverStrings.CommandNotitlefound);
 
             return true;
         }
@@ -649,14 +649,14 @@ namespace Game.Chat
                     {
                         if (maxResults != 0 && count++ == maxResults)
                         {
-                            handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                            handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                             return true;
                         }
 
                         if (handler.GetSession() != null)
-                            handler.SendSysMessage(CypherStrings.ItemListChat, template.GetId(), template.GetId(), name);
+                            handler.SendSysMessage(ForeverStrings.ItemListChat, template.GetId(), template.GetId(), name);
                         else
-                            handler.SendSysMessage(CypherStrings.ItemListConsole, template.GetId(), name);
+                            handler.SendSysMessage(ForeverStrings.ItemListConsole, template.GetId(), name);
 
                         if (!found)
                             found = true;
@@ -664,7 +664,7 @@ namespace Game.Chat
                 }
 
                 if (!found)
-                    handler.SendSysMessage(CypherStrings.CommandNoitemfound);
+                    handler.SendSysMessage(ForeverStrings.CommandNoitemfound);
 
                 return true;
             }
@@ -679,17 +679,17 @@ namespace Game.Chat
 
                     if (name.IsEmpty())
                     {
-                        handler.SendSysMessage(CypherStrings.CommandNoitemfound);
+                        handler.SendSysMessage(ForeverStrings.CommandNoitemfound);
                         return true;
                     }
 
                     if (handler.GetSession() != null)
-                        handler.SendSysMessage(CypherStrings.ItemListChat, id, id, name);
+                        handler.SendSysMessage(ForeverStrings.ItemListChat, id, id, name);
                     else
-                        handler.SendSysMessage(CypherStrings.ItemListConsole, id, name);
+                        handler.SendSysMessage(ForeverStrings.ItemListConsole, id, name);
                 }
                 else
-                    handler.SendSysMessage(CypherStrings.CommandNoitemfound);
+                    handler.SendSysMessage(ForeverStrings.CommandNoitemfound);
 
                 return true;
             }
@@ -733,22 +733,22 @@ namespace Game.Chat
                     {
                         if (maxResults > 0 && count++ == maxResults)
                         {
-                            handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                            handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                             return true;
                         }
 
                         // send item set in "id - [namedlink locale]" format
                         if (handler.GetSession() != null)
-                            handler.SendSysMessage(CypherStrings.ItemsetListChat, id, id, name, "");
+                            handler.SendSysMessage(ForeverStrings.ItemsetListChat, id, id, name, "");
                         else
-                            handler.SendSysMessage(CypherStrings.ItemsetListConsole, id, name, "");
+                            handler.SendSysMessage(ForeverStrings.ItemsetListConsole, id, name, "");
 
                         if (!found)
                             found = true;
                     }
                 }
                 if (!found)
-                    handler.SendSysMessage(CypherStrings.CommandNoitemsetfound);
+                    handler.SendSysMessage(ForeverStrings.CommandNoitemsetfound);
 
                 return true;
             }
@@ -794,7 +794,7 @@ namespace Game.Chat
                     {
                         if (maxResults != 0 && counter == maxResults)
                         {
-                            handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                            handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                             return true;
                         }
 
@@ -802,21 +802,21 @@ namespace Game.Chat
                         ss.Append(mapInfo.Id + " - [" + name + ']');
 
                         if (mapInfo.IsContinent)
-                            ss.Append(handler.GetCypherString(CypherStrings.Continent));
+                            ss.Append(handler.GetForeverString(ForeverStrings.Continent));
 
                         switch (mapInfo.InstanceType)
                         {
                             case MapTypes.Instance:
-                                ss.Append(handler.GetCypherString(CypherStrings.Instance));
+                                ss.Append(handler.GetForeverString(ForeverStrings.Instance));
                                 break;
                             case MapTypes.Raid:
-                                ss.Append(handler.GetCypherString(CypherStrings.Raid));
+                                ss.Append(handler.GetForeverString(ForeverStrings.Raid));
                                 break;
                             case MapTypes.Battleground:
-                                ss.Append(handler.GetCypherString(CypherStrings.Battleground));
+                                ss.Append(handler.GetForeverString(ForeverStrings.Battleground));
                                 break;
                             case MapTypes.Arena:
-                                ss.Append(handler.GetCypherString(CypherStrings.Arena));
+                                ss.Append(handler.GetForeverString(ForeverStrings.Arena));
                                 break;
                         }
 
@@ -827,7 +827,7 @@ namespace Game.Chat
                 }
 
                 if (counter == 0)
-                    handler.SendSysMessage(CypherStrings.CommandNomapfound);
+                    handler.SendSysMessage(ForeverStrings.CommandNomapfound);
 
                 return true;
             }
@@ -842,7 +842,7 @@ namespace Game.Chat
                     string name = mapInfo.MapName[locale];
                     if (name.IsEmpty())
                     {
-                        handler.SendSysMessage(CypherStrings.CommandNomapfound);
+                        handler.SendSysMessage(ForeverStrings.CommandNomapfound);
                         return true;
                     }
 
@@ -850,31 +850,31 @@ namespace Game.Chat
                     ss.Append($"{id} - [{name}]");
 
                     if (mapInfo.IsContinent)
-                        ss.Append(handler.GetCypherString(CypherStrings.Continent));
+                        ss.Append(handler.GetForeverString(ForeverStrings.Continent));
 
                     switch (mapInfo.InstanceType)
                     {
                         case MapTypes.Instance:
-                            ss.Append(handler.GetCypherString(CypherStrings.Instance));
+                            ss.Append(handler.GetForeverString(ForeverStrings.Instance));
                             break;
                         case MapTypes.Raid:
-                            ss.Append(handler.GetCypherString(CypherStrings.Raid));
+                            ss.Append(handler.GetForeverString(ForeverStrings.Raid));
                             break;
                         case MapTypes.Battleground:
-                            ss.Append(handler.GetCypherString(CypherStrings.Battleground));
+                            ss.Append(handler.GetForeverString(ForeverStrings.Battleground));
                             break;
                         case MapTypes.Arena:
-                            ss.Append(handler.GetCypherString(CypherStrings.Arena));
+                            ss.Append(handler.GetForeverString(ForeverStrings.Arena));
                             break;
                         case MapTypes.Scenario:
-                            ss.Append(handler.GetCypherString(CypherStrings.Scenario));
+                            ss.Append(handler.GetForeverString(ForeverStrings.Scenario));
                             break;
                     }
 
                     handler.SendSysMessage(ss.ToString());
                 }
                 else
-                    handler.SendSysMessage(CypherStrings.CommandNomapfound);
+                    handler.SendSysMessage(ForeverStrings.CommandNomapfound);
 
                 return true;
             }
@@ -924,7 +924,7 @@ namespace Game.Chat
             {
                 if (result.IsEmpty())
                 {
-                    handler.SendSysMessage(CypherStrings.NoPlayersFound);
+                    handler.SendSysMessage(ForeverStrings.NoPlayersFound);
                     return false;
                 }
 
@@ -934,7 +934,7 @@ namespace Game.Chat
                 {
                     if (maxResults != 0 && count++ == maxResults)
                     {
-                        handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                        handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                         return true;
                     }
                     uint accountId = result.Read<uint>(0);
@@ -946,7 +946,7 @@ namespace Game.Chat
 
                     if (!result2.IsEmpty())
                     {
-                        handler.SendSysMessage(CypherStrings.LookupPlayerAccount, accountName, accountId);
+                        handler.SendSysMessage(ForeverStrings.LookupPlayerAccount, accountName, accountId);
 
                         do
                         {
@@ -954,7 +954,7 @@ namespace Game.Chat
                             string name = result2.Read<string>(1);
                             bool online = result2.Read<bool>(2);
 
-                            handler.SendSysMessage(CypherStrings.LookupPlayerCharacter, name, guid.ToString(), online ? handler.GetCypherString(CypherStrings.Online) : "");
+                            handler.SendSysMessage(ForeverStrings.LookupPlayerCharacter, name, guid.ToString(), online ? handler.GetForeverString(ForeverStrings.Online) : "");
                             ++counter;
                         }
                         while (result2.NextRow() && (limit == -1 || counter < limit));
@@ -964,7 +964,7 @@ namespace Game.Chat
 
                 if (counter == 0) // empty accounts only
                 {
-                    handler.SendSysMessage(CypherStrings.NoPlayersFound);
+                    handler.SendSysMessage(ForeverStrings.NoPlayersFound);
                     return false;
                 }
                 return true;
@@ -1000,7 +1000,7 @@ namespace Game.Chat
                             {
                                 if (maxResults != 0 && count++ == maxResults)
                                 {
-                                    handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                                    handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                                     return true;
                                 }
 
@@ -1011,13 +1011,13 @@ namespace Game.Chat
                                     switch (target.GetQuestStatus(qInfo.Id))
                                     {
                                         case QuestStatus.Complete:
-                                            statusStr = handler.GetCypherString(CypherStrings.CommandQuestComplete);
+                                            statusStr = handler.GetForeverString(ForeverStrings.CommandQuestComplete);
                                             break;
                                         case QuestStatus.Incomplete:
-                                            statusStr = handler.GetCypherString(CypherStrings.CommandQuestActive);
+                                            statusStr = handler.GetForeverString(ForeverStrings.CommandQuestActive);
                                             break;
                                         case QuestStatus.Rewarded:
-                                            statusStr = handler.GetCypherString(CypherStrings.CommandQuestRewarded);
+                                            statusStr = handler.GetForeverString(ForeverStrings.CommandQuestRewarded);
                                             break;
                                         default:
                                             break;
@@ -1026,7 +1026,7 @@ namespace Game.Chat
 
                                 if (handler.GetSession() != null)
                                 {
-                                    handler.SendSysMessage(CypherStrings.QuestListChat, qInfo.Id, qInfo.Id,
+                                    handler.SendSysMessage(ForeverStrings.QuestListChat, qInfo.Id, qInfo.Id,
                                         handler.GetSession().GetPlayer().GetQuestLevel(qInfo),
                                         qInfo.MinLevel,
                                         qInfo.MaxScalingLevel,
@@ -1034,7 +1034,7 @@ namespace Game.Chat
                                         title, statusStr);
                                 }
                                 else
-                                    handler.SendSysMessage(CypherStrings.QuestListConsole, qInfo.Id, title, statusStr);
+                                    handler.SendSysMessage(ForeverStrings.QuestListConsole, qInfo.Id, title, statusStr);
 
                                 if (!found)
                                     found = true;
@@ -1052,7 +1052,7 @@ namespace Game.Chat
                     {
                         if (maxResults != 0 && count++ == maxResults)
                         {
-                            handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                            handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                             return true;
                         }
 
@@ -1065,13 +1065,13 @@ namespace Game.Chat
                             switch (status)
                             {
                                 case QuestStatus.Complete:
-                                    statusStr = handler.GetCypherString(CypherStrings.CommandQuestComplete);
+                                    statusStr = handler.GetForeverString(ForeverStrings.CommandQuestComplete);
                                     break;
                                 case QuestStatus.Incomplete:
-                                    statusStr = handler.GetCypherString(CypherStrings.CommandQuestActive);
+                                    statusStr = handler.GetForeverString(ForeverStrings.CommandQuestActive);
                                     break;
                                 case QuestStatus.Rewarded:
-                                    statusStr = handler.GetCypherString(CypherStrings.CommandQuestRewarded);
+                                    statusStr = handler.GetForeverString(ForeverStrings.CommandQuestRewarded);
                                     break;
                                 default:
                                     break;
@@ -1080,7 +1080,7 @@ namespace Game.Chat
 
                         if (handler.GetSession() != null)
                         {
-                            handler.SendSysMessage(CypherStrings.QuestListChat, qInfo.Id, qInfo.Id,
+                            handler.SendSysMessage(ForeverStrings.QuestListChat, qInfo.Id, qInfo.Id,
                                 handler.GetSession().GetPlayer().GetQuestLevel(qInfo),
                                 qInfo.MinLevel,
                                 qInfo.MaxScalingLevel,
@@ -1088,7 +1088,7 @@ namespace Game.Chat
                                 _title, statusStr);
                         }
                         else
-                            handler.SendSysMessage(CypherStrings.QuestListConsole, qInfo.Id, _title, statusStr);
+                            handler.SendSysMessage(ForeverStrings.QuestListConsole, qInfo.Id, _title, statusStr);
 
                         if (!found)
                             found = true;
@@ -1096,7 +1096,7 @@ namespace Game.Chat
                 }
 
                 if (!found)
-                    handler.SendSysMessage(CypherStrings.CommandNoquestfound);
+                    handler.SendSysMessage(ForeverStrings.CommandNoquestfound);
 
                 return true;
             }
@@ -1113,7 +1113,7 @@ namespace Game.Chat
                     string title = quest.LogTitle;
                     if (title.IsEmpty())
                     {
-                        handler.SendSysMessage(CypherStrings.CommandNoquestfound);
+                        handler.SendSysMessage(ForeverStrings.CommandNoquestfound);
                         return true;
                     }
 
@@ -1124,13 +1124,13 @@ namespace Game.Chat
                         switch (target.GetQuestStatus(id))
                         {
                             case QuestStatus.Complete:
-                                statusStr = handler.GetCypherString(CypherStrings.CommandQuestComplete);
+                                statusStr = handler.GetForeverString(ForeverStrings.CommandQuestComplete);
                                 break;
                             case QuestStatus.Incomplete:
-                                statusStr = handler.GetCypherString(CypherStrings.CommandQuestActive);
+                                statusStr = handler.GetForeverString(ForeverStrings.CommandQuestActive);
                                 break;
                             case QuestStatus.Rewarded:
-                                statusStr = handler.GetCypherString(CypherStrings.CommandQuestRewarded);
+                                statusStr = handler.GetForeverString(ForeverStrings.CommandQuestRewarded);
                                 break;
                             default:
                                 break;
@@ -1139,7 +1139,7 @@ namespace Game.Chat
 
                     if (handler.GetSession() != null)
                     {
-                        handler.SendSysMessage(CypherStrings.QuestListChat, id, id,
+                        handler.SendSysMessage(ForeverStrings.QuestListChat, id, id,
                             handler.GetSession().GetPlayer().GetQuestLevel(quest),
                             quest.MinLevel,
                             quest.MaxScalingLevel,
@@ -1147,10 +1147,10 @@ namespace Game.Chat
                             title, statusStr);
                     }
                     else
-                        handler.SendSysMessage(CypherStrings.QuestListConsole, id, title, statusStr);
+                        handler.SendSysMessage(ForeverStrings.QuestListConsole, id, title, statusStr);
                 }
                 else
-                    handler.SendSysMessage(CypherStrings.CommandNoquestfound);
+                    handler.SendSysMessage(ForeverStrings.CommandNoquestfound);
 
                 return true;
             }
@@ -1200,7 +1200,7 @@ namespace Game.Chat
                         {
                             if (maxResults != 0 && count++ == maxResults)
                             {
-                                handler.SendSysMessage(CypherStrings.CommandLookupMaxResults, maxResults);
+                                handler.SendSysMessage(ForeverStrings.CommandLookupMaxResults, maxResults);
                                 return true;
                             }
 
@@ -1226,21 +1226,21 @@ namespace Game.Chat
 
                             // include rank in link name
                             if (rank != 0)
-                                ss.Append(handler.GetCypherString(CypherStrings.SpellRank) + rank);
+                                ss.Append(handler.GetForeverString(ForeverStrings.SpellRank) + rank);
 
                             if (handler.GetSession() != null)
                                 ss.Append("]|h|r");
 
                             if (talent)
-                                ss.Append(handler.GetCypherString(CypherStrings.Talent));
+                                ss.Append(handler.GetForeverString(ForeverStrings.Talent));
                             if (passive)
-                                ss.Append(handler.GetCypherString(CypherStrings.Passive));
+                                ss.Append(handler.GetForeverString(ForeverStrings.Passive));
                             if (learnSpellInfo != null)
-                                ss.Append(handler.GetCypherString(CypherStrings.Learn));
+                                ss.Append(handler.GetForeverString(ForeverStrings.Learn));
                             if (known)
-                                ss.Append(handler.GetCypherString(CypherStrings.Known));
+                                ss.Append(handler.GetForeverString(ForeverStrings.Known));
                             if (active)
-                                ss.Append(handler.GetCypherString(CypherStrings.Active));
+                                ss.Append(handler.GetForeverString(ForeverStrings.Active));
 
                             handler.SendSysMessage(ss.ToString());
 
@@ -1250,7 +1250,7 @@ namespace Game.Chat
                     }
                 }
                 if (!found)
-                    handler.SendSysMessage(CypherStrings.CommandNospellfound);
+                    handler.SendSysMessage(ForeverStrings.CommandNospellfound);
 
                 return true;
             }
@@ -1268,7 +1268,7 @@ namespace Game.Chat
                     string name = spellInfo.SpellName[locale];
                     if (string.IsNullOrEmpty(name))
                     {
-                        handler.SendSysMessage(CypherStrings.CommandNospellfound);
+                        handler.SendSysMessage(ForeverStrings.CommandNospellfound);
                         return true;
                     }
 
@@ -1294,26 +1294,26 @@ namespace Game.Chat
 
                     // include rank in link name
                     if (rank != 0)
-                        ss.Append(handler.GetCypherString(CypherStrings.SpellRank) + rank);
+                        ss.Append(handler.GetForeverString(ForeverStrings.SpellRank) + rank);
 
                     if (handler.GetSession() != null)
                         ss.Append("]|h|r");
 
                     if (talent)
-                        ss.Append(handler.GetCypherString(CypherStrings.Talent));
+                        ss.Append(handler.GetForeverString(ForeverStrings.Talent));
                     if (passive)
-                        ss.Append(handler.GetCypherString(CypherStrings.Passive));
+                        ss.Append(handler.GetForeverString(ForeverStrings.Passive));
                     if (learnSpellInfo != null)
-                        ss.Append(handler.GetCypherString(CypherStrings.Learn));
+                        ss.Append(handler.GetForeverString(ForeverStrings.Learn));
                     if (known)
-                        ss.Append(handler.GetCypherString(CypherStrings.Known));
+                        ss.Append(handler.GetForeverString(ForeverStrings.Known));
                     if (active)
-                        ss.Append(handler.GetCypherString(CypherStrings.Active));
+                        ss.Append(handler.GetForeverString(ForeverStrings.Active));
 
                     handler.SendSysMessage(ss.ToString());
                 }
                 else
-                    handler.SendSysMessage(CypherStrings.CommandNospellfound);
+                    handler.SendSysMessage(ForeverStrings.CommandNospellfound);
 
                 return true;
             }

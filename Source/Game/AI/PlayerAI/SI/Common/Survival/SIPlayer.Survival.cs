@@ -1,6 +1,7 @@
 using Framework.Constants;
 using Game.Entities;
 using Game.Spells;
+using Game.Movement;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,6 +28,10 @@ namespace Game.AI
         long _ghostProgressAt, _nextCorpseRouteAttempt;
         int _failedCorpseRoutes;
         Position _ghostProgressPosition;
+        ObjectGuid _waitingSpiritGuide;
+        bool _spiritGuideSpacing;
+        int _spiritGuideSpacingAttempt;
+        long _nextSpiritGuideSpacing;
         public string Recovery { get; private set; } = "Alive";
         const float ReclaimTravelArrival = 1.25f;
         const float FleeArrival = 4;
@@ -148,6 +153,20 @@ namespace Game.AI
                 float.IsFinite(groundZ) && Math.Abs(groundZ - z) < 40 ? new Position(x, y, groundZ) : null;
         }
 
+        // Heal (or shield) a friendly player with a spell that can target allies. Badly hurt: fastest cast first;
+        // otherwise the slower, bigger heals. Ordinary Cast checks range, sight, mana and an existing HoT.
+        bool HealAlly(Unit ally)
+        {
+            if (ally == null || ally == me || !ally.IsAlive() || me.IsHostileTo(ally)) return false;
+            bool urgent = ally.GetHealthPct() < 60;
+            var heals = _knownSpells.Where(info => (IsHeal(info) || IsShield(info)) && info.GetEffects().Any(effect =>
+                    PartyBuffTarget(effect.TargetA.GetTarget()) || PartyBuffTarget(effect.TargetB.GetTarget())));
+            foreach (SpellInfo spell in urgent ? heals.OrderBy(CastMs) : heals.OrderByDescending(CastMs))
+                if (Cast(spell, ally)) return true;
+            return false;
+            static int CastMs(SpellInfo info) => info.CastTimeEntry?.Base ?? 0;
+        }
+
         // Emergency self-heals and shields at low health (cheapest cast time first).
         bool Survive()
         {
@@ -260,8 +279,22 @@ namespace Game.AI
             return false;
         }
 
+        // Recovery can travel (a supply trip), and travel checks recovery again before boarding a flight
+        // (TickJourneyFlight). The outer Rest/Recuperate already owns this tick, so a nested call is a no-op;
+        // without this the cycle Rest -> vendor trip -> Travel -> flight -> Rest overflowed the map thread's stack.
+        bool _inRecoveryTick;
+        bool Recuperate() => NonReentrantRecovery(RecuperateTick);
+        bool Rest() => NonReentrantRecovery(RestTick);
+        bool NonReentrantRecovery(Func<bool> tick)
+        {
+            if (_inRecoveryTick) return false;
+            _inRecoveryTick = true;
+            try { return tick(); }
+            finally { _inRecoveryTick = false; }
+        }
+
         // After death or escape: rest to 99% health / 95% mana and restore buffs before resuming.
-        bool Recuperate()
+        bool RecuperateTick()
         {
             if (!_recovering || me.IsInCombat()) return false;
             if (RecoverySupplyTrip && !HasUsefulRecoveryAura()) { TickVendorBehavior(); return true; }
@@ -280,7 +313,7 @@ namespace Game.AI
         }
 
         // Use the same readiness thresholds as optional pulls; otherwise a rejected pull can never recover.
-        bool Rest()
+        bool RestTick()
         {
             if (me.IsInCombat()) return false;
             if (RecoverySupplyTrip && !HasUsefulRecoveryAura()) { TickVendorBehavior(); return true; }
@@ -313,6 +346,7 @@ namespace Game.AI
                 if (_deathAt == 0)
                 {
                     _deathAt = Now; _reclaimPoint = null; _failedRecoveryPoints.Clear(); _ghostStartedAt = 0;
+                    _waitingSpiritGuide=ObjectGuid.Empty;_spiritGuideSpacing=false;_spiritGuideSpacingAttempt=0;_nextSpiritGuideSpacing=0;
                     Stop(); RememberLethalEnemies();
                 }
                 if (Now - _deathAt >= 2000)
@@ -320,6 +354,22 @@ namespace Game.AI
                     me.GetSession().ReleaseSpirit();
                     Status = "Releasing spirit";
                 }
+                return;
+            }
+            if(me.InBattleground())
+            {
+                // Native ReleaseSpirit/RepopAtGraveyard owns the destination.
+                // A BG ghost must never run to or reclaim its world corpse.
+                Recovery="SpiritHealer";Status="Waiting for the spirit guide";
+                // The ordinary nearby list belongs to the last living-world
+                // snapshot. Death returns before that snapshot is refreshed.
+                var healer=SpiritGuideCandidates()
+                    .Where(c=>c.IsAlive()&&c.IsAreaSpiritHealer()&&!me.IsHostileTo(c)&&me.IsWithinDistInMap(c,PlayerConst.MaxAreaSpiritHealerRange))
+                    .OrderByDescending(me.CanAcceptAreaSpiritHealFrom).ThenBy(me.GetDistance).FirstOrDefault();
+                if(healer==null){SetNavigation("Searching for the spirit guide",false);Status="Looking for the nearby spirit guide";return;}
+                if(SISpiritGuideWaiting.NeedsQueue(me.CanAcceptAreaSpiritHealFrom(healer),me.HasAura(BattlegroundConst.SpellWaitingForResurrect))&&Now>=_nextReclaim)
+                {_nextReclaim=Now+3000;me.GetSession().QueueAreaSpiritHealerForSI(healer);}
+                WaitBesideSpiritGuide(healer);
                 return;
             }
             if (_ghostStartedAt == 0)
@@ -333,8 +383,17 @@ namespace Game.AI
             Corpse corpse = me.GetCorpse();
             if(corpse==null||corpse.GetMap()!=me.GetMap())
             {
-                CancelTravel();Recovery="Blocked";Status="Waiting for a corpse on this map; spirit-healer resurrection is disabled";
-                Report("recovery_blocked",Status);return;
+                // A ghost with no corpse here (it expired, or was left in another map) waited forever. After 30 s
+                // it takes the spirit healer's resurrection a player would: alive, with resurrection sickness.
+                CancelTravel();
+                if(Now-_ghostStartedAt>=30000)
+                {
+                    Report("recovery_spirit_healer","No corpse on this map; resurrecting as at a spirit healer");
+                    me.ResurrectPlayer(.5f,applySickness:true);me.SpawnCorpseBones();
+                    return;
+                }
+                Recovery="Blocked";Status="Waiting for a corpse on this map";
+                return;
             }
             // Last resort for a corpse the mesh cannot reach (a ledge, a sealed room, a broken tile): the ghost
             // is invisible to the living and cannot be harmed, so moving it to the corpse is the outcome a
@@ -401,11 +460,51 @@ namespace Game.AI
 
         void OnResurrected()
         {
+            if(_spiritGuideSpacing)CancelTravel();
+            _spiritGuideSpacing=false;_waitingSpiritGuide=ObjectGuid.Empty;_nextSpiritGuideSpacing=0;
             if (_deathAt != 0 || _ghostStartedAt != 0 || Recovery is "CorpseRun" or "AwaitingReclaim" or "SpiritHealer") _recovering = true;
             _deathAt = 0; _ghostStartedAt = 0; _reclaimPoint = null;
             _failedCorpseRoutes = 0; _ghostProgressPosition = null;
             Recovery = _recovering ? "Recuperating" : "Alive";
             BeginPreparation();
+        }
+
+        // Always query around the ghost's current position, including immediately
+        // after the native graveyard transfer. Never reuse the corpse-area list.
+        internal List<Creature> SpiritGuideCandidates()
+        {
+            var creatures=new List<Creature>();var objects=new List<GameObject>();
+            if(me.IsInWorld)SIMapObjectIndex.For(me.GetMap()).Collect(me,PlayerConst.MaxAreaSpiritHealerRange,creatures,objects);
+            return creatures;
+        }
+
+        void WaitBesideSpiritGuide(Creature healer)
+        {
+            if(_waitingSpiritGuide!=healer.GetGUID())
+            {
+                if(_spiritGuideSpacing)CancelTravel();
+                _waitingSpiritGuide=healer.GetGUID();_spiritGuideSpacing=false;_spiritGuideSpacingAttempt=0;_nextSpiritGuideSpacing=0;
+            }
+            if(_spiritGuideSpacing&&Moving){Status="Moving beside the spirit guide";return;}
+            _spiritGuideSpacing=false;
+            SetNavigation("Waiting for spirit-guide resurrection",false);
+            if(me.GetExactDist2d(healer)>=SISpiritGuideWaiting.MinimumSpacing||Now<_nextSpiritGuideSpacing||MovementSuspended)return;
+            _nextSpiritGuideSpacing=Now+3000;
+            var center=V(healer.GetPosition());var map=me.GetMap();var phase=me.GetPhaseShift();
+            ulong seed=HumanMovement.Seed^unchecked((ulong)_deathAt*0x9E3779B97F4A7C15UL);
+            for(int attempt=0;attempt<8;++attempt)
+            {
+                var endpoint=SISpiritGuideWaiting.Candidate(center,seed,_spiritGuideSpacingAttempt++);
+                var points=SIInteractionApproach.LocalPath(Here,endpoint,p=>FloorNear(p,1,2),
+                    (a,b)=>SISpiritGuideWaiting.WithinHealRange(a,center)&&SISpiritGuideWaiting.WithinHealRange(b,center)&&
+                        CorridorClear(a,b,(from,to)=>map.IsInLineOfSight(phase,from.X,from.Y,from.Z,to.X,to.Y,to.Z,LineOfSightChecks.All,ModelIgnoreFlags.Nothing)),
+                    SISpiritGuideWaiting.MaximumWalk);
+                if(points==null)continue;
+                CancelTravel();me.GetMotionMaster().Clear();
+                var move=new MoveSplineInit(me);move.MovebyPath(points);move.SetUncompressed();move.SetSmoothGroundPath(false);move.SetWalk(true);
+                if(move.Launch()<=0)continue;
+                _spiritGuideSpacing=true;SetNavigation("Walking to a spirit-guide waiting spot",false);Status="Moving beside the spirit guide";return;
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 namespace Game.Networking
 {
-    // Default connection per server opcode, from the CONNECTION_TYPE column of TrinityCore-forever Opcodes.cpp
+    // Default connection per server opcode, from the CONNECTION_TYPE column of EmuForever-forever Opcodes.cpp
     // (DEFINE_SERVER_OPCODE_HANDLER). Packets built without an explicit connection use it, as in WorldSession::SendPacket;
     // instance packets are dropped while the client has no instance connection (character screen).
     static class ServerOpcodeConnections

@@ -41,7 +41,7 @@ namespace Game.AI
                         if (dropped != 0) _write($"SI diagnostics: skipped {dropped} diagnostic messages while output was blocked.");
                         _write(message);
                     }
-                    catch (Exception) { /* A closed output stream must not terminate worldserver. */ }
+                    catch (Exception) { /* A closed output stream must not terminate foreverworld. */ }
             }
             finally { _messages.Dispose(); }
         }

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -21,7 +21,7 @@ namespace Game.Chat.Commands
                     {
                         if (!Global.SpellMgr.HasSpellInfo(entry, Difficulty.None))
                         {
-                            handler.SendSysMessage(CypherStrings.CommandNospellfound);
+                            handler.SendSysMessage(ForeverStrings.CommandNospellfound);
                             return false;
                         }
                         break;
@@ -30,7 +30,7 @@ namespace Game.Chat.Commands
                     {
                         if (Global.ObjectMgr.GetQuestTemplate(entry) == null)
                         {
-                            handler.SendSysMessage(CypherStrings.CommandNoquestfound, entry);
+                            handler.SendSysMessage(ForeverStrings.CommandNoquestfound, entry);
                             return false;
                         }
                         break;
@@ -39,7 +39,7 @@ namespace Game.Chat.Commands
                     {
                         if (!CliDB.MapStorage.ContainsKey(entry))
                         {
-                            handler.SendSysMessage(CypherStrings.CommandNomapfound);
+                            handler.SendSysMessage(ForeverStrings.CommandNomapfound);
                             return false;
                         }
                         break;
@@ -48,7 +48,7 @@ namespace Game.Chat.Commands
                     {
                         if (!CliDB.BattlemasterListStorage.ContainsKey(entry))
                         {
-                            handler.SendSysMessage(CypherStrings.CommandNoBattlegroundFound);
+                            handler.SendSysMessage(ForeverStrings.CommandNoBattlegroundFound);
                             return false;
                         }
                         break;
@@ -57,7 +57,7 @@ namespace Game.Chat.Commands
                     {
                         if (Global.CriteriaMgr.GetCriteria(entry) == null)
                         {
-                            handler.SendSysMessage(CypherStrings.CommandNoAchievementCriteriaFound);
+                            handler.SendSysMessage(ForeverStrings.CommandNoAchievementCriteriaFound);
                             return false;
                         }
                         break;
@@ -66,7 +66,7 @@ namespace Game.Chat.Commands
                     {
                         if (entry > (int)OutdoorPvPTypes.Max)
                         {
-                            handler.SendSysMessage(CypherStrings.CommandNoOutdoorPvpForund);
+                            handler.SendSysMessage(ForeverStrings.CommandNoOutdoorPvpForund);
                             return false;
                         }
                         break;
@@ -75,7 +75,7 @@ namespace Game.Chat.Commands
                     {
                         if (!CliDB.MapStorage.ContainsKey(entry))
                         {
-                            handler.SendSysMessage(CypherStrings.CommandNomapfound);
+                            handler.SendSysMessage(ForeverStrings.CommandNomapfound);
                             return false;
                         }
                         break;
@@ -84,7 +84,7 @@ namespace Game.Chat.Commands
                     {
                         if (!CliDB.MapStorage.ContainsKey(entry))
                         {
-                            handler.SendSysMessage(CypherStrings.CommandNomapfound);
+                            handler.SendSysMessage(ForeverStrings.CommandNomapfound);
                             return false;
                         }
                         break;
@@ -93,7 +93,7 @@ namespace Game.Chat.Commands
                     {
                         if (!CliDB.MapStorage.ContainsKey(entry))
                         {
-                            handler.SendSysMessage(CypherStrings.CommandNomapfound);
+                            handler.SendSysMessage(ForeverStrings.CommandNomapfound);
                             return false;
                         }
                         break;

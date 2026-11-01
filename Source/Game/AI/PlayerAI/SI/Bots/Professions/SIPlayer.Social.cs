@@ -3,6 +3,8 @@ using Game.Chat;
 using Game.DataStorage;
 using Game.Entities;
 using Game.Spells;
+using Game.Movement;
+using Game.Maps;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -45,7 +47,7 @@ namespace Game.AI
         }
     }
 
-    // The "social" goal: stay in the nearest capital by its bank, advertise professions in Trade chat, make
+    // The "social" goal: use the nearest capital's walking paths, advertise professions in Trade chat, make
     // things and enchant for other SI players who bring materials, and order enchantments or crafted gear from
     // other SI crafters (buying the materials first).
     public sealed partial class SIPlayer
@@ -65,13 +67,24 @@ namespace Game.AI
         SIServiceJob _customerJob;
         readonly Dictionary<int, long> _serviceRetryAt = new();
 
-        internal bool SocialReady => _goal == "social" && me.IsAlive() && !me.IsInCombat();
+        bool SocialMode => SISocialMovement.Active(_goal,_bgWasQueued,me.InBattleground());
+        bool SocialStrolling => SocialMode && _socialWalkDestination.HasValue;
+        internal bool SocialReady => SocialMode && me.IsAlive() && !me.IsInCombat();
+        static readonly ConcurrentDictionary<(int Map,int City,Team Team),Vector3[][]> SocialStreets = new();
+        Vector3[][] _socialStreets;
+        Vector3[] _socialStreet;
+        int _socialStreetNode;
+        bool _socialOnStreet;
+        Vector3[] _socialBankPositions=[];
+        int _socialCity;
 
         void ResetSocialGoal()
         {
             _socialAnchor = null; _socialAnchorMap = -1; _nextSocialPost = Now + Random.Shared.Next(5000, 60001);
             _socialAuctionAnchor = null; _socialWalkDestination = null; _nextSocialWander = Now + Random.Shared.Next(1000, 3001);
             _socialTravellingToCity = false;
+            _socialStreets = null; _socialStreet = null; _socialOnStreet = false;
+            _socialCity=0;_socialBankPositions=[];
             _nextServiceSearch = Now + Random.Shared.Next(20000, 90001);
             FailCustomerJob(null);
             if (SISocialBoard.Jobs.TryRemove(me.GetGUID(), out var job)) job.Set(SIServiceState.Failed, Now);
@@ -81,6 +94,7 @@ namespace Game.AI
 
         SIBehaviorResult TickSocialBehavior()
         {
+            if(_customerJob!=null||SISocialBoard.Jobs.ContainsKey(me.GetGUID()))StopSocialStroll();
             EnsureProfessionKnowledge();
             if (!SIQuestKnowledge.IsBuilt || !SIProfessionKnowledge.IsBuilt) { Status = "Loading profession knowledge"; return SIBehaviorResult.Running; }
             if (me.GetTradeData() == null) { _tradeOpened = false; _tradeBegunAt = 0; }
@@ -90,22 +104,29 @@ namespace Game.AI
 
             if (_socialAnchor == null || _socialAnchorMap != me.GetMapId())
             {
+                _socialStreets=null;_socialWalkDestination=null;_socialOnStreet=false;LeaveTradeChannel();
                 _socialAnchorMap = me.GetMapId();
                 _socialAnchor = CapitalBanker();
                 if (_socialAnchor == null) { Status = "No friendly capital on this continent"; return SIBehaviorResult.Running; }
                 int city = SpawnZone(_socialAnchor.Value);
+                _socialCity=city;
+                _socialBankPositions=Knowledge.Spawns(Knowledge.Bankers,Array.Empty<int>(),me.GetMapId())
+                    .Where(s=>SpawnZone(s)==city).Select(s=>s.Position).ToArray();
                 _socialAuctionAnchor = ServiceSpawns(Knowledge.Auctioneers, SITaskKind.Vendor, SIVendorPurpose.Auction)
                     .Where(s => SpawnZone(s) == city && Vector3.DistanceSquared(s.Position, _socialAnchor.Value.Position) <= 400 * 400)
                     .OrderBy(s => Vector3.DistanceSquared(s.Position, _socialAnchor.Value.Position))
                     .Select(s => (SISpawn?)s).FirstOrDefault();
             }
-            Vector3 anchor = _socialAnchor.Value.Position;
+            _socialStreets ??= SocialStreets.GetOrAdd((me.GetMapId(),SocialCity,me.GetTeam()), _ => FindSocialStreets());
             bool busy = SISocialBoard.Jobs.ContainsKey(me.GetGUID()) || _customerJob != null;
-            if (!busy && !_socialWalkDestination.HasValue && !SISocialMovement.NearHub(Here, anchor, _socialAuctionAnchor?.Position))
+            if (!busy && !_socialWalkDestination.HasValue && me.GetZoneId()!=SocialCity)
             {
                 _socialTravellingToCity = me.GetZoneId() != SpawnZone(_socialAnchor.Value);
                 LeaveTradeChannel();
-                Travel(P(anchor), "Travel to the city", 6);
+                // A banker is the city anchor, never the destination of a stroll.
+                var entrance = _socialStreets.SelectMany(s => s).OrderBy(p => Vector3.DistanceSquared(Here,p)).FirstOrDefault();
+                if(entrance==default){Status="No verified city walking path is available";return SIBehaviorResult.Running;}
+                Travel(P(entrance), "Travel to the city walking paths", 3);
                 Status = "Travelling to " + ZoneName(_socialAnchor.Value); return SIBehaviorResult.Running;
             }
             _socialTravellingToCity = false;
@@ -123,47 +144,124 @@ namespace Game.AI
 
             if (!_socialWalkDestination.HasValue && Now >= _nextSocialWander)
             {
-                for (int attempt = 0; attempt < 8; ++attempt)
+                var nearby = _socialStreets.Select(s=>(Street:s,Distance:s.Min(p=>Vector3.Distance(Here,p))))
+                    .OrderBy(s=>s.Distance).ToArray();
+                // Join the nearest sidewalk. Choose another patrol only at a
+                // shared junction, rather than walking across a block to it.
+                var choices = nearby.Length==0?Array.Empty<Vector3[]>():nearby
+                    .Where(s=>s.Distance<=Math.Max(4,nearby[0].Distance+.5f)).Take(6).Select(s=>s.Street).ToArray();
+                if(choices.Length>0)
                 {
-                    var candidate = SISocialMovement.Destination(anchor, _socialAuctionAnchor?.Position,
-                        Random.Shared.NextSingle(), Random.Shared.NextSingle(), Random.Shared.NextSingle());
-                    if (SocialPointAllowed(candidate)) { _socialWalkDestination = candidate; break; }
+                    _socialStreet=choices[Random.Shared.Next(choices.Length)];
+                    _socialStreetNode=Enumerable.Range(0,_socialStreet.Length).MinBy(i=>Vector3.DistanceSquared(Here,_socialStreet[i]));
+                    if(_socialStreetNode==_socialStreet.Length-1||_socialStreetNode>0&&Random.Shared.Next(2)==0)
+                    {
+                        _socialStreet=_socialStreet.Reverse().ToArray();
+                        _socialStreetNode=_socialStreet.Length-1-_socialStreetNode;
+                    }
+                    _socialOnStreet=Vector3.Distance(Here,_socialStreet[_socialStreetNode])<=4;
+                    _socialWalkDestination=_socialStreet[_socialStreetNode];
                 }
                 if (!_socialWalkDestination.HasValue) _nextSocialWander = Now + 3000;
             }
             if (_socialWalkDestination is Vector3 stroll)
             {
-                var result = Travel(P(stroll), "Walking around the bank and auction house", 2, walk: true,
-                    destinationTolerance: 1, heightKnown: false, rememberFailure: false);
+                // Advance before arriving so consecutive street legs replace the
+                // running spline without stopping at every authored waypoint.
+                if(Vector3.Distance(Here,stroll)<=4)
+                {
+                    _socialOnStreet=true;
+                    if(_socialStreetNode+1<_socialStreet.Length)
+                        stroll=(_socialWalkDestination=_socialStreet[++_socialStreetNode]).Value;
+                }
+                var result = Travel(P(stroll), "Walking on city paths", 1, walk: true,
+                    destinationTolerance: 1, rememberFailure: false);
                 if (result != SIBehaviorResult.Running)
                 {
-                    _socialWalkDestination = null;
+                    _socialWalkDestination = null; _socialOnStreet = false;
                     _nextSocialWander = Now + Random.Shared.Next(3000, 9001);
                 }
-                else { Status = "Walking around the bank and auction house"; return SIBehaviorResult.Running; }
+                else { Status = "Walking on city paths"; return SIBehaviorResult.Running; }
             }
             Status = SISocialBoard.Ads.ContainsKey(me.GetGUID()) ? "Advertising professions in Trade chat" : "Hanging out in town";
             return SIBehaviorResult.Running;
         }
 
-        int SocialCity => _socialAnchor.HasValue ? SpawnZone(_socialAnchor.Value) :
+        int SocialCity => _socialCity!=0 ? _socialCity :
             Array.IndexOf(CapitalZones, me.GetZoneId()) >= 0 ? me.GetZoneId() : 0;
 
-        bool SocialPointAllowed(Vector3 point) => _goal != "social" || SocialCity != 0 &&
+        bool SocialPointAllowed(Vector3 point) => !SocialMode || SocialCity != 0 &&
             Global.TerrainMgr.GetZoneId(me.GetPhaseShift(), me.GetMapId(), point.X, point.Y, point.Z) == SocialCity;
 
-        bool SocialServiceAllowed(SISpawn spawn) => _goal != "social" ||
+        bool SocialServiceAllowed(SISpawn spawn) => !SocialMode ||
             SISocialMovement.ServiceAllowed(me.GetZoneId(), SocialCity, SpawnZone(spawn));
 
-        bool SocialRouteAllowed(Vector3[] route) => _goal != "social" || _socialTravellingToCity ||
-            SISocialMovement.RouteAllowed(SocialCity, false, route.Select(p => Global.TerrainMgr.GetZoneId(
-                me.GetPhaseShift(), me.GetMapId(), p.X, p.Y, p.Z)));
+        bool SocialRouteAllowed(Vector3[] route)
+        {
+            if(!SocialMode)return true;
+            if(!SISocialMovement.RouteAllowed(SocialCity,_socialTravellingToCity,route.Select(p=>Global.TerrainMgr.GetZoneId(
+                me.GetPhaseShift(),me.GetMapId(),p.X,p.Y,p.Z))))return false;
+            if(!SocialStrolling)return true; // Explicit banking errands still work.
+            bool outside=false;
+            for(int i=1;i<route.Length;++i)
+            {
+                int samples=Math.Max(1,(int)Math.Ceiling(Vector3.Distance(route[i-1],route[i])/2));
+                for(int j=0;j<=samples;++j)
+                {
+                    var point=Vector3.Lerp(route[i-1],route[i],j/(float)samples);
+                    bool allowed=SocialStreetPointAllowed(point);
+                    if(allowed)outside=true;
+                    else if(outside)return false; // May exit an interior, never reenter it while strolling.
+                    if(_socialOnStreet&&!SISocialMovement.OnPath(point,_socialStreet,6))return false;
+                }
+            }
+            return outside;
+        }
+
+        bool SocialStreetPointAllowed(Vector3 point)
+        {
+            if(!SocialPointAllowed(point))return false;
+            var data=new PositionFullTerrainStatus();
+            me.GetMap().GetFullTerrainStatusForPosition(me.GetPhaseShift(),point.X,point.Y,point.Z,data);
+            float bankDistance=_socialBankPositions.Where(bank=>Math.Abs(point.Z-bank.Z)<18)
+                .Select(bank=>Vector2.Distance(new(point.X,point.Y),new(bank.X,bank.Y))).DefaultIfEmpty(float.MaxValue).Min();
+            float auctionDistance=_socialAuctionAnchor is SISpawn auction?Vector3.Distance(point,auction.Position):float.MaxValue;
+            return SISocialMovement.StrollPointAllowed(data.outdoors,bankDistance,auctionDistance);
+        }
+
+        Vector3[][] FindSocialStreets()
+        {
+            var streets=new List<Vector3[]>();var seen=new HashSet<int>();
+            foreach(var spawn in Global.ObjectMgr.GetAllCreatureData().Values)
+            {
+                if(spawn.MapId!=me.GetMapId()||!FriendlyTemplate(spawn.Id)||
+                    Global.ObjectMgr.GetCreatureTemplate(spawn.Id)?.FlagsExtra.HasAnyFlag(CreatureFlagsExtra.Guard)!=true)continue;
+                int pathId=Global.ObjectMgr.GetCreatureAddon(spawn.SpawnId)?.PathId ?? 0;
+                if(pathId==0)pathId=Global.ObjectMgr.GetCreatureTemplateAddon(spawn.Id)?.PathId ?? 0;
+                if(pathId==0||!seen.Add(pathId))continue;
+                var path=Global.WaypointMgr.GetPath(pathId);
+                if(path==null||path.MoveType!=WaypointMoveType.Walk)continue;
+                var run=new List<Vector3>();
+                void Finish(){if(run.Count>=2&&run.Zip(run.Skip(1),(a,b)=>Vector3.Distance(a,b)).Sum()>=10)streets.Add(run.ToArray());run.Clear();}
+                foreach(var node in path.Nodes)
+                {
+                    var p=new Vector3(node.X,node.Y,node.Z);
+                    if(_socialAnchor is SISpawn hub&&Vector3.DistanceSquared(p,hub.Position)<400*400&&SocialStreetPointAllowed(p))run.Add(p);
+                    else Finish();
+                }
+                Finish();
+            }
+            return streets.ToArray();
+        }
 
         bool TickCityProfessionWork()
         {
             if (Now >= _nextProfessionPlan) PlanProfessionWork();
+            if(_professionStep is not (SIProfessionStep.None or SIProfessionStep.Capped))StopSocialStroll();
             return RunProfessionStep(city: true);
         }
+
+        void StopSocialStroll(){_socialWalkDestination=null;_socialOnStreet=false;}
 
         // ---- City and chat -----------------------------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -21,7 +21,7 @@ namespace Game.Chat.Commands
             var at = CliDB.AreaTriggerStorage.LookupByKey(areaTriggerId);
             if (at == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandGoareatrnotfound, areaTriggerId);
+                handler.SendSysMessage(ForeverStrings.CommandGoareatrnotfound, areaTriggerId);
                 return false;
             }
             return DoTeleport(handler, new Position(at.Pos.X, at.Pos.Y, at.Pos.Z), at.ContinentID);
@@ -77,7 +77,7 @@ namespace Game.Chat.Commands
             // check if we even have any matches left
             if (matches.Empty())
             {
-                handler.SendSysMessage(CypherStrings.CommandNoBossesMatch);
+                handler.SendSysMessage(ForeverStrings.CommandNoBossesMatch);
                 return false;
             }
 
@@ -88,10 +88,10 @@ namespace Game.Chat.Commands
             {
                 if ((++i) != 0 && keyValueList[i].Key == maxCount)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandMultipleBossesMatch);
+                    handler.SendSysMessage(ForeverStrings.CommandMultipleBossesMatch);
                     --i;
                     do
-                        handler.SendSysMessage(CypherStrings.CommandMultipleBossesEntry, keyValueList[i].Value.Entry, keyValueList[i].Value.Name, Global.ObjectMgr.GetScriptName(keyValueList[i].Value.ScriptID));
+                        handler.SendSysMessage(ForeverStrings.CommandMultipleBossesEntry, keyValueList[i].Value.Entry, keyValueList[i].Value.Name, Global.ObjectMgr.GetScriptName(keyValueList[i].Value.ScriptID));
                     while (((++i) != 0) && (keyValueList[i].Key == maxCount));
                     return false;
                 }
@@ -99,15 +99,15 @@ namespace Game.Chat.Commands
 
             CreatureTemplate boss = matches.Last().Value;
             var spawns = spawnLookup[boss.Entry];
-            Cypher.Assert(!spawns.Empty());
+            Forever.Assert(!spawns.Empty());
 
             if (spawns.Count > 1)
             {
-                handler.SendSysMessage(CypherStrings.CommandBossMultipleSpawns, boss.Name, boss.Entry);
+                handler.SendSysMessage(ForeverStrings.CommandBossMultipleSpawns, boss.Name, boss.Entry);
                 foreach (CreatureData spawnData in spawns)
                 {
                     var map = CliDB.MapStorage.LookupByKey(spawnData.MapId);
-                    handler.SendSysMessage(CypherStrings.CommandBossMultipleSpawnEty, spawnData.SpawnId, spawnData.MapId, map.MapName[handler.GetSessionDbcLocale()], spawnData.SpawnPoint.GetPosition().ToString());
+                    handler.SendSysMessage(ForeverStrings.CommandBossMultipleSpawnEty, spawnData.SpawnId, spawnData.MapId, map.MapName[handler.GetSessionDbcLocale()], spawnData.SpawnPoint.GetPosition().ToString());
                 }
                 return false;
             }
@@ -123,11 +123,11 @@ namespace Game.Chat.Commands
             if (!player.TeleportTo(new WorldLocation(mapId, spawn.SpawnPoint)))
             {
                 string mapName = CliDB.MapStorage.LookupByKey(mapId).MapName[handler.GetSessionDbcLocale()];
-                handler.SendSysMessage(CypherStrings.CommandGoBossFailed, spawn.SpawnId, boss.Name, boss.Entry, mapName);
+                handler.SendSysMessage(ForeverStrings.CommandGoBossFailed, spawn.SpawnId, boss.Name, boss.Entry, mapName);
                 return false;
             }
 
-            handler.SendSysMessage(CypherStrings.CommandWentToBoss, boss.Name, boss.Entry, spawn.SpawnId);
+            handler.SendSysMessage(ForeverStrings.CommandWentToBoss, boss.Name, boss.Entry, spawn.SpawnId);
             return true;
         }
 
@@ -149,13 +149,13 @@ namespace Game.Chat.Commands
             WorldSafeLocsEntry gy = Global.ObjectMgr.GetWorldSafeLoc(graveyardId);
             if (gy == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandGraveyardnoexist, graveyardId);
+                handler.SendSysMessage(ForeverStrings.CommandGraveyardnoexist, graveyardId);
                 return false;
             }
 
             if (!GridDefines.IsValidMapCoord(gy.Loc))
             {
-                handler.SendSysMessage(CypherStrings.InvalidTargetCoord, gy.Loc.GetPositionX(), gy.Loc.GetPositionY(), gy.Loc.GetMapId());
+                handler.SendSysMessage(ForeverStrings.InvalidTargetCoord, gy.Loc.GetPositionX(), gy.Loc.GetPositionY(), gy.Loc.GetMapId());
                 return false;
             }
 
@@ -182,7 +182,7 @@ namespace Game.Chat.Commands
 
             if (!GridDefines.IsValidMapCoord(mapId, x, y))
             {
-                handler.SendSysMessage(CypherStrings.InvalidTargetCoord, x, y, mapId);
+                handler.SendSysMessage(ForeverStrings.InvalidTargetCoord, x, y, mapId);
                 return false;
             }
 
@@ -223,7 +223,7 @@ namespace Game.Chat.Commands
 
             if (matches.Empty())
             {
-                handler.SendSysMessage(CypherStrings.CommandNoInstancesMatch);
+                handler.SendSysMessage(ForeverStrings.CommandNoInstancesMatch);
                 return false;
             }
 
@@ -234,10 +234,10 @@ namespace Game.Chat.Commands
             {
                 if ((++i) != 0 && keyValueList[i].Key == maxCount)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandMultipleInstancesMatch);
+                    handler.SendSysMessage(ForeverStrings.CommandMultipleInstancesMatch);
                     --i;
                     do
-                        handler.SendSysMessage(CypherStrings.CommandMultipleInstancesEntry, keyValueList[i].Value.Item2, keyValueList[i].Value.Item1, keyValueList[i].Value.Item3);
+                        handler.SendSysMessage(ForeverStrings.CommandMultipleInstancesEntry, keyValueList[i].Value.Item2, keyValueList[i].Value.Item1, keyValueList[i].Value.Item3);
                     while (((++i) != 0) && (keyValueList[i].Key == maxCount));
                     return false;
                 }
@@ -259,18 +259,18 @@ namespace Game.Chat.Commands
             {
                 if (player.TeleportTo(exit.target_mapId, exit.target_X, exit.target_Y, exit.target_Z, exit.target_Orientation + MathF.PI))
                 {
-                    handler.SendSysMessage(CypherStrings.CommandWentToInstanceGate, mapName, mapId);
+                    handler.SendSysMessage(ForeverStrings.CommandWentToInstanceGate, mapName, mapId);
                     return true;
                 }
                 else
                 {
                     int parentMapId = exit.target_mapId;
                     string parentMapName = CliDB.MapStorage.LookupByKey(parentMapId).MapName[handler.GetSessionDbcLocale()];
-                    handler.SendSysMessage(CypherStrings.CommandGoInstanceGateFailed, mapName, mapId, parentMapName, parentMapId);
+                    handler.SendSysMessage(ForeverStrings.CommandGoInstanceGateFailed, mapName, mapId, parentMapName, parentMapId);
                 }
             }
             else
-                handler.SendSysMessage(CypherStrings.CommandInstanceNoExit, mapName, mapId);
+                handler.SendSysMessage(ForeverStrings.CommandInstanceNoExit, mapName, mapId);
 
             // try going to start
             AreaTriggerStruct entrance = Global.ObjectMgr.GetMapEntranceTrigger(mapId);
@@ -278,14 +278,14 @@ namespace Game.Chat.Commands
             {
                 if (player.TeleportTo(entrance.target_mapId, entrance.target_X, entrance.target_Y, entrance.target_Z, entrance.target_Orientation))
                 {
-                    handler.SendSysMessage(CypherStrings.CommandWentToInstanceStart, mapName, mapId);
+                    handler.SendSysMessage(ForeverStrings.CommandWentToInstanceStart, mapName, mapId);
                     return true;
                 }
                 else
-                    handler.SendSysMessage(CypherStrings.CommandGoInstanceStartFailed, mapName, mapId);
+                    handler.SendSysMessage(ForeverStrings.CommandGoInstanceStartFailed, mapName, mapId);
             }
             else
-                handler.SendSysMessage(CypherStrings.CommandInstanceNoEntrance, mapName, mapId);
+                handler.SendSysMessage(ForeverStrings.CommandInstanceNoEntrance, mapName, mapId);
 
             return false;
         }
@@ -306,7 +306,7 @@ namespace Game.Chat.Commands
 
             if (Global.ObjectMgr.GetQuestTemplate(questId) == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandQuestNotfound, questId);
+                handler.SendSysMessage(ForeverStrings.CommandQuestNotfound, questId);
                 return false;
             }
 
@@ -325,13 +325,13 @@ namespace Game.Chat.Commands
             }
             else
             {
-                handler.SendSysMessage(CypherStrings.CommandQuestNotfound, questId);
+                handler.SendSysMessage(ForeverStrings.CommandQuestNotfound, questId);
                 return false;
             }
 
             if (!GridDefines.IsValidMapCoord(mapId, x, y) || Global.ObjectMgr.IsTransportMap(mapId))
             {
-                handler.SendSysMessage(CypherStrings.InvalidTargetCoord, x, y, mapId);
+                handler.SendSysMessage(ForeverStrings.InvalidTargetCoord, x, y, mapId);
                 return false;
             }
 
@@ -360,7 +360,7 @@ namespace Game.Chat.Commands
             var node = CliDB.TaxiNodesStorage.LookupByKey(nodeId);
             if (node == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandGotaxinodenotfound, nodeId);
+                handler.SendSysMessage(ForeverStrings.CommandGotaxinodenotfound, nodeId);
                 return false;
             }
             return DoTeleport(handler, new Position(node.Pos.X, node.Pos.Y, node.Pos.Z), node.ContinentID);
@@ -376,7 +376,7 @@ namespace Game.Chat.Commands
             {
                 if (!GridDefines.IsValidMapCoord(mapId, x, y, z.Value))
                 {
-                    handler.SendSysMessage(CypherStrings.InvalidTargetCoord, x, y, mapId);
+                    handler.SendSysMessage(ForeverStrings.InvalidTargetCoord, x, y, mapId);
                     return false;
                 }
             }
@@ -384,7 +384,7 @@ namespace Game.Chat.Commands
             {
                 if (!GridDefines.IsValidMapCoord(mapId, x, y))
                 {
-                    handler.SendSysMessage(CypherStrings.InvalidTargetCoord, x, y, mapId);
+                    handler.SendSysMessage(ForeverStrings.InvalidTargetCoord, x, y, mapId);
                     return false;
                 }
                 TerrainInfo terrain = Global.TerrainMgr.LoadTerrain(mapId);
@@ -405,7 +405,7 @@ namespace Game.Chat.Commands
             AreaTableRecord areaEntry = CliDB.AreaTableStorage.LookupByKey(areaId);
             if (x < 0 || x > 100 || y < 0 || y > 100 || areaEntry == null)
             {
-                handler.SendSysMessage(CypherStrings.InvalidZoneCoord, x, y, areaId);
+                handler.SendSysMessage(ForeverStrings.InvalidZoneCoord, x, y, areaId);
                 return false;
             }
 
@@ -413,7 +413,7 @@ namespace Game.Chat.Commands
             var zoneEntry = areaEntry.ParentAreaID != 0 && areaEntry.HasFlag(AreaFlags.IsSubzone)
                 ? CliDB.AreaTableStorage.LookupByKey(areaEntry.ParentAreaID)
                 : areaEntry;
-            Cypher.Assert(zoneEntry != null);
+            Forever.Assert(zoneEntry != null);
 
             x /= 100.0f;
             y /= 100.0f;
@@ -421,13 +421,13 @@ namespace Game.Chat.Commands
             TerrainInfo terrain = Global.TerrainMgr.LoadTerrain(zoneEntry.ContinentID);
             if (!Global.DB2Mgr.Zone2MapCoordinates(zoneEntry.Id, ref x, ref y))
             {
-                handler.SendSysMessage(CypherStrings.InvalidZoneMap, areaId, areaEntry.AreaName[handler.GetSessionDbcLocale()], terrain.GetId(), terrain.GetMapName());
+                handler.SendSysMessage(ForeverStrings.InvalidZoneMap, areaId, areaEntry.AreaName[handler.GetSessionDbcLocale()], terrain.GetId(), terrain.GetMapName());
                 return false;
             }
 
             if (!GridDefines.IsValidMapCoord(zoneEntry.ContinentID, x, y))
             {
-                handler.SendSysMessage(CypherStrings.InvalidTargetCoord, x, y, zoneEntry.ContinentID);
+                handler.SendSysMessage(ForeverStrings.InvalidTargetCoord, x, y, zoneEntry.ContinentID);
                 return false;
             }
 
@@ -448,7 +448,7 @@ namespace Game.Chat.Commands
             T ticket = Global.SupportMgr.GetTicket<T>(ticketId);
             if (ticket == null)
             {
-                handler.SendSysMessage(CypherStrings.CommandTicketnotexist);
+                handler.SendSysMessage(ForeverStrings.CommandTicketnotexist);
                 return true;
             }
 
@@ -473,7 +473,7 @@ namespace Game.Chat.Commands
 
             if (!GridDefines.IsValidMapCoord(mapId, pos) || Global.ObjectMgr.IsTransportMap(mapId))
             {
-                handler.SendSysMessage(CypherStrings.InvalidTargetCoord, pos.GetPositionX(), pos.GetPositionY(), mapId);
+                handler.SendSysMessage(ForeverStrings.InvalidTargetCoord, pos.GetPositionX(), pos.GetPositionY(), mapId);
                 return false;
             }
 
@@ -496,7 +496,7 @@ namespace Game.Chat.Commands
                 CreatureData spawnpoint = Global.ObjectMgr.GetCreatureData(spawnId);
                 if (spawnpoint == null)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandGocreatnotfound);
+                    handler.SendSysMessage(ForeverStrings.CommandGocreatnotfound);
                     return false;
                 }
 
@@ -516,14 +516,14 @@ namespace Game.Chat.Commands
                         spawnpoint = pair.Value;
                     else
                     {
-                        handler.SendSysMessage(CypherStrings.CommandGocreatmultiple);
+                        handler.SendSysMessage(ForeverStrings.CommandGocreatmultiple);
                         break;
                     }
                 }
 
                 if (spawnpoint == null)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandGocreatnotfound);
+                    handler.SendSysMessage(ForeverStrings.CommandGocreatnotfound);
                     return false;
                 }
 
@@ -540,7 +540,7 @@ namespace Game.Chat.Commands
                 GameObjectData spawnpoint = Global.ObjectMgr.GetGameObjectData(spawnId);
                 if (spawnpoint == null)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandGoobjnotfound);
+                    handler.SendSysMessage(ForeverStrings.CommandGoobjnotfound);
                     return false;
                 }
 
@@ -560,14 +560,14 @@ namespace Game.Chat.Commands
                         spawnpoint = pair.Value;
                     else
                     {
-                        handler.SendSysMessage(CypherStrings.CommandGocreatmultiple);
+                        handler.SendSysMessage(ForeverStrings.CommandGocreatmultiple);
                         break;
                     }
                 }
 
                 if (spawnpoint == null)
                 {
-                    handler.SendSysMessage(CypherStrings.CommandGoobjnotfound);
+                    handler.SendSysMessage(ForeverStrings.CommandGoobjnotfound);
                     return false;
                 }
 

@@ -14,6 +14,14 @@ namespace Game.AI.SIMovement;
 public readonly record struct SIPathPosition(int MapId, Vector3 Point, bool HeightKnown=true, float Slack=0)
 {
     public bool Valid => MapId>=0 && float.IsFinite(Point.X)&&float.IsFinite(Point.Y)&&float.IsFinite(Point.Z);
+    // The action's usable range is also a planning goal. Slack, in contrast,
+    // only permits projecting an off-mesh destination onto nearby ground.
+    public float Arrival {get;init;}
+    public bool Within3D {get;init;}
+    public bool Contains(Vector3 point) => Arrival>0 &&
+        (Within3D&&HeightKnown ? Vector3.Distance(point,Point)<=Arrival+.001f :
+        Vector2.Distance(new(point.X,point.Y),new(Point.X,Point.Y))<=Arrival+.001f &&
+        (!HeightKnown||Math.Abs(point.Z-Point.Z)<=Math.Max(Arrival,1.5f)+.001f));
 }
 // A stop worth passing on a long trip (a quest turn-in, a trainer with lessons), and how many yards of detour it
 // is worth.
@@ -21,7 +29,7 @@ public readonly record struct SITravelInterest(Vector3 Position,float Worth);
 // What a bot tells the planner beyond the endpoints: the road waypoint it already committed to (like a navigation
 // app, it keeps to the chosen route instead of re-deciding on every replan) and the stops it would like to pass.
 public readonly record struct SIRouteHints(Vector3? Via,ImmutableArray<SITravelInterest> Interests,
-    ImmutableArray<GameObjectCollisionSnapshot> Obstacles=default);
+    ImmutableArray<GameObjectCollisionSnapshot> Obstacles=default, ulong VariationSeed=0);
 public sealed record SIGroundPath(ImmutableArray<Vector3> Points,string Error=null)
 {
     // The travel graph waypoint this leg walks to, for the next request's Via.
@@ -120,9 +128,8 @@ public sealed class SINavigationQueue : IAsyncDisposable
                 {
                     bool Cancelled()=>request.Cancel.IsCancellationRequested||_stop.IsCancellationRequested;
                     Interlocked.Increment(ref _builds);
-                    var path=find(request.From,request.To,Cancelled,request.Threats,request.Hints);
-                    // Route quality is selected by the clean-ground filter. Do not
-                    // replace it with a random shorter/longer anchor detour.
+                    var path=find(request.From,request.To,Cancelled,request.Threats,request.Hints with
+                    { VariationSeed = request.Seed == 0 ? 0 : unchecked(request.Seed ^ (ulong)request.Sequence * 0x9E3779B97F4A7C15UL) });
                     if(!path.Success)Interlocked.Increment(ref _failures);
                     if(Cancelled())request.Completion.TrySetCanceled();else request.Completion.TrySetResult(path);
                 }

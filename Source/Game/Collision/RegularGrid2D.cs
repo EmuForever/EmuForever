@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.GameMath;
@@ -22,6 +22,7 @@ namespace Game.Collision
 
         public virtual void Insert(T value)
         {
+            if (memberTable.ContainsKey(value)) return;
             AxisAlignedBox bounds = value.GetBounds();
             Cell low = Cell.ComputeCell(bounds.Lo.X, bounds.Lo.Y);
             Cell high = Cell.ComputeCell(bounds.Hi.X, bounds.Hi.Y);
@@ -38,7 +39,9 @@ namespace Game.Collision
 
         public virtual void Remove(T value)
         {
-            // Remove the member
+            // Unlink from every queried cell as well as the membership index.
+            // Leaving the cell entries behind keeps despawned gates collidable.
+            foreach (var node in memberTable[value]) node.Remove(value);
             memberTable.Remove(value);
         }
 
@@ -87,7 +90,7 @@ namespace Game.Collision
 
         Node GetGrid(int x, int y)
         {
-            Cypher.Assert(x < CELL_NUMBER && y < CELL_NUMBER);
+            Forever.Assert(x < CELL_NUMBER && y < CELL_NUMBER);
             if (nodes[x][y] == null)
                 nodes[x][y] = new Node();
             return nodes[x][y];

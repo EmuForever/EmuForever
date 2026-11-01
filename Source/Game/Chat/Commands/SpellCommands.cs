@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -17,7 +17,7 @@ namespace Game.Chat
             Unit target = handler.GetSelectedUnit();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.PlayerNotFound);
+                handler.SendSysMessage(ForeverStrings.PlayerNotFound);
                 return false;
             }
 
@@ -33,20 +33,20 @@ namespace Game.Chat
             {
                 target.GetSpellHistory().ResetAllCooldowns();
                 target.GetSpellHistory().ResetAllCharges();
-                handler.SendSysMessage(CypherStrings.RemoveallCooldown, nameLink);
+                handler.SendSysMessage(ForeverStrings.RemoveallCooldown, nameLink);
             }
             else
             {
                 SpellInfo spellInfo = Global.SpellMgr.GetSpellInfo(spellIdArg.Value, target.GetMap().GetDifficultyID());
                 if (spellInfo == null)
                 {
-                    handler.SendSysMessage(CypherStrings.UnknownSpell, owner == handler.GetSession().GetPlayer() ? handler.GetCypherString(CypherStrings.You) : nameLink);
+                    handler.SendSysMessage(ForeverStrings.UnknownSpell, owner == handler.GetSession().GetPlayer() ? handler.GetForeverString(ForeverStrings.You) : nameLink);
                     return false;
                 }
 
                 target.GetSpellHistory().ResetCooldown(spellInfo.Id, true);
                 target.GetSpellHistory().ResetCharges(spellInfo.ChargeCategoryId);
-                handler.SendSysMessage(CypherStrings.RemoveallCooldown, spellInfo.Id, owner == handler.GetSession().GetPlayer() ? handler.GetCypherString(CypherStrings.You) : nameLink);
+                handler.SendSysMessage(ForeverStrings.RemoveallCooldown, spellInfo.Id, owner == handler.GetSession().GetPlayer() ? handler.GetForeverString(ForeverStrings.You) : nameLink);
             }
             return true;
         }
@@ -57,7 +57,7 @@ namespace Game.Chat
             Unit target = handler.GetSelectedUnit();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCharOrCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCharOrCreature);
 
                 return false;
             }
@@ -81,7 +81,7 @@ namespace Game.Chat
             Unit target = handler.GetSelectedUnit();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.SelectCharOrCreature);
+                handler.SendSysMessage(ForeverStrings.SelectCharOrCreature);
 
                 return false;
             }
@@ -108,14 +108,14 @@ namespace Game.Chat
             Player target = handler.GetSelectedPlayerOrSelf();
             if (target == null)
             {
-                handler.SendSysMessage(CypherStrings.NoCharSelected);
+                handler.SendSysMessage(ForeverStrings.NoCharSelected);
                 return false;
             }
 
             SkillLineRecord skillLine = CliDB.SkillLineStorage.LookupByKey((SkillType)skillId);
             if (skillLine == null)
             {
-                handler.SendSysMessage(CypherStrings.InvalidSkillId, skillId);
+                handler.SendSysMessage(ForeverStrings.InvalidSkillId, skillId);
                 return false;
             }
 
@@ -132,7 +132,7 @@ namespace Game.Chat
             // add the skill to the player's book with step 1 (which is the first rank, in most cases something
             // like 'Apprentice <skill>'.
             target.SetSkill(skillId, targetHasSkill ? target.GetSkillStep(skillId) : 1, level, max);
-            handler.SendSysMessage(CypherStrings.SetSkill, skillId, skillLine.DisplayName[handler.GetSessionDbcLocale()], handler.GetNameLink(target), level, max);
+            handler.SendSysMessage(ForeverStrings.SetSkill, skillId, skillLine.DisplayName[handler.GetSessionDbcLocale()], handler.GetNameLink(target), level, max);
             return true;
         }
     }

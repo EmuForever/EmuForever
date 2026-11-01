@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -227,11 +227,11 @@ namespace Game.Maps
                 if (entries.IsInstanceIdBound())
                 {
                     var sharedDataItr = _instanceLockDataById.LookupByKey(updateEvent.InstanceId);
-                    Cypher.Assert(sharedDataItr != null);
+                    Forever.Assert(sharedDataItr != null);
 
                     instanceLock = new SharedInstanceLock(entries.MapDifficulty.MapID, entries.MapDifficulty.DifficultyID,
                         GetNextResetTime(entries), updateEvent.InstanceId, sharedDataItr);
-                    Cypher.Assert((instanceLock as SharedInstanceLock).GetSharedData().InstanceId == updateEvent.InstanceId);
+                    Forever.Assert((instanceLock as SharedInstanceLock).GetSharedData().InstanceId == updateEvent.InstanceId);
                 }
                 else
                 {
@@ -251,10 +251,10 @@ namespace Game.Maps
             {
                 if (entries.IsInstanceIdBound())
                 {
-                    Cypher.Assert(instanceLock.GetInstanceId() == updateEvent.InstanceId);
+                    Forever.Assert(instanceLock.GetInstanceId() == updateEvent.InstanceId);
                     var sharedDataItr = _instanceLockDataById.LookupByKey(updateEvent.InstanceId);
-                    Cypher.Assert(sharedDataItr != null);
-                    Cypher.Assert(sharedDataItr == (instanceLock as SharedInstanceLock).GetSharedData());
+                    Forever.Assert(sharedDataItr != null);
+                    Forever.Assert(sharedDataItr == (instanceLock as SharedInstanceLock).GetSharedData());
                 }
 
                 instanceLock.SetInstanceId(updateEvent.InstanceId);
@@ -315,8 +315,8 @@ namespace Game.Maps
         public void UpdateSharedInstanceLock(SQLTransaction trans, InstanceLockUpdateEvent updateEvent)
         {
             var sharedData = _instanceLockDataById.LookupByKey(updateEvent.InstanceId);
-            Cypher.Assert(sharedData != null);
-            Cypher.Assert(sharedData.InstanceId == 0 || sharedData.InstanceId == updateEvent.InstanceId);
+            Forever.Assert(sharedData != null);
+            Forever.Assert(sharedData.InstanceId == 0 || sharedData.InstanceId == updateEvent.InstanceId);
             sharedData.Data = updateEvent.NewData;
             sharedData.InstanceId = updateEvent.InstanceId;
             if (updateEvent.CompletedEncounter != null)

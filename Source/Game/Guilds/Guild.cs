@@ -1,4 +1,4 @@
-// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -1277,14 +1277,14 @@ namespace Game.Guilds
             if (newLeader != null)
             {
                 eventPacket.NewLeaderGUID = newLeader.GetGUID();
-                eventPacket.NewLeaderName = newLeader.GetName();
+                eventPacket.NewLeaderName = Global.CharacterCacheStorage.GetCharacterCacheByGuid(newLeader.GetGUID())?.FirstName ?? newLeader.GetName();
                 eventPacket.NewLeaderVirtualRealmAddress = Global.WorldMgr.GetVirtualRealmAddress();
             }
 
             if (oldLeader != null)
             {
                 eventPacket.OldLeaderGUID = oldLeader.GetGUID();
-                eventPacket.OldLeaderName = oldLeader.GetName();
+                eventPacket.OldLeaderName = Global.CharacterCacheStorage.GetCharacterCacheByGuid(oldLeader.GetGUID())?.FirstName ?? oldLeader.GetName();
                 eventPacket.OldLeaderVirtualRealmAddress = Global.WorldMgr.GetVirtualRealmAddress();
             }
 
@@ -1296,13 +1296,13 @@ namespace Game.Guilds
             GuildEventPlayerLeft eventPacket = new();
             eventPacket.Removed = isRemoved;
             eventPacket.LeaverGUID = leaver.GetGUID();
-            eventPacket.LeaverName = leaver.GetName();
+            eventPacket.LeaverName = leaver.GetFirstName();
             eventPacket.LeaverVirtualRealmAddress = Global.WorldMgr.GetVirtualRealmAddress();
 
             if (isRemoved && remover != null)
             {
                 eventPacket.RemoverGUID = remover.GetGUID();
-                eventPacket.RemoverName = remover.GetName();
+                eventPacket.RemoverName = remover.GetFirstName();
                 eventPacket.RemoverVirtualRealmAddress = Global.WorldMgr.GetVirtualRealmAddress();
             }
 
@@ -1976,11 +1976,11 @@ namespace Game.Guilds
             stmt.SetInt64(0, m_id);
             trans.Append(stmt);
 
-            _CreateRank(trans, Global.ObjectMgr.GetCypherString(CypherStrings.GuildMaster, loc));
-            _CreateRank(trans, Global.ObjectMgr.GetCypherString(CypherStrings.GuildOfficer, loc), GuildRankRights.All);
-            _CreateRank(trans, Global.ObjectMgr.GetCypherString(CypherStrings.GuildVeteran, loc), GuildRankRights.GChatListen | GuildRankRights.GChatSpeak);
-            _CreateRank(trans, Global.ObjectMgr.GetCypherString(CypherStrings.GuildMember, loc), GuildRankRights.GChatListen | GuildRankRights.GChatSpeak);
-            _CreateRank(trans, Global.ObjectMgr.GetCypherString(CypherStrings.GuildInitiate, loc), GuildRankRights.GChatListen | GuildRankRights.GChatSpeak);
+            _CreateRank(trans, Global.ObjectMgr.GetForeverString(ForeverStrings.GuildMaster, loc));
+            _CreateRank(trans, Global.ObjectMgr.GetForeverString(ForeverStrings.GuildOfficer, loc), GuildRankRights.All);
+            _CreateRank(trans, Global.ObjectMgr.GetForeverString(ForeverStrings.GuildVeteran, loc), GuildRankRights.GChatListen | GuildRankRights.GChatSpeak);
+            _CreateRank(trans, Global.ObjectMgr.GetForeverString(ForeverStrings.GuildMember, loc), GuildRankRights.GChatListen | GuildRankRights.GChatSpeak);
+            _CreateRank(trans, Global.ObjectMgr.GetForeverString(ForeverStrings.GuildInitiate, loc), GuildRankRights.GChatListen | GuildRankRights.GChatSpeak);
         }
 
         bool _CreateRank(SQLTransaction trans, string name, GuildRankRights rights = GuildRankRights.None)
@@ -2423,7 +2423,7 @@ namespace Game.Guilds
 
         void UpdateBankQueryResult(MoveItemData pSrc, MoveItemData pDest)
         {
-            Cypher.Assert(pSrc.IsBank || pDest.IsBank);
+            Forever.Assert(pSrc.IsBank || pDest.IsBank);
 
             ItemSlot tabId = 0;
             List<ItemSlot> slotsForUpdate = new();
@@ -2484,7 +2484,7 @@ namespace Game.Guilds
         void SendGuildRanksUpdate(ObjectGuid setterGuid, ObjectGuid targetGuid, GuildRankId oldRank, GuildRankId newRank)
         {
             Member member = GetMember(targetGuid);
-            Cypher.Assert(member != null);
+            Forever.Assert(member != null);
 
             GuildSendRankChange rankChange = new();
             rankChange.Officer = setterGuid;
@@ -3843,7 +3843,7 @@ namespace Game.Guilds
 
             public virtual bool CheckItem(ref int splitedAmount)
             {
-                Cypher.Assert(m_pItem != null);
+                Forever.Assert(m_pItem != null);
                 if (splitedAmount > m_pItem.GetCount())
                     return false;
                 if (splitedAmount == m_pItem.GetCount())
@@ -3860,7 +3860,7 @@ namespace Game.Guilds
 
             public bool CloneItem(int count)
             {
-                Cypher.Assert(m_pItem != null);
+                Forever.Assert(m_pItem != null);
                 m_pClonedItem = m_pItem.CloneItem(count);
                 if (m_pClonedItem == null)
                 {
@@ -3871,7 +3871,7 @@ namespace Game.Guilds
 
             public virtual void LogAction(MoveItemData pFrom)
             {
-                Cypher.Assert(pFrom.GetItem() != null);
+                Forever.Assert(pFrom.GetItem() != null);
 
                 Global.ScriptMgr.OnGuildItemMove(m_pGuild, m_pPlayer, pFrom.GetItem(),
                      pFrom.IsBank, pFrom.Position,
@@ -3970,7 +3970,7 @@ namespace Game.Guilds
 
             public override Item StoreItem(SQLTransaction trans, Item pItem)
             {
-                Cypher.Assert(pItem != null);
+                Forever.Assert(pItem != null);
                 m_pPlayer.MoveItemToInventory(m_vec, pItem, true);
                 m_pPlayer.SaveInventoryAndGoldToDB(trans);
                 return pItem;
@@ -3978,7 +3978,7 @@ namespace Game.Guilds
 
             public override void LogBankEvent(SQLTransaction trans, MoveItemData pFrom, int count)
             {
-                Cypher.Assert(pFrom != null);
+                Forever.Assert(pFrom != null);
                 // Bank . Char
                 m_pGuild._LogBankEvent(trans, GuildBankEventLogTypes.WithdrawItem, pFrom.Container, m_pPlayer.GetGUID().GetCounter(),
                     pFrom.GetItem().GetEntry(), (ushort)count);
@@ -4045,7 +4045,7 @@ namespace Game.Guilds
 
             public override void RemoveItem(SQLTransaction trans, MoveItemData pOther, int splitedAmount = 0)
             {
-                Cypher.Assert(m_pItem != null);
+                Forever.Assert(m_pItem != null);
                 if (splitedAmount != 0)
                 {
                     m_pItem.SetCount(m_pItem.GetCount() - splitedAmount);
@@ -4085,7 +4085,7 @@ namespace Game.Guilds
 
             public override void LogBankEvent(SQLTransaction trans, MoveItemData pFrom, int count)
             {
-                Cypher.Assert(pFrom.GetItem() != null);
+                Forever.Assert(pFrom.GetItem() != null);
                 if (pFrom.IsBank)
                     // Bank . Bank
                     m_pGuild._LogBankEvent(trans, GuildBankEventLogTypes.MoveItem, pFrom.Container, m_pPlayer.GetGUID().GetCounter(),

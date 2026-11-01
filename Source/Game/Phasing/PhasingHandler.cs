@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -504,8 +504,8 @@ namespace Game
 
         public static void InitDbPersonalOwnership(PhaseShift phaseShift, ObjectGuid personalGuid)
         {
-            Cypher.Assert(phaseShift.IsDbPhaseShift);
-            Cypher.Assert(phaseShift.HasPersonalPhase());
+            Forever.Assert(phaseShift.IsDbPhaseShift);
+            Forever.Assert(phaseShift.HasPersonalPhase());
             phaseShift.PersonalGuid = personalGuid;
         }
 
@@ -576,13 +576,13 @@ namespace Game
                     phaseOwnerName = personalGuid.GetName();
             }
 
-            chat.SendSysMessage(CypherStrings.PhaseshiftStatus, phaseShift.Flags, phaseShift.PersonalGuid.ToString(), phaseOwnerName);
+            chat.SendSysMessage(ForeverStrings.PhaseshiftStatus, phaseShift.Flags, phaseShift.PersonalGuid.ToString(), phaseOwnerName);
 
             if (!phaseShift.Phases.Empty())
             {
                 StringBuilder phases = new();
-                string cosmetic = Global.ObjectMgr.GetCypherString(CypherStrings.PhaseFlagCosmetic, chat.GetSessionDbcLocale());
-                string personal = Global.ObjectMgr.GetCypherString(CypherStrings.PhaseFlagPersonal, chat.GetSessionDbcLocale());
+                string cosmetic = Global.ObjectMgr.GetForeverString(ForeverStrings.PhaseFlagCosmetic, chat.GetSessionDbcLocale());
+                string personal = Global.ObjectMgr.GetForeverString(ForeverStrings.PhaseFlagPersonal, chat.GetSessionDbcLocale());
                 foreach (var pair in phaseShift.Phases)
                 {
                     phases.Append("\r\n");
@@ -594,7 +594,7 @@ namespace Game
                         phases.Append($" ({personal})");
                 }
 
-                chat.SendSysMessage(CypherStrings.PhaseshiftPhases, phases.ToString());
+                chat.SendSysMessage(ForeverStrings.PhaseshiftPhases, phases.ToString());
             }
 
             if (!phaseShift.VisibleMapIds.Empty())
@@ -603,7 +603,7 @@ namespace Game
                 foreach (var visibleMapId in phaseShift.VisibleMapIds)
                     visibleMapIds.Append(visibleMapId.Key + ',' + ' ');
 
-                chat.SendSysMessage(CypherStrings.PhaseshiftVisibleMapIds, visibleMapIds.ToString());
+                chat.SendSysMessage(ForeverStrings.PhaseshiftVisibleMapIds, visibleMapIds.ToString());
             }
 
             if (!phaseShift.UiMapPhaseIds.Empty())
@@ -612,7 +612,7 @@ namespace Game
                 foreach (var uiWorldMapAreaIdSwap in phaseShift.UiMapPhaseIds)
                     uiWorldMapAreaIdSwaps.AppendFormat($"{uiWorldMapAreaIdSwap.Key}, ");
 
-                chat.SendSysMessage(CypherStrings.PhaseshiftUiWorldMapAreaSwaps, uiWorldMapAreaIdSwaps.ToString());
+                chat.SendSysMessage(ForeverStrings.PhaseshiftUiWorldMapAreaSwaps, uiWorldMapAreaIdSwaps.ToString());
             }
         }
 

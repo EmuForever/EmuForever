@@ -22,7 +22,7 @@ public sealed partial class SIPlayer
     SIRouteHints RouteHints()
     {
         if (_routeWaypoint is Vector3 via && SIMovementRoute.ReachedTravelWaypoint(Here, via)) _routeWaypoint = null;
-        return new(_routeWaypoint, OwnedServiceTrip || CommittedToJourney() || _goal == "social" && _socialWalkDestination.HasValue ? [] : TravelInterests(),
+        return new(_routeWaypoint, OwnedServiceTrip || CommittedToJourney() || SocialMode && _socialWalkDestination.HasValue ? [] : TravelInterests(),
             CaptureMovementObstacles());
     }
 

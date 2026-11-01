@@ -1,4 +1,4 @@
-// TrinityCore wotlk_classic scripts ported to CypherCore. GPL version 2 or later; see LICENSE.
+// EmuForever wotlk_classic scripts ported to EmuForever. GPL version 2 or later; see LICENSE.
 using Framework.Constants;
 using Game.AI;
 using Game.Entities;

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -428,9 +428,9 @@ namespace Game.Entities
                             }
                         }
                         else if (missingItem != 0)
-                            GetSession().SendNotification(Global.ObjectMgr.GetCypherString(CypherStrings.LevelMinrequiredAndItem), LevelMin, Global.ObjectMgr.GetItemTemplate(missingItem).GetName());
+                            GetSession().SendNotification(Global.ObjectMgr.GetForeverString(ForeverStrings.LevelMinrequiredAndItem), LevelMin, Global.ObjectMgr.GetItemTemplate(missingItem).GetName());
                         else if (LevelMin != 0)
-                            GetSession().SendNotification(Global.ObjectMgr.GetCypherString(CypherStrings.LevelMinrequired), LevelMin);
+                            GetSession().SendNotification(Global.ObjectMgr.GetForeverString(ForeverStrings.LevelMinrequired), LevelMin);
                     }
                     return false;
                 }
@@ -443,7 +443,7 @@ namespace Game.Entities
             if (!CanBeGameMaster())
                 return false;
 
-            SendSysMessage(CypherStrings.InstanceLoginGamemasterException);
+            SendSysMessage(ForeverStrings.InstanceLoginGamemasterException);
             return true;
         }
 

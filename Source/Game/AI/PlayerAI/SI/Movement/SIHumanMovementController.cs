@@ -28,7 +28,7 @@ public sealed partial class SIPlayer
     // Set when a complete route ended on the closest walkable point to a destination that is itself
     // off the mesh (an NPC behind a counter, an object on a rock): travel there is finished.
     SIPathPosition? _reachedGoal;Vector3 _reachedPoint;
-    bool _hasMovementDestination,_movementFailed,_movementWalk,_casualJump;
+    bool _hasMovementDestination,_movementFailed,_movementWalk,_casualJump,_retargeting;
     float _movementArrival=4;
     // Arrival measured as straight-line 3D distance: travel that ends in an action (attack, loot, talk) arrives
     // exactly when the action's own range check passes. Other travel arrives horizontally with a height allowance.
@@ -91,7 +91,7 @@ public sealed partial class SIPlayer
         CancelPlanning();
         // Recovery attempts belong to the local position, not this particular
         // route. Resetting them here let task/endpoint changes restart pacing.
-        _waypoint=0;_hasMovementDestination=false;_casualJump=false;_recoveringMovement=false;_travelProgress.Reset();
+        _waypoint=0;_hasMovementDestination=false;_casualJump=false;_retargeting=false;_recoveringMovement=false;_travelProgress.Reset();
         _routeEnd=null;
         HaltSpline();
     }
@@ -127,10 +127,18 @@ public sealed partial class SIPlayer
         (first?SIWalkingSurface.SafeFirstStep(a,b):SIWalkingSurface.SafeStep(a,b))||(SwimmingSurface(a)&&SwimmingSurface(b));
     void MovementFailure(string reason)
     {
+        SettleIfStartOffFloor(reason);
         if(TryMovementRecovery(reason))return;
+        if(!MovementSuspended&&_hasMovementDestination&&_routeRetry.TryBegin(me.GetMapId(),Here,reason))
+        {
+            CancelPlanning();HaltSpline();_movementFailed=false;_nextPlan=Now+250;
+            _routeEnd=null;_routeWaypoint=null;_travelProgress.Reset();
+            SetNavigation("Trying a different route: "+reason,false);return;
+        }
         CancelPlanning();HaltSpline();
         _movementFailed=true;_nextPlan=Now+3000;SetNavigation(reason,true);
     }
+    readonly SIRouteRetry _routeRetry=new();
     bool AtDestination(SIPathPosition goal,float arrival,bool within3D=false)=>goal.MapId==me.GetMapId()&&
         (within3D&&goal.HeightKnown?Vector3.Distance(Here,goal.Point)<=arrival:
         Vector2.Distance(new(Here.X,Here.Y),new(goal.Point.X,goal.Point.Y))<=arrival&&(!goal.HeightKnown||Math.Abs(Here.Z-goal.Point.Z)<=Math.Max(arrival,1.5f))||
@@ -151,10 +159,15 @@ public sealed partial class SIPlayer
         }
         if(MovementSuspended)
         {
+            // A route requested before a suspension (resting, recovering, rooted) is read only when movement runs,
+            // so it would sit finished and unused: drop it.
+            AbandonPlanning();
             _travelProgress.Observe(me.GetMapId(),Here,_movementDestination.Point,Now,_movementArrival,true);
             if(Moving)HaltSpline(clearMotion:false);
             return;
         }
+        // A plan this slow is lost, not slow: fail the leg so the caller can choose another way.
+        if(_planning!=null&&Now-_planningSince>8000){AbandonPlanning();MovementFailure("Route planning timed out");return;}
         // Local work (including all grinding) clears imminent hostiles instead
         // of treating their aggro circles as impassable navigation geometry.
         // Selection alone runs here; spell/combat work stays on the brain tick.
@@ -191,11 +204,22 @@ public sealed partial class SIPlayer
             if(path?.Success!=true){MovementFailure(path?.Error??"Movement request cancelled");return;}
             if(_routeMap!=me.GetMapId()){MovementFailure("Map changed during planning");return;}
             // Pushed or knocked back while the plan was computed: plan again from here.
-            if(Vector3.Distance(Here,path.Points[0])>3){_nextPlan=Now;return;}
+            if(Vector3.Distance(Here,path.Points[0])>3)
+            {
+                var continued=SIMovementRoute.ContinueFrom(Here,path.Points.ToArray());
+                if(continued==null||!WalkableMovementStep(Here,continued[1],first:true)||!MovementSight(Here,continued[1]))
+                {_retargeting=true;_nextPlan=Now;return;}
+                path=path with{Points=System.Collections.Immutable.ImmutableArray.CreateRange(continued)};
+            }
             if(path.Complete&&RouteLength(path.Points.AsSpan())<1){ReachGoal();return;}
-            AdoptRoute(path);
+            _retargeting=false;AdoptRoute(path);
             LaunchMovementRoute();
             if(_movementFailed||_recoveringMovement)return;
+        }
+        if(_retargeting&&_planning==null&&Now>=_nextPlan)
+        {
+            _pathCancel=new();_routeMap=me.GetMapId();
+            _planning=RequestRoute(Here,_pathCancel.Token);_planningSince=Now;
         }
         if(_route.Length>1)
         {
@@ -204,7 +228,7 @@ public sealed partial class SIPlayer
                 // Native spline is the authoritative follower; use the ported cursor
                 // for the collision horizon without re-clicking old waypoints.
                 _waypoint=Math.Clamp(me.MoveSpline.CurrentPathIdx()+1,1,_route.Length-1);
-                if(ExtendMovementRoute())return;
+                if(!_retargeting&&ExtendMovementRoute())return;
                 TryHumanJump();return;
             }
             _route=[];_waypoint=0;
@@ -216,17 +240,19 @@ public sealed partial class SIPlayer
             // A complete route has been walked to its end: that is the closest the mesh gets.
             if(_routeEnd is Vector3 end&&Vector3.Distance(Here,end)<=1.5f){ReachGoal();return;}
         }
-        if(_route.Length<2&&_planning==null&&Now>=_nextPlan)
+        if((_route.Length<2||_retargeting)&&_planning==null&&Now>=_nextPlan)
         {
             // The worker chooses legs itself: direct on the mesh nearby, over the travel graph far away.
             _pathCancel=new();_routeMap=me.GetMapId();
-            _planning=RequestRoute(Here,_pathCancel.Token);
+            _planning=RequestRoute(Here,_pathCancel.Token);_planningSince=Now;
             SetNavigation("Planning movement",false);
         }
     }
+    long _planningSince;
+    void AbandonPlanning(){_pathCancel?.Cancel();_pathCancel?.Dispose();_pathCancel=null;_planning=null;_planningSince=0;}
     Task<SIGroundPath> RequestRoute(Vector3 from,CancellationToken cancel)=>
-        SIMovementRuntime.Get(Global.WorldMgr.GetDataPath()).RequestPath(new(_routeMap,from),_movementDestination with{MapId=_routeMap},cancel,
-            CasualTravelAllowed?HumanMovement.Seed:0,++_routeSequence,CaptureMovementThreats(),RouteHints());
+        SIMovementRuntime.Get(Global.WorldMgr.GetDataPath()).RequestPath(new(_routeMap,from),_movementDestination with{MapId=_routeMap,Arrival=_movementArrival,Within3D=_movementWithin3D},cancel,
+            SocialStrolling?0:HumanMovement.Seed,++_routeSequence,CaptureMovementThreats(),RouteHints());
     void AdoptRoute(SIGroundPath path)
     {
         _routeEnd=path.Complete?path.Points[^1]:null;_routeWaypoint=path.Waypoint;
@@ -289,7 +315,13 @@ public sealed partial class SIPlayer
             }
         // SkipPassed only tests straight steps from the current position.
         _route=SIMovementRoute.SkipPassed(SIMovementRoute.Prepare(Here,_route),(a,b)=>WalkableMovementStep(a,b,first:true)&&MovementSight(a,b));_waypoint=1;
-        if(!SocialRouteAllowed(_route)) { MovementFailure("Social route leaves the selected main city"); return; }
+        if(!SocialRouteAllowed(_route))
+        {
+            // A policy rejection is not a physical obstruction: recovery steps
+            // must not sidestep into the bank or off the selected walking path.
+            CancelPlanning();HaltSpline();_movementFailed=true;_nextPlan=Now+3000;
+            SetNavigation("Route leaves the permitted social walking area",true);return;
+        }
         for(int i=1;i<_route.Length;++i)
             if(!WalkableMovementStep(_route[i-1],_route[i],first:i==1))
             {MovementFailure("Route exceeds player walking slope or step height");return;}
@@ -301,11 +333,14 @@ public sealed partial class SIPlayer
             return;
         }
         PlaceRouteOnFloor();
-        StandUp();me.GetMotionMaster().Clear();
+        bool resumed=!Moving;
+        StandUp();
+        // Replacing a running spline preserves its position and velocity. Clearing
+        // the motion stack here first emitted a stop at every streamed handoff.
+        if(resumed)me.GetMotionMaster().Clear();
         if(StopForDynamicObstacle(launching:true))return;
         var init=new MoveSplineInit(me);init.MovebyPath(_route);init.SetUncompressed();init.SetSmoothGroundPath(false);init.SetWalk(_movementWalk);
         if(swim){Dismount();init.SetVelocity(me.GetSpeed(UnitMoveType.Swim),UnitMoveType.Swim);}
-        bool resumed=!Moving;
         if(init.Launch()<=0){MovementFailure("Movement spline rejected");return;}
         if(resumed||_runningSince==0)_runningSince=Now;
         SetNavigation("Moving",false);
@@ -358,7 +393,7 @@ public sealed partial class SIPlayer
     SIBehaviorResult Travel(Position destination,string reason,float arrival=4,bool walk=false,float destinationTolerance=6,int? mapId=null,bool heightKnown=true,bool rememberFailure=true,float slack=0,bool within3D=false)
     {
         if(destination==null)return SIBehaviorResult.Failure;
-        var goal=new SIPathPosition(mapId??(destination is WorldLocation location?location.GetMapId():me.GetMapId()),V(destination),heightKnown,slack);
+        var goal=new SIPathPosition(mapId??(destination is WorldLocation location?location.GetMapId():me.GetMapId()),V(destination),heightKnown,slack){Arrival=arrival,Within3D=within3D};
         if(!goal.Valid||goal.MapId!=me.GetMapId()){SetNavigation("Destination is on another map",true);return SIBehaviorResult.Failure;}
         if(AtDestination(goal,arrival,within3D)){CancelTravel();SetNavigation("Arrived",false);return SIBehaviorResult.Success;}
         if(!_boardingFlight)
@@ -366,16 +401,34 @@ public sealed partial class SIPlayer
             CommitJourney(goal.Point);
             if(TryJourneyFlight(goal,reason,walk,out var flight))return flight;
         }
-        if(_reachedGoal is SIPathPosition reached&&reached.MapId==goal.MapId&&Vector3.Distance(reached.Point,goal.Point)<=Math.Max(1,destinationTolerance*.5f))
+        if(_reachedGoal is SIPathPosition reached&&reached.MapId==goal.MapId&&reached.Arrival<=arrival&&(!within3D||reached.Within3D)&&Vector3.Distance(reached.Point,goal.Point)<=Math.Max(1,destinationTolerance*.5f))
         {
             if(Vector3.Distance(Here,_reachedPoint)<=2){SetNavigation("Arrived at the closest reachable point",false);return SIBehaviorResult.Success;}
             _reachedGoal=null;
         }
         if(rememberFailure&&IsLearnedRouteBlocked(destination))return SIBehaviorResult.Failure;
         float changed=heightKnown?Vector3.Distance(goal.Point,_movementDestination.Point):Vector2.Distance(new(goal.Point.X,goal.Point.Y),new(_movementDestination.Point.X,_movementDestination.Point.Y));
-        if(!_hasMovementDestination||changed>destinationTolerance||goal.HeightKnown!=_movementDestination.HeightKnown)
+        if(!_hasMovementDestination||changed>destinationTolerance||goal.HeightKnown!=_movementDestination.HeightKnown||arrival<_movementArrival-.1f||within3D!=_movementWithin3D)
         {
-            ClearRoute();_movementDestination=goal;_hasMovementDestination=true;_routeWaypoint=null;_movementFailed=false;_movementContext=MovementContext();_nextPlan=0;
+            // A ranged approach becoming melee needs a new goal radius even
+            // if an older plan is still in flight and the target has not moved.
+            if(arrival<_movementArrival-.1f||within3D!=_movementWithin3D)AbandonPlanning();
+            if(_hasMovementDestination&&Moving&&_route.Length>1&&!_casualJump&&!_movementFailed&&
+                _movementWalk==walk&&_movementContext==MovementContext())
+            {
+                // Keep walking the validated old leg while the moving target's
+                // replacement route is computed. Do not cancel an in-flight plan
+                // on every brain tick; it must get a chance to finish.
+                if(_planning==null)
+                {
+                    CancelAheadMovement();_routeEnd=null;_retargeting=true;
+                    _movementDestination=goal;_routeWaypoint=null;_nextPlan=0;_travelProgress.Reset();
+                }
+            }
+            else
+            {
+                ClearRoute();_movementDestination=goal;_hasMovementDestination=true;_routeWaypoint=null;_movementFailed=false;_movementContext=MovementContext();_nextPlan=0;
+            }
             _journeyReason=reason;_journeyArrival=arrival;
             _longJourney=me.IsAlive()&&!_encounter.Active&&WorkingGoal&&Vector3.Distance(Here,goal.Point)>1500;
         }

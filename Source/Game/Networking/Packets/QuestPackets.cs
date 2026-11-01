@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -8,7 +8,7 @@ using System.Collections.Generic;
 
 namespace Game.Networking.Packets
 {
-    // TrinityCore QuestPackets: one signed map ID in, three counted uint32 lists out.
+    // EmuForever QuestPackets: one signed map ID in, three counted uint32 lists out.
     public sealed class UiMapQuestLinesRequest : ClientPacket
     {
         public UiMapQuestLinesRequest(WorldPacket packet) : base(packet) { }
@@ -140,7 +140,7 @@ namespace Game.Networking.Packets
 
             if (Allow)
             {
-                // Match TrinityCore Forever QueryQuestInfoResponse::Write, including QuestType before QuestPackageID.
+                // Match EmuForever Forever QueryQuestInfoResponse::Write, including QuestType before QuestPackageID.
                 _worldPacket.WriteInt32(Info.QuestID);
                 _worldPacket.WriteInt32(Info.ClassicLevelType);
                 _worldPacket.WriteInt32(Info.QuestLevel);           // ClassicQuestLevel: level shown in the quest log

@@ -1,4 +1,4 @@
-﻿// Copyright (c) CypherCore <http://github.com/CypherCore> All rights reserved.
+﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 namespace Framework.Constants
@@ -38,7 +38,7 @@ namespace Framework.Constants
         AddonLogged = 184,
         Vulpera = 285,
         ComplexCipher = 287,
-        BasicCypher = 288,
+        BasicForever = 288,
         Metrial = 290,
         Altonian = 291,
         Sopranian = 292,
@@ -50,7 +50,7 @@ namespace Framework.Constants
         Unknowable = 298,
     }
 
-    public enum CypherStrings
+    public enum ForeverStrings
     {
         // For Chat Commands
         SelectCharOrCreature = 1,

@@ -268,7 +268,7 @@ namespace Game.AI
             _professionGatherTargets.Clear();
             PruneExpired(_recipeRetryAt);
             if(_professionBatchRoot is { } retained&&_professionBatchCraftsLeft>0&&me.GetSkillValue(retained.Skill)<_professionBatchSkillGoal&&
-                !_recipeRetryAt.ContainsKey(retained.Spell.Id)&&ResolveRecipe(retained,_goal!="social",new SIProfessionRecipePath(),_professionBatchCraftsLeft))return;
+                !_recipeRetryAt.ContainsKey(retained.Spell.Id)&&ResolveRecipe(retained,!SocialMode,new SIProfessionRecipePath(),_professionBatchCraftsLeft))return;
             _professionBatchRoot=null;_professionBatchCraftsLeft=0;
             bool capped = false;
             var candidates = new List<SIRecipe>();
@@ -285,7 +285,7 @@ namespace Game.AI
             if (SIProfessionProcurement.TryRecipes(candidates, (recipe, allowGather) =>
             {
                 _professionSupplies.Clear();_professionWithdraw.Clear();_professionGatherTargets.Clear();_professionShopping.Clear();
-                if(allowGather&&_goal=="social"||_recipeRetryAt.ContainsKey(recipe.Spell.Id))return false;
+                if(allowGather&&SocialMode||_recipeRetryAt.ContainsKey(recipe.Spell.Id))return false;
                 int crafts=SIProfessionBatchPolicy.Crafts(me.GetSkillValue(recipe.Skill),me.GetMaxSkillValue(recipe.Skill),
                     recipe.Ability.TrivialSkillLineRankLow,recipe.Ability.TrivialSkillLineRankHigh,recipe.Ability.NumSkillUps);
                 if(crafts==0||!ResolveRecipe(recipe,allowGather,new SIProfessionRecipePath(),crafts))return false;
@@ -293,7 +293,7 @@ namespace Game.AI
                 _professionBatchSkillGoal=SIProfessionBatchPolicy.SkillTarget(me.GetSkillValue(recipe.Skill),me.GetMaxSkillValue(recipe.Skill),recipe.Ability.TrivialSkillLineRankHigh);
                 return true;
             })) return;
-            if (_goal != "social" && (KnownProfessions().Any(IsGathering) || KnownProfessions().Any(skill => skill is SkillType.Tailoring || skill == SIProfessionKnowledge.FirstAid)))
+            if (!SocialMode && (KnownProfessions().Any(IsGathering) || KnownProfessions().Any(skill => skill is SkillType.Tailoring || skill == SIProfessionKnowledge.FirstAid)))
             {
                 _professionGather = AnyGatherPlan();
                 if (_professionGather != null)
@@ -558,6 +558,7 @@ namespace Game.AI
 
         void StartCraft(SIRecipe recipe)
         {
+            StopSocialStroll();
             if (recipe == null || !HasReagentsInBags(recipe)) { _nextProfessionPlan = 0; return; }
             if (me.IsNonMeleeSpellCast(false, skipAutorepeat: true) || me.IsMoving() && NavigationPending) return;
             CancelTravel(); StandUp(); Dismount();
@@ -629,7 +630,7 @@ namespace Game.AI
 
         // Profession materials and products are kept for crafting and selling later instead of being auctioned
         // on the way, while the bot is working on professions.
-        bool KeepsTradeGoods => _goal is "professions" or "gather" or "social";
+        bool KeepsTradeGoods => _goal is "professions" or "gather" || SocialMode;
 
         // Profession supplies (thread, flux, vials, tools) from the vendor this visit stands at.
         bool BuyProfessionSupplies(Creature vendor)
