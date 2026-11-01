@@ -17,7 +17,7 @@ WoW: Forever Client
 Battle.not (BNot) ── Authentication / Accounts / Realms
         │
         ▼
-CypherCore World Server (.NET 10)
+EmuForever (ForeverWorld .NET 10)
         │  Combat • Movement • Quests • Spells • Social • Persistence
         │
         ├──────────────► SQL Databases (Auth / Characters / World / Hotfixes)
@@ -38,7 +38,7 @@ The **World server** remains authoritative for gameplay, movement, combat, and g
 | Component                       | Status                                                 | Estimated Progress |
 | ------------------------------- | ------------------------------------------------------ | ------------------ |
 | **Battle.not (BNot)**           | Mostly working; protocol refinement                    | ~95%               |
-| **CypherCore World (.NET 10)**  | Playable; ongoing compatibility and bug fixes          | ~80%               |
+| **ForeverWorld (.NET 10)**      | Playable; ongoing compatibility and bug fixes          | ~80%               |
 | **Databases / DB2**             | Core integration working; data fixes ongoing           | ~85%               |
 | **Battle.not Launcher**         | Functional foundation; updates and polish pending      | ~70%               |
 | **SIPlayers / SI Server**       | Primary development focus; integration in progress     | In development     |
