@@ -46,9 +46,7 @@ namespace Game.Chat
         [Command("fly", RBACPermissions.CommandGmFly)]
         static bool HandleGMFlyCommand(CommandHandler handler, bool enable)
         {
-            Player target = handler.GetSelectedPlayer();
-            if (target == null)
-                target = handler.GetPlayer();
+            Player target = handler.GetMovementCommandTarget();
 
             if (enable)
             { 

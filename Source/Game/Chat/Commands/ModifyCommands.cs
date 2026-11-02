@@ -708,7 +708,7 @@ namespace Game.Chat
             static bool HandleModifyASpeedCommand(CommandHandler handler, StringArguments args)
             {
                 float allSpeed;
-                Player target = handler.GetSelectedPlayerOrSelf();
+                Player target = handler.GetMovementCommandTarget();
                 if (CheckModifySpeed(handler, args, target, out allSpeed, 0.1f, 50.0f))
                 {
                     NotifyModification(handler, target, ForeverStrings.YouChangeAspeed, ForeverStrings.YoursAspeedChanged, allSpeed);
@@ -725,7 +725,7 @@ namespace Game.Chat
             static bool HandleModifySwimCommand(CommandHandler handler, StringArguments args)
             {
                 float swimSpeed;
-                Player target = handler.GetSelectedPlayerOrSelf();
+                Player target = handler.GetMovementCommandTarget();
                 if (CheckModifySpeed(handler, args, target, out swimSpeed, 0.1f, 50.0f))
                 {
                     NotifyModification(handler, target, ForeverStrings.YouChangeSwimSpeed, ForeverStrings.YoursSwimSpeedChanged, swimSpeed);
@@ -739,7 +739,7 @@ namespace Game.Chat
             static bool HandleModifyBWalkCommand(CommandHandler handler, StringArguments args)
             {
                 float backSpeed;
-                Player target = handler.GetSelectedPlayerOrSelf();
+                Player target = handler.GetMovementCommandTarget();
                 if (CheckModifySpeed(handler, args, target, out backSpeed, 0.1f, 50.0f))
                 {
                     NotifyModification(handler, target, ForeverStrings.YouChangeBackSpeed, ForeverStrings.YoursBackSpeedChanged, backSpeed);
@@ -753,7 +753,7 @@ namespace Game.Chat
             static bool HandleModifyFlyCommand(CommandHandler handler, StringArguments args)
             {
                 float flySpeed;
-                Player target = handler.GetSelectedPlayerOrSelf();
+                Player target = handler.GetMovementCommandTarget();
                 if (CheckModifySpeed(handler, args, target, out flySpeed, 0.1f, 50.0f, false))
                 {
                     NotifyModification(handler, target, ForeverStrings.YouChangeFlySpeed, ForeverStrings.YoursFlySpeedChanged, flySpeed);
@@ -767,7 +767,7 @@ namespace Game.Chat
             static bool HandleModifyWalkSpeedCommand(CommandHandler handler, StringArguments args)
             {
                 float Speed;
-                Player target = handler.GetSelectedPlayerOrSelf();
+                Player target = handler.GetMovementCommandTarget();
                 if (CheckModifySpeed(handler, args, target, out Speed, 0.1f, 50.0f))
                 {
                     NotifyModification(handler, target, ForeverStrings.YouChangeSpeed, ForeverStrings.YoursSpeedChanged, Speed);

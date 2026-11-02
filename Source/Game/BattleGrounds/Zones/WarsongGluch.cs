@@ -199,6 +199,7 @@ namespace Game.BattleGrounds.Zones.WarsongGluch
 
         void UpdateFlagState(Team team, FlagState value)
         {
+            TrackFlagAwayForSI(GetTeamIndexByTeamId(team), value);
             if (GetMapId() == 489)
             {
                 var state = ClassicFlagWorldState(team, value);
@@ -279,6 +280,7 @@ namespace Game.BattleGrounds.Zones.WarsongGluch
 
             _lastFlagCaptureTeam = Team.Other;
             _bothFlagsKept = false;
+            Array.Clear(_siFlagAwaySince);
 
             _doors.Clear();
             _flags.Clear();

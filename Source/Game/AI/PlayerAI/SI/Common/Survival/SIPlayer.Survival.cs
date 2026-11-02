@@ -155,14 +155,14 @@ namespace Game.AI
 
         // Heal (or shield) a friendly player with a spell that can target allies. Badly hurt: fastest cast first;
         // otherwise the slower, bigger heals. Ordinary Cast checks range, sight, mana and an existing HoT.
-        bool HealAlly(Unit ally)
+        bool HealAlly(Unit ally,bool instantOnly=false)
         {
             if (ally == null || ally == me || !ally.IsAlive() || me.IsHostileTo(ally)) return false;
             bool urgent = ally.GetHealthPct() < 60;
-            var heals = _knownSpells.Where(info => (IsHeal(info) || IsShield(info)) && info.GetEffects().Any(effect =>
+            var heals = _knownSpells.Where(info => (!instantOnly||SIInstantAttackPolicy.Instant(info))&&(IsHeal(info) || IsShield(info)) && info.GetEffects().Any(effect =>
                     PartyBuffTarget(effect.TargetA.GetTarget()) || PartyBuffTarget(effect.TargetB.GetTarget())));
             foreach (SpellInfo spell in urgent ? heals.OrderBy(CastMs) : heals.OrderByDescending(CastMs))
-                if (Cast(spell, ally)) return true;
+                if (Cast(spell, ally,keepMoving:instantOnly)) return true;
             return false;
             static int CastMs(SpellInfo info) => info.CastTimeEntry?.Base ?? 0;
         }

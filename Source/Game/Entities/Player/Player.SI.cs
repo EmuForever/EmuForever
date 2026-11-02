@@ -96,6 +96,9 @@ namespace Game.Entities
             try { DisposeSIController(); }
             finally
             {
+                // SI chooses targets for combat, flags and NPC interaction. Do
+                // not leave one selected for the operator's next GM command.
+                SetSelection(default);
                 GetSession().ResetTimeOutTime(true);
                 if (IsInWorld && !IsCharmed() && GetVehicle() == null && GetUnitBeingMoved() == this)
                     SetClientControl(this, true);

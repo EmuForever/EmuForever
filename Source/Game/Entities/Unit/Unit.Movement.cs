@@ -1061,6 +1061,8 @@ namespace Game.Entities
             if (!enable && IsTypeId(TypeId.Player))
                 ToPlayer().SetFallInformation(0, GetPositionZ());
 
+            RefreshSISplineSpeed();
+
             Player playerMover = GetUnitBeingMoved()?.ToPlayer();
             if (playerMover != null)
             {

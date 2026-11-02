@@ -105,7 +105,7 @@ public sealed partial class SIPlayer
         }
         if (me.IsInCombat()) { _recovering = _resting = false; Recovery = "Alive"; }
         RefreshSpellBook(); SelectAmmunition(); RefreshPartyContext();
-        if (TickPartyBuffs()) return;
+        if (bg.GetStatus()!=BattlegroundStatus.InProgress&&TickPartyBuffs()) return;
         if (me.HasUnitState(UnitState.LostControl | UnitState.Stunned | UnitState.Confused | UnitState.Fleeing))
         { ClassReaction(null); Status = "Recovering control in the battleground"; return; }
         if (bg.GetStatus() != BattlegroundStatus.InProgress)
@@ -142,13 +142,23 @@ public sealed partial class SIPlayer
         }
         EmergencySurvival();
         if (_goal == "flee" && !_bgCarryingFlag) { Flee(); return; }
-        if (_bgCarryingFlag)
+        var bgPlayers = bg.GetPlayers().Keys.Select(Global.ObjAccessor.FindPlayer).Where(p => p != null&&p.GetMap()==me.GetMap()).ToList();
+        bool movingCarrier=SIBattlegroundPolicy.CarrierMovingOnly(_bgCarryingFlag,bg.InFlagRoomForSI(me));
+        if(_knownSpells.Any(spell=>IsHeal(spell)||IsShield(spell))&&!me.IsNonMeleeSpellCast(false,skipAutorepeat:true))
+            foreach(var ally in bgPlayers.Where(p=>p!=me&&SIBattlegroundPolicy.HelpTeammate(p.GetHealthPct(),p.IsAlive(),p.GetBGTeam()==me.GetBGTeam(),me.GetDistance(p),true)&&CombatSight(p)).OrderBy(p=>p.GetHealthPct()).ThenBy(me.GetDistance))
+                if(HealAlly(ally,instantOnly:movingCarrier)){Status="Healing battleground teammate: "+ally.GetName();return;}
+        if(TickPartyBuffs(instantOnly:movingCarrier))return;
+        if (movingCarrier)
         {
-            // A flag carrier never fights: it heals itself when it can and otherwise just runs the flag home.
+            // Keep the flag moving; only instant actions may accompany the run.
             _recovering = _resting = false; Recovery = "Alive"; Dismount();
             if (_encounter.Active) EndEncounter(false);
             if (me.IsNonMeleeSpellCast(false, skipAutorepeat: true)) return;
-            if (TryClassAction(SICombatActionStage.Heal)) return;
+            var threat=bgPlayers.Where(p=>CanFight(p)&&me.GetDistance(p)<=35&&CombatSight(p)).OrderBy(me.GetDistance).FirstOrDefault();
+            bool acted=TryClassAction(SICombatActionStage.Reaction,threat,instantOnly:true)||TryClassAction(SICombatActionStage.Heal,instantOnly:true);
+            if(!acted&&threat!=null)
+                foreach(var spell in OffensiveSpells(threat).Where(SIInstantAttackPolicy.Instant))
+                    if(Cast(spell,threat,keepMoving:true))break;
             ExecuteBattlegroundObjective(bg);
             return;
         }
@@ -160,7 +170,6 @@ public sealed partial class SIPlayer
         }
         // Initiate PvP on every nearby enemy, including while escorting.
         // Flag assignments resume as soon as the local fight ends.
-        var bgPlayers = bg.GetPlayers().Keys.Select(Global.ObjAccessor.FindPlayer).Where(p => p != null).ToList();
         // Focus fire: count teammates already hitting each enemy, so bots pile onto the same low target.
         var allyAttackers = new Dictionary<ObjectGuid, int>();
         foreach (Player ally in bgPlayers)
@@ -174,7 +183,7 @@ public sealed partial class SIPlayer
             return score;
         }
         var nearbyEnemy = bgPlayers.Cast<Unit>().Concat(NearbyCreatures(35))
-            .Where(p => CanFight(p) && me.GetDistance(p) <= 35 && CombatSight(p))
+            .Where(p => CanFight(p) && me.GetDistance(p) <= 35 && CombatSight(p)&&(!_bgCarryingFlag||bg.InFlagRoomForSI(p)))
             .OrderBy(FocusScore).FirstOrDefault();
         // A dead (or released) target ends the fight even when no other enemy is near.
         if (_encounter.Active && (Resolve(_encounter.Target) is not { } current || !current.IsAlive() || me.GetDistance(current) > 60))

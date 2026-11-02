@@ -18,7 +18,9 @@ public partial class Unit
         var speedType=MoveSplineInit.SelectSpeedType(flags);
         if(changedType.HasValue&&changedType.Value!=speedType)return;
         var speed=GetSpeed(speedType);
-        if(MoveSpline.SpeedType==speedType&&Math.Abs(MoveSpline.velocity-speed)<.001f)return;
+        bool flying=HasUnitMovementFlag(MovementFlag.CanFly|MovementFlag.DisableGravity);
+        if(MoveSpline.SpeedType==speedType&&Math.Abs(MoveSpline.velocity-speed)<.001f&&
+            MoveSpline.splineflags.HasFlag(SplineFlag.Flying)==flying)return;
         var path=MoveSpline.RemainingPath();
         if(path.Length<2)return;
         int offset=MoveSpline.CurrentPathIdx();

@@ -1370,11 +1370,11 @@ namespace Game.Networking.Packets
         public void Write(WorldPacket data)
         {
             // Forever layout: TC operator<<(PartyPlayerInfo)
-            // The client combines this identity field with the surname in its
-            // GUID name cache. Group members retain full names internally.
-            string firstName = Global.CharacterCacheStorage.GetCharacterCacheByGuid(GUID)?.FirstName ?? Name;
+            // This roster has one display-name field, used by death notices.
+            // Name queries and object creation have separate surname fields.
+            string displayName = Global.CharacterCacheStorage.GetCharacterCacheByGuid(GUID)?.FullName ?? Name;
             string voiceStateID = VoiceStateID ?? string.Empty;
-            data.WriteBits(firstName.GetByteCount(), 6);
+            data.WriteBits(displayName.GetByteCount(), 6);
             data.WriteBits(voiceStateID.GetByteCount() + 1, 9);   // SizedCString; client 70291+ reads 9 bits (6 before)
             data.WriteBit(Connected);
             data.WriteBit(FromSocialQueue);
@@ -1387,7 +1387,7 @@ namespace Game.Networking.Packets
             data.WriteUInt8(Class);
             data.WriteUInt8(FactionGroup);
             Leaver.Write(data);
-            data.WriteString(firstName);
+            data.WriteString(displayName);
             if (!voiceStateID.IsEmpty())
             {
                 data.WriteString(voiceStateID);

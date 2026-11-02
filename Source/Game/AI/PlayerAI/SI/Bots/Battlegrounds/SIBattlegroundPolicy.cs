@@ -9,10 +9,17 @@ internal enum SIWarsongAssignment { Fetch, Escort, Recover }
 internal static class SIBattlegroundPolicy
 {
     internal static string GoalForLevel(string goal,int level) => goal=="bg"&&level<10?"quest":goal;
+    internal static int WarsongProtectors(int availablePlayers, bool ownFlagMissing, TimeSpan flagAway) =>
+        Math.Min(Math.Max(0, availablePlayers - (ownFlagMissing && availablePlayers > 1 ? 1 : 0)),
+            ownFlagMissing ? 4 - (int)Math.Clamp(flagAway.TotalSeconds / 30, 0, 3) : 4);
+
     internal static SIWarsongAssignment WarsongAssignment(int memberIndex, int availablePlayers,
-        bool friendlyCarrier, bool ownFlagMissing) =>
-        ownFlagMissing && memberIndex < Math.Max(1, (availablePlayers + 1) / 2) ? SIWarsongAssignment.Recover :
-        friendlyCarrier ? SIWarsongAssignment.Escort : SIWarsongAssignment.Fetch;
+        bool friendlyCarrier, bool ownFlagMissing, TimeSpan flagAway)
+    {
+        if (friendlyCarrier && memberIndex >= 0 && memberIndex < WarsongProtectors(availablePlayers, ownFlagMissing, flagAway))
+            return SIWarsongAssignment.Escort;
+        return ownFlagMissing ? SIWarsongAssignment.Recover : SIWarsongAssignment.Fetch;
+    }
 
     internal static bool Supported(BattlegroundTypeId type) => type is BattlegroundTypeId.AV or BattlegroundTypeId.WS or
         BattlegroundTypeId.WgCtf or BattlegroundTypeId.AB or BattlegroundTypeId.DomAb or BattlegroundTypeId.DI;
@@ -27,5 +34,8 @@ internal static class SIBattlegroundPolicy
     }
 
     internal static bool CanMount(bool carryingFlag, BattlegroundStatus status) => !carryingFlag && status == BattlegroundStatus.InProgress;
+    internal static bool HelpTeammate(float health,bool alive,bool teammate,float distance,bool sight)=>alive&&teammate&&health<60&&distance<=40&&sight;
+    internal static bool CarrierMovingOnly(bool carryingFlag,bool inFlagRoom)=>carryingFlag&&!inFlagRoom;
+    internal static bool FlagRoomRange(float distance,float height)=>distance<=35&&Math.Abs(height)<=12;
 
 }

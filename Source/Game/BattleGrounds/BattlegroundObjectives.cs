@@ -22,6 +22,7 @@ namespace Game.BattleGrounds
 
         internal virtual IEnumerable<BattlegroundObjective> ObjectivesForSI(Player player) => [];
         internal virtual Position ExitWaypointForSI(Player player, Position destination) => null;
+        internal virtual bool InFlagRoomForSI(WorldObject player) => false;
         internal int KillingBlowsForSI(ObjectGuid player) => PlayerScores.TryGetValue(player, out var score) ? score.KillingBlows : 0;
 
         private protected void TrackObjectiveObjectForSI(GameObject obj)
@@ -175,6 +176,31 @@ namespace Game.BattleGrounds.Zones.WarsongGluch
 {
     partial class BgWarsongGluch
     {
+        readonly TimeSpan?[] _siFlagAwaySince = new TimeSpan?[2];
+
+        // Native flag transitions own this clock. Drops and a new enemy carrier
+        // retain pressure; a return or capture starts the next theft afresh.
+        internal void TrackFlagAwayForSI(int team, FlagState state)
+        {
+            if (state is FlagState.Taken or FlagState.Dropped)
+                _siFlagAwaySince[team] ??= GetElapsedTime();
+            else
+                _siFlagAwaySince[team] = null;
+        }
+
+        internal TimeSpan FlagAwayForSI(int team) => _siFlagAwaySince[team] is { } since
+            ? Time.Max(TimeSpan.Zero, GetElapsedTime() - since) : TimeSpan.Zero;
+
+        internal override bool InFlagRoomForSI(WorldObject player)
+        {
+            for(int team=0;team<2;++team)
+            {
+                var stand=GetBgMap().GetGameObject(_flags[team])?.GetPosition()??ObjectSpawnsForSI()
+                    .FirstOrDefault(spawn=>spawn.Id==(GetMapId()==489?(team==0?179830:179831):(team==0?GameobjectIds.AllianceFlagInBase:GameobjectIds.HordeFlagInBase)))?.SpawnPoint;
+                if(stand!=null&&SIBattlegroundPolicy.FlagRoomRange(player.GetExactDist2d(stand),player.GetPositionZ()-stand.GetPositionZ()))return true;
+            }
+            return false;
+        }
         internal override IEnumerable<BattlegroundObjective> ObjectivesForSI(Player player)
         {
             int team = GetTeamIndexByTeamId(GetPlayerTeam(player.GetGUID())), enemy = 1 - team;
@@ -200,20 +226,20 @@ namespace Game.BattleGrounds.Zones.WarsongGluch
             var carrier = Global.ObjAccessor.FindPlayer(GetFlagCarrierGUID(enemy));
             if (carrier?.GetMap() != GetBgMap()) carrier = null;
 
-            // Rank living SI teammates rather than relying on GUID parity or
-            // objective scores: a real half-team split must survive uneven IDs.
+            // Stable ranks keep escorts together instead of swapping jobs whenever
+            // someone moves closer. Each 30 seconds another escort joins recovery.
             var teammates = GetPlayers().Keys.Select(Global.ObjAccessor.FindPlayer)
                 .Where(p => p != null && p.Controller != null && p.IsAlive() && p.GetMap() == GetBgMap() &&
                     p.GetGUID() != carrier?.GetGUID() && GetPlayerTeam(p.GetGUID()) == GetPlayerTeam(player.GetGUID()))
                 .Select(p => p.GetGUID()).Append(player.GetGUID()).Distinct().OrderBy(g => g.GetCounter()).ToArray();
             var assignment = SIBattlegroundPolicy.WarsongAssignment(Array.IndexOf(teammates, player.GetGUID()),
-                teammates.Length, carrier != null, thief != null || ownDrop != null);
+                teammates.Length, carrier != null, thief != null || ownDrop != null, FlagAwayForSI(team));
             BattlegroundObjective recover = ownDrop != null
                 ? ObjectiveForSI(ownDrop, "Return our dropped flag", BattlegroundObjectiveAction.Interact, 0)
                 : thief != null ? ObjectiveForSI(thief, "Recover our flag from the enemy carrier", BattlegroundObjectiveAction.Attack, 0) : null;
             if (assignment == SIWarsongAssignment.Recover && recover != null)
             { yield return recover; yield break; }
-            if (carrier != null)
+            if (assignment == SIWarsongAssignment.Escort && carrier != null)
             {
                 yield return ObjectiveForSI(carrier, "Escort and protect our flag carrier", BattlegroundObjectiveAction.Escort, 0);
                 yield break;

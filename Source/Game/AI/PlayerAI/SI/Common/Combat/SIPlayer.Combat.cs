@@ -146,12 +146,15 @@ namespace Game.AI
                     (effect.MiscValue == 0 || effect.MiscValue == (int)pair.Value.GetBase().GetSpellInfo().Dispel)));
 
         // Ordinary CheckCast validates power, cooldown, reagents, range, sight and the spell's target.
-        bool Cast(SpellInfo spell, Unit target, bool refreshPartyBuff = false)
+        bool Cast(SpellInfo spell, Unit target, bool refreshPartyBuff = false, bool keepMoving = false)
         {
+            if(keepMoving&&(!SIInstantAttackPolicy.Instant(spell)||target!=me&&spell.GetEffects().Any(effect=>
+                effect.Effect is SpellEffectName.Charge or SpellEffectName.ChargeDest or SpellEffectName.Jump or SpellEffectName.JumpDest)))return false;
             if (WarlockRoutine.IsHealthFunnel(spell) && !CanHealthFunnelAt(target)) return false;
             if (spell != null && spell.IsRangedWeaponSpell() && HunterNeedsMelee(target)) return false;
             if (spell == null || target == null || !me.IsAlive() || me.IsNonMeleeSpellCast(false, skipAutorepeat: true) || !me.HasSpell(spell.Id) ||
                 me.GetSpellHistory().HasGlobalCooldown(spell) || !me.GetSpellHistory().IsReady(spell) || !CanResourceCast(spell)) return false;
+            if(_bgCarryingFlag&&target==me&&(spell.HasAura(AuraType.ModStealth)||spell.HasAura(AuraType.ModInvisibility)||spell.HasAura(AuraType.SchoolImmunity)))return false;
             if (BreaksMagePolymorph(spell, target)) return false;
             if (target != me && !spell.HasAttribute(SpellAttr2.IgnoreLineOfSight) && !CombatSight(target)) return false;
             if (!refreshPartyBuff && spell.GetEffects().All(effect => effect.IsAura()) && target.HasAura(spell.Id, me.GetGUID())) return false;
@@ -173,6 +176,7 @@ namespace Game.AI
             }
             if (check == SpellCastResult.UnitNotInfront && !me.HasUnitState(UnitState.CannotTurn))
             {
+                if(keepMoving)return false;
                 me.SetFacingToObject(target);
                 check = cast.CheckPetCast(target);
             }
@@ -212,7 +216,7 @@ namespace Game.AI
                 me.InterruptSpell(CurrentSpellTypes.Channeled);
         }
 
-        bool TryClassAction(SICombatActionStage stage, Unit enemy = null)
+        bool TryClassAction(SICombatActionStage stage, Unit enemy = null, bool instantOnly = false)
         {
             if (!me.IsAlive() || me.IsNonMeleeSpellCast(false, skipAutorepeat: true)) return false;
             SICombatFacts facts = ClassCombatFacts(enemy);
@@ -237,10 +241,11 @@ namespace Game.AI
                     if (!_classSpells.TryGetValue(alternative, out SpellInfo[] ranks)) continue;
                     foreach (SpellInfo spell in ranks)
                     {
+                        if(instantOnly&&!SIInstantAttackPolicy.Instant(spell))continue;
                         if ((rule.Conditions & SICombatCondition.SelfDebuff) != 0 && !CanDispelWith(spell, me, negative: true)) continue;
                         if ((rule.Conditions & SICombatCondition.EnemyBuff) != 0 && !CanDispelWith(spell, target, negative: false)) continue;
                         if (HasCurrentBuff(target, alternative) && AuraBlocksRecast(spell, rule.MissingAura)) continue;
-                        if (Cast(spell, target))
+                        if (Cast(spell, target,keepMoving:instantOnly))
                         {
                             _classRetryAt[(rule.Name, target.GetGUID())] = Now + rule.RetryMilliseconds;
                             Report("combat_strategy", $"{rule.Name}: {alternative} (spell {spell.Id}, rank {spell.GetRank()})");
@@ -301,14 +306,14 @@ namespace Game.AI
             }
         }
 
-        bool TickPartyBuffs()
+        bool TickPartyBuffs(bool instantOnly=false)
         {
-            if (Now < _nextPartyBuffScan || _partyMembers.Length == 0 || !me.IsAlive() ||
+            if (Now < _nextPartyBuffScan || _partyMembers.Length == 0&&!me.InBattleground() || !me.IsAlive() ||
                 me.IsNonMeleeSpellCast(false, skipAutorepeat: true) || HasUsefulRecoveryAura()) return false;
             _nextPartyBuffScan = Now + 3000;
             foreach (var member in PartyBuffMembers().Where(p => p.IsAlive() && p.GetMap() == me.GetMap() &&
                 me.InSamePhase(p) && me.GetExactDist(p) <= 40).OrderBy(me.GetDistance))
-                foreach (var spell in _knownSpells.Where(CanBuffParty))
+                foreach (var spell in _knownSpells.Where(spell=>CanBuffParty(spell)&&(!instantOnly||SIInstantAttackPolicy.Instant(spell))))
                 {
                     bool area = PartyAreaBuff(spell);
                     if (area && me.GetExactDist(member) > spell.GetEffects().Max(effect =>
@@ -316,7 +321,7 @@ namespace Game.AI
                     Unit castTarget = area ? me : member;
                     if (HasCurrentBuff(member, SpellName(spell)) || ConflictsWithActiveBuff(spell, member) ||
                         spell.CheckTarget(me, castTarget, false) != SpellCastResult.SpellCastOk) continue;
-                    if (Cast(spell, castTarget, refreshPartyBuff: area))
+                    if (Cast(spell, castTarget, refreshPartyBuff: area,keepMoving:instantOnly))
                     {
                         _nextPartyBuffScan = Now + 1600;
                         Status = "Buffing party member " + member.GetName();

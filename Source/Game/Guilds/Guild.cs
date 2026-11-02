@@ -1277,14 +1277,14 @@ namespace Game.Guilds
             if (newLeader != null)
             {
                 eventPacket.NewLeaderGUID = newLeader.GetGUID();
-                eventPacket.NewLeaderName = Global.CharacterCacheStorage.GetCharacterCacheByGuid(newLeader.GetGUID())?.FirstName ?? newLeader.GetName();
+                eventPacket.NewLeaderName = Global.CharacterCacheStorage.GetCharacterCacheByGuid(newLeader.GetGUID())?.FullName ?? newLeader.GetName();
                 eventPacket.NewLeaderVirtualRealmAddress = Global.WorldMgr.GetVirtualRealmAddress();
             }
 
             if (oldLeader != null)
             {
                 eventPacket.OldLeaderGUID = oldLeader.GetGUID();
-                eventPacket.OldLeaderName = Global.CharacterCacheStorage.GetCharacterCacheByGuid(oldLeader.GetGUID())?.FirstName ?? oldLeader.GetName();
+                eventPacket.OldLeaderName = Global.CharacterCacheStorage.GetCharacterCacheByGuid(oldLeader.GetGUID())?.FullName ?? oldLeader.GetName();
                 eventPacket.OldLeaderVirtualRealmAddress = Global.WorldMgr.GetVirtualRealmAddress();
             }
 
@@ -1296,13 +1296,13 @@ namespace Game.Guilds
             GuildEventPlayerLeft eventPacket = new();
             eventPacket.Removed = isRemoved;
             eventPacket.LeaverGUID = leaver.GetGUID();
-            eventPacket.LeaverName = leaver.GetFirstName();
+            eventPacket.LeaverName = leaver.GetName();
             eventPacket.LeaverVirtualRealmAddress = Global.WorldMgr.GetVirtualRealmAddress();
 
             if (isRemoved && remover != null)
             {
                 eventPacket.RemoverGUID = remover.GetGUID();
-                eventPacket.RemoverName = remover.GetFirstName();
+                eventPacket.RemoverName = remover.GetName();
                 eventPacket.RemoverVirtualRealmAddress = Global.WorldMgr.GetVirtualRealmAddress();
             }
 

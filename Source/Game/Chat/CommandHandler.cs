@@ -354,6 +354,13 @@ namespace Game.Chat
             return ObjectAccessor.GetCreatureOrPetOrVehicle(_session.GetPlayer(), _session.GetPlayer().GetTarget());
         }
 
+        internal Player GetMovementCommandTarget()
+        {
+            // During .si me the selected unit belongs to the AI, not the operator.
+            var player = GetPlayer();
+            return player?.IsSelfSIControlled == true ? player : GetSelectedPlayerOrSelf();
+        }
+
         public Player GetSelectedPlayerOrSelf()
         {
             if (_session == null)

@@ -227,6 +227,8 @@ namespace Game.BattleGrounds
 
         void _ProcessProgress(TimeSpan diff)
         {
+            if(GetPlayersCountByTeam(Team.Alliance)>=GetBaseMinPlayersPerTeam()&&GetPlayersCountByTeam(Team.Horde)>=GetBaseMinPlayersPerTeam())
+            {m_PrematureCountDown=false;m_PrematureCountDownTimer=TimeSpan.Zero;return;}
             // *********************************************************
             // ***           Battleground BALLANCE SYSTEM            ***
             // *********************************************************
@@ -1190,6 +1192,8 @@ namespace Game.BattleGrounds
         // returns the number how many players can join Battleground to MaxPlayersPerTeam
         public int GetFreeSlotsForTeam(Team team)
         {
+            if(IsBattleground()&&(GetStatus()==BattlegroundStatus.WaitJoin||GetStatus()==BattlegroundStatus.InProgress))
+                return Math.Max(0,GetMaxPlayersPerTeam()-Math.Max(GetInvitedCount(team),GetPlayersCountByTeam(team)));
             // if BG is starting and WorldCfg.BattlegroundInvitationType == BattlegroundQueueInvitationTypeB.NoBalance, invite anyone
             if (GetStatus() == BattlegroundStatus.WaitJoin 
                 && WorldConfig.Values[WorldCfg.BattlegroundInvitationType].Int32 == (int)BattlegroundQueueInvitationType.NoBalance)
@@ -1901,6 +1905,9 @@ namespace Game.BattleGrounds
         public int GetClientInstanceID() { return m_ClientInstanceID; }
         public TimeSpan GetElapsedTime() { return m_StartTime; }
         public TimeSpan GetRemainingTime() { return m_EndTime; }
+        public TimeSpan GetPrematureTimeRemaining()=>m_PrematureCountDown&&
+            (GetPlayersCountByTeam(Team.Alliance)<GetBaseMinPlayersPerTeam()||GetPlayersCountByTeam(Team.Horde)<GetBaseMinPlayersPerTeam())
+                ?m_PrematureCountDownTimer:TimeSpan.Zero;
 
         TimeSpan GetStartDelayTime() { return m_StartDelayTime; }
         public ArenaTypes GetArenaType() { return m_ArenaType; }
@@ -1949,7 +1956,9 @@ namespace Game.BattleGrounds
         Group GetBgRaid(Team team) { return m_BgRaids[GetTeamIndexByTeamId(team)]; }
 
         public static int GetTeamIndexByTeamId(Team team) { return team == Team.Alliance ? BattleGroundTeamId.Alliance : BattleGroundTeamId.Horde; }
-        public int GetPlayersCountByTeam(Team team) { return m_PlayersCount[GetTeamIndexByTeamId(team)]; }
+        // Count actual participants, including ghosts, instead of a cached total
+        // that can drift after reconnects or team changes.
+        public int GetPlayersCountByTeam(Team team) => m_Players.Values.Count(player=>player.Team==team);
         
         void UpdatePlayersCountByTeam(Team team, bool remove)
         {
