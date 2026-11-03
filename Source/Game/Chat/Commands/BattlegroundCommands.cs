@@ -1,12 +1,28 @@
 using Framework.Constants;
+using Framework.IO;
 using Game.BattleGrounds;
 using System.Linq;
+using System;
 
 namespace Game.Chat.Commands;
 
 [CommandGroup("bg")]
 class BattlegroundCommands
 {
+    [Command("wsg", RBACPermissions.RoleGamemaster, true)]
+    static bool Warsong(CommandHandler handler,StringArguments arguments)
+    {
+        string selection=arguments.GetString().Trim();
+        if(selection.Length!=0)
+        {
+            try { Global.BattlegroundMgr.SetWarsongMaps(selection); }
+            catch(ArgumentException error) { handler.SendSysMessage(error.Message);return false; }
+        }
+        handler.SendSysMessage($"New WSG matches use: {string.Join(", ",Global.BattlegroundMgr.GetWarsongMaps())}. 489 = classic (zone 3277); 2996 = winter. Existing matches keep their map. Selection lasts until restart; default is all available maps.");
+        handler.SendSysMessage("Use .bg wsg <3277|489|2996|all>; .bg wsg shows the current selection.");
+        return true;
+    }
+
     [Command("list", RBACPermissions.RoleModerator, true)]
     static bool List(CommandHandler handler)
     {

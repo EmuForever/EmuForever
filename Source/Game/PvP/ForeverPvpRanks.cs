@@ -75,7 +75,7 @@ namespace Game.Systems.PvP
         {
             if (!Enabled || SeasonWeek() <= 0) return;
             int points = won ? BattlegroundWinPoints : BattlegroundLossPoints;
-            if (mapId == CallToArmsMapId())
+            if ((mapId==2996?489:mapId) == CallToArmsMapId())
                 points += points * CallToArmsBonusPct / 100;
             if (points > 0)
                 player.ModifyCurrency(RankPointsCurrencyId, points, CurrencyGainSource.PvPCompletionBonus);

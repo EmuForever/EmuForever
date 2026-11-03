@@ -206,6 +206,7 @@ namespace Game.AI
             if(TickDuel())return;
             if (_goal == "pause") { Behavior = "Pause"; Status = "Paused"; _preparation.Pause(Now); return; }
             ReviewLocalQuestContext();
+            if(ContinueQuestHearth())return;
             RefreshSpellBook();
             if (TickPartyBuffs()) return;
             SelectAmmunition();
@@ -222,6 +223,7 @@ namespace Game.AI
                 EndEncounter(false); if (!ClassReaction(null)) Flee(); return;
             }
             if(TickPriorityTurnIn())return;
+            if(_task?.Quest!=null&&TryQuestHearth())return;
             if(TickJourneyFlight())return;
             if (ContinuePastTrivialAttackers()) return;
             if (!_auctionMailDestination.HasValue && ContinueLongJourney()) return;

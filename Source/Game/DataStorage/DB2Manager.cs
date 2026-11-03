@@ -301,6 +301,8 @@ namespace Game.DataStorage
                 _mapDifficulties[entry.MapID][entry.DifficultyID] = entry;
             }
 
+            InitializeWinterWarsongDifficulty();
+
             List<MapDifficultyXConditionRecord> mapDifficultyConditions = new();
             foreach (var mapDifficultyCondition in MapDifficultyXConditionStorage.Values)
                 mapDifficultyConditions.Add(mapDifficultyCondition);
@@ -1526,6 +1528,15 @@ namespace Game.DataStorage
             return mapDifficulty;
         }
 
+        internal void InitializeWinterWarsongDifficulty()
+        {
+            if(!_mapDifficulties.TryGetValue(489,out var classic))return;
+            if(!_mapDifficulties.TryGetValue(2996,out var winter))
+                _mapDifficulties[2996]=winter=new();
+            foreach(var pair in classic)
+                if(!winter.ContainsKey(pair.Key))winter[pair.Key]=pair.Value.ForMap(2996);
+        }
+
         public MapDifficultyRecord GetDownscaledMapDifficultyData(int mapId, ref Difficulty difficulty)
         {
             DifficultyRecord diffEntry = DifficultyStorage.LookupByKey(difficulty);
@@ -1633,6 +1644,7 @@ namespace Game.DataStorage
 
         public PvpDifficultyRecord GetBattlegroundBracketByLevel(int mapid, int level)
         {
+            if(mapid==2996)mapid=489;
             PvpDifficultyRecord maxEntry = null;              // used for level > max listed level case
             foreach (var entry in PvpDifficultyStorage.Values)
             {
@@ -1654,6 +1666,7 @@ namespace Game.DataStorage
 
         public PvpDifficultyRecord GetBattlegroundBracketById(int mapid, BattlegroundBracketId id)
         {
+            if(mapid==2996)mapid=489;
             foreach (var entry in PvpDifficultyStorage.Values)
             {
                 if (entry.MapID == mapid && entry.BracketId == id)

@@ -666,7 +666,7 @@ sealed class PlayerSession
             var response = new ProtoWriter();
             if (key is "Command_RealmListRequest" or "Command_RealmListRequest_v1")
             {
-                foreach (string subRegion in _realms.Snapshot().Select(realm => realm.SubRegion).Distinct())
+                foreach (string subRegion in _realms.Snapshot(_build).Select(realm => realm.SubRegion).Distinct())
                     response.Message(1, Messages.Variant(v2, Kind.String, text: subRegion));
                 await Respond(stream, token, Rpc.ErrorOk, response.ToArray());
                 return;
@@ -728,7 +728,7 @@ sealed class PlayerSession
                 values.Add(("Param_BleepProxyList", Blob(JsonText.Compress("JSONBleepProxyList:{}"))));
                 return (Rpc.ErrorOk, values);
             case "Command_SuperDistrictListRequest":
-                values.Add(("Param_SuperDistrictList", Blob(JsonText.Compress("JSONSuperDistrictList:{\"superDistricts\":[" + _realms.SuperDistrictEntries() + "]}"))));
+                values.Add(("Param_SuperDistrictList", Blob(JsonText.Compress("JSONSuperDistrictList:{\"superDistricts\":[" + _realms.SuperDistrictEntries(_build) + "]}"))));
                 return (Rpc.ErrorOk, values);
             default:
                 Log.outDebug(LogFilter.Network, $"Unknown game utility command '{command}'.");
@@ -744,13 +744,15 @@ sealed class PlayerSession
         if (sub?.Kind != Kind.String || sub.Value.Text == null)
             return Rpc.ErrorUtilUnknownRealm;
         LastPlayed? played = null;
-        if (_game.LastPlayed.TryGetValue(sub.Value.Text, out LastPlayed? found))
+        if (_game.LastPlayed.TryGetValue(sub.Value.Text, out LastPlayed? found)
+            && _realms.Find(found.RealmAddress) is RealmEntry foundRealm && _realms.RealmEntryJson(foundRealm, _build, _game.Security).Length > 0)
             played = found;
         Variant? filter = Find(parameters, "Param_ContentSetIDFilter");
         if (filter != null && Number(filter.Value, out long content) && content >= 0)
         {
-            RealmEntry? ruleset = _realms.FindContentSet((uint)content);
-            if (ruleset != null && _game.LastPlayed.TryGetValue(ruleset.SubRegion, out LastPlayed? rulesetChar))
+            RealmEntry? ruleset = _realms.FindContentSet((uint)content, _build);
+            if (ruleset != null && _game.LastPlayed.TryGetValue(ruleset.SubRegion, out LastPlayed? rulesetChar)
+                && _realms.Find(rulesetChar.RealmAddress) is RealmEntry rulesetRealm && _realms.RealmEntryJson(rulesetRealm, _build, _game.Security).Length > 0)
                 played = rulesetChar;
         }
         else if (played == null)
@@ -777,14 +779,14 @@ sealed class PlayerSession
         }
         if (filter != null && Number(filter.Value, out long contentSet) && contentSet >= 0)
         {
-            RealmEntry? realm = _realms.FindContentSet((uint)contentSet) ?? _realms.FirstOnline();
+            RealmEntry? realm = _realms.FindContentSet((uint)contentSet, _build) ?? _realms.FirstOnline(_build);
             if (realm != null)
             {
-                string json = _realms.RealmEntryJson(realm, _build, _game.Security);
+                string json = _realms.RealmSelectionJson(realm, _build, _game.Security);
                 if (json.Length > 0)
                 {
                     values.Add(("Param_RealmEntry", Blob(JsonText.Compress("JamJSONRealmEntry:" + json))));
-                    values.Add(("Param_LastPlayedTime", Int(DateTimeOffset.UtcNow.ToUnixTimeSeconds())));
+                    values.Add(("Param_LastPlayedTime", Int(realm.PopulationState == 0 ? 0 : DateTimeOffset.UtcNow.ToUnixTimeSeconds())));
                     values.Add(("Param_UtilityInfo", Blob(JsonText.Compress("JSONUtilityInfo:{\"realmPermissions\":512}"))));
                 }
             }
@@ -920,6 +922,8 @@ sealed class PlayerSession
         if (list.Length == 0)
             return Rpc.ErrorUtilSerialize;
         var counts = new StringBuilder();
+        var visibleAddresses = _realms.Snapshot(_build)
+            .Where(realm => realm.SubRegion == sub.Value.Text).Select(realm => realm.Address).ToHashSet();
         if (_game.CharacterCounts.Count == 0)
             counts.Append("{}");
         else
@@ -928,6 +932,8 @@ sealed class PlayerSession
             bool first = true;
             foreach (var (address, count) in _game.CharacterCounts)
             {
+                if (!visibleAddresses.Contains(address))
+                    continue;
                 if (!first)
                     counts.Append(',');
                 first = false;
@@ -937,6 +943,7 @@ sealed class PlayerSession
         }
         values.Add(("Param_RealmList", Blob(list)));
         values.Add(("Param_CharacterCountList", Blob(JsonText.Compress("JSONRealmCharacterCountList:" + counts))));
+        Log.outDebug(LogFilter.Network, $"Realm list build {_build} sub-region {sub.Value.Text}: {visibleAddresses.Count} matching realm(s).");
         return Rpc.ErrorOk;
     }
 

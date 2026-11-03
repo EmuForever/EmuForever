@@ -673,7 +673,7 @@ namespace Game.BattleGrounds
 
             // Search all supported maps together so an older active match wins
             // over a newer instance or a lobby that has not opened its gates.
-            var candidates=bg_template.BattlemasterEntry.MapId.Where(map=>map!=-1)
+            var candidates=Global.BattlegroundMgr.GetQueueMaps(bg_template)
                 .SelectMany(map=>Global.BattlegroundMgr.GetBGFreeSlotQueueStore(map));
             foreach(var bg in OrderBackfillCandidates(candidates))
             {

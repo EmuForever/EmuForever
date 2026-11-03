@@ -52,7 +52,9 @@ namespace Game.DataStorage
         private int[] _flags = new int[3];
 
         #region Properties
-        public MapTypes InstanceType => (MapTypes)_instanceType;
+        // The winter WSG asset is tagged as a world map in the client DB2.
+        // It must create isolated battleground instances on the server.
+        public MapTypes InstanceType => Id==2996?MapTypes.Battleground:(MapTypes)_instanceType;
         public MapFlags Flags => (MapFlags)_flags[0];
         public MapFlags2 Flags2 => (MapFlags2)_flags[1];
         public Expansion Expansion => (Expansion)_expansionID;
@@ -156,6 +158,10 @@ namespace Game.DataStorage
 
     public sealed class MapDifficultyRecord
     {
+        internal MapDifficultyRecord ForMap(int map)
+        {
+            var copy=(MapDifficultyRecord)MemberwiseClone();copy.MapID=map;return copy;
+        }
         /// <summary>
         /// m_message_lang (text showed when transfer to map failed)
         /// </summary>

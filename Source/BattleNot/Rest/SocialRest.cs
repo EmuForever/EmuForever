@@ -55,7 +55,7 @@ sealed class SocialRest
         bool show = other.Value.Id == who.Value.Id
             || other.Value.Visibility == 0
             || (other.Value.Visibility == 1 && await _db.Friends.AreFriends(who.Value.Id, other.Value.Id));
-        var visible = show ? await _db.Profiles.CharactersOf(other.Value.Id) : new List<(string Name, int Level, string Guild, int Achievements)>();
+        var visible = show ? await _db.Profiles.CharactersOf(other.Value.Id) : new List<ProfileCharacter>();
         string bio = show ? other.Value.Bio : "";
         return Json(ProfileJson(other.Value.Tag, other.Value.Status, bio, other.Value.Visibility, visible));
     }
@@ -73,7 +73,7 @@ sealed class SocialRest
         return Json("{\"ok\":true}");
     }
 
-    static string ProfileJson(string tag, string status, string bio, int visibility, List<(string Name, int Level, string Guild, int Achievements)> chars)
+    static string ProfileJson(string tag, string status, string bio, int visibility, List<ProfileCharacter> chars)
     {
         var parts = new List<string>();
         foreach (var row in chars)
@@ -81,6 +81,11 @@ sealed class SocialRest
             parts.Add("{\"name\":" + JsonText.Quote(row.Name) +
                 ",\"level\":" + row.Level +
                 ",\"guild\":" + JsonText.Quote(row.Guild) +
+                ",\"realm\":" + JsonText.Quote(row.Realm) +
+                ",\"health\":" + row.Health + ",\"power\":" + row.Power +
+                ",\"maxHealth\":" + row.MaxHealth + ",\"maxPower\":" + row.MaxPower +
+                ",\"zoneId\":" + row.ZoneId + ",\"zone\":" + JsonText.Quote(row.Zone) +
+                ",\"isDead\":" + (row.IsDead ? "true" : "false") +
                 ",\"achievements\":" + row.Achievements + "}");
         }
         return "{\"battletag\":" + JsonText.Quote(tag) +

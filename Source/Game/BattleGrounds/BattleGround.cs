@@ -714,7 +714,7 @@ namespace Game.BattleGrounds
                     {
                         if (Global.BattlegroundMgr.IsRandomBattleground(bgPlayer.queueTypeId.BattlemasterListId)
                             || Global.BattlegroundMgr.IsBGWeekend(bgPlayer.queueTypeId.BattlemasterListId)
-                            || GetMapId() == Game.Systems.PvP.ForeverPvpRanks.CallToArmsMapId())
+                            || (GetMapId()==2996?489:GetMapId()) == Game.Systems.PvP.ForeverPvpRanks.CallToArmsMapId())
                         {
                             UpdatePlayerScore(player, ScoreType.BonusHonor, GetBonusHonorFromKill(winnerKills));
                             if (!player.GetRandomWinner())
@@ -749,7 +749,7 @@ namespace Game.BattleGrounds
                     {
                         if (Global.BattlegroundMgr.IsRandomBattleground(bgPlayer.queueTypeId.BattlemasterListId)
                             || Global.BattlegroundMgr.IsBGWeekend(bgPlayer.queueTypeId.BattlemasterListId)
-                            || GetMapId() == Game.Systems.PvP.ForeverPvpRanks.CallToArmsMapId())
+                            || (GetMapId()==2996?489:GetMapId()) == Game.Systems.PvP.ForeverPvpRanks.CallToArmsMapId())
                             UpdatePlayerScore(player, ScoreType.BonusHonor, GetBonusHonorFromKill(loserKills));
                     }
                 }
@@ -1433,7 +1433,7 @@ namespace Game.BattleGrounds
 
         public int GetMapId()
         {
-            return _battlegroundTemplate.BattlemasterEntry.MapId[0];
+            return _battlegroundTemplate.MapId;
         }
 
         public void SpawnBGObject(int type, TimeSpan respawntime)

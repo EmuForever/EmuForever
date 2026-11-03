@@ -41,6 +41,12 @@ try
     }.ConnectionString;
     var db = new BnotDb(connectionString, ConfigMgr.GetDefaultValue("Shop.WorldDatabase", "world"));
     var realms = new RealmCatalog();
+    if (args.Contains("--products-check"))
+    {
+        var catalog = await db.Products.Load();
+        Log.outInfo(LogFilter.Server, $"Product catalog verified: {catalog.Products.Count} product(s) in auth.bnot_products.");
+        return;
+    }
     
     if (args.Contains("--friends-check"))
     {
@@ -64,6 +70,7 @@ try
     // Do not accept login, REST, or RPC traffic until all Battle.net/social schema work is complete.
     // This keeps an early launcher request from racing the lazy first-use table migration.
     await db.Schema.EnsureBnetIdentity();
+    await db.Products.EnsureSchema();
     ShopRest.Use(db.Shop);
     try
     {

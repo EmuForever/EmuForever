@@ -129,7 +129,7 @@ namespace Game.BattleGrounds.Zones.WarsongGluch
 
         public override void EventPlayerClickedOnFlag(Player player, GameObject target)
         {
-            if (GetMapId() != 489 || GetStatus() != BattlegroundStatus.InProgress || !player.CanUseBattlegroundObject(null)) return;
+            if (!UsesClassicWarsongObjects || GetStatus() != BattlegroundStatus.InProgress || !player.CanUseBattlegroundObject(null)) return;
             int flagTeam = ClassicFlagTeam(target.GetEntry());
             if (flagTeam < 0) return;
             bool drop = target.GetEntry() is 179785 or 179786;
@@ -160,7 +160,7 @@ namespace Game.BattleGrounds.Zones.WarsongGluch
                 Guid = player.GetGUID(), Pos = player.GetPosition(),
                 IconID = flagTeam == 0 ? BattlegroundConst.PlayerPositionIconAllianceFlag : BattlegroundConst.PlayerPositionIconHordeFlag
             });
-            SetClassicSpawnGroup(489001 + flagTeam, false);
+            SetClassicSpawnGroup(ClassicWarsongSpawnGroup(1 + flagTeam), false);
             UpdateFlagState(flagTeam == 0 ? Team.Alliance : Team.Horde, FlagState.Taken);
             SendBroadcastText(flagTeam == 0 ? BroadcastTextIds.AllianceFlagPickedUp : BroadcastTextIds.HordeFlagPickedUp,
                 flagTeam == 0 ? ChatMsg.BgSystemHorde : ChatMsg.BgSystemAlliance, player);
@@ -169,7 +169,7 @@ namespace Game.BattleGrounds.Zones.WarsongGluch
 
         public override void EventPlayerDroppedFlag(Player player)
         {
-            if (GetMapId() != 489 || _classicFlagReset) return;
+            if (!UsesClassicWarsongObjects || _classicFlagReset) return;
             for (int team = 0; team < 2; ++team)
             {
                 if (_classicFlagCarrier[team] != player.GetGUID()) continue;
@@ -208,13 +208,13 @@ namespace Game.BattleGrounds.Zones.WarsongGluch
             GetBgMap().GetGameObject(_classicFlagDrop[team])?.Delete();
             _classicFlagCarrier[team] = _classicFlagDrop[team] = default;
             _classicFlagTimer[team] = TimeSpan.Zero; _classicFlagState[team] = FlagState.InBase;
-            SetClassicSpawnGroup(489001 + team, true);
+            SetClassicSpawnGroup(ClassicWarsongSpawnGroup(1 + team), true);
             UpdateFlagState(team == 0 ? Team.Alliance : Team.Horde, FlagState.InBase);
         }
 
         void TickClassicFlags(TimeSpan diff)
         {
-            if (GetMapId() != 489 || GetStatus() != BattlegroundStatus.InProgress) return;
+            if (!UsesClassicWarsongObjects || GetStatus() != BattlegroundStatus.InProgress) return;
             for (int flag = 0; flag < 2; ++flag)
             {
                 if (_classicFlagState[flag] is FlagState.Dropped or FlagState.Respawning)
@@ -243,7 +243,7 @@ namespace Game.BattleGrounds.Zones.WarsongGluch
                     {
                         _classicFlagState[team] = FlagState.Respawning;
                         _classicFlagTimer[team] = TimeSpan.FromMilliseconds(MiscConst.FlagRespawnTime);
-                        SetClassicSpawnGroup(489001 + team, false);
+                        SetClassicSpawnGroup(ClassicWarsongSpawnGroup(1 + team), false);
                         UpdateFlagState(team == 0 ? Team.Alliance : Team.Horde, FlagState.Respawning);
                     }
             }

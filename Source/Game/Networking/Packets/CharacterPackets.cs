@@ -524,7 +524,12 @@ namespace Game.Networking.Packets
 
     public class AccountItemCollectionData : ServerPacket
     {
-        public AccountItemCollectionData() : base(ServerOpcodes.AccountItemCollectionData) { }
+        readonly uint _clientBuild;
+
+        public AccountItemCollectionData(uint clientBuild = 0) : base(ServerOpcodes.AccountItemCollectionData)
+        {
+            _clientBuild = clientBuild;
+        }
 
         public override void Write()
         {
@@ -534,6 +539,14 @@ namespace Game.Networking.Packets
             _worldPacket.WriteUInt32(0x08ECBD10);
             _worldPacket.WriteUInt8(7);     // collectionListType
             _worldPacket.WriteUInt32(0);    // item count
+
+            // 70755's reader (0x6201F0..0x620349) consumes this flag even for
+            // an empty collection. Omitting it leaves character select waiting.
+            if (_clientBuild == 70755)
+            {
+                _worldPacket.WriteBit(false);
+                _worldPacket.FlushBits();
+            }
         }
     }
 

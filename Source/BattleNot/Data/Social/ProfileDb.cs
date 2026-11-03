@@ -1,11 +1,32 @@
 using MySqlConnector;
+using Framework.Configuration;
+using Framework.Constants;
+using System.Text.Json;
 
 namespace BattleNot;
+
+sealed record ProfileCharacter(string Name, int Level, string Guild, int Achievements, string Realm,
+    uint Health, uint Power, uint MaxHealth, uint MaxPower, uint ZoneId, string Zone, bool IsDead);
 
 // bnot_social: presence, bio and visibility, plus the character list shown on a profile.
 sealed class ProfileDb
 {
     readonly BnotDb _db;
+    static readonly Lazy<Dictionary<uint, string>> ZoneNames = new(LoadZoneNames);
+
+    static Dictionary<uint, string> LoadZoneNames()
+    {
+        try
+        {
+            string file = ConfigMgr.GetDefaultValue("Profiles.ZoneNamesFile", "");
+            using Stream source = file.Length > 0 ? File.OpenRead(file) : typeof(ProfileDb).Assembly.GetManifestResourceStream("BattleNot.ProfileZones.enUS.json")
+                ?? throw new FileNotFoundException("Profile zone-name catalog is missing.");
+            return JsonSerializer.Deserialize<Dictionary<uint, string>>(source) ?? [];
+        }
+        catch (Exception ex) { Log.outError(LogFilter.Sql, "Profile zone names: " + ex.Message); return []; }
+    }
+
+    internal static bool CharacterIsDead(uint health, uint flags) => health == 0 || (flags & (uint)PlayerFlags.Ghost) != 0;
 
     public ProfileDb(BnotDb db) => _db = db;
 
@@ -117,30 +138,64 @@ sealed class ProfileDb
         return (id.Value, reader.GetString(0), status, reader.GetString(3), Convert.ToInt32(reader.GetValue(4)));
     }
 
-    public async Task<List<(string Name, int Level, string Guild, int Achievements)>> CharactersOf(uint bnetId)
+    internal static List<(uint RealmId, string Database)> ParseCharacterDatabases(string text)
     {
-        var list = new List<(string, int, string, int)>();
-        try
+        var mappings = new List<(uint RealmId, string Database)>();
+        // Older configurations retain their existing character source without guessing its realm.
+        if (string.IsNullOrWhiteSpace(text)) return [(0, "characters")];
+        foreach (string entry in text.Split(','))
         {
-            await using MySqlConnection conn = _db.Connect();
-            await conn.OpenAsync();
-            await using var cmd = new MySqlCommand(
-                "SELECT c.name, c.level, IFNULL(g.name, ''), " +
-                "(SELECT COUNT(*) FROM characters.character_achievement ca WHERE ca.guid = c.guid) " +
-                "FROM characters.characters c INNER JOIN account a ON a.id = c.account " +
-                "LEFT JOIN characters.guild_member gm ON gm.guid = c.guid " +
-                "LEFT JOIN characters.guild g ON g.guildid = gm.guildid " +
-                "WHERE a.battlenet_account = @id AND c.deleteDate IS NULL " +
-                "ORDER BY c.level DESC, c.name LIMIT 12", conn);
-            cmd.Parameters.AddWithValue("@id", bnetId);
-            await using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-                list.Add((reader.GetString(0), reader.GetInt32(1), reader.GetString(2), reader.GetInt32(3)));
+            string[] parts = entry.Trim().Split(':');
+            string database = parts.Length == 2 ? parts[1].Trim() : "";
+            if (parts.Length != 2 || !uint.TryParse(parts[0].Trim(), out uint realmId) || realmId == 0 || realmId > ushort.MaxValue
+                || database.Length == 0 || database.Length > 64 || database.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '_'))
+                throw new InvalidDataException("Profiles.CharacterDatabases must contain realmId:database pairs.");
+            if (mappings.Any(m => m.RealmId == realmId || string.Equals(m.Database, database, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidDataException("Profiles.CharacterDatabases contains a duplicate realm or character database.");
+            mappings.Add((realmId, database));
         }
-        catch (Exception ex)
+        return mappings;
+    }
+
+    public async Task<List<ProfileCharacter>> CharactersOf(uint bnetId)
+    {
+        var list = new List<ProfileCharacter>();
+        List<(uint RealmId, string Database)> mappings;
+        try { mappings = ParseCharacterDatabases(ConfigMgr.GetDefaultValue("Profiles.CharacterDatabases", "")); }
+        catch (Exception ex) { Log.outError(LogFilter.Sql, "Profile characters: " + ex.Message); return list; }
+        foreach (var source in mappings)
         {
-            Log.outError(LogFilter.Sql, "Profile characters: " + ex.Message);
+            try
+            {
+                await using MySqlConnection conn = _db.Connect();
+                await conn.OpenAsync();
+                // The schema identifier is validated above. Realm names come from auth.realmlist, not account history.
+                string schema = "`" + source.Database + "`";
+                await using var cmd = new MySqlCommand(
+                    "SELECT CONCAT_WS(' ',c.name,NULLIF(TRIM(c.surname),'')), c.level, IFNULL(g.name, ''), " +
+                    $"(SELECT COUNT(*) FROM {schema}.character_achievement ca WHERE ca.guid = c.guid), IFNULL(r.name, ''), " +
+                    "c.health, c.power1, IFNULL(stats.maxhealth,0), IFNULL(stats.maxpower1,0), c.zone, c.playerFlags " +
+                    $"FROM {schema}.characters c INNER JOIN account a ON a.id = c.account " +
+                    $"LEFT JOIN {schema}.guild_member gm ON gm.guid = c.guid " +
+                    $"LEFT JOIN {schema}.guild g ON g.guildid = gm.guildid " +
+                    $"LEFT JOIN {schema}.character_stats stats ON stats.guid = c.guid " +
+                    "LEFT JOIN realmlist r ON r.id = @realm " +
+                    "WHERE a.battlenet_account = @id AND c.deleteDate IS NULL " +
+                    "ORDER BY c.level DESC, c.name LIMIT 12", conn);
+                cmd.Parameters.AddWithValue("@id", bnetId);
+                cmd.Parameters.AddWithValue("@realm", source.RealmId);
+                await using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    uint health = reader.GetUInt32(5), zoneId = reader.GetUInt32(9);
+                    ZoneNames.Value.TryGetValue(zoneId, out string? zone);
+                    list.Add(new ProfileCharacter(reader.GetString(0), reader.GetInt32(1), reader.GetString(2), reader.GetInt32(3), reader.GetString(4),
+                        health, reader.GetUInt32(6), reader.GetUInt32(7), reader.GetUInt32(8), zoneId, zone ?? "", CharacterIsDead(health, reader.GetUInt32(10))));
+                }
+            }
+            catch (Exception ex) { Log.outError(LogFilter.Sql, $"Profile characters realm {source.RealmId}: {ex.Message}"); }
         }
-        return list;
+        return list.OrderByDescending(c => c.Level).ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(c => c.Realm, StringComparer.OrdinalIgnoreCase).Take(12).ToList();
     }
 }

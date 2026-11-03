@@ -193,7 +193,7 @@ namespace Game.Chat.Commands
                             if (result != ResponseCodes.CharCreateSuccess)
                                 ReportCreationFailure(h, $"SI creation {displayName}: {result} ({(int)result}).");
                             else
-                                h.SendSysMessage(CreationMessage(displayName,Player.TeamForRace(raceId),raceId,classId));
+                                h.SendSysMessage(CreationMessage(displayName,Player.TeamForRace(raceId),raceId,classId,guid));
                         }
                         finally { Creating.TryRemove(displayName, out _); completed?.Invoke(result == ResponseCodes.CharCreateSuccess,guid); }
                     }, spawnOnSuccess:true);
@@ -393,7 +393,7 @@ namespace Game.Chat.Commands
         static bool Help(CommandHandler h)
         {
             h.SendSysMessage(".si create random <horde|alliance> [race class]; .si create \"first surname\" <horde|alliance> <race> <class>. Creates and automatically spawns; skyborn/skyborne selects that faction's Skyborn race.");
-            h.SendSysMessage(".si populate <1-10000>: fill an evenly split SI population, reusing offline characters and creating missing faction members. Online SI players are counted and kept; odd totals give Alliance one extra. .si despawn all cancels pending work.");
+            h.SendSysMessage(".si populate <1-10000>: add this many SI players, evenly split between factions, reusing offline characters before creating missing members. Existing online SI players stay online and do not count toward this batch; odd counts add one extra Alliance. .si despawn all cancels pending work.");
             h.SendSysMessage(".si me [on|off]: toggle SI control of your logged-in character; off returns manual control. No target or separate bot login is needed.");
             h.SendSysMessage(".si spawn|despawn all; .si spawncount <1-10000>; .si delete [GUID|\"name\"]; .si rename [GUID|\"name\"] <random|\"first surname\">.");
             h.SendSysMessage(".si quest|grind|pause|resume|follow|guard|attack|rest|save|teleport|info [GUID|\"name\"]; .si list [all]; .si status [all].");

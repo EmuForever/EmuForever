@@ -16,6 +16,7 @@ sealed class BnotDb
         _shopWorldDatabase = shopWorldDatabase;
 
         Schema = new BnetSchema(this);
+        Products = new ProductsDb(this);
         Auth = new AuthDb(this);
         Realms = new RealmDb(this);
         Shop = new ShopDb(this);
@@ -28,6 +29,7 @@ sealed class BnotDb
     }
 
     public BnetSchema Schema { get; }
+    public ProductsDb Products { get; }
     public AuthDb Auth { get; }
     public RealmDb Realms { get; }
     public ShopDb Shop { get; }

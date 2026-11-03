@@ -1,4 +1,4 @@
-﻿// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
+// Copyright (c) EmuForever <http://github.com/EmuForever> All rights reserved.
 // Licensed under the GNU GENERAL PUBLIC LICENSE. See LICENSE file in the project root for full license information.
 
 using Framework.Constants;
@@ -15,6 +15,12 @@ namespace Game
 {
     public partial class WorldSession
     {
+        [WorldPacketHandler(ClientOpcodes.SocialContractRequest, Status = SessionStatus.Authed)]
+        void HandleSocialContractRequest(SocialContractRequest request)
+        {
+            SendPacket(new SocialContractRequestResponse { ShowSocialContract = false });
+        }
+
         [WorldPacketHandler(ClientOpcodes.Who, Processing = PacketProcessing.ThreadSafe)]
         void HandleWho(WhoRequestPkt whoRequest)
         {

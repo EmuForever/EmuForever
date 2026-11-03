@@ -259,7 +259,7 @@ namespace Game
             SendPacket(new RecentAllyDataResponse());
 
             if (!charResult.IsDeletedCharacters)
-                SendPacket(new AccountItemCollectionData());
+                SendPacket(new AccountItemCollectionData(Global.WorldMgr.GetRealm().Build));
 
             // Classic 1.60: unread mail senders per character (mail icon on the character list). Sent right after the enum the
             // client ignores it; the official server sends it ~2.6 s later, so Update sends it after 3 s (TC).

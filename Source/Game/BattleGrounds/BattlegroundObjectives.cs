@@ -1,4 +1,4 @@
-﻿using Framework.Constants;
+using Framework.Constants;
 using Game.AI;
 using Game.Entities;
 using System;
@@ -43,7 +43,7 @@ namespace Game.BattleGrounds
 
         private protected void OpenClassicStartDoors()
         {
-            if (GetMapId() is not (30 or 489 or 529)) return;
+            if (GetMapId() is not (30 or 489 or 529 or 2996)) return;
             foreach (var spawn in ObjectSpawnsForSI())
                 if (Global.ObjectMgr.GetGameObjectTemplate(spawn.Id)?.type == GameObjectTypes.Door &&
                     GetBgMap().GetGameObjectBySpawnId(spawn.SpawnId) is { } door && door.GetGoState() == GameObjectState.Ready)
@@ -196,7 +196,7 @@ namespace Game.BattleGrounds.Zones.WarsongGluch
             for(int team=0;team<2;++team)
             {
                 var stand=GetBgMap().GetGameObject(_flags[team])?.GetPosition()??ObjectSpawnsForSI()
-                    .FirstOrDefault(spawn=>spawn.Id==(GetMapId()==489?(team==0?179830:179831):(team==0?GameobjectIds.AllianceFlagInBase:GameobjectIds.HordeFlagInBase)))?.SpawnPoint;
+                    .FirstOrDefault(spawn=>spawn.Id==(UsesClassicWarsongObjects?(team==0?179830:179831):(team==0?GameobjectIds.AllianceFlagInBase:GameobjectIds.HordeFlagInBase)))?.SpawnPoint;
                 if(stand!=null&&SIBattlegroundPolicy.FlagRoomRange(player.GetExactDist2d(stand),player.GetPositionZ()-stand.GetPositionZ()))return true;
             }
             return false;
@@ -211,13 +211,13 @@ namespace Game.BattleGrounds.Zones.WarsongGluch
                 if (home != null)
                     yield return ObjectiveForSI(home, "Bring the enemy flag home; wait for our flag to return if necessary",
                         BattlegroundObjectiveAction.Move, 0, true);
-                else if (FlagStandForSI(GetMapId() == 489 ? team == 0 ? 179830 : 179831 : team == 0 ? GameobjectIds.AllianceFlagInBase : GameobjectIds.HordeFlagInBase,
+                else if (FlagStandForSI(UsesClassicWarsongObjects ? team == 0 ? 179830 : 179831 : team == 0 ? GameobjectIds.AllianceFlagInBase : GameobjectIds.HordeFlagInBase,
                     _flags[team], "Bring the enemy flag home", 0) is { } fallback)
                     yield return fallback with { Action = BattlegroundObjectiveAction.Move, CarryingFlag = true };
                 yield break;
             }
             var drops = DroppedFlagsForSI().ToArray();
-            int DropTeam(GameObject drop) => GetMapId() == 489 ? ClassicFlagTeam(drop.GetEntry()) :
+            int DropTeam(GameObject drop) => UsesClassicWarsongObjects ? ClassicFlagTeam(drop.GetEntry()) :
                 drop.GetOwnerGUID() == _flags[0] ? 0 : drop.GetOwnerGUID() == _flags[1] ? 1 : -1;
             var ownDrop = drops.FirstOrDefault(drop => DropTeam(drop) == team);
             var enemyDrop = drops.FirstOrDefault(drop => DropTeam(drop) == enemy);
@@ -246,7 +246,7 @@ namespace Game.BattleGrounds.Zones.WarsongGluch
             }
             if (enemyDrop != null)
             { yield return ObjectiveForSI(enemyDrop, "Recover the enemy flag", BattlegroundObjectiveAction.Interact, 0); yield break; }
-            if (FlagStandForSI(GetMapId() == 489 ? enemy == 0 ? 179830 : 179831 : enemy == 0 ? GameobjectIds.AllianceFlagInBase : GameobjectIds.HordeFlagInBase,
+            if (FlagStandForSI(UsesClassicWarsongObjects ? enemy == 0 ? 179830 : 179831 : enemy == 0 ? GameobjectIds.AllianceFlagInBase : GameobjectIds.HordeFlagInBase,
                 _flags[enemy], "Take the enemy flag", 0) is { } stand)
                 yield return GetFlagState(enemy) == FlagState.InBase ? stand : stand with
                 { Action = BattlegroundObjectiveAction.Move, Label = "Advance to the enemy flag room while the flags reset" };
@@ -256,7 +256,7 @@ namespace Game.BattleGrounds.Zones.WarsongGluch
         // team splits between both exits instead of all taking the shortest one.
         internal override Position ExitWaypointForSI(Player player, Position destination)
         {
-            if (GetMapId() != 489) return null;
+            if (!UsesClassicWarsongObjects) return null;
             for (int team = 0; team < 2; ++team)
             {
                 var stand = ObjectSpawnsForSI().FirstOrDefault(spawn => spawn.Id == (team == 0 ? 179830 : 179831))?.SpawnPoint;

@@ -53,7 +53,7 @@ class spell_classic_wsg_flag_carrier : AuraScript
 {
     void OnRemove(AuraEffect effect, AuraEffectHandleModes mode)
     {
-        if (GetTarget().ToPlayer() is { } player && player.GetMapId() == 489)
+        if (GetTarget().ToPlayer() is { } player && player.GetMapId() is 489 or 2996)
             player.GetBattleground()?.EventPlayerDroppedFlag(player);
     }
     public override void Register() => AfterEffectRemove.Add(new(OnRemove, 0, AuraType.EffectImmunity, AuraEffectHandleModes.Real));

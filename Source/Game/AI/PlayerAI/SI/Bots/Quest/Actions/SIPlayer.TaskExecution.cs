@@ -21,6 +21,7 @@ namespace Game.AI
             // An empty result must obey its retry deadline too; otherwise every idle bot
             // rebuilds candidates on all four decision ticks each second.
             if (Now >= _nextReplan || _task != null && TaskDone(_task)) Replan();
+            if(TryQuestHearth())return;
             if (_task == null)
             {
                 if (!QuestNeedsLevelGrinding()) { Status = QuestWaitStatus(); return; }

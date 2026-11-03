@@ -17,6 +17,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="products.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
     <None Update="Configs/BattleNot.conf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -26,4 +30,8 @@
     <MakeDir Directories="$(TargetDir)Logs" />
   </Target>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Configs\ProfileZones.enUS.json" LogicalName="BattleNot.ProfileZones.enUS.json" />
+  </ItemGroup>
 </Project>
+

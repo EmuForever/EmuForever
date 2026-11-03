@@ -17,7 +17,7 @@ namespace Game.AI
         SIItemDisposition ItemDisposition(Item item)
         {
             var template = item.GetTemplate();
-            bool protectedItem = !item.InventoryPosition.IsInventoryPos || item.IsInTrade() || item.IsNotEmptyBag() ||
+            bool protectedItem = item.GetEntry()==6948 || !item.InventoryPosition.IsInventoryPos || item.IsInTrade() || item.IsNotEmptyBag() ||
                 template.HasFlag(ItemFlags.NoUserDestroy) || template.HasFlag(ItemFlags.Conjured) || item.m_itemData.Expiration != Seconds.Zero ||
                 QuestNeedsItem(item.GetEntry()) || template.GetStartQuest() != 0 ||
                 template.GetTotemCategory()!=0 || _professionGatherTargets.ContainsKey(item.GetEntry()) || _professionSupplies.ContainsKey(item.GetEntry()) ||

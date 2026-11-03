@@ -74,6 +74,8 @@ sealed class LoginRest
         app.MapGet("/bnetserver/versions/", (Delegate)Versions);
         app.MapGet("/bnetserver/realms/", (Delegate)Realms);
         app.MapGet("/bnetserver/version/", (Delegate)Version);
+        app.MapGet("/bnetserver/products/", (Delegate)Products);
+        app.MapGet("/bnetserver/products.json", (Delegate)Products);
         app.MapPost("/bnetserver/login/", (Delegate)Login);
         app.MapPost("/bnetserver/login/srp/", (Delegate)Srp);
         app.MapPost("/bnetserver/login/authenticator/", (Delegate)Authenticator);
@@ -100,14 +102,50 @@ sealed class LoginRest
         return Json(json);
     }
 
-    IResult Version(HttpContext ctx)
+    async Task<IResult> Products(HttpContext ctx)
     {
-        const string product = "wow_forever";
+        try
+        {
+            var catalog = await _db.Products.Load();
+            ctx.Response.Headers.CacheControl = "no-store";
+            return Results.Json(catalog, ProductCatalogJson.Options);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or JsonException)
+        {
+            Log.outError(LogFilter.Http, $"Product catalog unavailable: {ex.GetType().Name}: {ex.Message}");
+            return Results.Json(new { error = "invalid_product_catalog", message = ex.Message }, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+    }
+
+    async Task<BnotProduct?> RequestedProduct(HttpContext ctx)
+    {
+        string id = ctx.Request.Query["product"].ToString();
+        BnotProductCatalog catalog;
+        try { catalog = await _db.Products.Load(); }
+        catch (Exception ex) when (ex is InvalidDataException or JsonException)
+        {
+            ctx.Items["productCatalogError"] = ex.Message;
+            return null;
+        }
+        return catalog.Products.FirstOrDefault(p => p.Enabled && p.Services.Provider == "bnot" &&
+            (id.Length == 0 || p.Id == id || p.Distribution.ProductCode == id));
+    }
+
+    async Task<IResult> Version(HttpContext ctx)
+    {
+        BnotProduct? definition = await RequestedProduct(ctx);
+        if (ProductFailure(ctx) is { } failure) return failure;
+        string product = definition?.Id ?? ctx.Request.Query["product"].ToString();
         const string platform = "win64";
-        BuildInfo? target = _realms.TargetVersion();
-        if (target == null)
+        string selectedRealm = ctx.Request.Query["realm"].ToString();
+        var matching = definition == null ? Array.Empty<RealmEntry>() : _realms.Snapshot()
+            .Where(realm => definition.SupportsRealmBuild(realm.Build) &&
+                (selectedRealm.Length == 0 || realm.Id.ToString() == selectedRealm)).ToArray();
+        uint targetBuild = matching.GroupBy(realm => realm.Build).OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key).Select(group => group.Key).FirstOrDefault();
+        if (targetBuild == 0)
             return Json(VersionJson(product, "", 0, platform, "unavailable", true));
-        string version = target.Major + "." + target.Minor + "." + target.Revision + "." + target.Build;
+        _realms.TryVersionText(targetBuild, out string version);
         if (version != _announcedVersion)
         {
             _announcedVersion = version;
@@ -116,9 +154,13 @@ sealed class LoginRest
         string client = ctx.Request.Query["client"].ToString();
         string asked = ctx.Request.Query["platform"].ToString();
         bool wrongPlatform = asked.Length > 0 && !string.Equals(asked, platform, StringComparison.OrdinalIgnoreCase);
-        bool wrongBuild = client.Length > 0 && !string.Equals(client, version, StringComparison.OrdinalIgnoreCase);
+        uint clientBuild = 0;
+        bool knownClient = uint.TryParse(client, out clientBuild);
+        if (!knownClient) knownClient = TryVersion(client, out _, out _, out _, out clientBuild);
+        bool wrongBuild = client.Length > 0 && (!knownClient || clientBuild != targetBuild ||
+            (version.Length > 0 && client.Contains('.') && !string.Equals(client, version, StringComparison.OrdinalIgnoreCase)));
         string status = wrongPlatform ? "unavailable" : wrongBuild ? "patch" : "playable";
-        return Json(VersionJson(product, version, target.Build, platform, status, wrongPlatform || wrongBuild));
+        return Json(VersionJson(product, version, targetBuild, platform, status, wrongPlatform || wrongBuild));
     }
 
     static string VersionJson(string product, string version, uint build, string platform, string status, bool patchRequired)
@@ -132,35 +174,40 @@ sealed class LoginRest
             ",\"patchRequired\":" + (patchRequired ? "true" : "false") + "}";
     }
 
-    IResult Versions()
+    async Task<IResult> Versions(HttpContext ctx)
     {
+        BnotProduct? product = await RequestedProduct(ctx);
+        if (ProductFailure(ctx) is { } failure) return failure;
         var parts = new List<string>();
-        foreach (BuildInfo info in _realms.ClientVersions())
+        foreach (uint build in _realms.Snapshot().Where(realm => product != null && product.SupportsRealmBuild(realm.Build))
+            .Select(realm => realm.Build).Distinct().OrderBy(build => build))
         {
-            string version = info.Major + "." + info.Minor + "." + info.Revision + "." + info.Build;
-            parts.Add("{\"version\":" + JsonText.Quote(version) + ",\"build\":" + info.Build + "}");
+            _realms.TryVersionText(build, out string version);
+            parts.Add("{\"product\":" + JsonText.Quote(product!.Id) + ",\"version\":" + JsonText.Quote(version) + ",\"build\":" + build + "}");
         }
         return Json("{\"versions\":[" + string.Join(",", parts) + "]}");
     }
 
-    IResult Realms(HttpContext ctx)
+    async Task<IResult> Realms(HttpContext ctx)
     {
+        BnotProduct? product = await RequestedProduct(ctx);
+        if (ProductFailure(ctx) is { } failure) return failure;
         var parts = new List<string>();
-        uint major, minor, revision, build;
-        if (TryVersion(ctx.Request.Query["version"].ToString(), out major, out minor, out revision, out build))
+        if (product != null)
         {
-            foreach (RealmEntry realm in _realms.OnlineForVersion(major, minor, revision, build))
+            foreach (RealmEntry realm in _realms.Snapshot().Where(realm => product.SupportsRealmBuild(realm.Build)))
             {
                 string version;
                 _realms.TryVersionText(realm.Build, out version);
                 string address = realm.Addresses.Count > 0 ? realm.Addresses[0].ToString() : "";
                 parts.Add("{\"id\":" + realm.Id +
+                    ",\"product\":" + JsonText.Quote(product.Id) +
                     ",\"name\":" + JsonText.Quote(realm.Name) +
                     ",\"address\":" + JsonText.Quote(address) +
                     ",\"port\":" + realm.Port +
                     ",\"type\":" + realm.Type +
                     ",\"population\":" + realm.Population.ToString(System.Globalization.CultureInfo.InvariantCulture) +
-                    ",\"status\":\"online\"" +
+                    ",\"status\":" + JsonText.Quote(realm.WorldUp ? "online" : "offline") +
                     ",\"version\":" + JsonText.Quote(version) +
                     ",\"build\":" + realm.Build +
                     ",\"flags\":" + realm.LegacyFlags +
@@ -171,6 +218,9 @@ sealed class LoginRest
         }
         return Json("{\"realms\":[" + string.Join(",", parts) + "]}");
     }
+
+    static IResult? ProductFailure(HttpContext ctx) => ctx.Items.TryGetValue("productCatalogError", out var error)
+        ? Results.Json(new { error = "invalid_product_catalog", message = error }, statusCode: StatusCodes.Status503ServiceUnavailable) : null;
 
     static bool TryVersion(string text, out uint major, out uint minor, out uint revision, out uint build)
     {

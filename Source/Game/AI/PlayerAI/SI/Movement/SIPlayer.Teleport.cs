@@ -11,6 +11,7 @@ public sealed partial class SIPlayer
         _travelMount.Cancel(Now);
         _settleOnFloor=true;
         if(!resetWork)return; // Short spell movement, such as Blink, keeps combat ownership.
+        _questHearthQueuedAt=null;
         ReleaseJourney();
         CloseLootAnimation();EndEncounter(false);
         ResetPriorityTurnIn();

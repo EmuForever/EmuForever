@@ -56,8 +56,8 @@ partial class SICommands
     }
 
     internal static string CreationRaceName(Race race) => race is Race.SkyborneAlliance or Race.SkyborneHorde?"Skyborn":race.ToString();
-    internal static string CreationMessage(string name,Team team,Race race,Class cls) =>
-        $"[siPlayer created] Name: \"{name}\", Faction: \"{team}\". Race: \"{CreationRaceName(race)}\", Class: \"{cls}\"";
+    internal static string CreationMessage(string name,Team team,Race race,Class cls,ObjectGuid guid) =>
+        $"[siPlayer created] Name: \"{name}\", Faction: \"{team}\". Race: \"{CreationRaceName(race)}\", Class: \"{cls}\", GUID: {guid.GetCounter()}";
 
     static void ValidateCreationCombination(Race race,Class cls)
     {
@@ -92,11 +92,11 @@ partial class SICommands
     }
 
     internal static (int Alliance,int Horde) PopulationTargets(int count) => ((count+1)/2,count/2);
-    internal static int PopulationNeeded(int target,int online,int pending,int creating) => Math.Max(0,target-online-pending-creating);
+    internal static int PopulationNeeded(int target,int added,int pending,int creating) => Math.Max(0,target-added-pending-creating);
     internal static int PopulateArgument(string text)
     {
         if(!int.TryParse(text.Trim(),out int count)||count is <1 or >10000)
-            throw new ArgumentException("Use .si populate <1-10000>. The count is the desired total SI population.");
+            throw new ArgumentException("Use .si populate <1-10000>. The count is the number of additional SI players to spawn.");
         return count;
     }
 
@@ -109,10 +109,10 @@ partial class SICommands
         return Run(h,()=>QueuePopulation(h,PopulateArgument(arguments.GetString())));
     }
 
-    static void QueuePopulation(CommandHandler h,int total)
+    static void QueuePopulation(CommandHandler h,int additional)
     {
         if(_populating)throw new InvalidOperationException("An SI population request is already running. Use .si despawn all to cancel it.");
-        var targets=PopulationTargets(total);
+        var targets=PopulationTargets(additional);
         var accounts=BotAccounts();
         var candidates=new List<ObjectGuid>();
         if(accounts.Count>0)
@@ -138,7 +138,9 @@ partial class SICommands
         }
         var creating=new Dictionary<Team,int> { [Team.Alliance]=0,[Team.Horde]=0 };
         var pending=new Dictionary<ObjectGuid,(Team Team,long Deadline)>();
-        int created=0,spawned=0,failures=0,lastProgress=0;
+        // Only logins requested by this batch count toward its additions. Existing
+        // players and other spawn commands must not consume this request's quota.
+        int created=0,spawned=0,failures=0,lastProgress=0,alliance=0,horde=0;
         long generation=SpawnQueue.Generation,lastAdvance=Environment.TickCount64;
         _populating=true;
         Work.Enqueue(()=>
@@ -156,19 +158,19 @@ partial class SICommands
                     var entry=Global.CharacterCacheStorage.GetCharacterCacheByGuid(request.Key);
                     var session=entry==null?null:Global.WorldMgr.FindSession(entry.AccountId);
                     if(session?.GetPlayer()?.IsInWorld==true&&!session.PlayerDisconnected())
-                    {pending.Remove(request.Key);++spawned;lastAdvance=now;}
+                    {
+                        pending.Remove(request.Key);++spawned;lastAdvance=now;
+                        if(request.Value.Team==Team.Alliance)++alliance;else ++horde;
+                    }
                     else if(session==null||session.PlayerDisconnected()||now>=request.Value.Deadline)
                     {pending.Remove(request.Key);++failures;}
                 }
-                var online=Global.WorldMgr.GetAllSessions().Where(s=>s.IsServerControlled&&!s.PlayerDisconnected()&&s.GetPlayer()?.IsInWorld==true)
-                    .Select(s=>s.GetPlayer()).ToArray();
-                int alliance=online.Count(p=>p.GetTeam()==Team.Alliance),horde=online.Count(p=>p.GetTeam()==Team.Horde);
                 if(alliance>=targets.Alliance&&horde>=targets.Horde&&creating.Values.Sum()==0&&pending.Count==0)
-                    return Finish($"SI populate complete: Alliance {alliance}, Horde {horde}; {spawned} logins confirmed, {created} characters created, {failures} failures. Existing online SI players were kept.");
+                    return Finish($"SI populate complete: added {spawned} SI players (Alliance {alliance}, Horde {horde}); {created} characters created, {failures} failures. Existing online SI players were kept.");
                 if(failures>=3||now-lastAdvance>300000)
-                    return Finish($"SI populate stopped after failed or stalled logins: Alliance {alliance}/{targets.Alliance}, Horde {horde}/{targets.Horde}; failures {failures}. Check server logs before retrying.");
+                    return Finish($"SI populate stopped after failed or stalled logins: added Alliance {alliance}/{targets.Alliance}, Horde {horde}/{targets.Horde}; failures {failures}. Check server logs before retrying.");
                 if(spawned-lastProgress>=50)
-                {lastProgress=spawned;h.SendSysMessage($"SI populate: Alliance {alliance}/{targets.Alliance}, Horde {horde}/{targets.Horde}; created {created}, failures {failures}.");}
+                {lastProgress=spawned;h.SendSysMessage($"SI populate: added Alliance {alliance}/{targets.Alliance}, Horde {horde}/{targets.Horde}; created {created}, failures {failures}.");}
                 // Bound database creation and native character-login work separately.
                 if(pending.Count>=8||creating.Values.Sum()>=2)return false;
                 int needAlliance=PopulationNeeded(targets.Alliance,alliance,pending.Values.Count(p=>p.Team==Team.Alliance),creating[Team.Alliance]);
@@ -198,6 +200,6 @@ partial class SICommands
             }
             catch(Exception error){return Finish("SI populate failed: "+error.GetBaseException().Message);}
         });
-        h.SendSysMessage($"SI populate target: {total} total, Alliance {targets.Alliance}, Horde {targets.Horde}. Reusing offline SI characters first, then creating and spawning faction shortages. Work is paced; existing online SI players stay online.");
+        h.SendSysMessage($"SI populate: adding {additional} SI players, Alliance {targets.Alliance}, Horde {targets.Horde}. Reusing offline SI characters first, then creating and spawning faction shortages. Work is paced; existing online SI players stay online and do not count toward this batch.");
     }
 }

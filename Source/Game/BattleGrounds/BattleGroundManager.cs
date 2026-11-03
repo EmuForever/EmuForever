@@ -17,7 +17,7 @@ using System.Linq;
 
 namespace Game.BattleGrounds
 {
-    public class BattlegroundManager : Singleton<BattlegroundManager>
+    public partial class BattlegroundManager : Singleton<BattlegroundManager>
     {
         BattlegroundManager()
         {
@@ -241,6 +241,17 @@ namespace Game.BattleGrounds
 
             if (bgTypeId == BattlegroundTypeId.RB || bgTypeId == BattlegroundTypeId.AA || bgTypeId == BattlegroundTypeId.RandomEpic)
                 return null;
+
+            if(bgTypeId==BattlegroundTypeId.WS)
+            {
+                int map=SelectWarsongMap();
+                if(map==0)
+                {
+                    Log.outError(LogFilter.Battleground,"No WSG map has the required map record and flag spawns.");
+                    return null;
+                }
+                bg_template=bg_template.ForMap(map);
+            }
 
             PvpDifficultyRecord bracketEntry = Global.DB2Mgr.GetBattlegroundBracketById(bg_template.BattlemasterEntry.MapId[0], bracketId);
             if (bracketEntry == null)
@@ -844,7 +855,7 @@ namespace Game.BattleGrounds
         public Battleground Template;
     }
 
-    public class BattlegroundTemplate
+    public partial class BattlegroundTemplate
     {
         public BattlegroundTypeId Id;
         public WorldSafeLocsEntry[] StartLocation = new WorldSafeLocsEntry[SharedConst.PvpTeamsCount];
