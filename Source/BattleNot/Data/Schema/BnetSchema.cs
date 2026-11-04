@@ -9,6 +9,34 @@ sealed class BnetSchema
 
     public BnetSchema(BnotDb db) => _db = db;
 
+    int _gameNamesReady;
+    readonly SemaphoreSlim _gameNamesGate = new(1, 1);
+
+    public async Task EnsureGameAccountNames()
+    {
+        if (Volatile.Read(ref _gameNamesReady) == 1) return;
+        await _gameNamesGate.WaitAsync();
+        try {
+            if (_gameNamesReady == 1) return;
+            await using var conn = _db.Connect(); await conn.OpenAsync();
+            await using var schemaLock = await Framework.Database.MySqlNamedLock.AcquireAsync(conn, "bnot-name-schema");
+            if (await ColumnMissing(conn,"account","bnot_name")) {
+                await using var add = new MySqlCommand("ALTER TABLE account ADD COLUMN bnot_name VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL",conn);
+                await add.ExecuteNonQueryAsync();
+            }
+            if (await ColumnMissing(conn,"account","bnot_name_key")) {
+                await using var add = new MySqlCommand("ALTER TABLE account ADD COLUMN bnot_name_key VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS (COALESCE(NULLIF(bnot_name,''),username)) STORED",conn);
+                await add.ExecuteNonQueryAsync();
+            }
+            if (await IndexMissing(conn,"account","uk_bnot_account_name")) {
+                await using var add = new MySqlCommand("ALTER TABLE account ADD UNIQUE KEY uk_bnot_account_name (battlenet_account,bnot_name_key)",conn);
+                await add.ExecuteNonQueryAsync();
+            }
+            Volatile.Write(ref _gameNamesReady,1);
+        }
+        finally { _gameNamesGate.Release(); }
+    }
+
     int _bnetReady;
     readonly SemaphoreSlim _bnetGate = new(1, 1);
 
@@ -21,6 +49,7 @@ sealed class BnetSchema
         {
             if (_bnetReady == 1)
                 return;
+            await EnsureGameAccountNames();
             await EnsureSocialTables();
             await using MySqlConnection conn = _db.Connect();
             await conn.OpenAsync();

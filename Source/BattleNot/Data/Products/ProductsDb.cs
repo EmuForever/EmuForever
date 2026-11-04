@@ -72,7 +72,7 @@ sealed class ProductsDb(BnotDb db)
         await using var conn = db.Connect();
         await conn.OpenAsync();
         await using var query = new MySqlCommand("""
-            SELECT id, name, family, enabled, distribution_json, client_json, services_json, updates_json
+            SELECT id, name, family, enabled, distribution_json, client_json, services_json, updates_json, sort_order
             FROM bnot_products ORDER BY sort_order, id
             """, conn);
         await using var reader = await query.ExecuteReaderAsync();
@@ -82,6 +82,7 @@ sealed class ProductsDb(BnotDb db)
                 Id = reader.GetString(0), Name = reader.GetString(1), Family = reader.GetString(2), Enabled = reader.GetBoolean(3),
                 Distribution = Read<ProductDistribution>(reader, 4), Client = Read<ProductClient>(reader, 5),
                 Services = Read<ProductServices>(reader, 6), Updates = Read<ProductUpdates>(reader, 7)
+                , SortOrder = reader.GetInt32(8)
             });
         ProductCatalogJson.Validate(catalog);
         return catalog;

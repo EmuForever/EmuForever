@@ -58,10 +58,13 @@ namespace Game.Networking
         internal static uint Get70755ServerWireOpcode(uint wireOpcode) =>
             wireOpcode >= 0x4700EC && wireOpcode <= 0x47FFFF ? wireOpcode + 1 : wireOpcode;
 
+        // Builds 70755 and newer use this wire profile; older builds retain their base map.
+        internal static bool Uses70755WireProfile(uint clientBuild) => clientBuild >= 70755;
+
         public static uint ToCore(uint wireOpcode, uint clientBuild = 0) =>
-            (clientBuild == 70755 ? Client70755ToCore : ClientToCore).GetValueOrDefault(wireOpcode, wireOpcode);
+            (Uses70755WireProfile(clientBuild) ? Client70755ToCore : ClientToCore).GetValueOrDefault(wireOpcode, wireOpcode);
 
         public static uint ToClient(uint coreOpcode, uint clientBuild = 0) =>
-            (clientBuild == 70755 ? ServerTo70755 : ServerToClient).GetValueOrDefault(coreOpcode, coreOpcode);
+            (Uses70755WireProfile(clientBuild) ? ServerTo70755 : ServerToClient).GetValueOrDefault(coreOpcode, coreOpcode);
     }
 }

@@ -14,6 +14,7 @@ sealed class BnotProduct
     public string Name { get; set; } = "";
     public string Family { get; set; } = "World of Warcraft";
     public bool Enabled { get; set; }
+    public int SortOrder { get; set; }
     public ProductDistribution Distribution { get; set; } = new();
     public ProductClient Client { get; set; } = new();
     public ProductServices Services { get; set; } = new();

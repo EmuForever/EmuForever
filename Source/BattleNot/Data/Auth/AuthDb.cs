@@ -147,13 +147,15 @@ sealed class AuthDb
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public async Task<List<(string Name, byte Expansion, bool Suspended, bool Banned, string Reason, ulong Expires)>> GameAccounts(string ticket)
+    public async Task<List<(uint Id, string Name, byte Expansion, bool Suspended, bool Banned, string Reason, ulong Expires)>?> GameAccounts(string ticket)
     {
-        var list = new List<(string, byte, bool, bool, string, ulong)>();
+        await _db.Schema.EnsureGameAccountNames();
+        var list = new List<(uint, string, byte, bool, bool, string, ulong)>();
         await using MySqlConnection conn = _db.Connect();
         await conn.OpenAsync();
+        if (await GameAccountOwner(conn, null, ticket) == null) return null;
         await using var cmd = new MySqlCommand(
-            "SELECT a.username, a.expansion, ab.bandate, ab.unbandate, ab.banreason FROM account AS a LEFT JOIN account_banned AS ab ON a.id = ab.id AND ab.active = 1 INNER JOIN bnot_accounts AS ba ON a.battlenet_account = ba.id WHERE ba.LoginTicket = @ticket ORDER BY a.id", conn);
+            "SELECT a.bnot_name_key, a.expansion, ab.bandate, ab.unbandate, ab.banreason, a.id FROM account AS a LEFT JOIN account_banned AS ab ON a.id = ab.id AND ab.active = 1 INNER JOIN bnot_accounts AS ba ON a.battlenet_account = ba.id WHERE ba.LoginTicket = @ticket ORDER BY a.id", conn);
         cmd.Parameters.AddWithValue("@ticket", ticket);
         await using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
         uint now = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -163,6 +165,7 @@ sealed class AuthDb
             uint ban = hasBan ? reader.GetUInt32(2) : 0;
             uint unban = hasBan && !reader.IsDBNull(3) ? reader.GetUInt32(3) : 0;
             list.Add((
+                reader.GetUInt32(5),
                 reader.GetString(0),
                 reader.GetByte(1),
                 hasBan && unban > now,
@@ -173,14 +176,85 @@ sealed class AuthDb
         return list;
     }
 
+    static async Task<(uint Id, string Email, bool Locked, string Ip)?> GameAccountOwner(MySqlConnection conn, MySqlTransaction? tx, string ticket)
+    {
+        await using var cmd = new MySqlCommand(
+            "SELECT ba.id, ba.email, ba.locked, ba.last_ip FROM bnot_accounts ba " +
+            "WHERE ba.LoginTicket=@ticket AND ba.LoginTicketExpiry>UNIX_TIMESTAMP() " +
+            "AND NOT EXISTS (SELECT 1 FROM bnot_account_bans b WHERE b.id=ba.id AND (b.unbandate=b.bandate OR b.unbandate>UNIX_TIMESTAMP())) " +
+            "LIMIT 1" + (tx == null ? "" : " FOR UPDATE"),conn,tx);
+        cmd.Parameters.AddWithValue("@ticket",ticket);
+        await using var reader=await cmd.ExecuteReaderAsync();
+        return await reader.ReadAsync() ? (reader.GetUInt32(0),reader.GetString(1),reader.GetBoolean(2),reader.IsDBNull(3) ? "" : reader.GetString(3)) : null;
+    }
+
+    public async Task<(uint Id, string Name, string? Error)> CreateGameAccount(string ticket, string remoteIp, string? requestedName = null)
+    {
+        await _db.Schema.EnsureGameAccountNames();
+        string? customName = requestedName == null ? null : Text.UpperLatin(requestedName.Trim());
+        if (customName != null && !ValidAccountName(customName)) return (0,"","username");
+        await using var conn=_db.Connect(); await conn.OpenAsync();
+        var preliminary=await GameAccountOwner(conn,null,ticket);
+        if (preliminary == null) return (0,"","unauthorized");
+        await using var accountLock=await Framework.Database.MySqlNamedLock.AcquireAsync(conn,"game-account-create");
+        await Framework.Database.AccountIdAllocator.EnsureAsync(conn);
+        await using var tx=await conn.BeginTransactionAsync();
+        try {
+            var owner=await GameAccountOwner(conn,tx,ticket);
+            if (owner == null) return (0,"","unauthorized");
+            if (owner.Value.Locked && !SameIp(owner.Value.Ip,remoteIp)) return (0,"","locked");
+            int index;
+            await using (var maximum=new MySqlCommand("SELECT COALESCE(MAX(battlenet_index),0) FROM account WHERE battlenet_account=@owner",conn,tx)) {
+                maximum.Parameters.AddWithValue("@owner",owner.Value.Id); index=Convert.ToInt32(await maximum.ExecuteScalarAsync())+1;
+            }
+            if (customName != null) {
+                await using var duplicate = new MySqlCommand("SELECT 1 FROM account WHERE battlenet_account=@owner AND bnot_name_key=@name LIMIT 1",conn,tx);
+                duplicate.Parameters.AddWithValue("@owner",owner.Value.Id); duplicate.Parameters.AddWithValue("@name",customName);
+                if (await duplicate.ExecuteScalarAsync()!=null) return (0,"","username_exists");
+            }
+            string name="";
+            for (;index<=byte.MaxValue;index++) {
+                name=owner.Value.Id+"#"+index;
+                if (await Scalar(conn,tx,"SELECT 1 FROM account WHERE username=@v LIMIT 1",name)==null) break;
+            }
+            if (index>byte.MaxValue) return (0,"","limit");
+            // Match core gameaccountcreate: BNet-only account with random GRUNT credentials.
+            var (salt,verifier)=GameSrp.Make(name,Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(8)));
+            uint id=await Framework.Database.AccountIdAllocator.ReserveAsync(conn,tx);
+            await using (var insert=new MySqlCommand(
+                "INSERT INTO account(id,username,bnot_name,salt,verifier,reg_mail,email,joindate,battlenet_account,battlenet_index) " +
+                "VALUES(@id,@name,@publicName,@salt,@verifier,@email,@email,NOW(),@owner,@index)",conn,tx)) {
+                insert.Parameters.AddWithValue("@id",id); insert.Parameters.AddWithValue("@name",name);
+                insert.Parameters.AddWithValue("@publicName",(object?)customName ?? DBNull.Value);
+                insert.Parameters.AddWithValue("@salt",salt); insert.Parameters.AddWithValue("@verifier",verifier);
+                insert.Parameters.AddWithValue("@email",owner.Value.Email); insert.Parameters.AddWithValue("@owner",owner.Value.Id);
+                insert.Parameters.AddWithValue("@index",index); await insert.ExecuteNonQueryAsync();
+            }
+            await using (var realms=new MySqlCommand("INSERT INTO realmcharacters(realmid,acctid,numchars) SELECT id,@id,0 FROM realmlist",conn,tx)) {
+                realms.Parameters.AddWithValue("@id",id); await realms.ExecuteNonQueryAsync();
+            }
+            await tx.CommitAsync();
+            Log.outDebug(LogFilter.Http,$"Game account {id} created for BattleNot account {owner.Value.Id}.");
+            return (id,customName ?? name,null);
+        }
+        catch (MySqlException ex) {
+            try { await tx.RollbackAsync(); } catch { }
+            Log.outError(LogFilter.Sql,"Game account creation failed: "+ex.Number);
+            return (0,"","failed");
+        }
+    }
+
+    static bool SameIp(string left,string right) => System.Net.IPAddress.TryParse(left,out var a) && System.Net.IPAddress.TryParse(right,out var b) && a.MapToIPv6().Equals(b.MapToIPv6());
+
     public async Task<BnetAccount?> AccountByTicket(string ticket)
     {
+        await _db.Schema.EnsureGameAccountNames();
         await using MySqlConnection conn = _db.Connect();
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
             "SELECT ba.id, UPPER(ba.email), ba.locked, ba.lock_country, ba.last_ip, ba.LoginTicketExpiry, " +
             "bab.unbandate > UNIX_TIMESTAMP() OR bab.unbandate = bab.bandate, bab.unbandate = bab.bandate, " +
-            "a.id, a.username, ab.bandate, ab.unbandate, ab.unbandate = ab.bandate, aa.SecurityLevel " +
+            "a.id, a.username, ab.bandate, ab.unbandate, ab.unbandate = ab.bandate, aa.SecurityLevel, a.bnot_name_key " +
             "FROM bnot_accounts ba LEFT JOIN bnot_account_bans bab ON ba.id = bab.id " +
             "LEFT JOIN account a ON ba.id = a.battlenet_account " +
             "LEFT JOIN account_banned ab ON a.id = ab.id AND ab.active = 1 " +
@@ -209,12 +283,11 @@ sealed class AuthDb
             if (account.Games.Any(g => g.Id == gameId))
                 continue;
             string name = reader.IsDBNull(9) ? "" : reader.GetString(9);
-            int hash = name.IndexOf('#');
             account.Games.Add(new GameAccount
             {
                 Id = gameId,
                 Name = name,
-                DisplayName = hash >= 0 ? "WoW" + name[(hash + 1)..] : name,
+                AccountName = reader.IsDBNull(14) ? name : reader.GetString(14),
                 BanDate = reader.IsDBNull(10) ? 0 : reader.GetUInt32(10),
                 UnbanDate = reader.IsDBNull(11) ? 0 : reader.GetUInt32(11),
                 PermanentlyBanned = !reader.IsDBNull(12) && ToBool(reader.GetValue(12)),
@@ -277,6 +350,7 @@ sealed class AuthDb
 
     public async Task<string?> CreateAccount(string username, string email, string password)
     {
+        await _db.Schema.EnsureGameAccountNames();
         username = Text.UpperLatin((username ?? "").Trim());
         email = Text.UpperLatin((email ?? "").Trim());
         if (!ValidAccountName(username))
@@ -291,7 +365,7 @@ sealed class AuthDb
         string gamePass = Text.UpperLatin(password);
         if (gamePass.Length > 16)
             gamePass = gamePass.Substring(0, 16);
-        (byte[] gameSalt, byte[] gameVerifier) = GameSrp.Make(username, gamePass);
+
 
         await using MySqlConnection conn = _db.Connect();
         await conn.OpenAsync();
@@ -307,11 +381,6 @@ sealed class AuthDb
                 await tx.RollbackAsync();
                 return "email_exists";
             }
-            if (await Scalar(conn, tx, "SELECT 1 FROM account WHERE username = @v LIMIT 1", username) != null)
-            {
-                await tx.RollbackAsync();
-                return "username_exists";
-            }
 
             uint bnetId = await Framework.Database.AccountIdAllocator.ReserveAsync(conn, tx, "bnot_accounts", "bnot_account_id_allocator");
             await using (var insert = new MySqlCommand(
@@ -324,12 +393,22 @@ sealed class AuthDb
                 await insert.ExecuteNonQueryAsync();
             }
 
+            int gameIndex=1;
+            string loginName="";
+            for (;gameIndex<=byte.MaxValue;gameIndex++) {
+                loginName=bnetId+"#"+gameIndex;
+                if (await Scalar(conn,tx,"SELECT 1 FROM account WHERE username=@v LIMIT 1",loginName)==null) break;
+            }
+            if (gameIndex>byte.MaxValue) { await tx.RollbackAsync(); return "fail"; }
+            (byte[] gameSalt, byte[] gameVerifier) = GameSrp.Make(loginName, gamePass);
             uint accountId = await Framework.Database.AccountIdAllocator.ReserveAsync(conn,tx);
             await using (var insert = new MySqlCommand(
-                "INSERT INTO account (id, username, salt, verifier, reg_mail, email, joindate, battlenet_account, battlenet_index, expansion) VALUES (@accountId, @user, @salt, @verifier, @email, @email, NOW(), @bnet, 1, 0)", conn, tx))
+                "INSERT INTO account (id, username, bnot_name, salt, verifier, reg_mail, email, joindate, battlenet_account, battlenet_index, expansion) VALUES (@accountId, @user, @publicName, @salt, @verifier, @email, @email, NOW(), @bnet, @gameIndex, 0)", conn, tx))
             {
                 insert.Parameters.AddWithValue("@accountId", accountId);
-                insert.Parameters.AddWithValue("@user", username);
+                insert.Parameters.AddWithValue("@user", loginName);
+                insert.Parameters.AddWithValue("@publicName", username);
+                insert.Parameters.AddWithValue("@gameIndex", gameIndex);
                 insert.Parameters.AddWithValue("@salt", gameSalt);
                 insert.Parameters.AddWithValue("@verifier", gameVerifier);
                 insert.Parameters.AddWithValue("@email", email);
@@ -402,19 +481,19 @@ sealed class AuthDb
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public async Task UpdateGameLogin(string username, byte[] sessionKey, string ip, uint build, byte locale, string os, short timezone)
+    public async Task UpdateGameLogin(uint accountId, byte[] sessionKey, string ip, uint build, byte locale, string os, short timezone)
     {
         await using MySqlConnection conn = _db.Connect();
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
-            "UPDATE account SET session_key_bnet = @key, last_ip = @ip, last_login = NOW(), client_build = @build, locale = @locale, failed_logins = 0, os = @os, timezone_offset = @tz WHERE username = @name", conn);
+            "UPDATE account SET session_key_bnet = @key, last_ip = @ip, last_login = NOW(), client_build = @build, locale = @locale, failed_logins = 0, os = @os, timezone_offset = @tz WHERE id = @id", conn);
         cmd.Parameters.AddWithValue("@key", sessionKey);
         cmd.Parameters.AddWithValue("@ip", ip);
         cmd.Parameters.AddWithValue("@build", build);
         cmd.Parameters.AddWithValue("@locale", locale);
         cmd.Parameters.AddWithValue("@os", os);
         cmd.Parameters.AddWithValue("@tz", timezone);
-        cmd.Parameters.AddWithValue("@name", username);
+        cmd.Parameters.AddWithValue("@id", accountId);
         await cmd.ExecuteNonQueryAsync();
     }
 

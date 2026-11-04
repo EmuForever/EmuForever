@@ -38,12 +38,6 @@ static class Text
 
     public static bool ValidPlatform(string platform) => platform is "Win" or "Wn64" or "WinA" or "Mac" or "Mc64" or "MacA";
 
-    public static string DisplayName(string username)
-    {
-        int hash = username.IndexOf('#');
-        return hash >= 0 ? "WoW" + username[(hash + 1)..] : username;
-    }
-
     public static string Ticket()
     {
         Span<byte> bytes = stackalloc byte[20];
@@ -70,6 +64,7 @@ sealed class LoginRest
     {
         app.MapGet("/bnetserver/login/", (Delegate)Form);
         app.MapGet("/bnetserver/gameAccounts/", (Delegate)GameAccounts);
+        app.MapPost("/bnetserver/gameAccounts/", (Delegate)CreateGameAccount);
         app.MapGet("/bnetserver/portal/", (Delegate)Portal);
         app.MapGet("/bnetserver/versions/", (Delegate)Versions);
         app.MapGet("/bnetserver/realms/", (Delegate)Realms);
@@ -249,16 +244,44 @@ sealed class LoginRest
         if (string.IsNullOrEmpty(ticket))
             return Results.StatusCode(401);
         var accounts = await _db.Auth.GameAccounts(ticket);
+        if (accounts == null) return Results.StatusCode(401);
+        ctx.Response.Headers.CacheControl = "no-store";
         var parts = new List<string>();
         foreach (var account in accounts)
         {
-            string row = "{\"display_name\":" + JsonText.Quote(Text.DisplayName(account.Name)) + ",\"expansion\":" + account.Expansion;
+            string row = "{\"id\":" + account.Id + ",\"account_name\":" + JsonText.Quote(account.Name) + ",\"display_name\":" + JsonText.Quote(account.Name) + ",\"expansion\":" + account.Expansion;
             if (account.Suspended || account.Banned)
                 row += ",\"is_suspended\":" + (account.Suspended ? "true" : "false") + ",\"is_banned\":" + (account.Banned ? "true" : "false") +
                        ",\"suspension_reason\":" + JsonText.Quote(account.Reason) + ",\"suspension_expires\":" + account.Expires;
             parts.Add(row + "}");
         }
-        return Json("{\"game_accounts\":[" + string.Join(",", parts) + "]}");
+        return Json("{\"can_create_game_account\":true,\"can_name_game_account\":true,\"game_accounts\":[" + string.Join(",", parts) + "]}");
+    }
+
+    async Task<IResult> CreateGameAccount(HttpContext ctx)
+    {
+        string? ticket=Authorization(ctx);
+        if (string.IsNullOrEmpty(ticket)) return Results.StatusCode(401);
+        string ip=(ctx.Connection.RemoteIpAddress ?? IPAddress.Loopback).ToString();
+        if (await _db.Auth.IsIpBanned(ip)) return Results.StatusCode(403);
+        try {
+            using JsonDocument? request = await ReadJson(ctx);
+            if (request == null || request.RootElement.ValueKind != JsonValueKind.Object) return Results.Json(new { ok=false,error="username" },statusCode:400);
+            string? username = null;
+            if (request.RootElement.TryGetProperty("username",out var value)) {
+                if (value.ValueKind != JsonValueKind.String) return Results.Json(new { ok=false,error="username" },statusCode:400);
+                username = value.GetString() ?? "";
+            }
+            var created=await _db.Auth.CreateGameAccount(ticket,ip,username);
+            if (created.Error=="unauthorized") return Results.StatusCode(401);
+            if (created.Error!=null) return Results.Json(new { ok=false,error=created.Error },statusCode:created.Error=="locked" ? 403 : created.Error=="username" ? 400 : created.Error=="limit" || created.Error=="username_exists" ? 409 : 503);
+            ctx.Response.Headers.CacheControl="no-store";
+            return Results.Json(new { ok=true,game_account=new { id=created.Id,account_name=created.Name,display_name=created.Name } });
+        }
+        catch (Exception ex) {
+            Log.outError(LogFilter.Http,"Game account creation failed: "+ex.GetType().Name);
+            return Results.Json(new { ok=false,error="failed" },statusCode:503);
+        }
     }
 
     async Task<IResult> Srp(HttpContext ctx)

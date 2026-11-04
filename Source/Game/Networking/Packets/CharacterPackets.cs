@@ -542,7 +542,7 @@ namespace Game.Networking.Packets
 
             // 70755's reader (0x6201F0..0x620349) consumes this flag even for
             // an empty collection. Omitting it leaves character select waiting.
-            if (_clientBuild == 70755)
+            if (ClassicOpcodeMap.Uses70755WireProfile(_clientBuild))
             {
                 _worldPacket.WriteBit(false);
                 _worldPacket.FlushBits();

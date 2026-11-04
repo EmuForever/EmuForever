@@ -17,8 +17,9 @@ sealed class BnetAccount
 sealed class GameAccount
 {
     public uint Id;
+    // Name is the unique world-login identity; AccountName is owner-local.
     public string Name = "";
-    public string DisplayName = "";
+    public string AccountName = "";
     public bool Banned;
     public bool PermanentlyBanned;
     public uint BanDate;

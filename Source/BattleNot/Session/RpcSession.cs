@@ -551,7 +551,7 @@ sealed class PlayerSession
                 result.String(7, tag);
             await Request(stream, Rpc.AuthListenerV1, 5, result.ToArray());
         }
-        Log.outInfo(LogFilter.Network, $"Battle.not logon {_ip} account {account.Id} ({account.Email}) {tag}, {account.Games.Count} game account(s).");
+        Log.outInfo(LogFilter.Network, $"Battle.not logon {_ip} account {account.Id} ({account.Email}) {tag}, {account.Games.Count} game account(s), auth v{(v2 ? 2 : 1)}.");
     }
 
     async Task Account(SslStream stream, uint hash, uint method, uint token, byte[] payload)
@@ -599,7 +599,7 @@ sealed class PlayerSession
             {
                 var info = new ProtoWriter();
                 info.Varint(1, game.Id);
-                info.String(2, game.DisplayName);
+                info.String(2, game.AccountName);
                 response.Message(1, info);
             }
             await Respond(stream, token, Rpc.ErrorOk, response.ToArray());
@@ -627,7 +627,9 @@ sealed class PlayerSession
         }
         if (hash == Rpc.AccountV1 && method is 30 or 31)
         {
-            await Respond(stream, token, Rpc.ErrorOk, []);
+            var reply = AccountStateReplies.BuildV1(_account, method, payload);
+            Log.outDebug(LogFilter.Network, $"Account v1 method {method}: {_account.Games.Count} owned game account(s), response {reply.Body.Length} bytes, status 0x{reply.Status:X}.");
+            await Respond(stream, token, reply.Status, reply.Body);
             return;
         }
         await Respond(stream, token, method == 0 ? Rpc.ErrorRpcInvalidMethod : Rpc.ErrorRpcNotImplemented, null);
@@ -1011,7 +1013,7 @@ sealed class PlayerSession
             if (!PersistedRealmJoinCredentials.TryGetValue(game.Id, out RealmJoinCredential? persisted)
                 || !ReferenceEquals(persisted, credential))
             {
-                await _db.Auth.UpdateGameLogin(game.Name, credential.SessionKey, _ip, _build, Text.Locale(_locale), _platform, _timezone);
+                await _db.Auth.UpdateGameLogin(game.Id, credential.SessionKey, _ip, _build, Text.Locale(_locale), _platform, _timezone);
                 PersistedRealmJoinCredentials[game.Id] = credential;
             }
         }
